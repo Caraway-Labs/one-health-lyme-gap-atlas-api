@@ -531,7 +531,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14,<2" },
-    { name = "one-health-lyme-gap-atlas-shared", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.0" },
+    { name = "one-health-lyme-gap-atlas-shared", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.1" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.51b0,<1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9,<1" },
@@ -541,8 +541,8 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "one-health-lyme-gap-atlas-shared"
-version = "0.1.0"
-source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.0#98c8628df0e6b3abc352550d68d4407155051f21" }
+version = "0.1.1"
+source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.1#fe4b29fa63ea3d649c9c0917f5d0f801e2fc7f05" }
 dependencies = [
     { name = "cryptography" },
     { name = "opentelemetry-api" },
