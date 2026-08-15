@@ -95,3 +95,16 @@ def test_validation_and_unknown_release() -> None:
     assert invalid.status_code == 422
     assert invalid.headers["content-type"].startswith("application/problem+json")
     assert api.get("/v1/atlas/metadata?dataset_version=missing").status_code == 404
+
+
+def test_comma_separated_cors_origins_work_from_environment(monkeypatch) -> None:
+    monkeypatch.setenv("CORS_ORIGINS", "https://carawaylabs.com,http://localhost:3000")
+
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+    )
+
+    assert settings.cors_origins == ["https://carawaylabs.com", "http://localhost:3000"]

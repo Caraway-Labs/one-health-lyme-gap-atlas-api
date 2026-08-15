@@ -1,13 +1,15 @@
 from functools import lru_cache
+from typing import Annotated
 
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from pydantic import Field, field_validator
+from pydantic_settings import NoDecode
 
 
 class ApiSettings(SnowflakeSettings):
     app_name: str = "One Health Lyme Gap Atlas API"
     app_version: str = "0.1.0"
-    cors_origins: list[str] = Field(
+    cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["https://carawaylabs.com", "http://localhost:3000"]
     )
     cache_ttl_seconds: int = Field(default=300, ge=30, le=3600)
