@@ -1,5 +1,10 @@
 name: one-health-lyme-gap-atlas-api
 region: sfo
+domains:
+  - domain: api.carawaylabs.com
+    type: PRIMARY
+    zone: carawaylabs.com
+    minimum_tls_version: "1.2"
 alerts:
   - rule: DEPLOYMENT_FAILED
   - rule: DOMAIN_FAILED
