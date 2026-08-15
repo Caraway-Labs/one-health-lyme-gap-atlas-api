@@ -23,8 +23,11 @@ jobs:
       - run: uv run python scripts/export_openapi.py
       - run: git diff --exit-code -- openapi.json
       - run: docker build .
-      - uses: gitleaks/gitleaks-action@v2
-        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Scan Git history for secrets
+        run: >-
+          docker run --rm -v "$PWD:/repo"
+          ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+          git /repo --redact --no-banner
   deploy:
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
