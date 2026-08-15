@@ -1,0 +1,41 @@
+name: Quality and deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { enable-cache: true }
+      - run: uv sync --extra dev --locked
+      - run: uv run ruff check .
+      - run: uv run mypy
+      - run: uv run pytest -q
+      - run: uv run python scripts/export_openapi.py
+      - run: git diff --exit-code -- openapi.json
+      - run: docker build .
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+  deploy:
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      vars.DIGITALOCEAN_APP_ID != ''
+    needs: quality
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.carawaylabs.com/docs
+    concurrency: { group: api-production, cancel-in-progress: false }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: digitalocean/app_action/deploy@v2
+        with: { token: "${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}" }

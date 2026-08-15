@@ -1,0 +1,975 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "One Health Lyme Gap Atlas API",
+    "description": "Public read-only API for the One Health Lyme Gap Atlas.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Live",
+        "operationId": "live_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Live Health Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Ready",
+        "operationId": "ready_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Ready Health Ready Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/atlas/metadata": {
+      "get": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "Metadata",
+        "operationId": "metadata_v1_atlas_metadata_get",
+        "parameters": [
+          {
+            "name": "dataset_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtlasMetadata"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/atlas/geometry": {
+      "get": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "Geometry",
+        "operationId": "geometry_v1_atlas_geometry_get",
+        "parameters": [
+          {
+            "name": "dataset_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/atlas/scores": {
+      "get": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "Scores",
+        "operationId": "scores_v1_atlas_scores_get",
+        "parameters": [
+          {
+            "name": "dataset_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Version"
+            }
+          },
+          {
+            "name": "ecological_share",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "multipleOf": 5,
+              "maximum": 85,
+              "minimum": 40,
+              "default": 65,
+              "title": "Ecological Share"
+            }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 5,
+              "default": 10,
+              "title": "Low Incidence Breakpoint"
+            }
+          },
+          {
+            "name": "missing_human_weakness",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "multipleOf": 5,
+              "maximum": 90,
+              "minimum": 40,
+              "default": 75,
+              "title": "Missing Human Weakness"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreCollection"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/counties/{fips}": {
+      "get": {
+        "tags": [
+          "counties"
+        ],
+        "summary": "County",
+        "operationId": "county_v1_counties__fips__get",
+        "parameters": [
+          {
+            "name": "fips",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{5}$",
+              "title": "Fips"
+            }
+          },
+          {
+            "name": "dataset_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Version"
+            }
+          },
+          {
+            "name": "ecological_share",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "multipleOf": 5,
+              "maximum": 85,
+              "minimum": 40,
+              "default": 65,
+              "title": "Ecological Share"
+            }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 5,
+              "default": 10,
+              "title": "Low Incidence Breakpoint"
+            }
+          },
+          {
+            "name": "missing_human_weakness",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "multipleOf": 5,
+              "maximum": 90,
+              "minimum": 40,
+              "default": 75,
+              "title": "Missing Human Weakness"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountyDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/atlas/ranking.csv": {
+      "get": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "Ranking Csv",
+        "operationId": "ranking_csv_v1_atlas_ranking_csv_get",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(ALL|[A-Z]{2})$",
+              "default": "ALL",
+              "title": "State"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "evidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "ecological",
+                "human",
+                "complete"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Evidence"
+            }
+          },
+          {
+            "name": "ecological_share",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "multipleOf": 5,
+              "maximum": 85,
+              "minimum": 40,
+              "default": 65,
+              "title": "Ecological Share"
+            }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 5,
+              "default": 10,
+              "title": "Low Incidence Breakpoint"
+            }
+          },
+          {
+            "name": "missing_human_weakness",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "multipleOf": 5,
+              "maximum": 90,
+              "minimum": 40,
+              "default": 75,
+              "title": "Missing Human Weakness"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AtlasMetadata": {
+        "properties": {
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "loaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Loaded At"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope"
+          },
+          "bundle_sha256": {
+            "type": "string",
+            "title": "Bundle Sha256"
+          },
+          "score_defaults": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Score Defaults"
+          },
+          "methodology_version": {
+            "type": "string",
+            "title": "Methodology Version"
+          },
+          "limitations": {
+            "type": "string",
+            "title": "Limitations"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceMetadata"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "states": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "States"
+          }
+        },
+        "type": "object",
+        "required": [
+          "release_id",
+          "schema_version",
+          "generated_at",
+          "loaded_at",
+          "scope",
+          "bundle_sha256",
+          "score_defaults",
+          "methodology_version",
+          "limitations",
+          "sources",
+          "states"
+        ],
+        "title": "AtlasMetadata"
+      },
+      "CountyDetail": {
+        "properties": {
+          "fips": {
+            "type": "string",
+            "title": "Fips"
+          },
+          "county": {
+            "type": "string",
+            "title": "County"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "state_name": {
+            "type": "string",
+            "title": "State Name"
+          },
+          "in_contiguous_tick_scope": {
+            "type": "boolean",
+            "title": "In Contiguous Tick Scope"
+          },
+          "human_status": {
+            "type": "string",
+            "title": "Human Status"
+          },
+          "tick_status": {
+            "type": "string",
+            "title": "Tick Status"
+          },
+          "burgdorferi_status": {
+            "type": "string",
+            "title": "Burgdorferi Status"
+          },
+          "evidence_completeness": {
+            "type": "integer",
+            "title": "Evidence Completeness"
+          },
+          "score": {
+            "$ref": "#/components/schemas/Score"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          },
+          "population": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Population"
+          },
+          "case_count_floor_2023": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Count Floor 2023"
+          },
+          "incidence_floor_2023": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incidence Floor 2023"
+          },
+          "state_unallocated_records_2023": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Unallocated Records 2023"
+          },
+          "scapularis_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scapularis Status"
+          },
+          "pacificus_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pacificus Status"
+          },
+          "svi_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Svi Percentile"
+          },
+          "uninsured_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uninsured Percentile"
+          },
+          "uninsured_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uninsured Percent"
+          },
+          "rucc_2023": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rucc 2023"
+          },
+          "release": {
+            "$ref": "#/components/schemas/AtlasMetadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fips",
+          "county",
+          "state",
+          "state_name",
+          "in_contiguous_tick_scope",
+          "human_status",
+          "tick_status",
+          "burgdorferi_status",
+          "evidence_completeness",
+          "score",
+          "priority",
+          "color",
+          "population",
+          "case_count_floor_2023",
+          "incidence_floor_2023",
+          "state_unallocated_records_2023",
+          "scapularis_status",
+          "pacificus_status",
+          "svi_percentile",
+          "uninsured_percentile",
+          "uninsured_percent",
+          "rucc_2023",
+          "release"
+        ],
+        "title": "CountyDetail"
+      },
+      "CountyScoreSummary": {
+        "properties": {
+          "fips": {
+            "type": "string",
+            "title": "Fips"
+          },
+          "county": {
+            "type": "string",
+            "title": "County"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "state_name": {
+            "type": "string",
+            "title": "State Name"
+          },
+          "in_contiguous_tick_scope": {
+            "type": "boolean",
+            "title": "In Contiguous Tick Scope"
+          },
+          "human_status": {
+            "type": "string",
+            "title": "Human Status"
+          },
+          "tick_status": {
+            "type": "string",
+            "title": "Tick Status"
+          },
+          "burgdorferi_status": {
+            "type": "string",
+            "title": "Burgdorferi Status"
+          },
+          "evidence_completeness": {
+            "type": "integer",
+            "title": "Evidence Completeness"
+          },
+          "score": {
+            "$ref": "#/components/schemas/Score"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fips",
+          "county",
+          "state",
+          "state_name",
+          "in_contiguous_tick_scope",
+          "human_status",
+          "tick_status",
+          "burgdorferi_status",
+          "evidence_completeness",
+          "score",
+          "priority",
+          "color"
+        ],
+        "title": "CountyScoreSummary"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Score": {
+        "properties": {
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "human_weakness": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Human Weakness"
+          },
+          "ecological": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Ecological"
+          },
+          "community": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Community"
+          },
+          "tick_signal": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Tick Signal"
+          },
+          "pathogen_signal": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Pathogen Signal"
+          },
+          "svi_signal": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Svi Signal"
+          },
+          "access_signal": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Access Signal"
+          },
+          "rural_signal": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Rural Signal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score",
+          "human_weakness",
+          "ecological",
+          "community",
+          "tick_signal",
+          "pathogen_signal",
+          "svi_signal",
+          "access_signal",
+          "rural_signal"
+        ],
+        "title": "Score"
+      },
+      "ScoreCollection": {
+        "properties": {
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "methodology_version": {
+            "type": "string",
+            "title": "Methodology Version"
+          },
+          "settings": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Settings"
+          },
+          "counties": {
+            "items": {
+              "$ref": "#/components/schemas/CountyScoreSummary"
+            },
+            "type": "array",
+            "title": "Counties"
+          }
+        },
+        "type": "object",
+        "required": [
+          "release_id",
+          "methodology_version",
+          "settings",
+          "counties"
+        ],
+        "title": "ScoreCollection"
+      },
+      "SourceMetadata": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "vintage": {
+            "type": "string",
+            "title": "Vintage"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "vintage",
+          "url",
+          "note"
+        ],
+        "title": "SourceMetadata"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

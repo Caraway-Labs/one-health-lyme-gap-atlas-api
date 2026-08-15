@@ -1,0 +1,63 @@
+name: one-health-lyme-gap-atlas-api
+region: sfo
+domains:
+  - domain: api.carawaylabs.com
+    type: PRIMARY
+    zone: carawaylabs.com
+    minimum_tls_version: "1.2"
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED
+services:
+  - name: api
+    github:
+      repo: Caraway-Labs/one-health-lyme-gap-atlas-api
+      branch: main
+      deploy_on_push: false
+    dockerfile_path: Dockerfile
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /health/ready
+      initial_delay_seconds: 20
+      period_seconds: 15
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 5
+    liveness_health_check:
+      http_path: /health/live
+      initial_delay_seconds: 10
+      period_seconds: 15
+      timeout_seconds: 5
+      failure_threshold: 5
+    envs:
+      - key: SNOWFLAKE_ACCOUNT
+        value: VIFDGJW-BVB26657
+        scope: RUN_TIME
+      - key: SNOWFLAKE_USER
+        value: OH_LYME_API_SVC
+        scope: RUN_TIME
+      - key: SNOWFLAKE_WAREHOUSE
+        value: COMPUTE_WH
+        scope: RUN_TIME
+      - key: SNOWFLAKE_ROLE
+        value: OH_LYME_API_READER
+        scope: RUN_TIME
+      - key: SNOWFLAKE_DATABASE
+        value: ONE_HEALTH_LYME_GAP_ATLAS
+        scope: RUN_TIME
+      - key: SNOWFLAKE_PRESENTATION_SCHEMA
+        value: PRESENTATION
+        scope: RUN_TIME
+      - key: SNOWFLAKE_AUTH_METHOD
+        value: key_pair
+        scope: RUN_TIME
+      - key: CORS_ORIGINS
+        value: https://carawaylabs.com,https://www.carawaylabs.com,http://localhost:3000
+        scope: RUN_TIME
+    alerts:
+      - rule: CPU_UTILIZATION
+        operator: GREATER_THAN
+        value: 80
+        window: FIVE_MINUTES
