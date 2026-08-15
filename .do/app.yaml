@@ -49,7 +49,7 @@ services:
         value: key_pair
         scope: RUN_TIME
       - key: CORS_ORIGINS
-        value: https://carawaylabs.com,https://www.carawaylabs.com,http://localhost:3000
+        value: https://carawaylabs.com,https://www.carawaylabs.com,https://one-health-lyme-gap-atlas-web-yqobn.ondigitalocean.app,http://localhost:3000
         scope: RUN_TIME
     alerts:
       - rule: CPU_UTILIZATION
