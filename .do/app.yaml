@@ -33,7 +33,7 @@ services:
       failure_threshold: 5
     envs:
       - key: SNOWFLAKE_ACCOUNT
-        value: VIFDGJW-BVB26657
+        value: VIFDGUW-BVB26657
         scope: RUN_TIME
       - key: SNOWFLAKE_USER
         value: OH_LYME_API_SVC
