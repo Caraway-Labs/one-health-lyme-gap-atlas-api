@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import uuid
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
@@ -11,12 +12,27 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
 from lyme_gap_atlas_shared import ScoreSettings
 from lyme_gap_atlas_shared.observability import configure_logging, configure_tracing
+from openai import OpenAI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import ApiSettings, get_settings
-from .middleware import RateLimitMiddleware, RequestContextMiddleware
-from .models import AtlasMetadata, CountyDetail, ProblemDetails, ScoreCollection
+from .knowledge_chat import (
+    EVIDENCE_UNAVAILABLE,
+    KnowledgeChatService,
+    Neo4jRetriever,
+    OpenAIAnswerer,
+    SnowflakeBudgetStore,
+)
+from .middleware import KnowledgeChatLimitMiddleware, RateLimitMiddleware, RequestContextMiddleware
+from .models import (
+    AtlasMetadata,
+    CountyDetail,
+    KnowledgeChatRequest,
+    KnowledgeChatResponse,
+    ProblemDetails,
+    ScoreCollection,
+)
 from .repository import AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
 
@@ -40,26 +56,45 @@ def _etag(content: bytes) -> str:
 def create_app(
     repository: AtlasRepository | None = None,
     settings: ApiSettings | None = None,
+    knowledge_chat_service: KnowledgeChatService | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
     configure_tracing("one-health-lyme-gap-atlas-api")
     service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
+    if knowledge_chat_service is None and config.knowledge_chat_enabled:
+        neo4j_password = config.neo4j_api_password
+        openai_key = config.openai_api_key
+        hash_secret = config.kg_hash_secret
+        if config.neo4j_uri and neo4j_password and openai_key and hash_secret:
+            openai = OpenAI(api_key=openai_key.get_secret_value())
+            knowledge_chat_service = KnowledgeChatService(
+                Neo4jRetriever(
+                    config.neo4j_uri,
+                    config.neo4j_api_user,
+                    neo4j_password.get_secret_value(),
+                    openai,
+                ),
+                OpenAIAnswerer(openai, config.kg_chat_model),
+                SnowflakeBudgetStore(config) if config.conversation_persistence_enabled else None,
+                hash_secret.get_secret_value(),
+            )
     app = FastAPI(
         title=config.app_name,
         version=config.app_version,
-        description="Public read-only API for the One Health Lyme Gap Atlas.",
+        description="Public API for Atlas data and reviewed knowledge-graph evidence chat.",
     )
     app.state.service = service
     app.add_middleware(GZipMiddleware, minimum_size=1_000)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=config.cors_origins,
-        allow_methods=["GET", "HEAD", "OPTIONS"],
-        allow_headers=["Accept", "If-None-Match", "X-Request-ID"],
-        expose_headers=["ETag", "X-Request-ID"],
+        allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
+        allow_headers=["Accept", "Content-Type", "If-None-Match", "X-Request-ID"],
+        expose_headers=["ETag", "Retry-After", "X-Request-ID"],
     )
     app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
+    app.add_middleware(KnowledgeChatLimitMiddleware)
     app.add_middleware(RequestContextMiddleware)
 
     @app.exception_handler(RequestValidationError)
@@ -103,11 +138,18 @@ def create_app(
     @app.get("/health/ready", tags=["health"])
     def ready() -> dict[str, str]:
         try:
-            if service.ready():
+            graph_ready = (
+                not config.knowledge_chat_enabled
+                or knowledge_chat_service is not None
+                and knowledge_chat_service.ready()
+            )
+            if service.ready() and graph_ready:
                 return {"status": "ready"}
         except Exception as exc:
-            raise HTTPException(status_code=503, detail="Snowflake is unavailable") from exc
-        raise HTTPException(status_code=503, detail="Snowflake is unavailable")
+            raise HTTPException(
+                status_code=503, detail="A required data service is unavailable"
+            ) from exc
+        raise HTTPException(status_code=503, detail="A required data service is unavailable")
 
     @app.get("/v1/atlas/metadata", response_model=AtlasMetadata, tags=["atlas"])
     def metadata(response: Response, dataset_version: str | None = None) -> AtlasMetadata:
@@ -179,6 +221,43 @@ def create_app(
             media_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+    @app.post(
+        "/v1/knowledge-graph/chat",
+        response_model=KnowledgeChatResponse,
+        tags=["knowledge graph"],
+        responses={
+            429: {"model": ProblemDetails},
+            503: {
+                "model": KnowledgeChatResponse,
+                "headers": {"Retry-After": {"schema": {"type": "string"}}},
+            },
+        },
+    )
+    def knowledge_graph_chat(
+        request: Request, payload: KnowledgeChatRequest, response: Response
+    ) -> KnowledgeChatResponse:
+        if not config.knowledge_chat_enabled or knowledge_chat_service is None:
+            response.status_code = 503
+            response.headers["Retry-After"] = "60"
+            return KnowledgeChatResponse(
+                request_id=request.state.request_id,
+                conversation_id=payload.conversation_id or str(uuid.uuid4()),
+                configuration_version="kg-v1.0.0",
+                status="evidence_unavailable",
+                answer=EVIDENCE_UNAVAILABLE,
+            )
+        client = request.headers.get("do-connecting-ip") or (
+            request.client.host if request.client else "unknown"
+        )
+        try:
+            result = knowledge_chat_service.chat(payload, request.state.request_id, client)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        if result.status in {"evidence_unavailable", "capacity_limited"}:
+            response.status_code = 503
+            response.headers["Retry-After"] = "30"
+        return result
 
     FastAPIInstrumentor.instrument_app(app, excluded_urls="health/live")
     return app

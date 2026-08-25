@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from lyme_gap_atlas_shared import Score
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SourceMetadata(BaseModel):
@@ -97,3 +97,64 @@ class ProblemDetails(BaseModel):
     instance: str
     request_id: str
     errors: list[dict[str, Any]] | None = None
+
+
+class ChatHistoryTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=5_000)
+
+
+class KnowledgeChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=1_000)
+    conversation_id: str | None = Field(default=None, max_length=100)
+    conversation_token: str | None = Field(default=None, max_length=200)
+    history: list[ChatHistoryTurn] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="after")
+    def bounded_history(self) -> "KnowledgeChatRequest":
+        if sum(len(turn.content) for turn in self.history) > 30_000:
+            raise ValueError("history exceeds 30,000 characters")
+        if self.history and (self.conversation_id and self.conversation_token):
+            raise ValueError("history is accepted only for a new or non-persisted conversation")
+        for index, turn in enumerate(self.history):
+            expected = "user" if index % 2 == 0 else "assistant"
+            if turn.role != expected:
+                raise ValueError("history must contain alternating user/assistant pairs")
+        if self.history and len(self.history) % 2:
+            raise ValueError("history must contain complete user/assistant pairs")
+        return self
+
+
+class KnowledgeClaim(BaseModel):
+    claim_id: str
+    text: str
+    citation_ids: list[str] = Field(min_length=1)
+
+
+class KnowledgeCitation(BaseModel):
+    citation_id: str
+    pmid: str = Field(pattern=r"^\d{1,10}$")
+    title: str
+    pubmed_url: str
+    claim_ids: list[str] = Field(min_length=1)
+    passage_ids: list[str] = Field(min_length=1)
+    source_label: str = "PubMed / PMC Open Access"
+
+
+class KnowledgeChatResponse(BaseModel):
+    request_id: str
+    conversation_id: str
+    conversation_token: str | None = None
+    configuration_version: str
+    status: Literal[
+        "answered",
+        "no_evidence",
+        "evidence_unavailable",
+        "safety_refusal",
+        "capacity_limited",
+    ]
+    answer: str
+    claims: list[KnowledgeClaim] = Field(default_factory=list)
+    citations: list[KnowledgeCitation] = Field(default_factory=list)

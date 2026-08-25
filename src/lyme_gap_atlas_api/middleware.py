@@ -1,3 +1,5 @@
+import asyncio
+import hashlib
 import json
 import time
 import uuid
@@ -55,3 +57,51 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
         window.append(now)
         return await call_next(request)
+
+
+class KnowledgeChatLimitMiddleware(BaseHTTPMiddleware):
+    """Single-instance v1 limiter: ten requests/ten minutes and three concurrent/IP."""
+
+    def __init__(self, app: object) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self.requests: dict[str, deque[float]] = defaultdict(deque)
+        self.concurrent: dict[str, int] = defaultdict(int)
+        self.lock = asyncio.Lock()
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        if request.url.path != "/v1/knowledge-graph/chat":
+            return await call_next(request)
+        client = request.headers.get("do-connecting-ip") or (
+            request.client.host if request.client else "unknown"
+        )
+        key = hashlib.sha256(client.encode()).hexdigest()
+        now = time.monotonic()
+        async with self.lock:
+            window = self.requests[key]
+            while window and now - window[0] > 600:
+                window.popleft()
+            if len(window) >= 10 or self.concurrent[key] >= 3:
+                retry_after = "600" if len(window) >= 10 else "1"
+                problem = {
+                    "type": "https://carawaylabs.com/problems/knowledge-chat-rate-limit",
+                    "title": "Too many requests",
+                    "status": 429,
+                    "detail": "The evidence chat request limit has been reached.",
+                    "instance": request.url.path,
+                    "request_id": getattr(request.state, "request_id", "unavailable"),
+                }
+                return Response(
+                    status_code=429,
+                    media_type="application/problem+json",
+                    content=json.dumps(problem),
+                    headers={"Retry-After": retry_after},
+                )
+            window.append(now)
+            self.concurrent[key] += 1
+        try:
+            return await call_next(request)
+        finally:
+            async with self.lock:
+                self.concurrent[key] -= 1

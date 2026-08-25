@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Annotated
 
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import NoDecode
 
 
@@ -14,6 +14,14 @@ class ApiSettings(SnowflakeSettings):
     )
     cache_ttl_seconds: int = Field(default=300, ge=30, le=3600)
     rate_limit_per_minute: int = Field(default=120, ge=10, le=10_000)
+    knowledge_chat_enabled: bool = False
+    conversation_persistence_enabled: bool = True
+    neo4j_uri: str = ""
+    neo4j_api_user: str = "api_reader"
+    neo4j_api_password: SecretStr | None = None
+    openai_api_key: SecretStr | None = None
+    kg_hash_secret: SecretStr | None = None
+    kg_chat_model: str = "gpt-5.6-luna"
 
     @field_validator("cors_origins", mode="before")
     @classmethod
