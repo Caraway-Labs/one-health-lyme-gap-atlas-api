@@ -73,6 +73,10 @@ def client() -> TestClient:
     return TestClient(create_app(FakeRepository(), settings))
 
 
+def test_neo4j_community_runtime_identity_defaults_to_shared_graph_user() -> None:
+    assert ApiSettings().neo4j_runtime_user == "graph_runtime"
+
+
 class FakeRetriever:
     def __init__(self, evidence: list[Evidence]) -> None:
         self.evidence = evidence

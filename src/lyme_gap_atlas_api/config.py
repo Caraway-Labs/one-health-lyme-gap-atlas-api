@@ -17,8 +17,8 @@ class ApiSettings(SnowflakeSettings):
     knowledge_chat_enabled: bool = False
     conversation_persistence_enabled: bool = True
     neo4j_uri: str = ""
-    neo4j_api_user: str = "api_reader"
-    neo4j_api_password: SecretStr | None = None
+    neo4j_runtime_user: str = "graph_runtime"
+    neo4j_runtime_password: SecretStr | None = None
     openai_api_key: SecretStr | None = None
     kg_hash_secret: SecretStr | None = None
     kg_chat_model: str = "gpt-5.6-luna"

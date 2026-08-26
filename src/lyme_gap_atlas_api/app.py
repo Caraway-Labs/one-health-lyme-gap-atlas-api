@@ -63,7 +63,7 @@ def create_app(
     configure_tracing("one-health-lyme-gap-atlas-api")
     service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
     if knowledge_chat_service is None and config.knowledge_chat_enabled:
-        neo4j_password = config.neo4j_api_password
+        neo4j_password = config.neo4j_runtime_password
         openai_key = config.openai_api_key
         hash_secret = config.kg_hash_secret
         if config.neo4j_uri and neo4j_password and openai_key and hash_secret:
@@ -71,7 +71,7 @@ def create_app(
             knowledge_chat_service = KnowledgeChatService(
                 Neo4jRetriever(
                     config.neo4j_uri,
-                    config.neo4j_api_user,
+                    config.neo4j_runtime_user,
                     neo4j_password.get_secret_value(),
                     openai,
                 ),
