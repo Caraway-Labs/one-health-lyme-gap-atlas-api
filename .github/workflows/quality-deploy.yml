@@ -5,6 +5,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: Deploy the reviewed commit to production after quality checks
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -30,7 +36,7 @@ jobs:
           git /repo --redact --no-banner
   deploy:
     if: >-
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.event_name == 'workflow_dispatch' && inputs.deploy_production &&
       vars.DIGITALOCEAN_APP_ID != ''
     needs: quality
     runs-on: ubuntu-latest
