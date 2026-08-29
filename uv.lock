@@ -615,7 +615,7 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14,<2" },
     { name = "neo4j", specifier = ">=6,<7" },
     { name = "one-health-lyme-gap-atlas-knowledge-graph", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph.git?rev=kg-v1.0.0" },
-    { name = "one-health-lyme-gap-atlas-shared", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.1" },
+    { name = "one-health-lyme-gap-atlas-shared", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.6" },
     { name = "openai", specifier = ">=2.8,<3" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.51b0,<1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9" },
@@ -634,8 +634,8 @@ dependencies = [
 
 [[package]]
 name = "one-health-lyme-gap-atlas-shared"
-version = "0.1.1"
-source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.1#fe4b29fa63ea3d649c9c0917f5d0f801e2fc7f05" }
+version = "0.1.5"
+source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.6#c6f28b3ca47fef8cf39c6508bc5277f1a7f57c14" }
 dependencies = [
     { name = "cryptography" },
     { name = "opentelemetry-api" },
