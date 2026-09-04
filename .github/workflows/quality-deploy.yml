@@ -37,7 +37,7 @@ jobs:
   deploy:
     if: >-
       github.event_name == 'workflow_dispatch' && inputs.deploy_production &&
-      vars.DIGITALOCEAN_APP_ID != ''
+      vars.DIGITALOCEAN_APP_ID != '' && github.ref == 'refs/heads/main'
     needs: quality
     runs-on: ubuntu-latest
     environment:
@@ -45,6 +45,46 @@ jobs:
       url: https://api.carawaylabs.com/docs
     concurrency: { group: api-production, cancel-in-progress: false }
     steps:
-      - uses: actions/checkout@v4
-      - uses: digitalocean/app_action/deploy@v2
-        with: { token: "${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}" }
+      - name: Deploy the stored App Platform configuration
+        env:
+          DIGITALOCEAN_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          api="https://api.digitalocean.com/v2/apps/${DIGITALOCEAN_APP_ID}"
+          deployment_id="$(
+            curl --silent --show-error --fail-with-body \
+              --request POST \
+              --header "Authorization: Bearer ${DIGITALOCEAN_ACCESS_TOKEN}" \
+              --header "Content-Type: application/json" \
+              --data '{"force_build":true}' \
+              "${api}/deployments" | jq --exit-status --raw-output '.deployment.id'
+          )"
+          test -n "${deployment_id}"
+          echo "Triggered DigitalOcean deployment ${deployment_id}"
+
+          for attempt in {1..60}; do
+            deployment="$(
+              curl --silent --show-error --fail-with-body \
+                --header "Authorization: Bearer ${DIGITALOCEAN_ACCESS_TOKEN}" \
+                "${api}/deployments/${deployment_id}"
+            )"
+            phase="$(jq --raw-output '.deployment.phase // empty' <<<"${deployment}")"
+            echo "DigitalOcean deployment phase: ${phase}"
+
+            case "${phase}" in
+              ACTIVE)
+                exit 0
+                ;;
+              ERROR|CANCELED|SUPERSEDED)
+                echo "DigitalOcean deployment ${deployment_id} ended in ${phase}." >&2
+                exit 1
+                ;;
+            esac
+
+            sleep 10
+          done
+
+          echo "Timed out waiting for DigitalOcean deployment ${deployment_id}." >&2
+          exit 1
