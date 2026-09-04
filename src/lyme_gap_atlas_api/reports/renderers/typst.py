@@ -26,10 +26,11 @@ from ..renderer import (
     ResourceLimitExceeded,
     UnknownTemplateError,
 )
+from ..template_registry import trusted_template_paths
 
 _LOGGER = logging.getLogger(__name__)
 _TRACER = trace.get_tracer(__name__)
-_DEFAULT_TEMPLATES = {"minimal-v1": "minimal-v1.typ"}
+_DEFAULT_TEMPLATES = trusted_template_paths()
 
 
 class TypstRenderer:
@@ -88,7 +89,11 @@ class TypstRenderer:
             workspace = Path(directory)
             template_copy = workspace / "template.typ"
             output = workspace / "report.pdf"
-            shutil.copyfile(template, template_copy)
+            template_root = self._template_directory.resolve()
+            template_relative_path = template.relative_to(template_root)
+            staged_templates = workspace / "templates"
+            shutil.copytree(template_root, staged_templates)
+            template_copy = staged_templates / template_relative_path
             (workspace / "input.json").write_text(
                 json.dumps(report.model_dump(mode="json"), separators=(",", ":")), encoding="utf-8"
             )

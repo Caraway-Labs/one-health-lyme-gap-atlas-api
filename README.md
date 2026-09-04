@@ -22,8 +22,10 @@ docker run --rm lyme-atlas-api:pdf typst --version
 ```
 
 `TypstRenderer` accepts only server-registered template keys, not paths or client-supplied Typst.
-The minimal `minimal-v1` fixture exists to verify the renderer; versioned county and state
-templates belong to the following template-library increment. Defaults can be overridden with
+`county-v1` and `state-v1` are immutable server-side identifiers. They consume normalized JSON
+written by the report layer as `input.json`; report data is never interpolated into Typst source.
+Shared components live in `reports/templates/shared/v1`. Material template/schema changes require
+a new template version rather than modifying an already released v1 layout. Defaults can be overridden with
 `PDF_RENDER_TIMEOUT_SECONDS=5`, `PDF_MAX_PAGES=50`, `PDF_MAX_REPORT_ITEMS=5000`,
 `PDF_MAX_INDIVIDUAL_ASSET_BYTES=5242880`, `PDF_MAX_AGGREGATE_ASSET_BYTES=20971520`, and
 `PDF_MAX_PDF_BYTES=26214400`.
