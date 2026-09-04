@@ -47,12 +47,16 @@ def fake_typst(tmp_path: Path) -> tuple[str, ...]:
         """import os
 import sys
 import time
+from pathlib import Path
+
 from pypdf import PdfWriter
 
 mode = os.environ.get('FAKE_TYPST_MODE', 'success')
 if mode == 'timeout':
     time.sleep(1)
 if mode == 'failure':
+    sys.exit(1)
+if mode == 'require_input' and not (Path(sys.argv[-2]).parent / 'input.json').is_file():
     sys.exit(1)
 writer = PdfWriter()
 for _ in range(int(os.environ.get('FAKE_TYPST_PAGES', '1'))):
@@ -137,6 +141,25 @@ def test_renderer_enforces_output_page_and_input_limits(
             fake_typst,
         ).render(report, "minimal-v1")
     monkeypatch.delenv("FAKE_TYPST_PAGES")
+
+
+def test_renderer_stages_input_next_to_nested_template(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    fake_typst: tuple[str, ...],
+    report: CountyReport,
+) -> None:
+    template_directory = tmp_path / "templates"
+    template = template_directory / "county" / "v1" / "report.typ"
+    template.parent.mkdir(parents=True)
+    template.write_text("= Fixture", encoding="utf-8")
+    monkeypatch.setenv("FAKE_TYPST_MODE", "require_input")
+
+    payload = TypstRenderer(
+        _limits(), template_directory, {"county-v1": "county/v1/report.typ"}, fake_typst
+    ).render(report, "county-v1")
+
+    assert payload.startswith(b"%PDF-")
 
 
 def test_asset_limits_are_enforced() -> None:
