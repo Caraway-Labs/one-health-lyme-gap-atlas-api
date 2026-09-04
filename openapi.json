@@ -477,6 +477,147 @@
         }
       }
     },
+    "/v1/states/{state}/report.pdf": {
+      "get": {
+        "tags": [
+          "states"
+        ],
+        "summary": "State Report Pdf",
+        "operationId": "state_report_pdf_v1_states__state__report_pdf_get",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "title": "State"
+            }
+          },
+          {
+            "name": "dataset_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Version"
+            }
+          },
+          {
+            "name": "template",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+-v\\d+$",
+              "default": "state-v1",
+              "title": "Template"
+            }
+          },
+          {
+            "name": "ecological_share",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "multipleOf": 5,
+              "maximum": 85,
+              "minimum": 40,
+              "default": 65,
+              "title": "Ecological Share"
+            }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 5,
+              "default": 10,
+              "title": "Low Incidence Breakpoint"
+            }
+          },
+          {
+            "name": "missing_human_weakness",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "multipleOf": 5,
+              "maximum": 90,
+              "minimum": 40,
+              "default": 75,
+              "title": "Missing Human Weakness"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/v1/atlas/ranking.csv": {
       "get": {
         "tags": [

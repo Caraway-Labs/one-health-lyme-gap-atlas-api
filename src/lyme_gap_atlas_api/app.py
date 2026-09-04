@@ -302,6 +302,78 @@ def create_app(
             },
         )
 
+    @app.get(
+        "/v1/states/{state}/report.pdf",
+        response_class=Response,
+        tags=["states"],
+        responses={
+            200: {"content": {"application/pdf": {}}},
+            404: {"model": ProblemDetails},
+            413: {"model": ProblemDetails},
+            422: {"model": ProblemDetails},
+            503: {
+                "model": ProblemDetails,
+                "headers": {"Retry-After": {"schema": {"type": "string"}}},
+            },
+        },
+    )
+    def state_report_pdf(
+        state: Annotated[str, Path(pattern=r"^[A-Z]{2}$")],
+        score_settings: Annotated[ScoreSettings, Depends(_score_settings)],
+        dataset_version: str | None = None,
+        template: Annotated[str, Query(pattern=r"^[a-z]+-v\d+$")] = "state-v1",
+    ) -> Response:
+        template_definition = TEMPLATE_REGISTRY.get(template)
+        if template_definition is None or template_definition.geography_level != "state":
+            raise HTTPException(
+                status_code=422, detail="The requested state report template is not available."
+            )
+        try:
+            report = reports.state_report(state, score_settings, dataset_version, template)
+        except (KeyError, LookupError) as exc:
+            raise HTTPException(
+                status_code=404, detail="State or dataset release not found"
+            ) from exc
+        try:
+            payload = renderer.render(report, template)
+        except UnknownTemplateError as exc:
+            raise HTTPException(
+                status_code=422, detail="The requested state report template is not available."
+            ) from exc
+        except ResourceLimitExceeded as exc:
+            raise HTTPException(
+                status_code=413, detail="The report exceeds configured resource limits."
+            ) from exc
+        except RenderTimeout as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Report rendering timed out. Please try again later.",
+                headers={"Retry-After": "30"},
+            ) from exc
+        except (RenderCompilationError, RendererFailure) as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="The report renderer is temporarily unavailable.",
+                headers={"Retry-After": "30"},
+            ) from exc
+
+        filename = "-".join(
+            (
+                "lyme-gap-atlas",
+                _filename_component(report.geography.state_code),
+                _filename_component(report.provenance.dataset_version),
+            )
+        )
+        return Response(
+            payload,
+            media_type="application/pdf",
+            headers={
+                "Cache-Control": "public, max-age=0, must-revalidate",
+                "Content-Disposition": f'attachment; filename="{filename}.pdf"',
+                "ETag": _etag(payload),
+            },
+        )
+
     @app.get("/v1/atlas/ranking.csv", tags=["atlas"])
     def ranking_csv(
         score_settings: Annotated[ScoreSettings, Depends(_score_settings)],

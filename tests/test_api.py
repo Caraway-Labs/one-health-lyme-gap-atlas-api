@@ -240,6 +240,55 @@ def test_county_pdf_export_translates_renderer_failures(error: Exception, status
         assert response.headers["retry-after"] == "30"
 
 
+def test_state_pdf_export_has_safe_headers_and_provenance() -> None:
+    renderer = FakePdfRenderer()
+    response = pdf_client(renderer).get("/v1/states/CO/report.pdf?ecological_share=70")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/pdf")
+    assert response.content.startswith(b"%PDF-")
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="lyme-gap-atlas-co-alpha-2026-08-06.pdf"'
+    )
+    assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
+    assert response.headers["etag"]
+    assert renderer.calls[0][1] == "state-v1"
+    report = renderer.calls[0][0]
+    assert report.geography.level == "state"
+    assert report.geography.identifier == "CO"
+    assert report.provenance.dataset_version == "alpha-2026-08-06"
+    assert report.provenance.scoring_settings["ecological_share"] == 70
+    assert report.identity.template_version == "state-v1"
+
+
+def test_state_pdf_export_rejects_invalid_state_template_and_unknown_data() -> None:
+    api = pdf_client(FakePdfRenderer())
+
+    assert api.get("/v1/states/co/report.pdf").status_code == 422
+    assert api.get("/v1/states/ZZ/report.pdf").status_code == 404
+    assert api.get("/v1/states/CO/report.pdf?dataset_version=missing").status_code == 404
+    assert api.get("/v1/states/CO/report.pdf?template=state-v2").status_code == 422
+    assert api.get("/v1/states/CO/report.pdf?template=county-v1").status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("error", "status"),
+    [
+        (ResourceLimitExceeded("limit"), 413),
+        (RenderTimeout("timeout"), 503),
+        (RenderCompilationError("compile"), 503),
+        (RendererFailure("unavailable"), 503),
+    ],
+)
+def test_state_pdf_export_translates_renderer_failures(error: Exception, status: int) -> None:
+    response = pdf_client(FakePdfRenderer(error)).get("/v1/states/CO/report.pdf")
+
+    assert response.status_code == status
+    assert response.headers["content-type"].startswith("application/problem+json")
+    if status == 503:
+        assert response.headers["retry-after"] == "30"
+
+
 def test_comma_separated_cors_origins_work_from_environment(monkeypatch) -> None:
     monkeypatch.setenv("CORS_ORIGINS", "https://carawaylabs.com,http://localhost:3000")
 
