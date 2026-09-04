@@ -14,6 +14,12 @@ class ApiSettings(SnowflakeSettings):
     )
     cache_ttl_seconds: int = Field(default=300, ge=30, le=3600)
     rate_limit_per_minute: int = Field(default=120, ge=10, le=10_000)
+    pdf_render_timeout_seconds: float = Field(default=5, gt=0, le=60)
+    pdf_max_pages: int = Field(default=50, ge=1, le=1_000)
+    pdf_max_report_items: int = Field(default=5_000, ge=1, le=100_000)
+    pdf_max_individual_asset_bytes: int = Field(default=5 * 1024 * 1024, ge=1)
+    pdf_max_aggregate_asset_bytes: int = Field(default=20 * 1024 * 1024, ge=1)
+    pdf_max_pdf_bytes: int = Field(default=25 * 1024 * 1024, ge=1)
     knowledge_chat_enabled: bool = False
     conversation_persistence_enabled: bool = True
     neo4j_uri: str = ""
