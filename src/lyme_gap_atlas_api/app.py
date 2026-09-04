@@ -34,7 +34,15 @@ from .models import (
     ProblemDetails,
     ScoreCollection,
 )
-from .reports import TEMPLATE_REGISTRY, PdfRenderer, RenderLimits, ReportService
+from .reports import (
+    TEMPLATE_REGISTRY,
+    CountyReport,
+    PdfRenderer,
+    RenderLimits,
+    ReportService,
+    StateReport,
+)
+from .reports.cache import PdfReportCache
 from .reports.renderer import (
     RenderCompilationError,
     RendererFailure,
@@ -63,6 +71,19 @@ def _etag(content: bytes) -> str:
     return f'"{hashlib.sha256(content).hexdigest()}"'
 
 
+def _report_cache_key(report: CountyReport | StateReport) -> str:
+    """Hash every report input except its artifact-generation timestamp."""
+
+    content = report.model_dump(mode="json")
+    content["identity"].pop("generated_at", None)
+    canonical = json.dumps(content, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _matches_etag(request: Request, etag: str) -> bool:
+    return etag in {value.strip() for value in request.headers.get("if-none-match", "").split(",")}
+
+
 def _filename_component(value: str) -> str:
     """Return an ASCII-only component safe for an HTTP attachment filename."""
 
@@ -83,6 +104,11 @@ def create_app(
     service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
     reports = report_service or ReportService(service)
     renderer = pdf_renderer or TypstRenderer(RenderLimits.from_settings(config))
+    pdf_cache = PdfReportCache(
+        enabled=config.pdf_cache_enabled,
+        ttl_seconds=config.pdf_cache_ttl_seconds,
+        max_entries=config.pdf_cache_max_entries,
+    )
     if knowledge_chat_service is None and config.knowledge_chat_enabled:
         neo4j_password = config.neo4j_runtime_password
         openai_key = config.openai_api_key
@@ -244,6 +270,7 @@ def create_app(
         },
     )
     def county_report_pdf(
+        request: Request,
         fips: Annotated[str, Path(pattern=r"^\d{5}$")],
         score_settings: Annotated[ScoreSettings, Depends(_score_settings)],
         dataset_version: str | None = None,
@@ -261,7 +288,9 @@ def create_app(
                 status_code=404, detail="County or dataset release not found"
             ) from exc
         try:
-            payload = renderer.render(report, template)
+            payload = pdf_cache.get_or_render(
+                _report_cache_key(report), lambda: renderer.render(report, template)
+            )
         except UnknownTemplateError as exc:
             raise HTTPException(
                 status_code=422, detail="The requested county report template is not available."
@@ -292,13 +321,19 @@ def create_app(
                 _filename_component(report.provenance.dataset_version),
             )
         )
+        etag = _etag(payload)
+        if _matches_etag(request, etag):
+            return Response(
+                status_code=304,
+                headers={"Cache-Control": "public, max-age=300, must-revalidate", "ETag": etag},
+            )
         return Response(
             payload,
             media_type="application/pdf",
             headers={
-                "Cache-Control": "public, max-age=0, must-revalidate",
+                "Cache-Control": "public, max-age=300, must-revalidate",
                 "Content-Disposition": f'attachment; filename="{filename}.pdf"',
-                "ETag": _etag(payload),
+                "ETag": etag,
             },
         )
 
@@ -318,6 +353,7 @@ def create_app(
         },
     )
     def state_report_pdf(
+        request: Request,
         state: Annotated[str, Path(pattern=r"^[A-Z]{2}$")],
         score_settings: Annotated[ScoreSettings, Depends(_score_settings)],
         dataset_version: str | None = None,
@@ -335,7 +371,9 @@ def create_app(
                 status_code=404, detail="State or dataset release not found"
             ) from exc
         try:
-            payload = renderer.render(report, template)
+            payload = pdf_cache.get_or_render(
+                _report_cache_key(report), lambda: renderer.render(report, template)
+            )
         except UnknownTemplateError as exc:
             raise HTTPException(
                 status_code=422, detail="The requested state report template is not available."
@@ -364,13 +402,19 @@ def create_app(
                 _filename_component(report.provenance.dataset_version),
             )
         )
+        etag = _etag(payload)
+        if _matches_etag(request, etag):
+            return Response(
+                status_code=304,
+                headers={"Cache-Control": "public, max-age=300, must-revalidate", "ETag": etag},
+            )
         return Response(
             payload,
             media_type="application/pdf",
             headers={
-                "Cache-Control": "public, max-age=0, must-revalidate",
+                "Cache-Control": "public, max-age=300, must-revalidate",
                 "Content-Disposition": f'attachment; filename="{filename}.pdf"',
-                "ETag": _etag(payload),
+                "ETag": etag,
             },
         )
 

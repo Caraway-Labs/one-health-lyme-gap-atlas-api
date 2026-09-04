@@ -28,7 +28,10 @@ Shared components live in `reports/templates/shared/v1`. Material template/schem
 a new template version rather than modifying an already released v1 layout. Defaults can be overridden with
 `PDF_RENDER_TIMEOUT_SECONDS=5`, `PDF_MAX_PAGES=50`, `PDF_MAX_REPORT_ITEMS=5000`,
 `PDF_MAX_INDIVIDUAL_ASSET_BYTES=5242880`, `PDF_MAX_AGGREGATE_ASSET_BYTES=20971520`, and
-`PDF_MAX_PDF_BYTES=26214400`.
+`PDF_MAX_PDF_BYTES=26214400`. Rendered artifacts use a bounded in-process cache by default;
+configure it with `PDF_CACHE_ENABLED=true`, `PDF_CACHE_TTL_SECONDS=300`, and
+`PDF_CACHE_MAX_ENTRIES=128`. A cache hit returns the original artifact, including its
+generation timestamp, until the TTL expires or a material report input changes.
 
 The versioned contract is committed as `openapi.json`. Production uses the
 least-privilege `OH_LYME_API_SVC` Snowflake service user and key-pair

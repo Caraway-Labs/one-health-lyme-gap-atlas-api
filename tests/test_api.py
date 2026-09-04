@@ -203,7 +203,7 @@ def test_county_pdf_export_has_safe_headers_and_provenance() -> None:
     assert response.headers["content-disposition"] == (
         'attachment; filename="lyme-gap-atlas-co-adams-08001-alpha-2026-08-06.pdf"'
     )
-    assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
+    assert response.headers["cache-control"] == "public, max-age=300, must-revalidate"
     assert response.headers["etag"]
     assert renderer.calls[0][1] == "county-v1"
     report = renderer.calls[0][0]
@@ -211,6 +211,26 @@ def test_county_pdf_export_has_safe_headers_and_provenance() -> None:
     assert report.provenance.dataset_version == "alpha-2026-08-06"
     assert report.provenance.methodology_version == "alpha-0.2.0"
     assert report.provenance.limitations == "Not individual risk."
+
+
+def test_pdf_cache_uses_all_report_inputs_and_honors_etag() -> None:
+    renderer = FakePdfRenderer()
+    api = pdf_client(renderer)
+
+    first = api.get("/v1/counties/08001/report.pdf")
+    cached = api.get("/v1/counties/08001/report.pdf")
+    changed_settings = api.get("/v1/counties/08001/report.pdf?ecological_share=70")
+    changed_geography = api.get("/v1/states/CO/report.pdf")
+    not_modified = api.get(
+        "/v1/counties/08001/report.pdf", headers={"If-None-Match": first.headers["etag"]}
+    )
+
+    assert cached.content == first.content
+    assert len(renderer.calls) == 3
+    assert changed_settings.status_code == 200
+    assert changed_geography.status_code == 200
+    assert not_modified.status_code == 304
+    assert not_modified.headers["etag"] == first.headers["etag"]
 
 
 def test_county_pdf_export_rejects_bad_template_and_unknown_data() -> None:
@@ -250,7 +270,7 @@ def test_state_pdf_export_has_safe_headers_and_provenance() -> None:
     assert response.headers["content-disposition"] == (
         'attachment; filename="lyme-gap-atlas-co-alpha-2026-08-06.pdf"'
     )
-    assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
+    assert response.headers["cache-control"] == "public, max-age=300, must-revalidate"
     assert response.headers["etag"]
     assert renderer.calls[0][1] == "state-v1"
     report = renderer.calls[0][0]
