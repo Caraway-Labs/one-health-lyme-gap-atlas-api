@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import uuid
 from typing import Annotated, Literal
 
@@ -33,6 +34,15 @@ from .models import (
     ProblemDetails,
     ScoreCollection,
 )
+from .reports import TEMPLATE_REGISTRY, PdfRenderer, RenderLimits, ReportService
+from .reports.renderer import (
+    RenderCompilationError,
+    RendererFailure,
+    RenderTimeout,
+    ResourceLimitExceeded,
+    UnknownTemplateError,
+)
+from .reports.renderers import TypstRenderer
 from .repository import AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
 
@@ -53,15 +63,26 @@ def _etag(content: bytes) -> str:
     return f'"{hashlib.sha256(content).hexdigest()}"'
 
 
+def _filename_component(value: str) -> str:
+    """Return an ASCII-only component safe for an HTTP attachment filename."""
+
+    component = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return component or "unknown"
+
+
 def create_app(
     repository: AtlasRepository | None = None,
     settings: ApiSettings | None = None,
     knowledge_chat_service: KnowledgeChatService | None = None,
+    report_service: ReportService | None = None,
+    pdf_renderer: PdfRenderer | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
     configure_tracing("one-health-lyme-gap-atlas-api")
     service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
+    reports = report_service or ReportService(service)
+    renderer = pdf_renderer or TypstRenderer(RenderLimits.from_settings(config))
     if knowledge_chat_service is None and config.knowledge_chat_enabled:
         neo4j_password = config.neo4j_runtime_password
         openai_key = config.openai_api_key
@@ -91,7 +112,7 @@ def create_app(
         allow_origins=config.cors_origins,
         allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
         allow_headers=["Accept", "Content-Type", "If-None-Match", "X-Request-ID"],
-        expose_headers=["ETag", "Retry-After", "X-Request-ID"],
+        expose_headers=["Content-Disposition", "ETag", "Retry-After", "X-Request-ID"],
     )
     app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
     app.add_middleware(KnowledgeChatLimitMiddleware)
@@ -206,6 +227,80 @@ def create_app(
             raise HTTPException(
                 status_code=404, detail="County or dataset release not found"
             ) from exc
+
+    @app.get(
+        "/v1/counties/{fips}/report.pdf",
+        response_class=Response,
+        tags=["counties"],
+        responses={
+            200: {"content": {"application/pdf": {}}},
+            404: {"model": ProblemDetails},
+            413: {"model": ProblemDetails},
+            422: {"model": ProblemDetails},
+            503: {
+                "model": ProblemDetails,
+                "headers": {"Retry-After": {"schema": {"type": "string"}}},
+            },
+        },
+    )
+    def county_report_pdf(
+        fips: Annotated[str, Path(pattern=r"^\d{5}$")],
+        score_settings: Annotated[ScoreSettings, Depends(_score_settings)],
+        dataset_version: str | None = None,
+        template: Annotated[str, Query(pattern=r"^[a-z]+-v\d+$")] = "county-v1",
+    ) -> Response:
+        template_definition = TEMPLATE_REGISTRY.get(template)
+        if template_definition is None or template_definition.geography_level != "county":
+            raise HTTPException(
+                status_code=422, detail="The requested county report template is not available."
+            )
+        try:
+            report = reports.county_report(fips, score_settings, dataset_version, template)
+        except (KeyError, LookupError) as exc:
+            raise HTTPException(
+                status_code=404, detail="County or dataset release not found"
+            ) from exc
+        try:
+            payload = renderer.render(report, template)
+        except UnknownTemplateError as exc:
+            raise HTTPException(
+                status_code=422, detail="The requested county report template is not available."
+            ) from exc
+        except ResourceLimitExceeded as exc:
+            raise HTTPException(
+                status_code=413, detail="The report exceeds configured resource limits."
+            ) from exc
+        except RenderTimeout as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Report rendering timed out. Please try again later.",
+                headers={"Retry-After": "30"},
+            ) from exc
+        except (RenderCompilationError, RendererFailure) as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="The report renderer is temporarily unavailable.",
+                headers={"Retry-After": "30"},
+            ) from exc
+
+        filename = "-".join(
+            (
+                "lyme-gap-atlas",
+                _filename_component(report.geography.state_code),
+                _filename_component(report.geography.name),
+                _filename_component(report.geography.identifier),
+                _filename_component(report.provenance.dataset_version),
+            )
+        )
+        return Response(
+            payload,
+            media_type="application/pdf",
+            headers={
+                "Cache-Control": "public, max-age=0, must-revalidate",
+                "Content-Disposition": f'attachment; filename="{filename}.pdf"',
+                "ETag": _etag(payload),
+            },
+        )
 
     @app.get("/v1/atlas/ranking.csv", tags=["atlas"])
     def ranking_csv(

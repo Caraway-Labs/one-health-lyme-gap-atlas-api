@@ -94,7 +94,7 @@ class TypstRenderer:
             staged_templates = workspace / "templates"
             shutil.copytree(template_root, staged_templates)
             template_copy = staged_templates / template_relative_path
-            (workspace / "input.json").write_text(
+            (template_copy.parent / "input.json").write_text(
                 json.dumps(report.model_dump(mode="json"), separators=(",", ":")), encoding="utf-8"
             )
             try:

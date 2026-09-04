@@ -1,11 +1,19 @@
 from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.knowledge_chat import Evidence, KnowledgeChatService
 from lyme_gap_atlas_api.models import AtlasMetadata, CountyRecord, SourceMetadata
+from lyme_gap_atlas_api.reports.renderer import (
+    RenderCompilationError,
+    RendererFailure,
+    RenderTimeout,
+    Report,
+    ResourceLimitExceeded,
+)
 from lyme_gap_atlas_api.repository import Snapshot
 
 
@@ -71,6 +79,30 @@ def client() -> TestClient:
         rate_limit_per_minute=100,
     )
     return TestClient(create_app(FakeRepository(), settings))
+
+
+class FakePdfRenderer:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+        self.calls: list[tuple[Report, str]] = []
+
+    def render(self, report: Report, template_key: str) -> bytes:
+        if self.error is not None:
+            raise self.error
+        self.calls.append((report, template_key))
+        return b"%PDF-1.4\nAtlas report\n%%EOF\n"
+
+
+def pdf_client(renderer: FakePdfRenderer) -> TestClient:
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+        cors_origins=["https://carawaylabs.com"],
+        rate_limit_per_minute=100,
+    )
+    return TestClient(create_app(FakeRepository(), settings, pdf_renderer=renderer))
 
 
 def test_neo4j_community_runtime_identity_defaults_to_shared_graph_user() -> None:
@@ -159,6 +191,53 @@ def test_validation_and_unknown_release() -> None:
     assert invalid.status_code == 422
     assert invalid.headers["content-type"].startswith("application/problem+json")
     assert api.get("/v1/atlas/metadata?dataset_version=missing").status_code == 404
+
+
+def test_county_pdf_export_has_safe_headers_and_provenance() -> None:
+    renderer = FakePdfRenderer()
+    response = pdf_client(renderer).get("/v1/counties/08001/report.pdf")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/pdf")
+    assert response.content.startswith(b"%PDF-")
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="lyme-gap-atlas-co-adams-08001-alpha-2026-08-06.pdf"'
+    )
+    assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
+    assert response.headers["etag"]
+    assert renderer.calls[0][1] == "county-v1"
+    report = renderer.calls[0][0]
+    assert report.geography.identifier == "08001"
+    assert report.provenance.dataset_version == "alpha-2026-08-06"
+    assert report.provenance.methodology_version == "alpha-0.2.0"
+    assert report.provenance.limitations == "Not individual risk."
+
+
+def test_county_pdf_export_rejects_bad_template_and_unknown_data() -> None:
+    api = pdf_client(FakePdfRenderer())
+
+    assert api.get("/v1/counties/08001/report.pdf?template=county-v2").status_code == 422
+    assert api.get("/v1/counties/08001/report.pdf?template=state-v1").status_code == 422
+    assert api.get("/v1/counties/99999/report.pdf").status_code == 404
+    assert api.get("/v1/counties/08001/report.pdf?dataset_version=missing").status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("error", "status"),
+    [
+        (ResourceLimitExceeded("limit"), 413),
+        (RenderTimeout("timeout"), 503),
+        (RenderCompilationError("compile"), 503),
+        (RendererFailure("unavailable"), 503),
+    ],
+)
+def test_county_pdf_export_translates_renderer_failures(error: Exception, status: int) -> None:
+    response = pdf_client(FakePdfRenderer(error)).get("/v1/counties/08001/report.pdf")
+
+    assert response.status_code == status
+    assert response.headers["content-type"].startswith("application/problem+json")
+    if status == 503:
+        assert response.headers["retry-after"] == "30"
 
 
 def test_comma_separated_cors_origins_work_from_environment(monkeypatch) -> None:
