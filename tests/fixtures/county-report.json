@@ -1,0 +1,11 @@
+{
+  "identity": {"template_version": "county-v1", "generated_at": "2026-09-04T12:00:00Z"},
+  "geography": {"level": "county", "identifier": "08001", "name": "Adams", "state_code": "CO", "state_name": "Colorado"},
+  "provenance": {"dataset_version": "fixture-v1", "methodology_version": "method-v1", "limitations": "Not individual risk.", "sources": [{"label": "CDC", "vintage": "2023", "note": "Published floor"}]},
+  "score": {"score": 42, "human_weakness": 75, "ecological": 31},
+  "priority": "Moderate priority",
+  "human_health": [{"label": "Case count floor", "value": null, "availability": "unavailable"}],
+  "ecological": [{"label": "Tick status", "value": "Established", "availability": "available"}],
+  "population": {"label": "Population", "value": 0, "availability": "available"},
+  "data_completeness": {"label": "Evidence completeness", "value": 6, "availability": "available"}
+}

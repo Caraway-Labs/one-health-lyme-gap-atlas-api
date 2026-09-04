@@ -1,0 +1,7 @@
+{
+  "identity": {"template_version": "state-v1", "generated_at": "2026-09-04T12:00:00Z"},
+  "geography": {"level": "state", "identifier": "CO", "name": "Colorado", "state_code": "CO", "state_name": "Colorado"},
+  "provenance": {"dataset_version": "fixture-v1", "methodology_version": "method-v1", "limitations": "Not individual risk.", "sources": [{"label": "CDC", "vintage": "2023", "note": "Published floor"}]},
+  "mean_score": {"score": 42, "human_weakness": 75, "ecological": 31},
+  "summary": [{"label": "Counties represented", "value": 64, "availability": "available"}]
+}
