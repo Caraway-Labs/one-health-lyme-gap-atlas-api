@@ -20,6 +20,9 @@ class ApiSettings(SnowflakeSettings):
     pdf_max_individual_asset_bytes: int = Field(default=5 * 1024 * 1024, ge=1)
     pdf_max_aggregate_asset_bytes: int = Field(default=20 * 1024 * 1024, ge=1)
     pdf_max_pdf_bytes: int = Field(default=25 * 1024 * 1024, ge=1)
+    pdf_cache_enabled: bool = True
+    pdf_cache_ttl_seconds: int = Field(default=300, ge=1, le=3600)
+    pdf_cache_max_entries: int = Field(default=128, ge=1, le=10_000)
     knowledge_chat_enabled: bool = False
     conversation_persistence_enabled: bool = True
     neo4j_uri: str = ""
