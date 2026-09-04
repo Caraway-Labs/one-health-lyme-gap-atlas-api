@@ -1,0 +1,146 @@
+import sys
+from pathlib import Path
+
+import pytest
+from lyme_gap_atlas_shared import ScoreSettings
+from test_reports import FakeRepository
+
+from lyme_gap_atlas_api.reports.models import CountyReport
+from lyme_gap_atlas_api.reports.renderer import (
+    RenderCompilationError,
+    RenderLimits,
+    RenderTimeout,
+    ResourceLimitExceeded,
+    UnknownTemplateError,
+    validate_asset_sizes,
+)
+from lyme_gap_atlas_api.reports.renderers.typst import TypstRenderer
+from lyme_gap_atlas_api.reports.service import ReportService
+from lyme_gap_atlas_api.service import AtlasService
+
+
+def _limits(**overrides: int | float) -> RenderLimits:
+    return RenderLimits(
+        timeout_seconds=float(overrides.get("timeout_seconds", 3)),
+        max_pages=int(overrides.get("max_pages", 50)),
+        max_report_items=int(overrides.get("max_report_items", 5_000)),
+        max_individual_asset_bytes=int(
+            overrides.get("max_individual_asset_bytes", 5 * 1024 * 1024)
+        ),
+        max_aggregate_asset_bytes=int(overrides.get("max_aggregate_asset_bytes", 20 * 1024 * 1024)),
+        max_pdf_bytes=int(overrides.get("max_pdf_bytes", 25 * 1024 * 1024)),
+    )
+
+
+@pytest.fixture
+def template_directory(tmp_path: Path) -> Path:
+    path = tmp_path / "templates"
+    path.mkdir()
+    (path / "minimal.typ").write_text("= Fixture", encoding="utf-8")
+    return path
+
+
+@pytest.fixture
+def fake_typst(tmp_path: Path) -> tuple[str, ...]:
+    executable = tmp_path / "fake_typst.py"
+    executable.write_text(
+        """import os
+import sys
+import time
+from pypdf import PdfWriter
+
+mode = os.environ.get('FAKE_TYPST_MODE', 'success')
+if mode == 'timeout':
+    time.sleep(1)
+if mode == 'failure':
+    sys.exit(1)
+writer = PdfWriter()
+for _ in range(int(os.environ.get('FAKE_TYPST_PAGES', '1'))):
+    writer.add_blank_page(width=612, height=792)
+with open(sys.argv[-1], 'wb') as output:
+    writer.write(output)
+""",
+        encoding="utf-8",
+    )
+    return (sys.executable, str(executable))
+
+
+@pytest.fixture
+def report() -> CountyReport:
+    return ReportService(AtlasService(FakeRepository())).county_report("08001", ScoreSettings())
+
+
+def test_trusted_template_renders_a_valid_pdf(
+    template_directory: Path, fake_typst: tuple[str, ...], report: CountyReport
+) -> None:
+    payload = TypstRenderer(
+        _limits(), template_directory, {"minimal-v1": "minimal.typ"}, fake_typst
+    ).render(report, "minimal-v1")
+
+    assert payload.startswith(b"%PDF-")
+    assert payload
+
+
+def test_renderer_rejects_unknown_template(
+    template_directory: Path, fake_typst: tuple[str, ...], report: CountyReport
+) -> None:
+    with pytest.raises(UnknownTemplateError):
+        TypstRenderer(
+            _limits(), template_directory, {"minimal-v1": "minimal.typ"}, fake_typst
+        ).render(report, "../../untrusted")
+
+
+def test_renderer_translates_timeout_and_compile_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    template_directory: Path,
+    fake_typst: tuple[str, ...],
+    report: CountyReport,
+) -> None:
+    renderer = TypstRenderer(
+        _limits(timeout_seconds=0.1), template_directory, {"minimal-v1": "minimal.typ"}, fake_typst
+    )
+    monkeypatch.setenv("FAKE_TYPST_MODE", "timeout")
+    with pytest.raises(RenderTimeout):
+        renderer.render(report, "minimal-v1")
+    monkeypatch.setenv("FAKE_TYPST_MODE", "failure")
+    with pytest.raises(RenderCompilationError):
+        TypstRenderer(
+            _limits(), template_directory, {"minimal-v1": "minimal.typ"}, fake_typst
+        ).render(report, "minimal-v1")
+    monkeypatch.delenv("FAKE_TYPST_MODE")
+
+
+def test_renderer_enforces_output_page_and_input_limits(
+    monkeypatch: pytest.MonkeyPatch,
+    template_directory: Path,
+    fake_typst: tuple[str, ...],
+    report: CountyReport,
+) -> None:
+    renderer = TypstRenderer(
+        _limits(max_pdf_bytes=10),
+        template_directory,
+        {"minimal-v1": "minimal.typ"},
+        fake_typst,
+    )
+    with pytest.raises(ResourceLimitExceeded, match="size"):
+        renderer.render(report, "minimal-v1")
+    monkeypatch.setenv("FAKE_TYPST_PAGES", "2")
+    with pytest.raises(ResourceLimitExceeded, match="page"):
+        TypstRenderer(
+            _limits(max_pages=1), template_directory, {"minimal-v1": "minimal.typ"}, fake_typst
+        ).render(report, "minimal-v1")
+    with pytest.raises(ResourceLimitExceeded, match="item"):
+        TypstRenderer(
+            _limits(max_report_items=1),
+            template_directory,
+            {"minimal-v1": "minimal.typ"},
+            fake_typst,
+        ).render(report, "minimal-v1")
+    monkeypatch.delenv("FAKE_TYPST_PAGES")
+
+
+def test_asset_limits_are_enforced() -> None:
+    with pytest.raises(ResourceLimitExceeded, match="asset"):
+        validate_asset_sizes([b"12"], _limits(max_individual_asset_bytes=1))
+    with pytest.raises(ResourceLimitExceeded, match="aggregate"):
+        validate_asset_sizes([b"12", b"34"], _limits(max_aggregate_asset_bytes=3))

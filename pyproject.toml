@@ -13,6 +13,7 @@ dependencies = [
   "one-health-lyme-gap-atlas-knowledge-graph @ git+https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph.git@kg-v1.0.0",
   "one-health-lyme-gap-atlas-shared @ git+https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git@v0.1.6",
   "opentelemetry-instrumentation-fastapi>=0.51b0,<1",
+  "pypdf>=5,<7",
   "uvicorn[standard]>=0.34,<1",
 ]
 
@@ -21,6 +22,9 @@ dev = ["httpx>=0.28,<1", "mypy>=1.14,<2", "pytest>=8.3,<9", "ruff>=0.9,<1"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lyme_gap_atlas_api"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/lyme_gap_atlas_api/reports/templates" = "lyme_gap_atlas_api/reports/templates"
 
 [tool.hatch.metadata]
 allow-direct-references = true
