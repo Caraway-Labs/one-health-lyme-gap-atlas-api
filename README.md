@@ -33,6 +33,27 @@ configure it with `PDF_CACHE_ENABLED=true`, `PDF_CACHE_TTL_SECONDS=300`, and
 `PDF_CACHE_MAX_ENTRIES=128`. A cache hit returns the original artifact, including its
 generation timestamp, until the TTL expires or a material report input changes.
 
+## PDF export operations
+
+The API exposes only versioned, server-registered templates: `county-v1` and `state-v1`.
+Clients may select a supported template key but cannot supply Typst source or filesystem paths.
+
+```powershell
+curl.exe -L -OJ "http://localhost:8000/v1/counties/08001/report.pdf?template=county-v1"
+curl.exe -L -OJ "http://localhost:8000/v1/states/CO/report.pdf?template=state-v1"
+```
+
+PDF responses include `ETag` and `Cache-Control`. Send `If-None-Match` to avoid downloading an
+unchanged artifact. Renderer failures are returned as problem responses: `413` indicates a
+configured resource limit, while `503` indicates a retryable renderer timeout or unavailable
+renderer. Do not expose or add client-provided template paths, Typst markup, or asset paths.
+
+For a future template version, add a new immutable server-side key and template directory, update
+the report contract and tests, then build the production Docker image and exercise both report
+routes. Templates use US Letter pages, structured headings, explicit table headers, text labels in
+addition to color, and page footers. Missing metric values are rendered as "Data unavailable",
+which remains distinct from a legitimate zero.
+
 The versioned contract is committed as `openapi.json`. Production uses the
 least-privilege `OH_LYME_API_SVC` Snowflake service user and key-pair
 authentication. See `.env.example`; never use `SYSADMIN` in this service.
