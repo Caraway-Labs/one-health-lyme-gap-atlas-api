@@ -45,7 +45,7 @@
     Dataset: #report.at("provenance").at("dataset_version") ·
     Generated: #report.at("identity").at("generated_at")
   ]
-  v(#gap-large)
+  #v(gap-large)
 ]
 
 #let score-summary(score, label: "Atlas score") = table(
@@ -75,11 +75,11 @@
 #let provenance(report) = [
   == Methodology and provenance
   #callout("Interpretation", report.at("provenance").at("limitations"))
-  v(#gap-medium)
+  #v(gap-medium)
   *Methodology version:* #report.at("provenance").at("methodology_version") \
   *Dataset version:* #report.at("provenance").at("dataset_version") \
   *Template version:* #report.at("identity").at("template_version")
-  v(#gap-medium)
+  #v(gap-medium)
   #table(
     columns: (1.2fr, 1fr, 0.8fr),
     inset: 5pt,

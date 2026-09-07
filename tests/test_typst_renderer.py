@@ -217,3 +217,5 @@ def test_real_typst_templates_render_meaningful_report_content(
     for expected in required_text:
         assert expected in rendered_text
     assert "text(size:" not in rendered_text
+    assert "v(18pt)" not in rendered_text
+    assert "v(10pt)" not in rendered_text
