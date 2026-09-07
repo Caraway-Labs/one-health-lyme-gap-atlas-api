@@ -1,11 +1,15 @@
+import shutil
 import sys
+from collections.abc import Callable
+from io import BytesIO
 from pathlib import Path
 
 import pytest
 from lyme_gap_atlas_shared import ScoreSettings
+from pypdf import PdfReader
 from test_reports import FakeRepository
 
-from lyme_gap_atlas_api.reports.models import CountyReport
+from lyme_gap_atlas_api.reports.models import CountyReport, StateReport
 from lyme_gap_atlas_api.reports.renderer import (
     RenderCompilationError,
     RenderLimits,
@@ -167,3 +171,49 @@ def test_asset_limits_are_enforced() -> None:
         validate_asset_sizes([b"12"], _limits(max_individual_asset_bytes=1))
     with pytest.raises(ResourceLimitExceeded, match="aggregate"):
         validate_asset_sizes([b"12", b"34"], _limits(max_aggregate_asset_bytes=3))
+
+
+@pytest.mark.skipif(shutil.which("typst") is None, reason="requires the pinned Typst binary")
+@pytest.mark.parametrize(
+    ("template_key", "report_factory", "required_text"),
+    [
+        (
+            "county-v1",
+            lambda service: service.county_report("08001", ScoreSettings()),
+            (
+                "Lyme Gap Atlas county report",
+                "Adams",
+                "Executive summary",
+                "Data unavailable",
+                "Methodology and provenance",
+                "alpha-2026-08-06",
+            ),
+        ),
+        (
+            "state-v1",
+            lambda service: service.state_report("CO", ScoreSettings()),
+            (
+                "Lyme Gap Atlas state report",
+                "Colorado",
+                "Executive summary",
+                "Methodology and provenance",
+                "alpha-2026-08-06",
+            ),
+        ),
+    ],
+)
+def test_real_typst_templates_render_meaningful_report_content(
+    template_key: str,
+    report_factory: Callable[[ReportService], CountyReport | StateReport],
+    required_text: tuple[str, ...],
+) -> None:
+    reports = ReportService(AtlasService(FakeRepository()))
+    report = report_factory(reports)
+    payload = TypstRenderer(_limits()).render(report, template_key)
+    rendered_text = "\n".join(
+        page.extract_text() or "" for page in PdfReader(BytesIO(payload)).pages
+    )
+
+    for expected in required_text:
+        assert expected in rendered_text
+    assert "text(size:" not in rendered_text

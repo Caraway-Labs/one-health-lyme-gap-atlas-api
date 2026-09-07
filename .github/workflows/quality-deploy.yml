@@ -28,7 +28,17 @@ jobs:
       - run: uv run pytest -q
       - run: uv run python scripts/export_openapi.py
       - run: git diff --exit-code -- openapi.json
-      - run: docker build .
+      - run: docker build --tag lyme-atlas-api:quality .
+      - name: Run report-template regression tests with the production Typst binary
+        run: |
+          set -euo pipefail
+          mkdir .ci-bin
+          container_id="$(docker create lyme-atlas-api:quality)"
+          docker cp "${container_id}:/usr/local/bin/typst" .ci-bin/typst
+          docker rm "${container_id}"
+          chmod +x .ci-bin/typst
+          echo "$PWD/.ci-bin" >> "$GITHUB_PATH"
+          uv run pytest -q tests/test_typst_renderer.py
       - name: Scan Git history for secrets
         run: >-
           docker run --rm -v "$PWD:/repo"

@@ -1,11 +1,11 @@
 #import "tokens.typ": *
 
-#let setup-document(report) = {
+#let setup-document(report, body) = {
   set page(
     paper: "us-letter",
     margin: (x: 0.7in, y: 0.65in),
     footer: context align(center)[
-      text(size: 8pt, fill: muted)[
+      #text(size: 8pt, fill: muted)[
         Lyme Gap Atlas · #report.at("identity").at("template_version") · Page #counter(page).display("1")
       ]
     ],
@@ -15,6 +15,7 @@
   set heading(numbering: none, outlined: true)
   show heading.where(level: 1): set text(size: 20pt, weight: "bold", fill: navy)
   show heading.where(level: 2): set text(size: 14pt, weight: "bold", fill: navy)
+  body
 }
 
 #let metric-value(metric) = {
@@ -38,8 +39,8 @@
 
 #let report-header(report, report-title) = [
   = #report-title
-  text(size: 13pt, weight: "bold")[#report.at("geography").at("name")]
-  text(fill: muted)[
+  #text(size: 13pt, weight: "bold")[#report.at("geography").at("name")]
+  #text(fill: muted)[
     Geography identifier: #report.at("geography").at("identifier") ·
     Dataset: #report.at("provenance").at("dataset_version") ·
     Generated: #report.at("identity").at("generated_at")
@@ -66,8 +67,8 @@
   inset: 9pt,
   radius: 2pt,
 )[
-  text(weight: "bold", fill: navy)[#title]
-  parbreak()
+  #text(weight: "bold", fill: navy)[#title]
+  #parbreak()
   #body
 ]
 

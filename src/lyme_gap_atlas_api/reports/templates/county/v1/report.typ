@@ -1,13 +1,13 @@
 #import "../../shared/v1/components.typ": setup-document, report-header, score-summary, metric-table, callout, provenance
 
 #let report = json("input.json")
-#show: setup-document(report)
+#show: setup-document.with(report)
 
 #report-header(report, "Lyme Gap Atlas county report")
 
 == Executive summary
 #score-summary(report.at("score"))
-v(12pt)
+#v(12pt)
 #callout("Priority", report.at("priority"))
 
 == Human-health evidence and data
