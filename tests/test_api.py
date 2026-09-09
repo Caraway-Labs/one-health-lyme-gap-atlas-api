@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,7 +7,13 @@ from fastapi.testclient import TestClient
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.knowledge_chat import Evidence, KnowledgeChatService
-from lyme_gap_atlas_api.models import AtlasMetadata, CountyRecord, SourceMetadata
+from lyme_gap_atlas_api.models import (
+    AtlasMetadata,
+    CountyRecord,
+    SourceMetadata,
+    UserProfile,
+    UserProfileWrite,
+)
 from lyme_gap_atlas_api.reports.renderer import (
     RenderCompilationError,
     RendererFailure,
@@ -14,6 +21,7 @@ from lyme_gap_atlas_api.reports.renderer import (
     Report,
     ResourceLimitExceeded,
 )
+from lyme_gap_atlas_api.profiles import ProfileStore
 from lyme_gap_atlas_api.repository import Snapshot
 
 
@@ -67,6 +75,39 @@ class FakeRepository:
             geometry={"type": "Polygon", "coordinates": []},
         )
         return Snapshot(metadata=metadata, counties=[county])
+
+
+class FakeAuthenticatedUser:
+    def __init__(self, user_id: UUID) -> None:
+        self.user_id = user_id
+
+
+class FakeTokenVerifier:
+    def __init__(self, user_id: UUID) -> None:
+        self.user_id = user_id
+
+    def verify(self, authorization: str | None) -> FakeAuthenticatedUser:
+        if authorization != "Bearer test-token":
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=401,
+                detail="A valid authenticated session is required.",
+            )
+        return FakeAuthenticatedUser(self.user_id)
+
+
+class MemoryProfileStore(ProfileStore):
+    def __init__(self) -> None:
+        self.profiles: dict[UUID, UserProfile] = {}
+
+    def get(self, user_id: UUID) -> UserProfile | None:
+        return self.profiles.get(user_id)
+
+    def save(self, user_id: UUID, profile: UserProfileWrite) -> UserProfile:
+        saved = UserProfile.model_validate(profile.model_dump())
+        self.profiles[user_id] = saved
+        return saved
 
 
 def client() -> TestClient:
@@ -320,6 +361,71 @@ def test_comma_separated_cors_origins_work_from_environment(monkeypatch) -> None
     )
 
     assert settings.cors_origins == ["https://carawaylabs.com", "http://localhost:3000"]
+
+
+def test_private_profile_routes_enforce_token_owner_and_no_store_cache() -> None:
+    user_id = UUID("11111111-1111-1111-1111-111111111111")
+    store = MemoryProfileStore()
+    api = TestClient(
+        create_app(
+            FakeRepository(),
+            ApiSettings(
+                snowflake_account="test",
+                snowflake_user="test",
+                snowflake_role="test",
+                snowflake_pat="test",
+            ),
+            profile_store=store,
+            token_verifier=FakeTokenVerifier(user_id),
+        )
+    )
+
+    assert api.get("/v1/me/profile").status_code == 401
+    saved = api.put(
+        "/v1/me/profile",
+        headers={"Authorization": "Bearer test-token"},
+        json={
+            "role": "state_level_epidemiologist",
+            "state_code": "co",
+            "organization": "Caraway Labs",
+            "job_title": "Analyst",
+        },
+    )
+    assert saved.status_code == 200
+    assert saved.headers["cache-control"] == "private, no-store"
+    assert saved.json()["profile"] == {
+        "role": "state_level_epidemiologist",
+        "state_code": "CO",
+        "organization": "Caraway Labs",
+        "job_title": "Analyst",
+    }
+    loaded = api.get("/v1/me/profile", headers={"Authorization": "Bearer test-token"})
+    assert loaded.status_code == 200
+    assert loaded.headers["cache-control"] == "private, no-store"
+
+
+def test_private_profile_rejects_invalid_state_and_blank_text() -> None:
+    user_id = UUID("11111111-1111-1111-1111-111111111111")
+    api = TestClient(
+        create_app(
+            FakeRepository(),
+            ApiSettings(
+                snowflake_account="test",
+                snowflake_user="test",
+                snowflake_role="test",
+                snowflake_pat="test",
+            ),
+            profile_store=MemoryProfileStore(),
+            token_verifier=FakeTokenVerifier(user_id),
+        )
+    )
+    headers = {"Authorization": "Bearer test-token"}
+    assert (
+        api.put("/v1/me/profile", headers=headers, json={"state_code": "ZZ"}).status_code == 422
+    )
+    assert (
+        api.put("/v1/me/profile", headers=headers, json={"organization": "   "}).status_code == 422
+    )
 
 
 def test_chat_is_grounded_and_returns_one_time_token() -> None:

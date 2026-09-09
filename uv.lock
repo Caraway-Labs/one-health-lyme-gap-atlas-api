@@ -592,18 +592,19 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "neo4j" },
     { name = "one-health-lyme-gap-atlas-knowledge-graph" },
     { name = "one-health-lyme-gap-atlas-shared" },
     { name = "openai" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "pypdf" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.optional-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
@@ -612,7 +613,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115,<1" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1" },
+    { name = "httpx", specifier = ">=0.28,<1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14,<2" },
     { name = "neo4j", specifier = ">=6,<7" },
     { name = "one-health-lyme-gap-atlas-knowledge-graph", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph.git?rev=kg-v1.0.0" },
@@ -620,6 +621,7 @@ requires-dist = [
     { name = "openai", specifier = ">=2.8,<3" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.51b0,<1" },
     { name = "pypdf", specifier = ">=5,<7" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10,<3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9,<1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34,<1" },
@@ -981,6 +983,11 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/3b/81/58d0ac84e1ef3a3843791d6954d94c0b33d526c75eeb1efbce9d0a4c4077/pyjwt-2.13.0.tar.gz", hash = "sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423", size = 107515, upload-time = "2026-05-21T19:54:36.618Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a3/5e/ecf12fdb62546d64385c158514e9b2b671f7832108ef2ecd2020ce0af2d1/pyjwt-2.13.0-py3-none-any.whl", hash = "sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728", size = 31274, upload-time = "2026-05-21T19:54:35.362Z" },
+]
+
+[package.optional-dependencies]
+crypto = [
+    { name = "cryptography" },
 ]
 
 [[package]]

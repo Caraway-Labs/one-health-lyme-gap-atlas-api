@@ -28,7 +28,15 @@ environment file. Keep all values in the approved secret manager.
 5. Verify the table, RLS status, grants, and negative cross-user behavior in
    Development before any API or web rollout.
 
-The initial migration deliberately creates an unexposed `atlas_accounts`
-schema. It gives no `anon` or `authenticated` database grants. Future FastAPI
-code needs a least-privilege server-side Supabase data-access configuration and
-must enforce the caller subject from a validated JWT.
+The initial migration deliberately gives no `anon` or `authenticated` database
+grants. The FastAPI service validates the caller's JWT and uses only its
+server-side Supabase secret key for data access.
+
+## Data API configuration
+
+Before FastAPI can use the profile table, add `atlas_accounts` to the project's
+Data API **Exposed schemas** list: **Project Settings → Data API → Exposed
+schemas**. This setting makes the schema available to PostgREST; it does not
+grant browser access. Retain the migration's least-privilege permissions: do
+not grant `anon` or `authenticated` schema or table privileges. Validate this
+setting in Development before applying it in Production.
