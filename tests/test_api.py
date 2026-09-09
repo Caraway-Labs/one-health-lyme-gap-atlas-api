@@ -363,6 +363,21 @@ def test_comma_separated_cors_origins_work_from_environment(monkeypatch) -> None
     assert settings.cors_origins == ["https://carawaylabs.com", "http://localhost:3000"]
 
 
+def test_profile_preflight_permits_authorized_put_request() -> None:
+    response = client().options(
+        "/v1/me/profile",
+        headers={
+            "Origin": "https://carawaylabs.com",
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "PUT" in response.headers["access-control-allow-methods"]
+    assert "authorization" in response.headers["access-control-allow-headers"].lower()
+
+
 def test_private_profile_routes_enforce_token_owner_and_no_store_cache() -> None:
     user_id = UUID("11111111-1111-1111-1111-111111111111")
     store = MemoryProfileStore()

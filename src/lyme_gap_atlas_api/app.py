@@ -154,8 +154,8 @@ def create_app(
     app.add_middleware(
         CORSMiddleware,
         allow_origins=config.cors_origins,
-        allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
-        allow_headers=["Accept", "Content-Type", "If-None-Match", "X-Request-ID"],
+        allow_methods=["GET", "HEAD", "POST", "PUT", "OPTIONS"],
+        allow_headers=["Accept", "Authorization", "Content-Type", "If-None-Match", "X-Request-ID"],
         expose_headers=["Content-Disposition", "ETag", "Retry-After", "X-Request-ID"],
     )
     app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
