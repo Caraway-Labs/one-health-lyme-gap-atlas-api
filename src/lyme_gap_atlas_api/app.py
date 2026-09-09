@@ -38,6 +38,7 @@ from .models import (
     UserProfileResponse,
     UserProfileWrite,
 )
+from .profiles import ProfileStore, ProfileStoreError, SupabaseProfileStore
 from .reports import (
     TEMPLATE_REGISTRY,
     CountyReport,
@@ -55,7 +56,6 @@ from .reports.renderer import (
     UnknownTemplateError,
 )
 from .reports.renderers import TypstRenderer
-from .profiles import ProfileStore, ProfileStoreError, SupabaseProfileStore
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
 

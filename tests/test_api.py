@@ -14,6 +14,7 @@ from lyme_gap_atlas_api.models import (
     UserProfile,
     UserProfileWrite,
 )
+from lyme_gap_atlas_api.profiles import ProfileStore
 from lyme_gap_atlas_api.reports.renderer import (
     RenderCompilationError,
     RendererFailure,
@@ -21,7 +22,6 @@ from lyme_gap_atlas_api.reports.renderer import (
     Report,
     ResourceLimitExceeded,
 )
-from lyme_gap_atlas_api.profiles import ProfileStore
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError, Snapshot
 
 
