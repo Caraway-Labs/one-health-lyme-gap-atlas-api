@@ -363,6 +363,26 @@ def test_comma_separated_cors_origins_work_from_environment(monkeypatch) -> None
     assert settings.cors_origins == ["https://carawaylabs.com", "http://localhost:3000"]
 
 
+def test_rate_limited_browser_request_keeps_cors_headers() -> None:
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+        cors_origins=["http://localhost:3000"],
+        rate_limit_per_minute=10,
+    )
+    api = TestClient(create_app(FakeRepository(), settings))
+    headers = {"Origin": "http://localhost:3000"}
+
+    for _ in range(10):
+        assert api.get("/v1/atlas/scores", headers=headers).status_code == 200
+    limited = api.get("/v1/atlas/scores", headers=headers)
+
+    assert limited.status_code == 429
+    assert limited.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
 def test_profile_preflight_permits_authorized_put_request() -> None:
     response = client().options(
         "/v1/me/profile",

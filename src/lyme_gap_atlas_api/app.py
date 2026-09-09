@@ -151,6 +151,11 @@ def create_app(
         SupabaseTokenVerifier(config) if accounts_configured else None
     )
     app.add_middleware(GZipMiddleware, minimum_size=1_000)
+    app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
+    app.add_middleware(KnowledgeChatLimitMiddleware)
+    app.add_middleware(RequestContextMiddleware)
+    # Starlette applies the most recently added middleware first. Keep CORS outermost
+    # so browser clients can read an error returned by a short-circuiting limiter.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=config.cors_origins,
@@ -158,9 +163,6 @@ def create_app(
         allow_headers=["Accept", "Authorization", "Content-Type", "If-None-Match", "X-Request-ID"],
         expose_headers=["Content-Disposition", "ETag", "Retry-After", "X-Request-ID"],
     )
-    app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
-    app.add_middleware(KnowledgeChatLimitMiddleware)
-    app.add_middleware(RequestContextMiddleware)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
