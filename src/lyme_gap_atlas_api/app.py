@@ -55,7 +55,7 @@ from .reports.renderer import (
 )
 from .reports.renderers import TypstRenderer
 from .profiles import ProfileStore, SupabaseProfileStore
-from .repository import AtlasRepository, SnowflakeAtlasRepository
+from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
 
 
@@ -196,6 +196,18 @@ def create_app(
             status_code=exc.status_code,
             media_type="application/problem+json",
             headers=exc.headers,
+        )
+
+    @app.exception_handler(AtlasDataUnavailableError)
+    async def atlas_data_unavailable(
+        request: Request, exc: AtlasDataUnavailableError
+    ) -> JSONResponse:
+        return await http_error(
+            request,
+            HTTPException(
+                status_code=503,
+                detail="The governed Atlas data service is temporarily unavailable.",
+            ),
         )
 
     @app.get("/health/live", tags=["health"])

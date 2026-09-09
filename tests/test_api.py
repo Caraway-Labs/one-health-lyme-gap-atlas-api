@@ -22,7 +22,7 @@ from lyme_gap_atlas_api.reports.renderer import (
     ResourceLimitExceeded,
 )
 from lyme_gap_atlas_api.profiles import ProfileStore
-from lyme_gap_atlas_api.repository import Snapshot
+from lyme_gap_atlas_api.repository import AtlasDataUnavailableError, Snapshot
 
 
 class FakeRepository:
@@ -75,6 +75,14 @@ class FakeRepository:
             geometry={"type": "Polygon", "coordinates": []},
         )
         return Snapshot(metadata=metadata, counties=[county])
+
+
+class UnavailableRepository:
+    def ready(self) -> bool:
+        return False
+
+    def load_snapshot(self) -> Snapshot:
+        raise AtlasDataUnavailableError("test data service unavailable")
 
 
 class FakeAuthenticatedUser:
@@ -381,6 +389,25 @@ def test_rate_limited_browser_request_keeps_cors_headers() -> None:
 
     assert limited.status_code == 429
     assert limited.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+def test_unavailable_atlas_data_is_a_cors_readable_service_error() -> None:
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+        cors_origins=["http://localhost:3000"],
+    )
+    response = TestClient(create_app(UnavailableRepository(), settings)).get(
+        "/v1/atlas/metadata", headers={"Origin": "http://localhost:3000"}
+    )
+
+    assert response.status_code == 503
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert (
+        response.json()["detail"] == "The governed Atlas data service is temporarily unavailable."
+    )
 
 
 def test_profile_preflight_permits_authorized_put_request() -> None:
