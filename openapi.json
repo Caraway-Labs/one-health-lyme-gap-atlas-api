@@ -1752,7 +1752,6 @@
             "title": "Job Title"
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "title": "UserProfile"
       },

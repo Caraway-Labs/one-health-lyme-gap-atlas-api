@@ -97,7 +97,9 @@ class UserProfileWrite(BaseModel):
 
 
 class UserProfile(UserProfileWrite):
-    pass
+    # Database adapter responses include server-owned columns such as user_id and
+    # timestamps. They are deliberately not part of the browser-facing profile.
+    model_config = ConfigDict(extra="ignore")
 
 
 class UserProfileResponse(BaseModel):

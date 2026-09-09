@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import logging
 import time
 import uuid
 from collections import defaultdict, deque
@@ -9,6 +10,8 @@ from collections.abc import Awaitable, Callable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+logger = logging.getLogger(__name__)
+
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(
@@ -16,10 +19,37 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         request_id = request.headers.get("x-request-id", str(uuid.uuid4()))[:128]
         request.state.request_id = request_id
-        response = await call_next(request)
+        started_at = time.perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            logger.error(
+                "api_request_failed",
+                extra={
+                    "context": {
+                        "request_id": request_id,
+                        "method": request.method,
+                        "path": request.url.path,
+                        "failure_type": type(exc).__name__,
+                    }
+                },
+            )
+            raise
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
+        logger.info(
+            "api_request_completed",
+            extra={
+                "context": {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": response.status_code,
+                    "duration_ms": round((time.perf_counter() - started_at) * 1000),
+                }
+            },
+        )
         return response
 
 

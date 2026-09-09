@@ -466,6 +466,26 @@ def test_private_profile_routes_enforce_token_owner_and_no_store_cache() -> None
     assert loaded.headers["cache-control"] == "private, no-store"
 
 
+def test_profile_response_ignores_server_owned_columns() -> None:
+    profile = UserProfile.model_validate(
+        {
+            "user_id": "11111111-1111-1111-1111-111111111111",
+            "role": "district_level_epidemiologist",
+            "state_code": "AL",
+            "organization": "Example organization",
+            "job_title": "Example role",
+            "created_at": "2026-09-09T00:00:00Z",
+        }
+    )
+
+    assert profile.model_dump() == {
+        "role": "district_level_epidemiologist",
+        "state_code": "AL",
+        "organization": "Example organization",
+        "job_title": "Example role",
+    }
+
+
 def test_private_profile_rejects_invalid_state_and_blank_text() -> None:
     user_id = UUID("11111111-1111-1111-1111-111111111111")
     api = TestClient(

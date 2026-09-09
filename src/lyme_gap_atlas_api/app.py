@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import re
 import uuid
 from typing import Annotated, Literal
@@ -54,9 +55,11 @@ from .reports.renderer import (
     UnknownTemplateError,
 )
 from .reports.renderers import TypstRenderer
-from .profiles import ProfileStore, SupabaseProfileStore
+from .profiles import ProfileStore, ProfileStoreError, SupabaseProfileStore
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
+
+logger = logging.getLogger(__name__)
 
 
 def _score_settings(
@@ -250,6 +253,7 @@ def create_app(
         responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
     )
     def get_profile(
+        request: Request,
         response: Response,
         user: Annotated[AuthenticatedUser, Depends(authenticated_user)],
     ) -> UserProfileResponse:
@@ -257,7 +261,18 @@ def create_app(
             raise _accounts_unavailable()
         try:
             profile = configured_profile_store.get(user.user_id)
-        except RuntimeError as exc:
+        except ProfileStoreError as exc:
+            logger.warning(
+                "account_profile_read_failed",
+                extra={
+                    "context": {
+                        "request_id": getattr(request.state, "request_id", "unavailable"),
+                        "operation": exc.operation,
+                        "failure_category": exc.category,
+                        "upstream_status": exc.upstream_status,
+                    }
+                },
+            )
             raise _accounts_unavailable() from exc
         response.headers["Cache-Control"] = "private, no-store"
         return UserProfileResponse(profile=profile)
@@ -270,6 +285,7 @@ def create_app(
     )
     def save_profile(
         payload: UserProfileWrite,
+        request: Request,
         response: Response,
         user: Annotated[AuthenticatedUser, Depends(authenticated_user)],
     ) -> UserProfileResponse:
@@ -277,7 +293,18 @@ def create_app(
             raise _accounts_unavailable()
         try:
             profile = configured_profile_store.save(user.user_id, payload)
-        except RuntimeError as exc:
+        except ProfileStoreError as exc:
+            logger.warning(
+                "account_profile_save_failed",
+                extra={
+                    "context": {
+                        "request_id": getattr(request.state, "request_id", "unavailable"),
+                        "operation": exc.operation,
+                        "failure_category": exc.category,
+                        "upstream_status": exc.upstream_status,
+                    }
+                },
+            )
             raise _accounts_unavailable() from exc
         response.headers["Cache-Control"] = "private, no-store"
         return UserProfileResponse(profile=profile)
