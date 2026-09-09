@@ -31,6 +31,10 @@ class ApiSettings(SnowflakeSettings):
     openai_api_key: SecretStr | None = None
     kg_hash_secret: SecretStr | None = None
     kg_chat_model: str = "gpt-5.6-luna"
+    supabase_url: str = ""
+    supabase_secret_key: SecretStr | None = None
+    supabase_jwt_issuer: str = ""
+    supabase_jwt_audience: str = "authenticated"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

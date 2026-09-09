@@ -2,11 +2,12 @@
 
 import hashlib
 import json
+import logging
 import re
 import uuid
 from typing import Annotated, Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -17,6 +18,7 @@ from openai import OpenAI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .auth import AuthenticatedUser, SupabaseTokenVerifier, TokenVerifier
 from .config import ApiSettings, get_settings
 from .knowledge_chat import (
     EVIDENCE_UNAVAILABLE,
@@ -33,7 +35,10 @@ from .models import (
     KnowledgeChatResponse,
     ProblemDetails,
     ScoreCollection,
+    UserProfileResponse,
+    UserProfileWrite,
 )
+from .profiles import ProfileStore, ProfileStoreError, SupabaseProfileStore
 from .reports import (
     TEMPLATE_REGISTRY,
     CountyReport,
@@ -51,8 +56,10 @@ from .reports.renderer import (
     UnknownTemplateError,
 )
 from .reports.renderers import TypstRenderer
-from .repository import AtlasRepository, SnowflakeAtlasRepository
+from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
+
+logger = logging.getLogger(__name__)
 
 
 def _score_settings(
@@ -97,6 +104,8 @@ def create_app(
     knowledge_chat_service: KnowledgeChatService | None = None,
     report_service: ReportService | None = None,
     pdf_renderer: PdfRenderer | None = None,
+    profile_store: ProfileStore | None = None,
+    token_verifier: TokenVerifier | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
@@ -132,17 +141,31 @@ def create_app(
         description="Public API for Atlas data and reviewed knowledge-graph evidence chat.",
     )
     app.state.service = service
-    app.add_middleware(GZipMiddleware, minimum_size=1_000)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=config.cors_origins,
-        allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
-        allow_headers=["Accept", "Content-Type", "If-None-Match", "X-Request-ID"],
-        expose_headers=["Content-Disposition", "ETag", "Retry-After", "X-Request-ID"],
+    accounts_configured = bool(
+        config.supabase_url
+        and config.supabase_secret_key
+        and config.supabase_jwt_issuer
+        and config.supabase_jwt_audience
     )
+    configured_profile_store = profile_store or (
+        SupabaseProfileStore(config) if accounts_configured else None
+    )
+    configured_token_verifier = token_verifier or (
+        SupabaseTokenVerifier(config) if accounts_configured else None
+    )
+    app.add_middleware(GZipMiddleware, minimum_size=1_000)
     app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
     app.add_middleware(KnowledgeChatLimitMiddleware)
     app.add_middleware(RequestContextMiddleware)
+    # Starlette applies the most recently added middleware first. Keep CORS outermost
+    # so browser clients can read an error returned by a short-circuiting limiter.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.cors_origins,
+        allow_methods=["GET", "HEAD", "POST", "PUT", "OPTIONS"],
+        allow_headers=["Accept", "Authorization", "Content-Type", "If-None-Match", "X-Request-ID"],
+        expose_headers=["Content-Disposition", "ETag", "Retry-After", "X-Request-ID"],
+    )
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -178,6 +201,18 @@ def create_app(
             headers=exc.headers,
         )
 
+    @app.exception_handler(AtlasDataUnavailableError)
+    async def atlas_data_unavailable(
+        request: Request, exc: AtlasDataUnavailableError
+    ) -> JSONResponse:
+        return await http_error(
+            request,
+            HTTPException(
+                status_code=503,
+                detail="The governed Atlas data service is temporarily unavailable.",
+            ),
+        )
+
     @app.get("/health/live", tags=["health"])
     def live() -> dict[str, str]:
         return {"status": "ok"}
@@ -197,6 +232,82 @@ def create_app(
                 status_code=503, detail="A required data service is unavailable"
             ) from exc
         raise HTTPException(status_code=503, detail="A required data service is unavailable")
+
+    def authenticated_user(
+        authorization: Annotated[str | None, Header()] = None,
+    ) -> AuthenticatedUser:
+        if configured_token_verifier is None:
+            raise _accounts_unavailable()
+        return configured_token_verifier.verify(authorization)
+
+    def _accounts_unavailable() -> HTTPException:
+        return HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Account features are temporarily unavailable.",
+        )
+
+    @app.get(
+        "/v1/me/profile",
+        response_model=UserProfileResponse,
+        tags=["account"],
+        responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
+    )
+    def get_profile(
+        request: Request,
+        response: Response,
+        user: Annotated[AuthenticatedUser, Depends(authenticated_user)],
+    ) -> UserProfileResponse:
+        if configured_profile_store is None:
+            raise _accounts_unavailable()
+        try:
+            profile = configured_profile_store.get(user.user_id)
+        except ProfileStoreError as exc:
+            logger.warning(
+                "account_profile_read_failed",
+                extra={
+                    "context": {
+                        "request_id": getattr(request.state, "request_id", "unavailable"),
+                        "operation": exc.operation,
+                        "failure_category": exc.category,
+                        "upstream_status": exc.upstream_status,
+                    }
+                },
+            )
+            raise _accounts_unavailable() from exc
+        response.headers["Cache-Control"] = "private, no-store"
+        return UserProfileResponse(profile=profile)
+
+    @app.put(
+        "/v1/me/profile",
+        response_model=UserProfileResponse,
+        tags=["account"],
+        responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
+    )
+    def save_profile(
+        payload: UserProfileWrite,
+        request: Request,
+        response: Response,
+        user: Annotated[AuthenticatedUser, Depends(authenticated_user)],
+    ) -> UserProfileResponse:
+        if configured_profile_store is None:
+            raise _accounts_unavailable()
+        try:
+            profile = configured_profile_store.save(user.user_id, payload)
+        except ProfileStoreError as exc:
+            logger.warning(
+                "account_profile_save_failed",
+                extra={
+                    "context": {
+                        "request_id": getattr(request.state, "request_id", "unavailable"),
+                        "operation": exc.operation,
+                        "failure_category": exc.category,
+                        "upstream_status": exc.upstream_status,
+                    }
+                },
+            )
+            raise _accounts_unavailable() from exc
+        response.headers["Cache-Control"] = "private, no-store"
+        return UserProfileResponse(profile=profile)
 
     @app.get("/v1/atlas/metadata", response_model=AtlasMetadata, tags=["atlas"])
     def metadata(response: Response, dataset_version: str | None = None) -> AtlasMetadata:

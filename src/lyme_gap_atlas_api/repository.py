@@ -21,58 +21,72 @@ class AtlasRepository(Protocol):
     def load_snapshot(self) -> Snapshot: ...
 
 
+class AtlasDataUnavailableError(RuntimeError):
+    """The governed Atlas snapshot cannot be read from its backing service."""
+
+
 class SnowflakeAtlasRepository:
     def __init__(self, settings: ApiSettings) -> None:
         self.settings = settings
 
     def ready(self) -> bool:
-        with connect(self.settings) as connection, connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            return cursor.fetchone() == (1,)
+        try:
+            with connect(self.settings) as connection, connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                return cursor.fetchone() == (1,)
+        except Exception as exc:
+            raise AtlasDataUnavailableError("Atlas data service is unavailable") from exc
 
     def load_snapshot(self) -> Snapshot:
-        with connect(self.settings) as connection, connection.cursor() as cursor:
-            cursor.execute(
-                """SELECT RELEASE_ID, SCHEMA_VERSION, GENERATED_AT, LOADED_AT, SCOPE,
+        try:
+            with connect(self.settings) as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    """SELECT RELEASE_ID, SCHEMA_VERSION, GENERATED_AT, LOADED_AT, SCOPE,
                           BUNDLE_SHA256, TO_JSON(SCORE_DEFAULTS), METHODOLOGY_VERSION, LIMITATIONS
                    FROM PRESENTATION.CURRENT_RELEASE_V"""
-            )
-            release = cursor.fetchone()
-            if release is None:
-                raise RuntimeError("No current Atlas release is available")
-            cursor.execute(
-                """SELECT SOURCE_KEY, LABEL, VINTAGE, SOURCE_URL, NOTE
+                )
+                release = cursor.fetchone()
+                if release is None:
+                    raise AtlasDataUnavailableError("No current Atlas release is available")
+                cursor.execute(
+                    """SELECT SOURCE_KEY, LABEL, VINTAGE, SOURCE_URL, NOTE
                    FROM PRESENTATION.CURRENT_SOURCE_METADATA_V ORDER BY SOURCE_KEY"""
-            )
-            sources = [
-                SourceMetadata(key=row[0], label=row[1], vintage=row[2], url=row[3], note=row[4])
-                for row in cursor.fetchall()
-            ]
-            cursor.execute(
-                """SELECT RELEASE_ID,FIPS,COUNTY,STATE,STATE_NAME,POPULATION,
+                )
+                sources = [
+                    SourceMetadata(
+                        key=row[0], label=row[1], vintage=row[2], url=row[3], note=row[4]
+                    )
+                    for row in cursor.fetchall()
+                ]
+                cursor.execute(
+                    """SELECT RELEASE_ID,FIPS,COUNTY,STATE,STATE_NAME,POPULATION,
                           IN_CONTIGUOUS_TICK_SCOPE,HUMAN_STATUS,CASE_COUNT_FLOOR_2023,
                           INCIDENCE_FLOOR_2023,STATE_UNALLOCATED_RECORDS_2023,TICK_STATUS,
                           SCAPULARIS_STATUS,PACIFICUS_STATUS,BURGDORFERI_STATUS,SVI_PERCENTILE,
                           UNINSURED_PERCENTILE,UNINSURED_PERCENT,RUCC_2023,EVIDENCE_COMPLETENESS,
                           TO_JSON(GEOMETRY_JSON)
                    FROM PRESENTATION.CURRENT_COUNTY_ATLAS_V ORDER BY FIPS"""
+                )
+                counties = [self._county(row) for row in cursor.fetchall()]
+            states = sorted({(county.state, county.state_name) for county in counties})
+            metadata = AtlasMetadata(
+                release_id=release[0],
+                schema_version=release[1],
+                generated_at=release[2],
+                loaded_at=release[3],
+                scope=release[4],
+                bundle_sha256=release[5],
+                score_defaults=json.loads(release[6]),
+                methodology_version=release[7],
+                limitations=release[8],
+                sources=sources,
+                states=[{"code": code, "name": name} for code, name in states],
             )
-            counties = [self._county(row) for row in cursor.fetchall()]
-        states = sorted({(county.state, county.state_name) for county in counties})
-        metadata = AtlasMetadata(
-            release_id=release[0],
-            schema_version=release[1],
-            generated_at=release[2],
-            loaded_at=release[3],
-            scope=release[4],
-            bundle_sha256=release[5],
-            score_defaults=json.loads(release[6]),
-            methodology_version=release[7],
-            limitations=release[8],
-            sources=sources,
-            states=[{"code": code, "name": name} for code, name in states],
-        )
-        return Snapshot(metadata=metadata, counties=counties)
+            return Snapshot(metadata=metadata, counties=counties)
+        except AtlasDataUnavailableError:
+            raise
+        except Exception as exc:
+            raise AtlasDataUnavailableError("Atlas data service is unavailable") from exc
 
     @staticmethod
     def _county(row: tuple[Any, ...]) -> CountyRecord:

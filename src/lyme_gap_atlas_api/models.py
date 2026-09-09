@@ -2,7 +2,108 @@ from datetime import datetime
 from typing import Any, Literal
 
 from lyme_gap_atlas_shared import Score
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+ProfileRole = Literal[
+    "general_public_citizen",
+    "district_level_epidemiologist",
+    "state_level_epidemiologist",
+    "state_director_level_epidemiologist",
+    "national_level_epidemiologist",
+]
+
+US_STATE_CODES = {
+    "AL",
+    "AK",
+    "AZ",
+    "AR",
+    "CA",
+    "CO",
+    "CT",
+    "DE",
+    "FL",
+    "GA",
+    "HI",
+    "ID",
+    "IL",
+    "IN",
+    "IA",
+    "KS",
+    "KY",
+    "LA",
+    "ME",
+    "MD",
+    "MA",
+    "MI",
+    "MN",
+    "MS",
+    "MO",
+    "MT",
+    "NE",
+    "NV",
+    "NH",
+    "NJ",
+    "NM",
+    "NY",
+    "NC",
+    "ND",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VT",
+    "VA",
+    "WA",
+    "WV",
+    "WI",
+    "WY",
+    "DC",
+}
+
+
+class UserProfileWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: ProfileRole | None = None
+    state_code: str | None = Field(default=None, max_length=2)
+    organization: str | None = Field(default=None, max_length=120)
+    job_title: str | None = Field(default=None, max_length=120)
+
+    @field_validator("state_code")
+    @classmethod
+    def validate_state_code(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if normalized not in US_STATE_CODES:
+            raise ValueError("state_code must be a supported US state or DC")
+        return normalized
+
+    @field_validator("organization", "job_title")
+    @classmethod
+    def normalize_bounded_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("value must not be blank")
+        return normalized
+
+
+class UserProfile(UserProfileWrite):
+    # Database adapter responses include server-owned columns such as user_id and
+    # timestamps. They are deliberately not part of the browser-facing profile.
+    model_config = ConfigDict(extra="ignore")
+
+
+class UserProfileResponse(BaseModel):
+    profile: UserProfile | None
 
 
 class SourceMetadata(BaseModel):
