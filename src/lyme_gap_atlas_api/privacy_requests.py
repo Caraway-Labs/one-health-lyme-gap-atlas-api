@@ -32,6 +32,15 @@ EXPORT_TTL = timedelta(hours=1)
 FRESH_SESSION = timedelta(minutes=15)
 STALE_IN_PROGRESS = timedelta(minutes=5)
 EXPORT_SCHEMA: Literal["atlas-user-data-export/v1"] = "atlas-user-data-export/v1"
+ALLOWED_ERROR_CLASSES = frozenset(
+    {
+        "upstream_http",
+        "auth_admin_unavailable",
+        "invalid_state",
+        "processor_failure",
+        "stale_in_progress",
+    }
+)
 
 STANDARD_OMISSIONS = (
     PrivacyOmission(
@@ -89,6 +98,14 @@ class PrivacyRequestStore(Protocol):
 
     def save(self, record: PrivacyRequestRecord) -> PrivacyRequestRecord: ...
 
+    def claim_for_confirm(
+        self,
+        request_id: UUID,
+        user_id: UUID,
+        nonce_hash: str,
+        moment: datetime,
+    ) -> PrivacyRequestRecord | None: ...
+
 
 class MemoryPrivacyRequestStore:
     def __init__(self) -> None:
@@ -103,6 +120,31 @@ class MemoryPrivacyRequestStore:
 
     def save(self, record: PrivacyRequestRecord) -> PrivacyRequestRecord:
         self.records[record.request_id] = record
+        return record
+
+    def claim_for_confirm(
+        self,
+        request_id: UUID,
+        user_id: UUID,
+        nonce_hash: str,
+        moment: datetime,
+    ) -> PrivacyRequestRecord | None:
+        record = self.records.get(request_id)
+        if (
+            record is None
+            or record.user_id != user_id
+            or record.state not in {"requested", "verified"}
+            or not record.nonce_hash
+            or record.nonce_hash != nonce_hash
+            or record.nonce_expires_at is None
+            or record.nonce_expires_at <= moment
+        ):
+            return None
+        record.state = "in_progress"
+        record.confirmed_at = moment
+        record.nonce_hash = None
+        record.nonce_expires_at = None
+        self.records[request_id] = record
         return record
 
 
@@ -142,6 +184,35 @@ class SupabasePrivacyRequestStore:
             json=self._row(record),
         )
         return self._from_row(self._one(response, "save"))
+
+    def claim_for_confirm(
+        self,
+        request_id: UUID,
+        user_id: UUID,
+        nonce_hash: str,
+        moment: datetime,
+    ) -> PrivacyRequestRecord | None:
+        response = self._request(
+            "PATCH",
+            headers={"Prefer": "return=representation"},
+            params={
+                "request_id": f"eq.{request_id}",
+                "user_id": f"eq.{user_id}",
+                "nonce_hash": f"eq.{nonce_hash}",
+                "state": "in.(requested,verified)",
+                "nonce_expires_at": f"gt.{moment.isoformat()}",
+            },
+            json={
+                "state": "in_progress",
+                "confirmed_at": _iso(moment),
+                "nonce_hash": None,
+                "nonce_expires_at": None,
+            },
+        )
+        rows = self._list(response, "claim_for_confirm")
+        if not rows:
+            return None
+        return self._from_row(rows[0])
 
     def _request(self, method: str, **kwargs: Any) -> httpx.Response:
         headers = {
@@ -274,26 +345,41 @@ class PrivacyRequestService:
         moment = now or datetime.now(UTC)
         if moment - issued_at > FRESH_SESSION:
             raise StaleSessionError
-        record = self._owned(request_id, user_id)
-        if record.state not in {"requested", "verified"}:
+        owned = self._owned(request_id, user_id)
+        if owned.state not in {"requested", "verified"}:
             raise InvalidPrivacyRequestError("invalid_state")
         if (
-            not record.nonce_hash
-            or record.nonce_expires_at is None
-            or record.nonce_expires_at <= moment
-            or record.nonce_hash != _hash_nonce(nonce)
+            not owned.nonce_hash
+            or owned.nonce_expires_at is None
+            or owned.nonce_expires_at <= moment
+            or owned.nonce_hash != _hash_nonce(nonce)
         ):
             raise InvalidPrivacyRequestError("expired_or_replayed_nonce")
-        record.state = "in_progress"
-        record.confirmed_at = moment
-        record.nonce_hash = None
-        record.nonce_expires_at = None
-        record = self._store.save(record)
+        record = self._store.claim_for_confirm(
+            request_id=request_id,
+            user_id=user_id,
+            nonce_hash=owned.nonce_hash,
+            moment=moment,
+        )
+        if record is None:
+            raise InvalidPrivacyRequestError("expired_or_replayed_nonce")
         try:
             self._execute(record, moment)
         except (ProfileStoreError, AuthAdminError, PrivacyRequestStoreError) as exc:
+            if _deletion_already_applied(record):
+                logger.error(
+                    "privacy_request_ledger_save_after_delete_failed",
+                    extra={
+                        "context": {
+                            "request_id": str(record.request_id),
+                            "action": record.action,
+                            "failure_category": _redacted_error_class(exc),
+                        }
+                    },
+                )
+                return self._status(record, moment)
             record.state = "needs_support"
-            record.error_class = getattr(exc, "category", "processor_failure")
+            record.error_class = _redacted_error_class(exc)
             record.processor_outcomes.append(
                 {
                     "processor": "atlas-account-service",
@@ -461,6 +547,27 @@ def _export_envelope(
 
 def _hash_nonce(nonce: str) -> str:
     return hashlib.sha256(nonce.encode("utf-8")).hexdigest()
+
+
+def _redacted_error_class(exc: BaseException) -> str:
+    category = getattr(exc, "category", None)
+    if isinstance(category, str) and category in ALLOWED_ERROR_CLASSES:
+        return category
+    if isinstance(category, str) and category in {
+        "invalid_json",
+        "invalid_response_shape",
+        "unexpected_response_count",
+    }:
+        return "auth_admin_unavailable"
+    return "processor_failure"
+
+
+def _deletion_already_applied(record: PrivacyRequestRecord) -> bool:
+    return record.action == "deletion" and any(
+        outcome.get("processor") == "atlas-account-service"
+        and outcome.get("outcome") == "deleted"
+        for outcome in record.processor_outcomes
+    )
 
 
 def _iso(value: datetime | None) -> str | None:

@@ -8,7 +8,13 @@ from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.auth_admin import AuthAdminError, AuthUserSnapshot
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.models import UserProfileWrite
-from lyme_gap_atlas_api.privacy_requests import MemoryPrivacyRequestStore, PrivacyRequestStore
+from lyme_gap_atlas_api.privacy_requests import (
+    MemoryPrivacyRequestStore,
+    PrivacyRequestRecord,
+    PrivacyRequestStore,
+    PrivacyRequestStoreError,
+    _redacted_error_class,
+)
 
 USER_ID = UUID("11111111-1111-1111-1111-111111111111")
 OTHER_USER = UUID("22222222-2222-2222-2222-222222222222")
@@ -181,3 +187,53 @@ def test_deletion_removes_auth_user_and_leaves_public_atlas() -> None:
         headers=headers,
     )
     assert export.status_code == 409
+
+
+class _FailAfterClaimStore(MemoryPrivacyRequestStore):
+    def __init__(self) -> None:
+        super().__init__()
+        self.fail_next_save = False
+
+    def save(self, record: PrivacyRequestRecord) -> PrivacyRequestRecord:
+        if self.fail_next_save:
+            self.fail_next_save = False
+            raise PrivacyRequestStoreError("save", "invalid_json")
+        return super().save(record)
+
+
+def test_deletion_stays_completed_when_ledger_save_fails_after_auth_delete() -> None:
+    store = _FailAfterClaimStore()
+    api, _, admin = _api(store=store)
+    headers = {"Authorization": "Bearer test-token"}
+    created = api.post("/v1/me/privacy-requests", headers=headers, json={"action": "deletion"})
+    store.fail_next_save = True
+    confirmed = api.post(
+        f"/v1/me/privacy-requests/{created.json()['request_id']}/confirm",
+        headers=headers,
+        json={"nonce": created.json()["confirmation_nonce"]},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["state"] == "completed"
+    assert admin.deleted == [USER_ID]
+
+
+def test_processor_failures_use_allowed_error_classes() -> None:
+    assert (
+        _redacted_error_class(PrivacyRequestStoreError("save", "invalid_json"))
+        == "auth_admin_unavailable"
+    )
+    assert _redacted_error_class(AuthAdminError("delete", "upstream_http", 503)) == "upstream_http"
+    assert _redacted_error_class(RuntimeError("boom")) == "processor_failure"
+
+    admin = MemoryAuthAdmin()
+    admin.fail_delete = True
+    api, _, _ = _api(auth_admin=admin)
+    headers = {"Authorization": "Bearer test-token"}
+    created = api.post("/v1/me/privacy-requests", headers=headers, json={"action": "deletion"})
+    confirmed = api.post(
+        f"/v1/me/privacy-requests/{created.json()['request_id']}/confirm",
+        headers=headers,
+        json={"nonce": created.json()["confirmation_nonce"]},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["state"] == "needs_support"
