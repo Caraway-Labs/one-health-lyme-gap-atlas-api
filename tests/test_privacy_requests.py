@@ -217,6 +217,33 @@ def test_deletion_stays_completed_when_ledger_save_fails_after_auth_delete() -> 
     assert admin.deleted == [USER_ID]
 
 
+def test_deletion_scrubs_prior_export_payloads() -> None:
+    store = MemoryPrivacyRequestStore()
+    api, _, admin = _api(store=store)
+    headers = {"Authorization": "Bearer test-token"}
+    export = api.post("/v1/me/privacy-requests", headers=headers, json={"action": "export"})
+    api.post(
+        f"/v1/me/privacy-requests/{export.json()['request_id']}/confirm",
+        headers=headers,
+        json={"nonce": export.json()["confirmation_nonce"]},
+    )
+    export_row = store.get(UUID(export.json()["request_id"]))
+    assert export_row is not None
+    assert export_row.export_payload is not None
+
+    deletion = api.post("/v1/me/privacy-requests", headers=headers, json={"action": "deletion"})
+    confirmed = api.post(
+        f"/v1/me/privacy-requests/{deletion.json()['request_id']}/confirm",
+        headers=headers,
+        json={"nonce": deletion.json()["confirmation_nonce"]},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["state"] == "completed"
+    assert admin.deleted == [USER_ID]
+    assert all(row.export_payload is None for row in store.records.values())
+    assert all(row.export_expires_at is None for row in store.records.values())
+
+
 def test_processor_failures_use_allowed_error_classes() -> None:
     assert (
         _redacted_error_class(PrivacyRequestStoreError("save", "invalid_json"))

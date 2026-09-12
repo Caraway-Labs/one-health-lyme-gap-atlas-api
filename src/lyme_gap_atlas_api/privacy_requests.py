@@ -106,6 +106,8 @@ class PrivacyRequestStore(Protocol):
         moment: datetime,
     ) -> PrivacyRequestRecord | None: ...
 
+    def clear_export_payloads(self, user_id: UUID) -> None: ...
+
 
 class MemoryPrivacyRequestStore:
     def __init__(self) -> None:
@@ -146,6 +148,12 @@ class MemoryPrivacyRequestStore:
         record.nonce_expires_at = None
         self.records[request_id] = record
         return record
+
+    def clear_export_payloads(self, user_id: UUID) -> None:
+        for record in self.records.values():
+            if record.user_id == user_id:
+                record.export_payload = None
+                record.export_expires_at = None
 
 
 class SupabasePrivacyRequestStore:
@@ -213,6 +221,14 @@ class SupabasePrivacyRequestStore:
         if not rows:
             return None
         return self._from_row(rows[0])
+
+    def clear_export_payloads(self, user_id: UUID) -> None:
+        self._request(
+            "PATCH",
+            headers={"Prefer": "return=minimal"},
+            params={"user_id": f"eq.{user_id}", "export_payload": "not.is.null"},
+            json={"export_payload": None, "export_expires_at": None},
+        )
 
     def _request(self, method: str, **kwargs: Any) -> httpx.Response:
         headers = {
@@ -457,6 +473,7 @@ class PrivacyRequestService:
                     "at": moment.isoformat(),
                 }
             )
+            self._store.clear_export_payloads(record.user_id)
         record.state = "completed"
         record.completed_at = moment
         self._store.save(record)
