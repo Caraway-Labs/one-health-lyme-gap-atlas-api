@@ -1,5 +1,6 @@
 """Supabase access-token verification for private Atlas API routes."""
 
+from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -16,14 +17,22 @@ class AuthenticatedUser(Protocol):
     @property
     def user_id(self) -> UUID: ...
 
+    @property
+    def issued_at(self) -> datetime: ...
+
 
 class SupabaseAuthenticatedUser:
-    def __init__(self, user_id: UUID) -> None:
+    def __init__(self, user_id: UUID, issued_at: datetime) -> None:
         self._user_id = user_id
+        self._issued_at = issued_at
 
     @property
     def user_id(self) -> UUID:
         return self._user_id
+
+    @property
+    def issued_at(self) -> datetime:
+        return self._issued_at
 
 
 class TokenVerifier(Protocol):
@@ -56,7 +65,8 @@ class SupabaseTokenVerifier:
             )
             if claims.get("role") != "authenticated":
                 raise self._unauthorized()
-            return SupabaseAuthenticatedUser(UUID(str(claims["sub"])))
+            issued_at = datetime.fromtimestamp(int(claims["iat"]), tz=UTC)
+            return SupabaseAuthenticatedUser(UUID(str(claims["sub"])), issued_at)
         except (jwt.PyJWTError, ValueError, OSError) as exc:
             if isinstance(exc, HTTPException):
                 raise exc

@@ -19,6 +19,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .auth import AuthenticatedUser, SupabaseTokenVerifier, TokenVerifier
+from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
 from .config import ApiSettings, get_settings
 from .knowledge_chat import (
     EVIDENCE_UNAVAILABLE,
@@ -27,16 +28,34 @@ from .knowledge_chat import (
     OpenAIAnswerer,
     SnowflakeBudgetStore,
 )
-from .middleware import KnowledgeChatLimitMiddleware, RateLimitMiddleware, RequestContextMiddleware
+from .middleware import (
+    KnowledgeChatLimitMiddleware,
+    PrivacyRequestLimitMiddleware,
+    RateLimitMiddleware,
+    RequestContextMiddleware,
+)
 from .models import (
     AtlasMetadata,
     CountyDetail,
     KnowledgeChatRequest,
     KnowledgeChatResponse,
+    PrivacyRequestConfirm,
+    PrivacyRequestCreate,
+    PrivacyRequestCreated,
+    PrivacyRequestStatus,
     ProblemDetails,
     ScoreCollection,
     UserProfileResponse,
     UserProfileWrite,
+)
+from .privacy_requests import (
+    InvalidPrivacyRequestError,
+    PrivacyRequestNotFoundError,
+    PrivacyRequestService,
+    PrivacyRequestStore,
+    PrivacyRequestStoreError,
+    StaleSessionError,
+    SupabasePrivacyRequestStore,
 )
 from .profiles import ProfileStore, ProfileStoreError, SupabaseProfileStore
 from .reports import (
@@ -106,6 +125,8 @@ def create_app(
     pdf_renderer: PdfRenderer | None = None,
     profile_store: ProfileStore | None = None,
     token_verifier: TokenVerifier | None = None,
+    privacy_request_store: PrivacyRequestStore | None = None,
+    auth_admin: AuthAdmin | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
@@ -153,9 +174,25 @@ def create_app(
     configured_token_verifier = token_verifier or (
         SupabaseTokenVerifier(config) if accounts_configured else None
     )
+    configured_privacy_store = privacy_request_store or (
+        SupabasePrivacyRequestStore(config) if accounts_configured else None
+    )
+    configured_auth_admin = auth_admin or (
+        SupabaseAuthAdmin(config) if accounts_configured else None
+    )
+    privacy_request_service = (
+        PrivacyRequestService(
+            configured_privacy_store,
+            configured_profile_store,
+            configured_auth_admin,
+        )
+        if configured_privacy_store and configured_profile_store and configured_auth_admin
+        else None
+    )
     app.add_middleware(GZipMiddleware, minimum_size=1_000)
     app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
     app.add_middleware(KnowledgeChatLimitMiddleware)
+    app.add_middleware(PrivacyRequestLimitMiddleware)
     app.add_middleware(RequestContextMiddleware)
     # Starlette applies the most recently added middleware first. Keep CORS outermost
     # so browser clients can read an error returned by a short-circuiting limiter.
@@ -308,6 +345,178 @@ def create_app(
             raise _accounts_unavailable() from exc
         response.headers["Cache-Control"] = "private, no-store"
         return UserProfileResponse(profile=profile)
+
+    def _privacy_service() -> PrivacyRequestService:
+        if privacy_request_service is None:
+            raise _accounts_unavailable()
+        return privacy_request_service
+
+    def _privacy_http_error(
+        exc: InvalidPrivacyRequestError | PrivacyRequestNotFoundError | StaleSessionError,
+    ) -> HTTPException:
+        if isinstance(exc, StaleSessionError):
+            return HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="A recently signed-in session is required to continue.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if isinstance(exc, PrivacyRequestNotFoundError):
+            return HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Privacy request not found."
+            )
+        if exc.reason == "export_unavailable":
+            return HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Export is not available."
+            )
+        if exc.reason == "invalid_state":
+            return HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This privacy request cannot be confirmed.",
+            )
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The confirmation is invalid or has expired.",
+        )
+
+    @app.post(
+        "/v1/me/privacy-requests",
+        response_model=PrivacyRequestCreated,
+        tags=["account"],
+        responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
+    )
+    def create_privacy_request(
+        payload: PrivacyRequestCreate,
+        request: Request,
+        response: Response,
+        user: Annotated[AuthenticatedUser, Depends(authenticated_user)],
+    ) -> PrivacyRequestCreated:
+        service = _privacy_service()
+        try:
+            created = service.create(user.user_id, payload.action)
+        except PrivacyRequestStoreError as exc:
+            logger.warning(
+                "privacy_request_create_failed",
+                extra={
+                    "context": {
+                        "request_id": getattr(request.state, "request_id", "unavailable"),
+                        "action": payload.action,
+                        "failure_category": exc.category,
+                    }
+                },
+            )
+            raise _accounts_unavailable() from exc
+        response.headers["Cache-Control"] = "private, no-store"
+        return created
+
+    @app.post(
+        "/v1/me/privacy-requests/{request_id}/confirm",
+        response_model=PrivacyRequestStatus,
+        tags=["account"],
+        responses={
+            400: {"model": ProblemDetails},
+            401: {"model": ProblemDetails},
+            404: {"model": ProblemDetails},
+            409: {"model": ProblemDetails},
+            503: {"model": ProblemDetails},
+        },
+    )
+    def confirm_privacy_request(
+        request_id: Annotated[uuid.UUID, Path()],
+        payload: PrivacyRequestConfirm,
+        request: Request,
+        response: Response,
+        user: Annotated[AuthenticatedUser, Depends(authenticated_user)],
+    ) -> PrivacyRequestStatus:
+        service = _privacy_service()
+        try:
+            result = service.confirm(request_id, user.user_id, payload.nonce, user.issued_at)
+        except (InvalidPrivacyRequestError, PrivacyRequestNotFoundError, StaleSessionError) as exc:
+            raise _privacy_http_error(exc) from exc
+        except (PrivacyRequestStoreError, AuthAdminError) as exc:
+            logger.warning(
+                "privacy_request_confirm_failed",
+                extra={
+                    "context": {
+                        "request_id": str(request_id),
+                        "failure_category": exc.category,
+                    }
+                },
+            )
+            raise _accounts_unavailable() from exc
+        response.headers["Cache-Control"] = "private, no-store"
+        return result
+
+    @app.get(
+        "/v1/me/privacy-requests/{request_id}",
+        response_model=PrivacyRequestStatus,
+        tags=["account"],
+        responses={
+            401: {"model": ProblemDetails},
+            404: {"model": ProblemDetails},
+            503: {"model": ProblemDetails},
+        },
+    )
+    def get_privacy_request(
+        request_id: Annotated[uuid.UUID, Path()],
+        response: Response,
+        user: Annotated[AuthenticatedUser, Depends(authenticated_user)],
+    ) -> PrivacyRequestStatus:
+        service = _privacy_service()
+        try:
+            result = service.status(request_id, user.user_id)
+        except PrivacyRequestNotFoundError as exc:
+            raise _privacy_http_error(exc) from exc
+        except PrivacyRequestStoreError as exc:
+            logger.warning(
+                "privacy_request_status_failed",
+                extra={
+                    "context": {
+                        "request_id": str(request_id),
+                        "failure_category": exc.category,
+                    }
+                },
+            )
+            raise _accounts_unavailable() from exc
+        response.headers["Cache-Control"] = "private, no-store"
+        return result
+
+    @app.get(
+        "/v1/me/privacy-requests/{request_id}/export",
+        tags=["account"],
+        responses={
+            401: {"model": ProblemDetails},
+            404: {"model": ProblemDetails},
+            409: {"model": ProblemDetails},
+            503: {"model": ProblemDetails},
+        },
+    )
+    def download_privacy_export(
+        request_id: Annotated[uuid.UUID, Path()],
+        user: Annotated[AuthenticatedUser, Depends(authenticated_user)],
+    ) -> JSONResponse:
+        service = _privacy_service()
+        try:
+            payload = service.export_payload(request_id, user.user_id)
+        except (InvalidPrivacyRequestError, PrivacyRequestNotFoundError, StaleSessionError) as exc:
+            raise _privacy_http_error(exc) from exc
+        except PrivacyRequestStoreError as exc:
+            logger.warning(
+                "privacy_export_download_failed",
+                extra={
+                    "context": {
+                        "request_id": str(request_id),
+                        "failure_category": exc.category,
+                    }
+                },
+            )
+            raise _accounts_unavailable() from exc
+        return JSONResponse(
+            payload,
+            headers={
+                "Cache-Control": "private, no-store",
+                "Content-Disposition": 'attachment; filename="atlas-user-data-export.json"',
+            },
+        )
 
     @app.get("/v1/atlas/metadata", response_model=AtlasMetadata, tags=["atlas"])
     def metadata(response: Response, dataset_version: str | None = None) -> AtlasMetadata:

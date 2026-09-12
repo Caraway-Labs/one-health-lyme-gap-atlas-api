@@ -135,3 +135,52 @@ class KnowledgeChatLimitMiddleware(BaseHTTPMiddleware):
         finally:
             async with self.lock:
                 self.concurrent[key] -= 1
+
+
+class PrivacyRequestLimitMiddleware(BaseHTTPMiddleware):
+    """Five privacy-request mutations per ten minutes per connecting address."""
+
+    def __init__(self, app: object) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self.requests: dict[str, deque[float]] = defaultdict(deque)
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        path = request.url.path
+        if not path.startswith("/v1/me/privacy-requests") or request.method not in {
+            "POST",
+            "GET",
+        }:
+            return await call_next(request)
+        if request.method == "GET" and path.rstrip("/").endswith("/export"):
+            mutating = False
+        else:
+            mutating = request.method == "POST"
+        if not mutating:
+            return await call_next(request)
+        client = request.headers.get("do-connecting-ip") or (
+            request.client.host if request.client else "unknown"
+        )
+        key = hashlib.sha256(client.encode()).hexdigest()
+        now = time.monotonic()
+        window = self.requests[key]
+        while window and now - window[0] > 600:
+            window.popleft()
+        if len(window) >= 5:
+            problem = {
+                "type": "https://carawaylabs.com/problems/privacy-request-rate-limit",
+                "title": "Too many requests",
+                "status": 429,
+                "detail": "The privacy-request limit has been reached.",
+                "instance": path,
+                "request_id": getattr(request.state, "request_id", "unavailable"),
+            }
+            return Response(
+                status_code=429,
+                media_type="application/problem+json",
+                content=json.dumps(problem),
+                headers={"Retry-After": "600"},
+            )
+        window.append(now)
+        return await call_next(request)

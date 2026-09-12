@@ -106,6 +106,62 @@ class UserProfileResponse(BaseModel):
     profile: UserProfile | None
 
 
+PrivacyAction = Literal["export", "deletion"]
+PrivacyRequestState = Literal[
+    "requested",
+    "verified",
+    "confirmed",
+    "in_progress",
+    "completed",
+    "needs_support",
+]
+PrivacyOmissionReason = Literal["not_connected", "not_account_linked", "browser_only"]
+
+
+class PrivacyOmission(BaseModel):
+    system: str
+    reason: PrivacyOmissionReason
+    detail: str
+
+
+class PrivacyRequestCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: PrivacyAction
+
+
+class PrivacyRequestConfirm(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nonce: str = Field(min_length=16, max_length=128)
+
+
+class PrivacyRequestStatus(BaseModel):
+    request_id: str
+    action: PrivacyAction
+    state: PrivacyRequestState
+    created_at: datetime
+    completed_at: datetime | None = None
+    download_available: bool = False
+    omissions: list[PrivacyOmission] = Field(default_factory=list)
+    support_reason: str | None = None
+    confirmation_expires_at: datetime | None = None
+
+
+class PrivacyRequestCreated(PrivacyRequestStatus):
+    confirmation_nonce: str
+
+
+class UserDataExportEnvelope(BaseModel):
+    schema_version: Literal["atlas-user-data-export/v1"]
+    generated_at: datetime
+    request_id: str
+    subject: dict[str, str]
+    sources: list[dict[str, str]]
+    data: dict[str, Any]
+    omissions: list[PrivacyOmission]
+
+
 class SourceMetadata(BaseModel):
     key: str
     label: str
