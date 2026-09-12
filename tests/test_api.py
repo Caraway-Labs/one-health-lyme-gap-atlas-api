@@ -86,13 +86,15 @@ class UnavailableRepository:
 
 
 class FakeAuthenticatedUser:
-    def __init__(self, user_id: UUID) -> None:
+    def __init__(self, user_id: UUID, issued_at: datetime | None = None) -> None:
         self.user_id = user_id
+        self.issued_at = issued_at or datetime.now(UTC)
 
 
 class FakeTokenVerifier:
-    def __init__(self, user_id: UUID) -> None:
+    def __init__(self, user_id: UUID, issued_at: datetime | None = None) -> None:
         self.user_id = user_id
+        self.issued_at = issued_at or datetime.now(UTC)
 
     def verify(self, authorization: str | None) -> FakeAuthenticatedUser:
         if authorization != "Bearer test-token":
@@ -102,7 +104,7 @@ class FakeTokenVerifier:
                 status_code=401,
                 detail="A valid authenticated session is required.",
             )
-        return FakeAuthenticatedUser(self.user_id)
+        return FakeAuthenticatedUser(self.user_id, self.issued_at)
 
 
 class MemoryProfileStore(ProfileStore):
@@ -502,9 +504,7 @@ def test_private_profile_rejects_invalid_state_and_blank_text() -> None:
         )
     )
     headers = {"Authorization": "Bearer test-token"}
-    assert (
-        api.put("/v1/me/profile", headers=headers, json={"state_code": "ZZ"}).status_code == 422
-    )
+    assert api.put("/v1/me/profile", headers=headers, json={"state_code": "ZZ"}).status_code == 422
     assert (
         api.put("/v1/me/profile", headers=headers, json={"organization": "   "}).status_code == 422
     )
