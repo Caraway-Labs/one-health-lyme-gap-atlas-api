@@ -27,6 +27,7 @@ from .knowledge_chat import (
     Neo4jRetriever,
     OpenAIAnswerer,
     SnowflakeBudgetStore,
+    SnowflakeCorpusProvenanceStore,
 )
 from .middleware import (
     KnowledgeChatLimitMiddleware,
@@ -155,6 +156,7 @@ def create_app(
                 OpenAIAnswerer(openai, config.kg_chat_model),
                 SnowflakeBudgetStore(config) if config.conversation_persistence_enabled else None,
                 hash_secret.get_secret_value(),
+                SnowflakeCorpusProvenanceStore(config),
             )
     app = FastAPI(
         title=config.app_name,

@@ -531,6 +531,98 @@ def test_chat_is_grounded_and_returns_one_time_token() -> None:
     assert body["citations"][0]["pmid"] == "12345678"
 
 
+class FakeProvenanceStore:
+    def __init__(self, rows: dict[str, dict[str, object]], *, fail: bool = False) -> None:
+        self.rows = rows
+        self.fail = fail
+        self.calls = 0
+
+    def lookup(self, pmids: list[str]) -> dict[str, dict[str, object]]:
+        self.calls += 1
+        if self.fail:
+            raise RuntimeError("snowflake unavailable")
+        return {pmid: self.rows[pmid] for pmid in pmids if pmid in self.rows}
+
+
+def test_chat_enriches_citations_from_corpus_provenance() -> None:
+    evidence = [
+        Evidence(
+            passage_id="passage-1",
+            excerpt="Ixodes was associated with Borrelia.",
+            summary="Vector-pathogen association.",
+            pmid="12345678",
+            title="Vector evidence",
+            pubmed_url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
+        )
+    ]
+    store = FakeProvenanceStore(
+        {
+            "12345678": {
+                "pmcid": "PMC999",
+                "corpus_unit_ids": ["unit-a"],
+                "section_labels": ["Results"],
+                "corpus_rules_version": "retrieval-corpus-v1",
+                "artifact_id": "artifact-1",
+                "contribution_sha256": "c" * 64,
+                "jats_sha256": "j" * 64,
+            }
+        }
+    )
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+        cors_origins=["https://carawaylabs.com"],
+        rate_limit_per_minute=100,
+        knowledge_chat_enabled=True,
+    )
+    service = KnowledgeChatService(
+        FakeRetriever(evidence), FakeAnswerer(), None, "test-secret", store
+    )
+    api = TestClient(create_app(FakeRepository(), settings, service))
+    body = api.post("/v1/knowledge-graph/chat", json={"message": "What is associated?"}).json()
+    assert body["status"] == "answered"
+    citation = body["citations"][0]
+    assert citation["pmcid"] == "PMC999"
+    assert citation["corpus_unit_ids"] == ["unit-a"]
+    assert citation["section_labels"] == ["Results"]
+    assert citation["corpus_rules_version"] == "retrieval-corpus-v1"
+    assert store.calls == 1
+
+
+def test_chat_survives_corpus_provenance_lookup_failure() -> None:
+    evidence = [
+        Evidence(
+            passage_id="passage-1",
+            excerpt="Ixodes was associated with Borrelia.",
+            summary="Vector-pathogen association.",
+            pmid="12345678",
+            title="Vector evidence",
+            pubmed_url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
+        )
+    ]
+    store = FakeProvenanceStore({}, fail=True)
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+        cors_origins=["https://carawaylabs.com"],
+        rate_limit_per_minute=100,
+        knowledge_chat_enabled=True,
+    )
+    service = KnowledgeChatService(
+        FakeRetriever(evidence), FakeAnswerer(), None, "test-secret", store
+    )
+    api = TestClient(create_app(FakeRepository(), settings, service))
+    body = api.post("/v1/knowledge-graph/chat", json={"message": "What is associated?"}).json()
+    assert body["status"] == "answered"
+    assert body["citations"][0]["pmid"] == "12345678"
+    assert body["citations"][0].get("pmcid") is None
+    assert store.calls == 1
+
+
 def test_chat_no_evidence_never_calls_answer_model() -> None:
     response = chat_client([]).post(
         "/v1/knowledge-graph/chat", json={"message": "Evidence on Mars?"}

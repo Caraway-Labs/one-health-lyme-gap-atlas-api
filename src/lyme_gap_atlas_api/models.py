@@ -298,6 +298,14 @@ class KnowledgeCitation(BaseModel):
     claim_ids: list[str] = Field(min_length=1)
     passage_ids: list[str] = Field(min_length=1)
     source_label: str = "PubMed / PMC Open Access"
+    # Optional Snowflake retrieval-corpus enrichment (Neo4j remains the evidence gate).
+    pmcid: str | None = None
+    corpus_unit_ids: list[str] | None = None
+    section_labels: list[str] | None = None
+    corpus_rules_version: str | None = None
+    artifact_id: str | None = None
+    contribution_sha256: str | None = None
+    jats_sha256: str | None = None
 
 
 class KnowledgeChatResponse(BaseModel):

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -22,6 +23,8 @@ from .models import (
     KnowledgeCitation,
     KnowledgeClaim,
 )
+
+logger = logging.getLogger(__name__)
 
 _PUBLIC_COPY = json.loads(asset_path("config", "public-copy-v1.json").read_text(encoding="utf-8"))
 MEDICAL_NOTICE = str(_PUBLIC_COPY["medical_notice"])
@@ -86,6 +89,10 @@ class BudgetStore(Protocol):
         request: KnowledgeChatRequest,
         response: KnowledgeChatResponse,
     ) -> None: ...
+
+
+class CorpusProvenanceStore(Protocol):
+    def lookup(self, pmids: list[str]) -> dict[str, dict[str, Any]]: ...
 
 
 class Neo4jRetriever:
@@ -186,6 +193,46 @@ class SnowflakeBudgetStore:
                 )
 
 
+class SnowflakeCorpusProvenanceStore:
+    """Procedure-only PMID → retrieval-corpus provenance lookup."""
+
+    def __init__(self, settings: SnowflakeSettings) -> None:
+        self._settings = settings
+
+    def lookup(self, pmids: list[str]) -> dict[str, dict[str, Any]]:
+        unique = list(dict.fromkeys(pmid for pmid in pmids if pmid))[:20]
+        if not unique:
+            return {}
+        with connect(self._settings) as connection, connection.cursor() as cursor:
+            cursor.execute(
+                "CALL GOVERNANCE.SP_LOOKUP_RETRIEVAL_CORPUS_PROVENANCE(PARSE_JSON(%s))",
+                (json.dumps(unique),),
+            )
+            row = cursor.fetchone()
+            payload = [] if row is None else row[0]
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+            if not isinstance(payload, list):
+                raise ValueError("corpus provenance payload is invalid")
+            result: dict[str, dict[str, Any]] = {}
+            for item in payload:
+                if not isinstance(item, dict) or "pmid" not in item:
+                    continue
+                result[str(item["pmid"])] = {
+                    key: item.get(key)
+                    for key in (
+                        "pmcid",
+                        "corpus_unit_ids",
+                        "section_labels",
+                        "corpus_rules_version",
+                        "artifact_id",
+                        "contribution_sha256",
+                        "jats_sha256",
+                    )
+                }
+            return result
+
+
 class OpenAIAnswerer:
     def __init__(self, client: OpenAI, model: str = "gpt-5.6-luna") -> None:
         self._client = client
@@ -239,10 +286,12 @@ class KnowledgeChatService:
         answerer: Answerer,
         budget_store: BudgetStore | None,
         hash_secret: str,
+        provenance_store: CorpusProvenanceStore | None = None,
     ) -> None:
         self._retriever = retriever
         self._answerer = answerer
         self._store = budget_store
+        self._provenance = provenance_store
         self._secret = hash_secret.encode()
 
     def _hash(self, value: str) -> str:
@@ -330,6 +379,7 @@ class KnowledgeChatService:
                     last_error = exc
             else:
                 raise last_error or ValueError("grounding failed")
+            citations = _enrich_citations(citations, self._provenance)
             result = KnowledgeChatResponse(
                 **base,
                 status="answered",
@@ -349,6 +399,42 @@ class KnowledgeChatService:
                     **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
                 )
         return result
+
+
+def _enrich_citations(
+    citations: list[KnowledgeCitation],
+    store: CorpusProvenanceStore | None,
+) -> list[KnowledgeCitation]:
+    """Attach optional corpus provenance; never fail a Neo4j-grounded answer."""
+    if store is None or not citations:
+        return citations
+    try:
+        by_pmid = store.lookup([citation.pmid for citation in citations])
+    except Exception:
+        logger.warning("retrieval_corpus.provenance_lookup_failed error_type=%s", "LookupError")
+        return citations
+    enriched: list[KnowledgeCitation] = []
+    for citation in citations:
+        row = by_pmid.get(citation.pmid)
+        if not row:
+            enriched.append(citation)
+            continue
+        unit_ids = row.get("corpus_unit_ids")
+        sections = row.get("section_labels")
+        enriched.append(
+            citation.model_copy(
+                update={
+                    "pmcid": row.get("pmcid"),
+                    "corpus_unit_ids": list(unit_ids) if isinstance(unit_ids, list) else None,
+                    "section_labels": list(sections) if isinstance(sections, list) else None,
+                    "corpus_rules_version": row.get("corpus_rules_version"),
+                    "artifact_id": row.get("artifact_id"),
+                    "contribution_sha256": row.get("contribution_sha256"),
+                    "jats_sha256": row.get("jats_sha256"),
+                }
+            )
+        )
+    return enriched
 
 
 def _validate_grounding(
