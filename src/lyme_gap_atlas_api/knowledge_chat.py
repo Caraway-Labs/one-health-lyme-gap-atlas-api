@@ -132,6 +132,14 @@ class Neo4jRetriever:
         ]
 
 
+def _governance_database(settings: SnowflakeSettings) -> str:
+    """Resolve the database that hosts governed KG procedures."""
+    configured = getattr(settings, "kg_snowflake_database", None)
+    if isinstance(configured, str) and configured.strip():
+        return configured.strip()
+    return settings.snowflake_database
+
+
 class SnowflakeBudgetStore:
     """Procedure-only budget reservation and 30-day conversation persistence."""
 
@@ -139,18 +147,20 @@ class SnowflakeBudgetStore:
         self._settings = settings
 
     def authorize(self, conversation_id: str, token_hash: str) -> bool:
+        db = _governance_database(self._settings)
         with connect(self._settings) as connection, connection.cursor() as cursor:
             cursor.execute(
-                "CALL GOVERNANCE.SP_VERIFY_KG_CONVERSATION_TOKEN(%s,%s)",
+                f"CALL {db}.GOVERNANCE.SP_VERIFY_KG_CONVERSATION_TOKEN(%s,%s)",
                 (conversation_id, token_hash),
             )
             row = cursor.fetchone()
             return bool(row and row[0])
 
     def reserve(self, request_id: str) -> bool:
+        db = _governance_database(self._settings)
         with connect(self._settings) as connection, connection.cursor() as cursor:
             cursor.execute(
-                "CALL GOVERNANCE.SP_RESERVE_KG_LLM_BUDGET(%s,%s,%s,%s,%s,%s,%s)",
+                f"CALL {db}.GOVERNANCE.SP_RESERVE_KG_LLM_BUDGET(%s,%s,%s,%s,%s,%s,%s)",
                 ("chat", request_id, "openai", "gpt-5.6-luna", 0.05, 5, 100),
             )
             row = cursor.fetchone()
@@ -174,10 +184,11 @@ class SnowflakeBudgetStore:
             (f"{request_id}:user", "user", request.message, "received", []),
             (request_id, "assistant", response.answer, response.status, citations),
         )
+        db = _governance_database(self._settings)
         with connect(self._settings) as connection, connection.cursor() as cursor:
             for turn_request_id, role, body, status, turn_citations in turns:
                 cursor.execute(
-                    "CALL GOVERNANCE.SP_PERSIST_KG_CONVERSATION_TURN"
+                    f"CALL {db}.GOVERNANCE.SP_PERSIST_KG_CONVERSATION_TURN"
                     "(%s,%s,%s,%s,%s,%s,%s,%s,PARSE_JSON(%s))",
                     (
                         conversation_id,
@@ -203,9 +214,10 @@ class SnowflakeCorpusProvenanceStore:
         unique = list(dict.fromkeys(pmid for pmid in pmids if pmid))[:20]
         if not unique:
             return {}
+        db = _governance_database(self._settings)
         with connect(self._settings) as connection, connection.cursor() as cursor:
             cursor.execute(
-                "CALL GOVERNANCE.SP_LOOKUP_RETRIEVAL_CORPUS_PROVENANCE(PARSE_JSON(%s))",
+                f"CALL {db}.GOVERNANCE.SP_LOOKUP_RETRIEVAL_CORPUS_PROVENANCE(PARSE_JSON(%s))",
                 (json.dumps(unique),),
             )
             row = cursor.fetchone()

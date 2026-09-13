@@ -59,6 +59,9 @@ services:
       - key: KG_CHAT_ENABLED
         value: "true"
         scope: RUN_TIME
+      - key: SNOWFLAKE_KG_DATABASE
+        value: ONE_HEALTH_LYME_GAP_ATLAS_PROD
+        scope: RUN_TIME
     alerts:
       - rule: CPU_UTILIZATION
         operator: GREATER_THAN

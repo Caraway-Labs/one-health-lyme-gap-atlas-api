@@ -373,6 +373,22 @@ def test_comma_separated_cors_origins_work_from_environment(monkeypatch) -> None
     assert settings.cors_origins == ["https://carawaylabs.com", "http://localhost:3000"]
 
 
+def test_kg_chat_enabled_accepts_deploy_env_alias(monkeypatch) -> None:
+    monkeypatch.setenv("KG_CHAT_ENABLED", "true")
+    monkeypatch.setenv("SNOWFLAKE_KG_DATABASE", "ONE_HEALTH_LYME_GAP_ATLAS_DEV")
+
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+        snowflake_database="ONE_HEALTH_LYME_GAP_ATLAS",
+    )
+
+    assert settings.knowledge_chat_enabled is True
+    assert settings.kg_snowflake_database == "ONE_HEALTH_LYME_GAP_ATLAS_DEV"
+
+
 def test_rate_limited_browser_request_keeps_cors_headers() -> None:
     settings = ApiSettings(
         snowflake_account="test",
