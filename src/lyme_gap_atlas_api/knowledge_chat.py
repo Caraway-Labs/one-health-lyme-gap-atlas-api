@@ -102,11 +102,22 @@ class Neo4jRetriever:
     """Read-only retriever exposing no arbitrary-Cypher interface."""
 
     def __init__(self, uri: str, user: str, password: str, openai: OpenAI) -> None:
-        self._driver = GraphDatabase.driver(uri, auth=(user, password))
+        # Short connect timeout so readiness/chat fail closed instead of hanging
+        # App Platform health checks when Neo4j is unreachable from the VPC path.
+        self._driver = GraphDatabase.driver(
+            uri,
+            auth=(user, password),
+            connection_acquisition_timeout=3.0,
+            connection_timeout=3.0,
+        )
         self._openai = openai
 
     def ready(self) -> bool:
-        self._driver.verify_connectivity()
+        try:
+            self._driver.verify_connectivity()
+        except Exception:
+            logger.warning("neo4j_connectivity_unavailable", exc_info=False)
+            return False
         return True
 
     def search(self, message: str) -> list[Evidence]:
