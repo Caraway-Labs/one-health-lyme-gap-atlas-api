@@ -226,6 +226,28 @@ def test_health_and_contract() -> None:
     assert api.get("/openapi.json").status_code == 200
 
 
+def test_ready_with_chat_enabled_does_not_probe_neo4j() -> None:
+    """Deploy readiness stays Snowflake-gated; Neo4j fails closed at chat time."""
+
+    class _HangingRetriever:
+        def ready(self) -> bool:
+            raise AssertionError("ready must not probe Neo4j")
+
+        def search(self, message: str) -> list[Evidence]:
+            return []
+
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+        knowledge_chat_enabled=True,
+    )
+    service = KnowledgeChatService(_HangingRetriever(), FakeAnswerer(), None, "test-secret")
+    api = TestClient(create_app(FakeRepository(), settings, service))
+    assert api.get("/health/ready").status_code == 200
+
+
 def test_scores_geometry_detail_and_csv() -> None:
     api = client()
     score = api.get("/v1/atlas/scores").json()["counties"][0]

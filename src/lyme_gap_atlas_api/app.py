@@ -259,12 +259,13 @@ def create_app(
     @app.get("/health/ready", tags=["health"])
     def ready() -> dict[str, str]:
         try:
-            graph_ready = (
-                not config.knowledge_chat_enabled
-                or knowledge_chat_service is not None
-                and knowledge_chat_service.ready()
+            # Process readiness is Snowflake (+ chat wiring when enabled).
+            # Neo4j is probed at chat time and fails closed per ADR 0007; do not
+            # block App Platform deploys on a private Bolt probe that can hang.
+            chat_wired = (
+                not config.knowledge_chat_enabled or knowledge_chat_service is not None
             )
-            if service.ready() and graph_ready:
+            if service.ready() and chat_wired:
                 return {"status": "ready"}
         except Exception as exc:
             raise HTTPException(
