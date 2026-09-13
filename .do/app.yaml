@@ -56,6 +56,9 @@ services:
       - key: CORS_ORIGINS
         value: https://carawaylabs.com,https://www.carawaylabs.com,https://one-health-lyme-gap-atlas-web-yqobn.ondigitalocean.app,http://localhost:3000
         scope: RUN_TIME
+      - key: KG_CHAT_ENABLED
+        value: "true"
+        scope: RUN_TIME
     alerts:
       - rule: CPU_UTILIZATION
         operator: GREATER_THAN
