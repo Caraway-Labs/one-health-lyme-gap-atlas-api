@@ -34,8 +34,11 @@ EVIDENCE_UNAVAILABLE = str(_PUBLIC_COPY["evidence_unavailable"])
 CAPACITY_LIMITED = str(_PUBLIC_COPY["capacity_limited"])
 
 HYBRID_SEARCH = """
-CALL db.index.fulltext.queryNodes('entity_names', $query, {limit: 10}) YIELD node, score
-WITH collect({node: node, score: score}) AS entities
+CALL () {
+  CALL db.index.fulltext.queryNodes('entity_names', $query, {limit: 10})
+  YIELD node, score
+  RETURN collect({node: node, score: score}) AS entities
+}
 CALL db.index.vector.queryNodes('evidence_passage_summary', 20, $embedding)
 YIELD node AS passage, score AS vector_score
 MATCH (paper:Paper {id: passage.paper_id})
@@ -262,7 +265,13 @@ class OpenAIAnswerer:
                 "claims. Each claim has claim_id, text, passage_ids, and pmids. Do not diagnose "
                 "or provide personalized treatment. Preserve conflicting findings."
             ),
-            input=json.dumps({"question": message, "passages": passages}),
+            input=json.dumps(
+                {
+                    "question": message,
+                    "passages": passages,
+                    "response_format": "json",
+                }
+            ),
             text={"format": {"type": "json_object"}},
             timeout=10,
         )
