@@ -47,6 +47,9 @@ services:
       - key: SNOWFLAKE_DATABASE
         value: ONE_HEALTH_LYME_GAP_ATLAS
         scope: RUN_TIME
+      - key: SNOWFLAKE_PRESENTATION_DATABASE
+        value: ONE_HEALTH_LYME_GAP_ATLAS_PROD
+        scope: RUN_TIME
       - key: SNOWFLAKE_PRESENTATION_SCHEMA
         value: PRESENTATION
         scope: RUN_TIME

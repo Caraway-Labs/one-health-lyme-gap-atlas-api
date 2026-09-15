@@ -56,7 +56,10 @@ which remains distinct from a legitimate zero.
 
 The versioned contract is committed as `openapi.json`. Production uses the
 least-privilege `OH_LYME_API_SVC` Snowflake service user and key-pair
-authentication. See `.env.example`; never use `SYSADMIN` in this service.
+authentication. Atlas reads use the configured `SNOWFLAKE_PRESENTATION_DATABASE`
+and `SNOWFLAKE_PRESENTATION_SCHEMA` semantic-release interface; production must
+set the database to `ONE_HEALTH_LYME_GAP_ATLAS_PROD`. See `.env.example`; never
+use `SYSADMIN` in this service.
 Neo4j Community runtime authorization is recorded as accepted debt in the
 knowledge-graph repository's ADR 0008: API retrieval remains constrained by
 the application, network, and feature-flag controls rather than database roles.
