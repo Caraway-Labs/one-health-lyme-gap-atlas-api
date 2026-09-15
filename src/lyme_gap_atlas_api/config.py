@@ -36,6 +36,9 @@ class ApiSettings(SnowflakeSettings):
     # Snowflake CALL statements use this database while atlas reads keep
     # snowflake_database.
     snowflake_kg_database: str = ""
+    # Public Atlas reads use the approved semantic-release database rather than
+    # the connection's default database. Production sets this explicitly.
+    snowflake_presentation_database: str = ""
     neo4j_uri: str = ""
     neo4j_runtime_user: str = "graph_runtime"
     neo4j_runtime_password: SecretStr | None = None
@@ -50,6 +53,10 @@ class ApiSettings(SnowflakeSettings):
     @property
     def kg_snowflake_database(self) -> str:
         return self.snowflake_kg_database or self.snowflake_database
+
+    @property
+    def presentation_database(self) -> str:
+        return self.snowflake_presentation_database or self.snowflake_database
 
     @field_validator("cors_origins", mode="before")
     @classmethod

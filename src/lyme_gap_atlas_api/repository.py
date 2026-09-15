@@ -1,6 +1,7 @@
 """Snowflake read adapter; all browser-visible data crosses this boundary."""
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -29,6 +30,13 @@ class SnowflakeAtlasRepository:
     def __init__(self, settings: ApiSettings) -> None:
         self.settings = settings
 
+    @property
+    def _presentation_schema(self) -> str:
+        return (
+            f"{_sql_identifier(self.settings.presentation_database)}."
+            f"{_sql_identifier(self.settings.snowflake_presentation_schema)}"
+        )
+
     def ready(self) -> bool:
         try:
             with connect(self.settings) as connection, connection.cursor() as cursor:
@@ -41,16 +49,16 @@ class SnowflakeAtlasRepository:
         try:
             with connect(self.settings) as connection, connection.cursor() as cursor:
                 cursor.execute(
-                    """SELECT RELEASE_ID, SCHEMA_VERSION, GENERATED_AT, LOADED_AT, SCOPE,
+                    f"""SELECT RELEASE_ID, SCHEMA_VERSION, GENERATED_AT, LOADED_AT, SCOPE,
                           BUNDLE_SHA256, TO_JSON(SCORE_DEFAULTS), METHODOLOGY_VERSION, LIMITATIONS
-                   FROM PRESENTATION.CURRENT_RELEASE_V"""
+                   FROM {self._presentation_schema}.CURRENT_RELEASE_V"""
                 )
                 release = cursor.fetchone()
                 if release is None:
                     raise AtlasDataUnavailableError("No current Atlas release is available")
                 cursor.execute(
-                    """SELECT SOURCE_KEY, LABEL, VINTAGE, SOURCE_URL, NOTE
-                   FROM PRESENTATION.CURRENT_SOURCE_METADATA_V ORDER BY SOURCE_KEY"""
+                    f"""SELECT SOURCE_KEY, LABEL, VINTAGE, SOURCE_URL, NOTE
+                   FROM {self._presentation_schema}.CURRENT_SOURCE_METADATA_V ORDER BY SOURCE_KEY"""
                 )
                 sources = [
                     SourceMetadata(
@@ -59,13 +67,13 @@ class SnowflakeAtlasRepository:
                     for row in cursor.fetchall()
                 ]
                 cursor.execute(
-                    """SELECT RELEASE_ID,FIPS,COUNTY,STATE,STATE_NAME,POPULATION,
+                    f"""SELECT RELEASE_ID,FIPS,COUNTY,STATE,STATE_NAME,POPULATION,
                           IN_CONTIGUOUS_TICK_SCOPE,HUMAN_STATUS,CASE_COUNT_FLOOR_2023,
                           INCIDENCE_FLOOR_2023,STATE_UNALLOCATED_RECORDS_2023,TICK_STATUS,
                           SCAPULARIS_STATUS,PACIFICUS_STATUS,BURGDORFERI_STATUS,SVI_PERCENTILE,
                           UNINSURED_PERCENTILE,UNINSURED_PERCENT,RUCC_2023,EVIDENCE_COMPLETENESS,
                           TO_JSON(GEOMETRY_JSON)
-                   FROM PRESENTATION.CURRENT_COUNTY_ATLAS_V ORDER BY FIPS"""
+                   FROM {self._presentation_schema}.CURRENT_COUNTY_ATLAS_V ORDER BY FIPS"""
                 )
                 counties = [self._county(row) for row in cursor.fetchall()]
             states = sorted({(county.state, county.state_name) for county in counties})
@@ -113,3 +121,13 @@ class SnowflakeAtlasRepository:
             evidence_completeness=row[19],
             geometry=json.loads(row[20]),
         )
+
+
+_SQL_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
+
+
+def _sql_identifier(value: str) -> str:
+    """Quote a configured Snowflake identifier and reject SQL fragments."""
+    if not _SQL_IDENTIFIER.fullmatch(value):
+        raise ValueError("Snowflake database and schema names must be simple identifiers")
+    return f'"{value.upper()}"'
