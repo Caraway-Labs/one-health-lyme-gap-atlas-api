@@ -160,7 +160,8 @@ class AtlasService:
             return False
         return {
             "all": True,
-            "ecological": item.tick_status != "No records" or item.burgdorferi_status == "Present",
+            "ecological": item.tick_status in {"Established", "Reported"}
+            or item.burgdorferi_status == "Present",
             "human": item.human_status == "published_count_floor",
             "complete": item.evidence_completeness >= 5,
         }[evidence]

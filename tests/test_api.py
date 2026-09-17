@@ -85,6 +85,20 @@ class UnavailableRepository:
         raise AtlasDataUnavailableError("test data service unavailable")
 
 
+class UnknownCoverageRepository(FakeRepository):
+    def load_snapshot(self) -> Snapshot:
+        snapshot = super().load_snapshot()
+        county = snapshot.counties[0].model_copy(
+            update={
+                "tick_status": "Unknown",
+                "scapularis_status": "Unknown",
+                "pacificus_status": "Unknown",
+                "burgdorferi_status": "Unknown",
+            }
+        )
+        return Snapshot(metadata=snapshot.metadata, counties=[county])
+
+
 class FakeAuthenticatedUser:
     def __init__(self, user_id: UUID, issued_at: datetime | None = None) -> None:
         self.user_id = user_id
@@ -264,6 +278,23 @@ def test_validation_and_unknown_release() -> None:
     assert invalid.status_code == 422
     assert invalid.headers["content-type"].startswith("application/problem+json")
     assert api.get("/v1/atlas/metadata?dataset_version=missing").status_code == 404
+
+
+def test_unknown_coverage_is_returned_but_not_counted_as_ecological_evidence() -> None:
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+    )
+    api = TestClient(create_app(UnknownCoverageRepository(), settings))
+
+    all_counties = api.get("/v1/atlas/scores").json()["counties"]
+    ecological_ranking = api.get("/v1/atlas/ranking.csv?evidence=ecological").text
+
+    assert all_counties[0]["tick_status"] == "Unknown"
+    assert all_counties[0]["burgdorferi_status"] == "Unknown"
+    assert "Adams" not in ecological_ranking
 
 
 def test_county_pdf_export_has_safe_headers_and_provenance() -> None:

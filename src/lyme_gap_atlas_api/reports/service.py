@@ -121,7 +121,7 @@ class ReportService:
                 self._metric(
                     "tick_record_counties",
                     "Counties with tick records",
-                    sum(county.tick_status != "No records" for county in counties),
+                    sum(county.tick_status in {"Established", "Reported"} for county in counties),
                 ),
                 self._metric(
                     "pathogen_record_counties",

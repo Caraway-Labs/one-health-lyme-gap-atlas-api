@@ -198,10 +198,10 @@ class CountyRecord(BaseModel):
     case_count_floor_2023: int | None
     incidence_floor_2023: float | None
     state_unallocated_records_2023: int | None
-    tick_status: Literal["Established", "Reported", "No records"]
+    tick_status: Literal["Established", "Reported", "No records", "Unknown"]
     scapularis_status: str | None
     pacificus_status: str | None
-    burgdorferi_status: Literal["Present", "No records"]
+    burgdorferi_status: Literal["Present", "No records", "Unknown"]
     svi_percentile: float | None
     uninsured_percentile: float | None
     uninsured_percent: float | None
