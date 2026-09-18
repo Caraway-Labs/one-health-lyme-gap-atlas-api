@@ -1,6 +1,7 @@
 """Snowflake read adapter; all browser-visible data crosses this boundary."""
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -9,6 +10,8 @@ from lyme_gap_atlas_shared.snowflake import connect
 
 from .config import ApiSettings
 from .models import AtlasMetadata, CountyRecord, SourceMetadata
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,7 @@ class SnowflakeAtlasRepository:
                 cursor.execute("SELECT 1")
                 return cursor.fetchone() == (1,)
         except Exception as exc:
+            logger.warning("atlas_readiness_check_failed", extra={"error_type": type(exc).__name__})
             raise AtlasDataUnavailableError("Atlas data service is unavailable") from exc
 
     def load_snapshot(self) -> Snapshot:

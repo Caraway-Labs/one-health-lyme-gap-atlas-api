@@ -132,6 +132,15 @@ def create_app(
     config = settings or get_settings()
     configure_logging()
     configure_tracing("one-health-lyme-gap-atlas-api")
+    logger.info(
+        "atlas_runtime_configuration",
+        extra={
+            "snowflake_role": config.snowflake_role,
+            "snowflake_database": config.snowflake_database,
+            "presentation_database": config.presentation_database,
+            "presentation_schema": config.snowflake_presentation_schema,
+        },
+    )
     service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
     reports = report_service or ReportService(service)
     renderer = pdf_renderer or TypstRenderer(RenderLimits.from_settings(config))
