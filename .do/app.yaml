@@ -42,10 +42,10 @@ services:
         value: COMPUTE_WH
         scope: RUN_TIME
       - key: SNOWFLAKE_ROLE
-        value: OH_LYME_API_READER
+        value: OH_LYME_PROD_READ
         scope: RUN_TIME
       - key: SNOWFLAKE_DATABASE
-        value: ONE_HEALTH_LYME_GAP_ATLAS
+        value: ONE_HEALTH_LYME_GAP_ATLAS_PROD
         scope: RUN_TIME
       - key: SNOWFLAKE_PRESENTATION_DATABASE
         value: ONE_HEALTH_LYME_GAP_ATLAS_PROD
