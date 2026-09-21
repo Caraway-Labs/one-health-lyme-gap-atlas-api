@@ -133,13 +133,12 @@ def create_app(
     configure_logging()
     configure_tracing("one-health-lyme-gap-atlas-api")
     logger.info(
-        "atlas_runtime_configuration",
-        extra={
-            "snowflake_role": config.snowflake_role,
-            "snowflake_database": config.snowflake_database,
-            "presentation_database": config.presentation_database,
-            "presentation_schema": config.snowflake_presentation_schema,
-        },
+        "atlas_runtime_configuration role=%s database=%s presentation_database=%s "
+        "presentation_schema=%s",
+        config.snowflake_role,
+        config.snowflake_database,
+        config.presentation_database,
+        config.snowflake_presentation_schema,
     )
     service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
     reports = report_service or ReportService(service)
