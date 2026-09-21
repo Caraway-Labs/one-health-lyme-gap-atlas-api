@@ -46,11 +46,13 @@ class SnowflakeAtlasRepository:
                 cursor.execute("SELECT 1")
                 return cursor.fetchone() == (1,)
         except Exception as exc:
+            diagnostic = str(exc).replace("\n", " ").replace("\r", " ")[:500]
             logger.warning(
-                "atlas_readiness_check_failed error_type=%s errno=%s sqlstate=%s",
+                "atlas_readiness_check_failed error_type=%s errno=%s sqlstate=%s diagnostic=%s",
                 type(exc).__name__,
                 getattr(exc, "errno", None),
                 getattr(exc, "sqlstate", None),
+                diagnostic,
             )
             raise AtlasDataUnavailableError("Atlas data service is unavailable") from exc
 
