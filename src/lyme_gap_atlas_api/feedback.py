@@ -33,6 +33,7 @@ FEEDBACK_TOPOLOGY_UNSAFE_DETAIL = (
 )
 
 _WORKER_ENV_KEYS = ("WEB_CONCURRENCY", "UVICORN_WORKERS")
+_LOCK_STRIPE_COUNT = 128
 
 
 class FeedbackStoreError(Exception):
@@ -244,20 +245,22 @@ class SnowflakeFeedbackStore:
 
 
 class FeedbackService:
-    """Validate fingerprints and serialize same-token submits in one process."""
+    """Validate fingerprints and serialize same-token submits in one process.
 
-    def __init__(self, store: FeedbackStore) -> None:
+    Locks come from a fixed stripe pool. Identical tokens always share a stripe.
+    Unrelated tokens may share one. The pool does not grow with public traffic.
+    """
+
+    def __init__(self, store: FeedbackStore, *, lock_stripes: int = _LOCK_STRIPE_COUNT) -> None:
+        if lock_stripes < 1:
+            raise ValueError("lock_stripes must be positive")
         self._store = store
-        self._locks: dict[str, threading.Lock] = {}
-        self._locks_guard = threading.Lock()
+        self._lock_stripes = tuple(threading.Lock() for _ in range(lock_stripes))
 
     def _lock_for(self, submission_token: str) -> threading.Lock:
-        with self._locks_guard:
-            lock = self._locks.get(submission_token)
-            if lock is None:
-                lock = threading.Lock()
-                self._locks[submission_token] = lock
-            return lock
+        digest = hashlib.sha256(submission_token.encode("utf-8")).digest()
+        index = int.from_bytes(digest[:8], "big") % len(self._lock_stripes)
+        return self._lock_stripes[index]
 
     def submit(
         self,

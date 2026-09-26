@@ -279,6 +279,15 @@ def test_feedback_submission_log_omits_sensitive_fields(
     assert "Bearer test-token" not in rendered
 
 
+def test_idempotency_locks_stay_bounded() -> None:
+    service = FeedbackService(MemoryFeedbackStore())
+    assert len(service._lock_stripes) == 128
+    tokens = [str(uuid.uuid4()) for _ in range(1000)]
+    locks = [service._lock_for(token) for token in tokens]
+    assert len({id(lock) for lock in locks}) <= 128
+    assert service._lock_for(tokens[0]) is service._lock_for(tokens[0])
+
+
 def test_concurrent_submits_share_one_canonical_id() -> None:
     store = MemoryFeedbackStore()
     service = FeedbackService(store)
