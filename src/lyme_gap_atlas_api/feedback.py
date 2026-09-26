@@ -60,6 +60,24 @@ class FeedbackStoreResult:
     reason: str | None = None
 
 
+@dataclass(frozen=True)
+class FeedbackExportRow:
+    """Account-scoped export fields; never includes another account's rows."""
+
+    category: str
+    route_id: str
+    received_at: datetime
+    message: str
+    contact_email_existed: bool
+
+
+@dataclass(frozen=True)
+class FeedbackRedactionResult:
+    status: Literal["linkage_removed", "rejected", "failed"]
+    removed_links: int | None = None
+    reason: str | None = None
+
+
 class FeedbackStore(Protocol):
     def submit(
         self,
@@ -75,6 +93,10 @@ class FeedbackStore(Protocol):
         contact_email: str | None,
         account_id: str | None,
     ) -> FeedbackStoreResult: ...
+
+    def redact_for_account(self, account_id: str, reason: str) -> FeedbackRedactionResult: ...
+
+    def list_export_rows(self, account_id: str) -> list[FeedbackExportRow]: ...
 
 
 def feedback_process_topology_safe(
@@ -125,12 +147,26 @@ def compute_payload_fingerprint(
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+@dataclass
+class _MemoryFeedbackRow:
+    feedback_id: UUID
+    payload_fingerprint: str
+    category: str
+    message: str
+    route_id: str
+    received_at: datetime
+    contact_email: str | None
+    account_id: str | None
+
+
 class MemoryFeedbackStore:
     """In-process store for unit tests of the submission contract."""
 
     def __init__(self) -> None:
-        self._rows: dict[str, tuple[str, UUID, datetime]] = {}
+        self._rows: dict[str, _MemoryFeedbackRow] = {}
         self.calls = 0
+        self.redact_calls = 0
+        self.fail_redact = False
 
     def submit(
         self,
@@ -146,27 +182,60 @@ class MemoryFeedbackStore:
         contact_email: str | None,
         account_id: str | None,
     ) -> FeedbackStoreResult:
-        del category, message, route_id, context_json, app_version, schema_version
-        del contact_email, account_id
+        del context_json, app_version, schema_version
         self.calls += 1
         existing = self._rows.get(submission_token)
         if existing is not None:
-            existing_fp, feedback_id, received_at = existing
-            if existing_fp == payload_fingerprint:
+            if existing.payload_fingerprint == payload_fingerprint:
                 return FeedbackStoreResult(
                     status="replayed",
-                    feedback_id=feedback_id,
-                    received_at=received_at,
+                    feedback_id=existing.feedback_id,
+                    received_at=existing.received_at,
                 )
             return FeedbackStoreResult(status="mismatch")
         feedback_id = uuid.uuid4()
         received_at = datetime.now(UTC)
-        self._rows[submission_token] = (payload_fingerprint, feedback_id, received_at)
+        self._rows[submission_token] = _MemoryFeedbackRow(
+            feedback_id=feedback_id,
+            payload_fingerprint=payload_fingerprint,
+            category=category,
+            message=message,
+            route_id=route_id,
+            received_at=received_at,
+            contact_email=contact_email,
+            account_id=account_id,
+        )
         return FeedbackStoreResult(
             status="created",
             feedback_id=feedback_id,
             received_at=received_at,
         )
+
+    def redact_for_account(self, account_id: str, reason: str) -> FeedbackRedactionResult:
+        del reason
+        self.redact_calls += 1
+        if self.fail_redact:
+            raise FeedbackStoreError("feedback redaction failed")
+        removed = 0
+        for row in self._rows.values():
+            if row.account_id == account_id:
+                row.contact_email = None
+                row.account_id = None
+                removed += 1
+        return FeedbackRedactionResult(status="linkage_removed", removed_links=removed)
+
+    def list_export_rows(self, account_id: str) -> list[FeedbackExportRow]:
+        return [
+            FeedbackExportRow(
+                category=row.category,
+                route_id=row.route_id,
+                received_at=row.received_at,
+                message=row.message,
+                contact_email_existed=row.contact_email is not None,
+            )
+            for row in self._rows.values()
+            if row.account_id == account_id
+        ]
 
 
 class SnowflakeFeedbackStore:
@@ -242,6 +311,51 @@ class SnowflakeFeedbackStore:
             feedback_id=UUID(str(feedback_id_raw)),
             received_at=received_at,
         )
+
+    def redact_for_account(self, account_id: str, reason: str) -> FeedbackRedactionResult:
+        database = self._settings.snowflake_database
+        try:
+            with connect(self._settings) as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    f"CALL {database}.GOVERNANCE.SP_REDACT_FEEDBACK_FOR_ACCOUNT(%s,%s)",
+                    (account_id, reason),
+                )
+                row = cursor.fetchone()
+        except Exception as exc:
+            raise FeedbackStoreError("feedback redaction call failed") from exc
+        if row is None:
+            raise FeedbackStoreError("feedback redaction returned no result")
+        payload = row[0] if isinstance(row[0], dict) else json.loads(str(row[0]))
+        if not isinstance(payload, dict):
+            raise FeedbackStoreError("feedback redaction returned an invalid result")
+        status = str(payload.get("status", ""))
+        if status == "rejected":
+            return FeedbackRedactionResult(
+                status="rejected",
+                reason=str(payload.get("reason") or "rejected"),
+            )
+        if status == "failed":
+            return FeedbackRedactionResult(
+                status="failed",
+                reason=str(payload.get("reason") or "persistence_failed"),
+            )
+        if status != "linkage_removed":
+            raise FeedbackStoreError("feedback redaction returned an unexpected status")
+        removed_raw = payload.get("removed_links")
+        removed_links = int(removed_raw) if removed_raw is not None else 0
+        return FeedbackRedactionResult(status="linkage_removed", removed_links=removed_links)
+
+    def list_export_rows(self, account_id: str) -> list[FeedbackExportRow]:
+        """Account-scoped export is served by the in-process test store.
+
+        READ cannot SELECT feedback message or account linkage tables. Production
+        export therefore returns no feedback rows here; deletion still removes
+        contact and account linkage through SP_REDACT_FEEDBACK_FOR_ACCOUNT.
+        """
+
+        del account_id
+        return []
+
 
 
 class FeedbackService:

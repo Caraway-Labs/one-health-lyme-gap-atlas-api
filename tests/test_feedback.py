@@ -368,3 +368,80 @@ def test_concurrent_http_submits_one_canonical_id() -> None:
     assert len(outcomes) == 2
     assert outcomes[0]["feedback_id"] == outcomes[1]["feedback_id"]
     assert store.calls >= 1
+
+
+def test_sixth_feedback_request_is_throttled_with_retry_after() -> None:
+    api, store = _api()
+    headers = {"do-connecting-ip": "203.0.113.50"}
+    for _ in range(5):
+        response = api.post("/v1/feedback", json=_valid_body(), headers=headers)
+        assert response.status_code == 200
+    limited = api.post("/v1/feedback", json=_valid_body(), headers=headers)
+    assert limited.status_code == 429
+    assert limited.headers["Retry-After"]
+    assert int(limited.headers["Retry-After"]) >= 1
+    problem = limited.json()
+    assert problem["status"] == 429
+    assert problem["request_id"]
+    assert "The feedback submission limit has been reached." in problem["detail"]
+    assert store.calls == 5
+
+
+def test_feedback_rate_limit_problem_keeps_cors_headers() -> None:
+    api, _ = _api(settings=_settings(cors_origins=["http://localhost:3000"]))
+    headers = {
+        "Origin": "http://localhost:3000",
+        "do-connecting-ip": "198.51.100.10",
+    }
+    for _ in range(5):
+        assert api.post("/v1/feedback", json=_valid_body(), headers=headers).status_code == 200
+    limited = api.post("/v1/feedback", json=_valid_body(), headers=headers)
+    assert limited.status_code == 429
+    assert limited.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert limited.json()["detail"]
+
+
+def test_non_json_content_type_is_415_without_store_call() -> None:
+    api, store = _api()
+    response = api.post(
+        "/v1/feedback",
+        content=b'{"category":"general"}',
+        headers={"Content-Type": "text/plain"},
+    )
+    assert response.status_code == 415
+    assert store.calls == 0
+    assert response.json()["request_id"]
+
+
+def test_oversized_body_is_413_without_store_call() -> None:
+    api, store = _api()
+    response = api.post(
+        "/v1/feedback",
+        content=b"x" * 8193,
+        headers={"Content-Type": "application/json", "Content-Length": "8193"},
+    )
+    assert response.status_code == 413
+    assert store.calls == 0
+    assert response.json()["request_id"]
+
+
+def test_feedback_log_outcomes_cover_throttle_and_rejection(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    api, _ = _api()
+    headers = {"do-connecting-ip": "192.0.2.40"}
+    for _ in range(5):
+        api.post("/v1/feedback", json=_valid_body(), headers=headers)
+    limited = api.post("/v1/feedback", json=_valid_body(), headers=headers)
+    assert limited.status_code == 429
+    rejected = api.post(
+        "/v1/feedback",
+        content=b"{}",
+        headers={"Content-Type": "text/plain", "do-connecting-ip": "192.0.2.41"},
+    )
+    assert rejected.status_code == 415
+    rendered = capsys.readouterr().err
+    assert "throttled" in rendered
+    assert "rejected" in rendered
+    assert "192.0.2.40" not in rendered
+    assert "192.0.2.41" not in rendered
