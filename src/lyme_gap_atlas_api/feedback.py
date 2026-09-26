@@ -383,6 +383,8 @@ class SnowflakeFeedbackStore:
             if not isinstance(item, dict):
                 raise FeedbackStoreError("feedback export returned an invalid result")
             received_raw = item.get("received_at")
+            if not isinstance(received_raw, (datetime, str)):
+                raise FeedbackStoreError("feedback export returned an invalid result")
             received_at = parse_snowflake_timestamp(received_raw)
             exported.append(
                 FeedbackExportRow(
