@@ -14,6 +14,7 @@ import httpx
 
 from .auth_admin import AuthAdmin, AuthAdminError, AuthUserSnapshot
 from .config import ApiSettings
+from .feedback import FeedbackExportRow, FeedbackStore, FeedbackStoreError
 from .models import (
     PrivacyAction,
     PrivacyOmission,
@@ -32,6 +33,9 @@ EXPORT_TTL = timedelta(hours=1)
 FRESH_SESSION = timedelta(minutes=15)
 STALE_IN_PROGRESS = timedelta(minutes=5)
 EXPORT_SCHEMA: Literal["atlas-user-data-export/v1"] = "atlas-user-data-export/v1"
+FEEDBACK_PROCESSOR = "atlas-feedback-service"
+ACCOUNT_PROCESSOR = "atlas-account-service"
+FEEDBACK_DELETION_REASON = "account privacy deletion"
 ALLOWED_ERROR_CLASSES = frozenset(
     {
         "upstream_http",
@@ -42,27 +46,38 @@ ALLOWED_ERROR_CLASSES = frozenset(
     }
 )
 
+PERSONALIZATION_OMISSION = PrivacyOmission(
+    system="atlas-personalization-service",
+    reason="not_connected",
+    detail="Saved views and pinned jurisdictions are not launched.",
+)
+FEEDBACK_OMISSION = PrivacyOmission(
+    system=FEEDBACK_PROCESSOR,
+    reason="not_connected",
+    detail="In-product feedback contact storage is not launched.",
+)
+AMPLITUDE_OMISSION = PrivacyOmission(
+    system="amplitude",
+    reason="not_account_linked",
+    detail="Product analytics are session-scoped and cannot be looked up by account.",
+)
+BROWSER_OMISSION = PrivacyOmission(
+    system="browser-preferences",
+    reason="browser_only",
+    detail="Analytics choice and local chat history stay in the requesting browser.",
+)
+
 STANDARD_OMISSIONS = (
-    PrivacyOmission(
-        system="atlas-personalization-service",
-        reason="not_connected",
-        detail="Saved views and pinned jurisdictions are not launched.",
-    ),
-    PrivacyOmission(
-        system="atlas-feedback-service",
-        reason="not_connected",
-        detail="In-product feedback contact storage is not launched.",
-    ),
-    PrivacyOmission(
-        system="amplitude",
-        reason="not_account_linked",
-        detail="Product analytics are session-scoped and cannot be looked up by account.",
-    ),
-    PrivacyOmission(
-        system="browser-preferences",
-        reason="browser_only",
-        detail="Analytics choice and local chat history stay in the requesting browser.",
-    ),
+    PERSONALIZATION_OMISSION,
+    FEEDBACK_OMISSION,
+    AMPLITUDE_OMISSION,
+    BROWSER_OMISSION,
+)
+
+CONNECTED_FEEDBACK_OMISSIONS = (
+    PERSONALIZATION_OMISSION,
+    AMPLITUDE_OMISSION,
+    BROWSER_OMISSION,
 )
 
 
@@ -325,10 +340,12 @@ class PrivacyRequestService:
         store: PrivacyRequestStore,
         profile_store: ProfileStore,
         auth_admin: AuthAdmin,
+        feedback_store: FeedbackStore | None = None,
     ) -> None:
         self._store = store
         self._profiles = profile_store
         self._auth = auth_admin
+        self._feedback = feedback_store
 
     def create(
         self, user_id: UUID, action: PrivacyAction, now: datetime | None = None
@@ -381,7 +398,12 @@ class PrivacyRequestService:
             raise InvalidPrivacyRequestError("expired_or_replayed_nonce")
         try:
             self._execute(record, moment)
-        except (ProfileStoreError, AuthAdminError, PrivacyRequestStoreError) as exc:
+        except (
+            ProfileStoreError,
+            AuthAdminError,
+            PrivacyRequestStoreError,
+            FeedbackStoreError,
+        ) as exc:
             if _deletion_already_applied(record):
                 logger.error(
                     "privacy_request_ledger_save_after_delete_failed",
@@ -396,9 +418,14 @@ class PrivacyRequestService:
                 return self._status(record, moment)
             record.state = "needs_support"
             record.error_class = _redacted_error_class(exc)
+            failed_processor = (
+                FEEDBACK_PROCESSOR
+                if isinstance(exc, FeedbackStoreError)
+                else ACCOUNT_PROCESSOR
+            )
             record.processor_outcomes.append(
                 {
-                    "processor": "atlas-account-service",
+                    "processor": failed_processor,
                     "outcome": "failed",
                     "at": moment.isoformat(),
                 }
@@ -409,7 +436,7 @@ class PrivacyRequestService:
                     "context": {
                         "request_id": str(record.request_id),
                         "action": record.action,
-                        "processor": "atlas-account-service",
+                        "processor": failed_processor,
                         "failure_category": record.error_class,
                     }
                 },
@@ -452,23 +479,48 @@ class PrivacyRequestService:
         if record.action == "export":
             profile = self._profiles.get(record.user_id)
             snapshot = self._auth.get_user(record.user_id)
-            envelope = _export_envelope(record, profile, snapshot, moment)
+            feedback_rows = self._export_feedback_rows(record.user_id)
+            envelope = _export_envelope(
+                record,
+                profile,
+                snapshot,
+                moment,
+                feedback_rows=feedback_rows,
+                feedback_connected=self._feedback is not None,
+            )
             record.export_payload = envelope.model_dump(mode="json")
             record.export_expires_at = moment + EXPORT_TTL
             record.processor_outcomes.append(
                 {
-                    "processor": "atlas-account-service",
+                    "processor": ACCOUNT_PROCESSOR,
                     "outcome": "completed",
                     "at": moment.isoformat(),
                 }
             )
+            if self._feedback is not None:
+                record.processor_outcomes.append(
+                    {
+                        "processor": FEEDBACK_PROCESSOR,
+                        "outcome": "completed",
+                        "at": moment.isoformat(),
+                    }
+                )
         else:
+            self._redact_feedback_linkage(record.user_id)
             self._auth.delete_user(record.user_id)
             record.export_payload = None
             record.export_expires_at = None
+            if self._feedback is not None:
+                record.processor_outcomes.append(
+                    {
+                        "processor": FEEDBACK_PROCESSOR,
+                        "outcome": "linkage_removed",
+                        "at": moment.isoformat(),
+                    }
+                )
             record.processor_outcomes.append(
                 {
-                    "processor": "atlas-account-service",
+                    "processor": ACCOUNT_PROCESSOR,
                     "outcome": "deleted",
                     "at": moment.isoformat(),
                 }
@@ -478,14 +530,35 @@ class PrivacyRequestService:
         record.completed_at = moment
         self._store.save(record)
 
+    def _export_feedback_rows(self, user_id: UUID) -> list[FeedbackExportRow]:
+        if self._feedback is None:
+            return []
+        try:
+            return self._feedback.list_export_rows(str(user_id))
+        except FeedbackStoreError:
+            raise
+        except Exception as exc:
+            raise FeedbackStoreError("feedback export failed") from exc
+
+    def _redact_feedback_linkage(self, user_id: UUID) -> None:
+        if self._feedback is None:
+            return
+        try:
+            result = self._feedback.redact_for_account(str(user_id), FEEDBACK_DELETION_REASON)
+        except FeedbackStoreError:
+            raise
+        except Exception as exc:
+            raise FeedbackStoreError("feedback redaction failed") from exc
+        if result.status != "linkage_removed":
+            raise FeedbackStoreError("feedback redaction did not complete")
+
     def _owned(self, request_id: UUID, user_id: UUID) -> PrivacyRequestRecord:
         record = self._store.get(request_id)
         if record is None or record.user_id != user_id:
             raise PrivacyRequestNotFoundError
         return record
 
-    @staticmethod
-    def _status(record: PrivacyRequestRecord, moment: datetime) -> PrivacyRequestStatus:
+    def _status(self, record: PrivacyRequestRecord, moment: datetime) -> PrivacyRequestStatus:
         download_available = bool(
             record.action == "export"
             and record.state == "completed"
@@ -500,12 +573,18 @@ class PrivacyRequestService:
             created_at=record.created_at,
             completed_at=record.completed_at,
             download_available=download_available,
-            omissions=list(STANDARD_OMISSIONS),
+            omissions=list(self._omissions()),
             support_reason="A processor could not finish this request."
             if record.state == "needs_support"
             else None,
             confirmation_expires_at=record.nonce_expires_at,
         )
+
+    def _omissions(self) -> tuple[PrivacyOmission, ...]:
+        if self._feedback is None:
+            return STANDARD_OMISSIONS
+        return CONNECTED_FEEDBACK_OMISSIONS
+
 
 
 class PrivacyRequestNotFoundError(LookupError):
@@ -534,18 +613,30 @@ def _export_envelope(
     profile: UserProfile | None,
     snapshot: AuthUserSnapshot,
     moment: datetime,
+    *,
+    feedback_rows: list[FeedbackExportRow] | None = None,
+    feedback_connected: bool = False,
 ) -> UserDataExportEnvelope:
+    rows = feedback_rows or []
+    sources = [
+        {
+            "system": ACCOUNT_PROCESSOR,
+            "retrieved_at": moment.isoformat(),
+        }
+    ]
+    if feedback_connected:
+        sources.append(
+            {
+                "system": FEEDBACK_PROCESSOR,
+                "retrieved_at": moment.isoformat(),
+            }
+        )
     return UserDataExportEnvelope(
         schema_version=EXPORT_SCHEMA,
         generated_at=moment,
         request_id=str(record.request_id),
         subject={"account_id": str(record.user_id)},
-        sources=[
-            {
-                "system": "atlas-account-service",
-                "retrieved_at": moment.isoformat(),
-            }
-        ],
+        sources=sources,
         data={
             "account": {
                 "email": snapshot.email,
@@ -555,10 +646,21 @@ def _export_envelope(
             "profile": profile.model_dump() if profile else None,
             "personalization": [],
             "preferences": {},
-            "feedback_contact": [],
+            "feedback_contact": [
+                {
+                    "category": row.category,
+                    "route_id": row.route_id,
+                    "received_at": row.received_at.isoformat(),
+                    "message": row.message,
+                    "contact_email_existed": row.contact_email_existed,
+                }
+                for row in rows
+            ],
             "analytics": [],
         },
-        omissions=list(STANDARD_OMISSIONS),
+        omissions=list(
+            CONNECTED_FEEDBACK_OMISSIONS if feedback_connected else STANDARD_OMISSIONS
+        ),
     )
 
 
@@ -581,10 +683,10 @@ def _redacted_error_class(exc: BaseException) -> str:
 
 def _deletion_already_applied(record: PrivacyRequestRecord) -> bool:
     return record.action == "deletion" and any(
-        outcome.get("processor") == "atlas-account-service"
-        and outcome.get("outcome") == "deleted"
+        outcome.get("processor") == ACCOUNT_PROCESSOR and outcome.get("outcome") == "deleted"
         for outcome in record.processor_outcomes
     )
+
 
 
 def _iso(value: datetime | None) -> str | None:

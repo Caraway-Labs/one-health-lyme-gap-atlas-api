@@ -47,6 +47,7 @@ from .knowledge_chat import (
     SnowflakeCorpusProvenanceStore,
 )
 from .middleware import (
+    FeedbackLimitMiddleware,
     KnowledgeChatLimitMiddleware,
     PrivacyRequestLimitMiddleware,
     RateLimitMiddleware,
@@ -220,20 +221,22 @@ def create_app(
     configured_auth_admin = auth_admin or (
         SupabaseAuthAdmin(config) if accounts_configured else None
     )
+    configured_feedback_store = feedback_store or SnowflakeFeedbackStore(config)
+    feedback_service = FeedbackService(configured_feedback_store)
     privacy_request_service = (
         PrivacyRequestService(
             configured_privacy_store,
             configured_profile_store,
             configured_auth_admin,
+            feedback_store=configured_feedback_store,
         )
         if configured_privacy_store and configured_profile_store and configured_auth_admin
         else None
     )
-    configured_feedback_store = feedback_store or SnowflakeFeedbackStore(config)
-    feedback_service = FeedbackService(configured_feedback_store)
     app.add_middleware(GZipMiddleware, minimum_size=1_000)
     app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
     app.add_middleware(KnowledgeChatLimitMiddleware)
+    app.add_middleware(FeedbackLimitMiddleware)
     app.add_middleware(PrivacyRequestLimitMiddleware)
     app.add_middleware(RequestContextMiddleware)
     # Starlette applies the most recently added middleware first. Keep CORS outermost
@@ -816,7 +819,10 @@ def create_app(
         responses={
             401: {"model": ProblemDetails},
             409: {"model": ProblemDetails},
+            413: {"model": ProblemDetails},
+            415: {"model": ProblemDetails},
             422: {"model": ProblemDetails},
+            429: {"model": ProblemDetails},
             503: {"model": ProblemDetails},
         },
     )
@@ -833,7 +839,7 @@ def create_app(
                 "feedback_submission",
                 extra={
                     "context": {
-                        "outcome": "unavailable",
+                        "outcome": "unexpected",
                         "category": payload.category,
                         "route_id": payload.route_id,
                         "request_id": request_id,
@@ -852,7 +858,7 @@ def create_app(
                 "feedback_submission",
                 extra={
                     "context": {
-                        "outcome": "mismatch",
+                        "outcome": "rejected",
                         "category": payload.category,
                         "route_id": payload.route_id,
                         "request_id": request_id,
@@ -876,12 +882,44 @@ def create_app(
                 media_type="application/problem+json",
                 headers={"Cache-Control": "no-store"},
             )
-        except (FeedbackStoreError, FeedbackRejectedError) as exc:
+        except FeedbackRejectedError as exc:
+            logger.info(
+                "feedback_submission",
+                extra={
+                    "context": {
+                        "outcome": "rejected",
+                        "category": payload.category,
+                        "route_id": payload.route_id,
+                        "request_id": request_id,
+                    }
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=FEEDBACK_PERSISTENCE_DETAIL,
+            ) from exc
+        except FeedbackStoreError as exc:
             logger.warning(
                 "feedback_submission",
                 extra={
                     "context": {
                         "outcome": "persistence_failed",
+                        "category": payload.category,
+                        "route_id": payload.route_id,
+                        "request_id": request_id,
+                    }
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=FEEDBACK_PERSISTENCE_DETAIL,
+            ) from exc
+        except Exception as exc:
+            logger.exception(
+                "feedback_submission",
+                extra={
+                    "context": {
+                        "outcome": "unexpected",
                         "category": payload.category,
                         "route_id": payload.route_id,
                         "request_id": request_id,
