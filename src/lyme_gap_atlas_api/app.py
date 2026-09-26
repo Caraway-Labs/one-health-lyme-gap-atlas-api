@@ -18,9 +18,26 @@ from openai import OpenAI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .auth import AuthenticatedUser, SupabaseTokenVerifier, TokenVerifier
+from .auth import (
+    AuthenticatedUser,
+    SupabaseTokenVerifier,
+    TokenVerifier,
+    optional_authenticated_user,
+)
 from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
 from .config import ApiSettings, get_settings
+from .feedback import (
+    FEEDBACK_IDEMPOTENCY_MISMATCH_TYPE,
+    FEEDBACK_PERSISTENCE_DETAIL,
+    FEEDBACK_TOPOLOGY_UNSAFE_DETAIL,
+    FeedbackIdempotencyMismatchError,
+    FeedbackRejectedError,
+    FeedbackService,
+    FeedbackStore,
+    FeedbackStoreError,
+    SnowflakeFeedbackStore,
+    feedback_process_topology_safe,
+)
 from .knowledge_chat import (
     EVIDENCE_UNAVAILABLE,
     KnowledgeChatService,
@@ -38,6 +55,8 @@ from .middleware import (
 from .models import (
     AtlasMetadata,
     CountyDetail,
+    FeedbackSubmissionRequest,
+    FeedbackSubmissionResponse,
     KnowledgeChatRequest,
     KnowledgeChatResponse,
     PrivacyRequestConfirm,
@@ -128,6 +147,7 @@ def create_app(
     token_verifier: TokenVerifier | None = None,
     privacy_request_store: PrivacyRequestStore | None = None,
     auth_admin: AuthAdmin | None = None,
+    feedback_store: FeedbackStore | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
@@ -140,6 +160,16 @@ def create_app(
         config.presentation_database,
         config.snowflake_presentation_schema,
     )
+    feedback_topology_safe = feedback_process_topology_safe()
+    if not feedback_topology_safe:
+        logger.error(
+            "feedback_topology_unsafe",
+            extra={
+                "context": {
+                    "reason": "WEB_CONCURRENCY_or_UVICORN_WORKERS_gt_1",
+                }
+            },
+        )
     service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
     reports = report_service or ReportService(service)
     renderer = pdf_renderer or TypstRenderer(RenderLimits.from_settings(config))
@@ -199,6 +229,8 @@ def create_app(
         if configured_privacy_store and configured_profile_store and configured_auth_admin
         else None
     )
+    configured_feedback_store = feedback_store or SnowflakeFeedbackStore(config)
+    feedback_service = FeedbackService(configured_feedback_store)
     app.add_middleware(GZipMiddleware, minimum_size=1_000)
     app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
     app.add_middleware(KnowledgeChatLimitMiddleware)
@@ -270,11 +302,19 @@ def create_app(
             # Process readiness is Snowflake (+ chat wiring when enabled).
             # Neo4j is probed at chat time and fails closed per ADR 0007; do not
             # block App Platform deploys on a private Bolt probe that can hang.
+            # Feedback idempotency is process-local; multi-worker topology fails closed.
             chat_wired = (
                 not config.knowledge_chat_enabled or knowledge_chat_service is not None
             )
+            if not feedback_topology_safe:
+                raise HTTPException(
+                    status_code=503,
+                    detail=FEEDBACK_TOPOLOGY_UNSAFE_DETAIL,
+                )
             if service.ready() and chat_wired:
                 return {"status": "ready"}
+        except HTTPException:
+            raise
         except Exception as exc:
             raise HTTPException(
                 status_code=503, detail="A required data service is unavailable"
@@ -287,6 +327,11 @@ def create_app(
         if configured_token_verifier is None:
             raise _accounts_unavailable()
         return configured_token_verifier.verify(authorization)
+
+    def resolve_optional_user(
+        authorization: Annotated[str | None, Header()] = None,
+    ) -> AuthenticatedUser | None:
+        return optional_authenticated_user(authorization, configured_token_verifier)
 
     def _accounts_unavailable() -> HTTPException:
         return HTTPException(
@@ -763,6 +808,102 @@ def create_app(
             media_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+    @app.post(
+        "/v1/feedback",
+        response_model=FeedbackSubmissionResponse,
+        tags=["feedback"],
+        responses={
+            401: {"model": ProblemDetails},
+            409: {"model": ProblemDetails},
+            422: {"model": ProblemDetails},
+            503: {"model": ProblemDetails},
+        },
+    )
+    def submit_feedback(
+        payload: FeedbackSubmissionRequest,
+        request: Request,
+        response: Response,
+        user: Annotated[AuthenticatedUser | None, Depends(resolve_optional_user)],
+    ) -> FeedbackSubmissionResponse | JSONResponse:
+        request_id = getattr(request.state, "request_id", "unavailable")
+        response.headers["Cache-Control"] = "no-store"
+        if not feedback_topology_safe:
+            logger.info(
+                "feedback_submission",
+                extra={
+                    "context": {
+                        "outcome": "unavailable",
+                        "category": payload.category,
+                        "route_id": payload.route_id,
+                        "request_id": request_id,
+                    }
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=FEEDBACK_TOPOLOGY_UNSAFE_DETAIL,
+            )
+        account_id = user.user_id if user is not None else None
+        try:
+            result = feedback_service.submit(payload, account_id)
+        except FeedbackIdempotencyMismatchError:
+            logger.info(
+                "feedback_submission",
+                extra={
+                    "context": {
+                        "outcome": "mismatch",
+                        "category": payload.category,
+                        "route_id": payload.route_id,
+                        "request_id": request_id,
+                    }
+                },
+            )
+            problem = ProblemDetails(
+                type=FEEDBACK_IDEMPOTENCY_MISMATCH_TYPE,
+                title="Feedback idempotency mismatch",
+                status=409,
+                detail=(
+                    "This submission token was already used with a different payload. "
+                    "Start a new report to continue."
+                ),
+                instance=str(request.url.path),
+                request_id=request_id,
+            )
+            return JSONResponse(
+                problem.model_dump(mode="json"),
+                status_code=409,
+                media_type="application/problem+json",
+                headers={"Cache-Control": "no-store"},
+            )
+        except (FeedbackStoreError, FeedbackRejectedError) as exc:
+            logger.warning(
+                "feedback_submission",
+                extra={
+                    "context": {
+                        "outcome": "persistence_failed",
+                        "category": payload.category,
+                        "route_id": payload.route_id,
+                        "request_id": request_id,
+                    }
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=FEEDBACK_PERSISTENCE_DETAIL,
+            ) from exc
+        logger.info(
+            "feedback_submission",
+            extra={
+                "context": {
+                    "outcome": "replayed" if result.replayed else "accepted",
+                    "category": payload.category,
+                    "route_id": payload.route_id,
+                    "request_id": request_id,
+                }
+            },
+        )
+        return result
 
     @app.post(
         "/v1/knowledge-graph/chat",
