@@ -24,6 +24,7 @@ from lyme_gap_atlas_api.feedback import (
     MemoryFeedbackStore,
     compute_payload_fingerprint,
     feedback_process_topology_safe,
+    parse_snowflake_timestamp,
 )
 from lyme_gap_atlas_api.models import FeedbackSubmissionRequest
 
@@ -78,6 +79,15 @@ def _api(
     if token_verifier is not None:
         kwargs["token_verifier"] = token_verifier
     return TestClient(create_app(**kwargs)), feedback_store
+
+
+def test_parse_snowflake_timestamp_accepts_ltz_display_format() -> None:
+    parsed = parse_snowflake_timestamp("2026-09-26 15:20:03.470 -0700")
+    assert parsed.year == 2026
+    assert parsed.hour == 15
+    assert parsed.minute == 20
+    assert parsed.utcoffset() is not None
+    assert int(parsed.utcoffset().total_seconds()) == -7 * 3600
 
 
 def test_anonymous_submission_returns_canonical_id() -> None:

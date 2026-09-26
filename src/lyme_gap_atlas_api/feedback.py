@@ -99,6 +99,24 @@ class FeedbackStore(Protocol):
     def list_export_rows(self, account_id: str) -> list[FeedbackExportRow]: ...
 
 
+def parse_snowflake_timestamp(value: datetime | str) -> datetime:
+    """Parse Snowflake TIMESTAMP_LTZ values such as ``2026-09-26 15:20:03.470 -0700``."""
+
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        text = str(value).strip().replace("Z", "+00:00")
+        if " " in text and "T" not in text:
+            text = text.replace(" ", "T", 1)
+        text = text.replace(" ", "")
+        if len(text) >= 5 and text[-5] in "+-" and text[-3] != ":":
+            text = f"{text[:-2]}:{text[-2:]}"
+        parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
+
+
 def feedback_process_topology_safe(
     environ: Mapping[str, str] | None = None,
 ) -> bool:
@@ -299,13 +317,7 @@ class SnowflakeFeedbackStore:
         received_raw = payload.get("received_at")
         if feedback_id_raw is None or received_raw is None:
             raise FeedbackStoreError("feedback store omitted required fields")
-        received_at = (
-            received_raw
-            if isinstance(received_raw, datetime)
-            else datetime.fromisoformat(str(received_raw).replace("Z", "+00:00"))
-        )
-        if received_at.tzinfo is None:
-            received_at = received_at.replace(tzinfo=UTC)
+        received_at = parse_snowflake_timestamp(received_raw)
         return FeedbackStoreResult(
             status=status,  # type: ignore[arg-type]
             feedback_id=UUID(str(feedback_id_raw)),
@@ -371,13 +383,9 @@ class SnowflakeFeedbackStore:
             if not isinstance(item, dict):
                 raise FeedbackStoreError("feedback export returned an invalid result")
             received_raw = item.get("received_at")
-            received_at = (
-                received_raw
-                if isinstance(received_raw, datetime)
-                else datetime.fromisoformat(str(received_raw).replace("Z", "+00:00"))
-            )
-            if received_at.tzinfo is None:
-                received_at = received_at.replace(tzinfo=UTC)
+            if not isinstance(received_raw, (datetime, str)):
+                raise FeedbackStoreError("feedback export returned an invalid result")
+            received_at = parse_snowflake_timestamp(received_raw)
             exported.append(
                 FeedbackExportRow(
                     category=str(item["category"]),
@@ -388,7 +396,6 @@ class SnowflakeFeedbackStore:
                 )
             )
         return exported
-
 
 
 class FeedbackService:
