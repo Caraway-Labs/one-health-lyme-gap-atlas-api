@@ -346,15 +346,48 @@ class SnowflakeFeedbackStore:
         return FeedbackRedactionResult(status="linkage_removed", removed_links=removed_links)
 
     def list_export_rows(self, account_id: str) -> list[FeedbackExportRow]:
-        """Account-scoped export is served by the in-process test store.
-
-        READ cannot SELECT feedback message or account linkage tables. Production
-        export therefore returns no feedback rows here; deletion still removes
-        contact and account linkage through SP_REDACT_FEEDBACK_FOR_ACCOUNT.
-        """
-
-        del account_id
-        return []
+        database = self._settings.snowflake_database
+        try:
+            with connect(self._settings) as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    f"CALL {database}.GOVERNANCE.SP_EXPORT_FEEDBACK_FOR_ACCOUNT(%s)",
+                    (account_id,),
+                )
+                row = cursor.fetchone()
+        except Exception as exc:
+            raise FeedbackStoreError("feedback export call failed") from exc
+        if row is None:
+            raise FeedbackStoreError("feedback export returned no result")
+        payload = row[0] if isinstance(row[0], dict) else json.loads(str(row[0]))
+        if not isinstance(payload, dict):
+            raise FeedbackStoreError("feedback export returned an invalid result")
+        if str(payload.get("status", "")) != "ok":
+            raise FeedbackStoreError("feedback export was rejected")
+        raw_rows = payload.get("rows") or []
+        if not isinstance(raw_rows, list):
+            raise FeedbackStoreError("feedback export returned an invalid result")
+        exported: list[FeedbackExportRow] = []
+        for item in raw_rows:
+            if not isinstance(item, dict):
+                raise FeedbackStoreError("feedback export returned an invalid result")
+            received_raw = item.get("received_at")
+            received_at = (
+                received_raw
+                if isinstance(received_raw, datetime)
+                else datetime.fromisoformat(str(received_raw).replace("Z", "+00:00"))
+            )
+            if received_at.tzinfo is None:
+                received_at = received_at.replace(tzinfo=UTC)
+            exported.append(
+                FeedbackExportRow(
+                    category=str(item["category"]),
+                    route_id=str(item["route_id"]),
+                    received_at=received_at,
+                    message=str(item["message"]),
+                    contact_email_existed=bool(item.get("contact_email_existed")),
+                )
+            )
+        return exported
 
 
 
