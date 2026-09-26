@@ -184,3 +184,124 @@ class PrivacyRequestLimitMiddleware(BaseHTTPMiddleware):
             )
         window.append(now)
         return await call_next(request)
+
+
+class FeedbackLimitMiddleware(BaseHTTPMiddleware):
+    """Five POST /v1/feedback requests per ten minutes per hashed connecting address.
+
+    In-memory and single-process only — not a distributed limiter. The deployment
+    topology test is what blocks a second API instance or worker while this
+    process-local window remains the abuse control.
+    """
+
+    _MAX_BODY_BYTES = 8192
+    _WINDOW_SECONDS = 600
+    _MAX_REQUESTS = 5
+
+    def __init__(self, app: object) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self.requests: dict[str, deque[float]] = defaultdict(deque)
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        if request.url.path != "/v1/feedback" or request.method != "POST":
+            return await call_next(request)
+
+        request_id = getattr(request.state, "request_id", "unavailable")
+        content_type = request.headers.get("content-type", "")
+        media_type = content_type.split(";", 1)[0].strip().lower()
+        if media_type != "application/json":
+            logger.info(
+                "feedback_submission",
+                extra={
+                    "context": {
+                        "outcome": "rejected",
+                        "request_id": request_id,
+                    }
+                },
+            )
+            problem = {
+                "type": "https://carawaylabs.com/problems/feedback-unsupported-media-type",
+                "title": "Unsupported Media Type",
+                "status": 415,
+                "detail": "Feedback submissions must use application/json.",
+                "instance": request.url.path,
+                "request_id": request_id,
+            }
+            return Response(
+                status_code=415,
+                media_type="application/problem+json",
+                content=json.dumps(problem),
+                headers={"Cache-Control": "no-store"},
+            )
+
+        content_length = request.headers.get("content-length")
+        if content_length is not None:
+            try:
+                length = int(content_length)
+            except ValueError:
+                length = -1
+            if length < 0 or length > self._MAX_BODY_BYTES:
+                logger.info(
+                    "feedback_submission",
+                    extra={
+                        "context": {
+                            "outcome": "rejected",
+                            "request_id": request_id,
+                        }
+                    },
+                )
+                problem = {
+                    "type": "https://carawaylabs.com/problems/feedback-payload-too-large",
+                    "title": "Payload Too Large",
+                    "status": 413,
+                    "detail": "Feedback submissions must be at most 8192 bytes.",
+                    "instance": request.url.path,
+                    "request_id": request_id,
+                }
+                return Response(
+                    status_code=413,
+                    media_type="application/problem+json",
+                    content=json.dumps(problem),
+                    headers={"Cache-Control": "no-store"},
+                )
+
+        client = request.headers.get("do-connecting-ip") or (
+            request.client.host if request.client else "unknown"
+        )
+        key = hashlib.sha256(client.encode()).hexdigest()
+        now = time.monotonic()
+        window = self.requests[key]
+        while window and now - window[0] > self._WINDOW_SECONDS:
+            window.popleft()
+        if len(window) >= self._MAX_REQUESTS:
+            retry_after = max(1, int(self._WINDOW_SECONDS - (now - window[0])) + 1)
+            logger.info(
+                "feedback_submission",
+                extra={
+                    "context": {
+                        "outcome": "throttled",
+                        "request_id": request_id,
+                    }
+                },
+            )
+            problem = {
+                "type": "https://carawaylabs.com/problems/feedback-rate-limit",
+                "title": "Too many requests",
+                "status": 429,
+                "detail": "The feedback submission limit has been reached.",
+                "instance": request.url.path,
+                "request_id": request_id,
+            }
+            return Response(
+                status_code=429,
+                media_type="application/problem+json",
+                content=json.dumps(problem),
+                headers={
+                    "Retry-After": str(retry_after),
+                    "Cache-Control": "no-store",
+                },
+            )
+        window.append(now)
+        return await call_next(request)
