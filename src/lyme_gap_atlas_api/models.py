@@ -1,5 +1,7 @@
+import re
 from datetime import datetime
 from typing import Any, Literal
+from uuid import UUID
 
 from lyme_gap_atlas_shared import Score
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -254,6 +256,136 @@ class ProblemDetails(BaseModel):
     instance: str
     request_id: str
     errors: list[dict[str, Any]] | None = None
+
+
+FeedbackCategory = Literal["data_issue", "usability", "bug", "feature_idea", "general"]
+FeedbackRouteId = Literal[
+    "overview",
+    "geographic_explorer",
+    "evidence_library",
+    "assistant",
+    "account",
+    "privacy",
+    "ai_ethics",
+]
+FeedbackEvidenceView = Literal["all", "ecological", "human", "complete"]
+FeedbackExplorerView = Literal[
+    "tiles",
+    "multiples",
+    "matrix",
+    "ranking",
+    "maps",
+    "scatter",
+    "compare",
+    "trends",
+]
+FeedbackExplorerMetric = Literal["score", "completeness"]
+
+_FEEDBACK_ID_PATTERN = r"^[A-Za-z0-9._:-]{1,64}$"
+_FEEDBACK_DATASET_PATTERN = r"^[A-Za-z0-9._-]{1,64}$"
+_FEEDBACK_APP_VERSION_PATTERN = r"^atlas-web/[A-Za-z0-9._-]{1,32}$"
+_FIPS_PATTERN = r"^\d{5}$"
+
+
+class FeedbackContext(BaseModel):
+    """Closed geography and view context for a feedback submission."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    state: str | None = None
+    county_fips: str | None = Field(default=None, pattern=_FIPS_PATTERN)
+    compare_county_fips: str | None = Field(default=None, pattern=_FIPS_PATTERN)
+    selected_county_fips: list[str] | None = Field(default=None, max_length=5)
+    dataset: str | None = Field(default=None, max_length=64, pattern=_FEEDBACK_DATASET_PATTERN)
+    evidence_view: FeedbackEvidenceView | None = None
+    explorer_view: FeedbackExplorerView | None = None
+    explorer_metric: FeedbackExplorerMetric | None = None
+    ecological_share: int | None = Field(default=None, ge=40, le=85, multiple_of=5)
+    low_incidence_breakpoint: int | None = Field(default=None, ge=5, le=25)
+    missing_human_weakness: int | None = Field(default=None, ge=40, le=90, multiple_of=5)
+    source_ids: list[str] | None = Field(default=None, max_length=8)
+    evidence_item_ids: list[str] | None = Field(default=None, max_length=8)
+    item_ids: list[str] | None = Field(default=None, max_length=8)
+
+    @field_validator("state")
+    @classmethod
+    def validate_state(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if normalized == "ALL":
+            return normalized
+        if normalized not in US_STATE_CODES:
+            raise ValueError("state must be ALL or a supported US state or DC")
+        return normalized
+
+    @field_validator("selected_county_fips")
+    @classmethod
+    def validate_selected_county_fips(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        if len(value) != len(set(value)):
+            raise ValueError("selected_county_fips must contain distinct FIPS codes")
+        for item in value:
+            if not re.fullmatch(_FIPS_PATTERN, item):
+                raise ValueError("selected_county_fips entries must be five-digit FIPS codes")
+        return value
+
+    @field_validator("source_ids", "evidence_item_ids", "item_ids")
+    @classmethod
+    def validate_id_lists(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        for item in value:
+            if not re.fullmatch(_FEEDBACK_ID_PATTERN, item):
+                raise ValueError(
+                    "identifier lists must use 1–64 characters of [A-Za-z0-9._:-]"
+                )
+        return value
+
+
+class FeedbackSubmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    submission_token: UUID
+    category: FeedbackCategory
+    message: str = Field(min_length=10, max_length=2000)
+    contact_email: str | None = Field(default=None, max_length=254)
+    route_id: FeedbackRouteId
+    context: FeedbackContext | None = None
+    app_version: str = Field(pattern=_FEEDBACK_APP_VERSION_PATTERN)
+
+    @field_validator("message", mode="before")
+    @classmethod
+    def trim_message(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("contact_email")
+    @classmethod
+    def validate_contact_email(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if " " in normalized or normalized.count("@") != 1:
+            raise ValueError("contact_email must contain exactly one @ and no spaces")
+        local, _, domain = normalized.partition("@")
+        if not local or not domain:
+            raise ValueError("contact_email must contain a local and domain part")
+        if len(normalized) > 254:
+            raise ValueError("contact_email must be at most 254 characters")
+        return normalized
+
+
+class FeedbackSubmissionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    feedback_id: UUID
+    received_at: datetime
+    replayed: bool
 
 
 class ChatHistoryTurn(BaseModel):

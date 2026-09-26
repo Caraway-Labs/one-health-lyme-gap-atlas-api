@@ -1,5 +1,7 @@
 """Supabase access-token verification for private Atlas API routes."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
@@ -79,3 +81,24 @@ class SupabaseTokenVerifier:
             detail="A valid authenticated session is required.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def optional_authenticated_user(
+    authorization: str | None,
+    verifier: TokenVerifier | None,
+) -> AuthenticatedUser | None:
+    """Resolve an optional bearer for public routes that may link an account.
+
+    Missing or blank Authorization is anonymous. Any non-empty header is verified;
+    failures stay 401. When Supabase is not configured, anonymous still works and a
+    presented bearer returns 503 rather than being treated as anonymous.
+    """
+
+    if authorization is None or not authorization.strip():
+        return None
+    if verifier is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Account features are temporarily unavailable.",
+        )
+    return verifier.verify(authorization)
