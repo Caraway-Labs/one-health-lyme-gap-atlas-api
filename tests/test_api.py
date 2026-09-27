@@ -196,12 +196,14 @@ class FakeAnswerer:
     def answer(self, message: str, evidence: list[Evidence], safety_id: str) -> dict[str, object]:
         return {
             "answer": "Reviewed evidence associates the vector with the pathogen.",
+            "evidence_state": "single_study",
             "claims": [
                 {
                     "claim_id": "claim-1",
-                    "text": "The vector is associated with the pathogen.",
+                    "text": "Ixodes was associated with Borrelia.",
                     "passage_ids": ["passage-1"],
                     "pmids": ["12345678"],
+                    "support_quotes": {"passage-1": "Ixodes was associated with Borrelia."},
                 }
             ],
         }
@@ -215,6 +217,7 @@ class InventedCitationAnswerer:
         self.calls += 1
         return {
             "answer": "Unsupported answer.",
+            "evidence_state": "single_study",
             "claims": [
                 {
                     "claim_id": "bad",

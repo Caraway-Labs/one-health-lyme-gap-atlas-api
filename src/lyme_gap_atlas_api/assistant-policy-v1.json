@@ -1,0 +1,18 @@
+{
+  "version": "assistant-policy-v1",
+  "proactive_follow_up_suggestions": false,
+  "hard_refusal": {
+    "personalized_diagnosis": true,
+    "personalized_treatment": true,
+    "medication_dosing": true,
+    "clearly_unsafe": true
+  },
+  "decision_support_strictness": {
+    "surveillance_epidemiology": "standard",
+    "vector_host_pathogen": "standard",
+    "environment_exposure": "standard",
+    "study_comparison": "standard",
+    "diagnostics_interventions_outcomes": "heightened",
+    "atlas_applicability": "heightened"
+  }
+}

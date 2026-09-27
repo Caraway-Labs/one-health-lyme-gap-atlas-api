@@ -2200,6 +2200,10 @@
             "type": "string",
             "title": "Configuration Version"
           },
+          "assistant_policy_version": {
+            "type": "string",
+            "title": "Assistant Policy Version"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -2214,6 +2218,37 @@
           "answer": {
             "type": "string",
             "title": "Answer"
+          },
+          "evidence_state": {
+            "type": "string",
+            "enum": [
+              "single_study",
+              "consistent",
+              "limited",
+              "mixed",
+              "conflicting",
+              "insufficient_to_compare",
+              "no_relevant_corpus_evidence",
+              "evidence_unavailable",
+              "not_applicable"
+            ],
+            "title": "Evidence State"
+          },
+          "source_used": {
+            "type": "string",
+            "const": "literature_evidence",
+            "title": "Source Used"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
           },
           "claims": {
             "items": {
@@ -2235,8 +2270,11 @@
           "request_id",
           "conversation_id",
           "configuration_version",
+          "assistant_policy_version",
           "status",
-          "answer"
+          "answer",
+          "evidence_state",
+          "source_used"
         ],
         "title": "KnowledgeChatResponse"
       },

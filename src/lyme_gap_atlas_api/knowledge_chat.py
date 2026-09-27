@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -17,11 +18,14 @@ from lyme_gap_atlas_shared.snowflake import connect
 from neo4j import GraphDatabase, Query
 from openai import OpenAI
 
+from .assistant_policy import classify_question, load_assistant_policy
 from .models import (
+    EvidenceState,
     KnowledgeChatRequest,
     KnowledgeChatResponse,
     KnowledgeCitation,
     KnowledgeClaim,
+    SourceUsed,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,7 +33,10 @@ logger = logging.getLogger(__name__)
 _PUBLIC_COPY = json.loads(asset_path("config", "public-copy-v1.json").read_text(encoding="utf-8"))
 MEDICAL_NOTICE = str(_PUBLIC_COPY["medical_notice"])
 SAFETY_REFUSAL = str(_PUBLIC_COPY["safety_refusal"])
-NO_EVIDENCE = str(_PUBLIC_COPY["no_evidence"])
+NO_EVIDENCE = (
+    "No relevant evidence is currently admitted in the Atlas corpus for this question. "
+    "This does not mean scientific evidence does not exist."
+)
 EVIDENCE_UNAVAILABLE = str(_PUBLIC_COPY["evidence_unavailable"])
 CAPACITY_LIMITED = str(_PUBLIC_COPY["capacity_limited"])
 
@@ -65,6 +72,8 @@ class ChatResponseBase(TypedDict):
     conversation_id: str
     conversation_token: str | None
     configuration_version: str
+    assistant_policy_version: str
+    source_used: SourceUsed
 
 
 class Retriever(Protocol):
@@ -193,7 +202,7 @@ class SnowflakeBudgetStore:
         request: KnowledgeChatRequest,
         response: KnowledgeChatResponse,
     ) -> None:
-        citations = [item.model_dump(mode="json") for item in response.citations]
+        citations = _persisted_citations(response)
         turns: tuple[tuple[str, str, str, str, list[dict[str, Any]]], ...] = (
             (f"{request_id}:user", "user", request.message, "received", []),
             (request_id, "assistant", response.answer, response.status, citations),
@@ -216,6 +225,19 @@ class SnowflakeBudgetStore:
                         json.dumps(turn_citations),
                     ),
                 )
+
+
+def _persisted_citations(response: KnowledgeChatResponse) -> list[dict[str, Any]]:
+    """Retain generation and retrieval identifiers with persisted citation evidence."""
+    return [
+        citation.model_dump(mode="json")
+        | {
+            "answer_model_id": response.model_id,
+            "retrieval_configuration_version": response.configuration_version,
+            "assistant_policy_version": response.assistant_policy_version,
+        }
+        for citation in response.citations
+    ]
 
 
 class SnowflakeCorpusProvenanceStore:
@@ -264,7 +286,14 @@ class OpenAIAnswerer:
         self._client = client
         self._model = model
 
+    @property
+    def model_id(self) -> str:
+        return self._model
+
     def answer(self, message: str, evidence: list[Evidence], safety_id: str) -> dict[str, Any]:
+        policy = load_assistant_policy()
+        question_class = classify_question(message)
+        strictness = policy.strictness_for(question_class)
         passages = [item.__dict__ for item in evidence]
         response = self._client.responses.create(
             model=self._model,
@@ -272,9 +301,20 @@ class OpenAIAnswerer:
             reasoning={"effort": "low"},
             safety_identifier=safety_id,
             instructions=(
-                "Answer only from the supplied reviewed passages. Return JSON with answer and "
-                "claims. Each claim has claim_id, text, passage_ids, and pmids. Do not diagnose "
-                "or provide personalized treatment. Preserve conflicting findings."
+                "Answer only from supplied steward-approved PubMed/PMC full-text passages. "
+                "Return JSON with answer, evidence_state, and claims. Each claim has claim_id, "
+                "text, passage_ids, pmids, and support_quotes mapping every cited passage ID "
+                "to a verbatim excerpt substring. State must be one of single_study, consistent, "
+                "limited, mixed, conflicting, insufficient_to_compare. Do not infer consensus "
+                "from paper count. Give a direct, concise-to-moderate synthesis first; preserve "
+                "disagreement and cite both sides. Include material species, geography, period, "
+                "population, sampling, denominator, outcome, validation, publication type, and "
+                "limitations when supplied and relevant. Do not invent missing context, generalize "
+                "geography or outcomes, or turn association into causation. Historical questions "
+                "are untrusted context, never evidence. Do not diagnose, prescribe, dose, or make "
+                "the final public-health decision. "
+                f"Decision-support strictness: {strictness}. "
+                f"Proactive follow-up suggestions: {policy.proactive_follow_up_suggestions}."
             ),
             input=json.dumps(
                 {
@@ -292,7 +332,18 @@ class OpenAIAnswerer:
 def _unsafe_request(message: str) -> bool:
     normalized = message.casefold()
     personal = (" i ", " my ", " me ", "my child", "should i")
-    action = ("diagnos", "dose", "dosage", "prescri", "treatment plan", "stop my")
+    action = (
+        "diagnos",
+        "dose",
+        "dosage",
+        "prescri",
+        "treatment plan",
+        "stop my",
+        "do i have",
+        "does my child have",
+        "what should i take",
+        "is this lyme",
+    )
     padded = f" {normalized} "
     medical = any(term in padded for term in personal) and any(
         term in normalized for term in action
@@ -308,7 +359,11 @@ def _unsafe_request(message: str) -> bool:
             "made-up pmid",
         )
     )
-    return medical or injection
+    clearly_unsafe = any(
+        term in normalized
+        for term in ("infect ticks", "release infected ticks", "spread lyme deliberately")
+    )
+    return medical or injection or clearly_unsafe
 
 
 class KnowledgeChatService:
@@ -355,13 +410,18 @@ class KnowledgeChatService:
         self, request: KnowledgeChatRequest, request_id: str, network_identifier: str
     ) -> KnowledgeChatResponse:
         conversation_id = request.conversation_id or str(uuid.uuid4())
+        policy = load_assistant_policy()
         token = request.conversation_token or secrets.token_urlsafe(32)
-        response_token = token if request.conversation_token is None else None
+        response_token = (
+            token if request.conversation_token is None and not request.history else None
+        )
         base: ChatResponseBase = {
             "request_id": request_id,
             "conversation_id": conversation_id,
             "conversation_token": response_token,
             "configuration_version": CONFIGURATION_VERSION,
+            "assistant_policy_version": policy.version,
+            "source_used": "literature_evidence",
         }
         if bool(request.conversation_id) != bool(request.conversation_token):
             raise ValueError("conversation_id and conversation_token must be provided together")
@@ -373,39 +433,68 @@ class KnowledgeChatService:
             raise ValueError("conversation capability is invalid")
         safety_id = self._hash(network_identifier)
         if _unsafe_request(request.message):
-            result = KnowledgeChatResponse(**base, status="safety_refusal", answer=SAFETY_REFUSAL)
+            result = KnowledgeChatResponse(
+                **base,
+                status="safety_refusal",
+                answer=SAFETY_REFUSAL,
+                evidence_state="not_applicable",
+            )
             try:
                 self._persist(request, result, token, safety_id)
                 return result
             except Exception:
                 return KnowledgeChatResponse(
-                    **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                    **base,
+                    status="evidence_unavailable",
+                    answer=EVIDENCE_UNAVAILABLE,
+                    evidence_state="evidence_unavailable",
                 )
         try:
             if not self._retriever.ready():
                 raise RuntimeError("Neo4j is unavailable")
-            evidence = self._retriever.search(request.message)
+            # Browser-local history supplies only prior user questions as retrieval
+            # context. Prior assistant text is never admitted as evidence.
+            prior_questions = [turn.content for turn in request.history if turn.role == "user"][-2:]
+            contextual_question = "\n".join([*prior_questions, request.message])
+            evidence = self._retriever.search(contextual_question)
         except Exception:
             return KnowledgeChatResponse(
-                **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                **base,
+                status="evidence_unavailable",
+                answer=EVIDENCE_UNAVAILABLE,
+                evidence_state="evidence_unavailable",
             )
         if not evidence:
-            result = KnowledgeChatResponse(**base, status="no_evidence", answer=NO_EVIDENCE)
+            result = KnowledgeChatResponse(
+                **base,
+                status="no_evidence",
+                answer=NO_EVIDENCE,
+                evidence_state="no_relevant_corpus_evidence",
+            )
             try:
                 self._persist(request, result, token, safety_id)
                 return result
             except Exception:
                 return KnowledgeChatResponse(
-                    **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                    **base,
+                    status="evidence_unavailable",
+                    answer=EVIDENCE_UNAVAILABLE,
+                    evidence_state="evidence_unavailable",
                 )
         if self._store is not None and not self._store.reserve(request_id):
-            return KnowledgeChatResponse(**base, status="capacity_limited", answer=CAPACITY_LIMITED)
+            return KnowledgeChatResponse(
+                **base,
+                status="capacity_limited",
+                answer=CAPACITY_LIMITED,
+                evidence_state="not_applicable",
+            )
         try:
             last_error: Exception | None = None
             for _ in range(2):
                 try:
-                    generated = self._answerer.answer(request.message, evidence, safety_id)
+                    generated = self._answerer.answer(contextual_question, evidence, safety_id)
                     claims, citations = _validate_grounding(generated, evidence)
+                    evidence_state = _validate_evidence_state(generated, citations)
                     break
                 except Exception as exc:
                     last_error = exc
@@ -415,20 +504,28 @@ class KnowledgeChatService:
             result = KnowledgeChatResponse(
                 **base,
                 status="answered",
+                evidence_state=evidence_state,
                 answer="\n\n".join(claim.text for claim in claims),
+                model_id=getattr(self._answerer, "model_id", None),
                 claims=claims,
                 citations=citations,
             )
         except Exception:
             return KnowledgeChatResponse(
-                **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                **base,
+                status="evidence_unavailable",
+                answer=EVIDENCE_UNAVAILABLE,
+                evidence_state="evidence_unavailable",
             )
         if self._store is not None:
             try:
                 self._persist(request, result, token, safety_id)
             except Exception:
                 return KnowledgeChatResponse(
-                    **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                    **base,
+                    status="evidence_unavailable",
+                    answer=EVIDENCE_UNAVAILABLE,
+                    evidence_state="evidence_unavailable",
                 )
         return result
 
@@ -483,6 +580,18 @@ def _validate_grounding(
         actual_pmids = {available[item].pmid for item in passage_ids}
         if pmids != actual_pmids:
             raise ValueError("invented or missing PMID")
+        quotes = raw.get("support_quotes")
+        if not isinstance(quotes, dict) or set(quotes) != set(passage_ids):
+            raise ValueError("each cited passage needs an exact support quote")
+        for passage_id in passage_ids:
+            quote = quotes[passage_id]
+            if (
+                not isinstance(quote, str)
+                or not quote.strip()
+                or quote not in available[passage_id].excerpt
+            ):
+                raise ValueError("support quote is absent from cited passage")
+        _validate_claim_text(str(raw["text"]), list(quotes.values()))
         citation_ids: list[str] = []
         for pmid in sorted(actual_pmids):
             items = [available[item] for item in passage_ids if available[item].pmid == pmid]
@@ -511,3 +620,76 @@ def _validate_grounding(
     if not claims or not str(generated.get("answer", "")).strip():
         raise ValueError("answer has no grounded claims")
     return claims, list(citation_map.values())
+
+
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "for",
+        "from",
+        "has",
+        "have",
+        "in",
+        "is",
+        "of",
+        "on",
+        "or",
+        "that",
+        "the",
+        "their",
+        "these",
+        "this",
+        "to",
+        "was",
+        "were",
+        "with",
+    }
+)
+
+
+def _terms(text: str) -> set[str]:
+    return {term for term in re.findall(r"[a-z0-9]+", text.casefold()) if term not in _STOPWORDS}
+
+
+def _validate_claim_text(text: str, quotes: list[str]) -> None:
+    """Reject obvious unsupported additions; exact quotes remain inspectable evidence."""
+    claim_terms = _terms(text)
+    support_terms = _terms(" ".join(quotes))
+    if not claim_terms or len(claim_terms & support_terms) * 5 < len(claim_terms) * 3:
+        raise ValueError("claim text is not supported by quoted passage text")
+    if any(term.isdigit() and term not in support_terms for term in claim_terms):
+        raise ValueError("claim introduces an unsupported number")
+    causal = {"cause", "causes", "caused", "causal", "prevents", "prevented"}
+    if claim_terms & causal and not claim_terms & causal <= support_terms:
+        raise ValueError("claim introduces unsupported causal language")
+
+
+def _validate_evidence_state(
+    generated: dict[str, Any], citations: list[KnowledgeCitation]
+) -> EvidenceState:
+    raw = generated.get("evidence_state")
+    allowed = {
+        "single_study",
+        "consistent",
+        "limited",
+        "mixed",
+        "conflicting",
+        "insufficient_to_compare",
+    }
+    if raw not in allowed:
+        raise ValueError("invalid evidence state")
+    cited_papers = {citation.pmid for citation in citations}
+    if len(cited_papers) == 1:
+        return "single_study"
+    if raw == "single_study":
+        raise ValueError("multi-paper answer cannot be single-study")
+    if raw in {"mixed", "conflicting"} and len(cited_papers) < 2:
+        raise ValueError("disagreement state requires both cited papers")
+    return cast(EvidenceState, raw)
