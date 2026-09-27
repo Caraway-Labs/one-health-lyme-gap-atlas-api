@@ -338,9 +338,7 @@ class FeedbackContext(BaseModel):
             return None
         for item in value:
             if not re.fullmatch(_FEEDBACK_ID_PATTERN, item):
-                raise ValueError(
-                    "identifier lists must use 1–64 characters of [A-Za-z0-9._:-]"
-                )
+                raise ValueError("identifier lists must use 1–64 characters of [A-Za-z0-9._:-]")
         return value
 
 
@@ -440,11 +438,25 @@ class KnowledgeCitation(BaseModel):
     jats_sha256: str | None = None
 
 
+EvidenceState = Literal[
+    "single_study",
+    "consistent",
+    "limited",
+    "mixed",
+    "conflicting",
+    "insufficient_to_compare",
+    "no_relevant_corpus_evidence",
+    "evidence_unavailable",
+]
+SourceUsed = Literal["literature_evidence"]
+
+
 class KnowledgeChatResponse(BaseModel):
     request_id: str
     conversation_id: str
     conversation_token: str | None = None
     configuration_version: str
+    assistant_policy_version: str
     status: Literal[
         "answered",
         "no_evidence",
@@ -453,5 +465,22 @@ class KnowledgeChatResponse(BaseModel):
         "capacity_limited",
     ]
     answer: str
+    evidence_state: EvidenceState
+    source_used: SourceUsed
+    model_id: str | None = None
     claims: list[KnowledgeClaim] = Field(default_factory=list)
     citations: list[KnowledgeCitation] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def answered_has_grounding(self) -> "KnowledgeChatResponse":
+        if self.status == "answered" and (
+            not self.claims
+            or not self.citations
+            or self.evidence_state
+            in {
+                "no_relevant_corpus_evidence",
+                "evidence_unavailable",
+            }
+        ):
+            raise ValueError("answered responses need claims, citations and an evidence state")
+        return self

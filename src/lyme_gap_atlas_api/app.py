@@ -18,6 +18,7 @@ from openai import OpenAI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .assistant_policy import load_assistant_policy
 from .auth import (
     AuthenticatedUser,
     SupabaseTokenVerifier,
@@ -306,9 +307,7 @@ def create_app(
             # Neo4j is probed at chat time and fails closed per ADR 0007; do not
             # block App Platform deploys on a private Bolt probe that can hang.
             # Feedback idempotency is process-local; multi-worker topology fails closed.
-            chat_wired = (
-                not config.knowledge_chat_enabled or knowledge_chat_service is not None
-            )
+            chat_wired = not config.knowledge_chat_enabled or knowledge_chat_service is not None
             if not feedback_topology_safe:
                 raise HTTPException(
                     status_code=503,
@@ -965,8 +964,11 @@ def create_app(
                 request_id=request.state.request_id,
                 conversation_id=payload.conversation_id or str(uuid.uuid4()),
                 configuration_version="kg-v1.0.0",
+                assistant_policy_version=load_assistant_policy().version,
                 status="evidence_unavailable",
                 answer=EVIDENCE_UNAVAILABLE,
+                evidence_state="evidence_unavailable",
+                source_used="literature_evidence",
             )
         client = request.headers.get("do-connecting-ip") or (
             request.client.host if request.client else "unknown"

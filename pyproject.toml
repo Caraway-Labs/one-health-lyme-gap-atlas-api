@@ -27,6 +27,7 @@ packages = ["src/lyme_gap_atlas_api"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/lyme_gap_atlas_api/reports/templates" = "lyme_gap_atlas_api/reports/templates"
+"src/lyme_gap_atlas_api/assistant-policy-v1.json" = "lyme_gap_atlas_api/assistant-policy-v1.json"
 
 [tool.hatch.metadata]
 allow-direct-references = true
