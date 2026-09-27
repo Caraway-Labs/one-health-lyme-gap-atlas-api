@@ -975,7 +975,7 @@
                 }
               }
             },
-            "description": "Content Too Large"
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -985,7 +985,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           },
           "503": {
             "headers": {
@@ -1116,7 +1116,7 @@
                 }
               }
             },
-            "description": "Content Too Large"
+            "description": "Request Entity Too Large"
           },
           "422": {
             "content": {
@@ -1126,7 +1126,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           },
           "503": {
             "headers": {
@@ -1329,7 +1329,7 @@
                 }
               }
             },
-            "description": "Content Too Large"
+            "description": "Request Entity Too Large"
           },
           "415": {
             "content": {
@@ -1349,7 +1349,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           },
           "429": {
             "content": {
@@ -2229,7 +2229,8 @@
               "conflicting",
               "insufficient_to_compare",
               "no_relevant_corpus_evidence",
-              "evidence_unavailable"
+              "evidence_unavailable",
+              "not_applicable"
             ],
             "title": "Evidence State"
           },

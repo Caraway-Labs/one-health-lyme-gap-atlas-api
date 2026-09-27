@@ -107,11 +107,12 @@ def test_persisted_citation_keeps_model_retrieval_and_policy_versions() -> None:
     assert "answer_model_id" in saved
 
 
-def test_material_geography_cannot_be_omitted_from_claim() -> None:
+def test_reasonable_paraphrase_with_exact_support_quote_is_accepted() -> None:
     evidence, payload = one_paper_case()
-    payload["claims"][0]["text"] = "Ixodes abundance was associated with Borrelia prevalence."
+    payload["claims"][0]["text"] = "Ixodes abundance was linked to Borrelia prevalence in Germany."
     response, _, _ = run(evidence, payload)
-    assert response.status == "evidence_unavailable"
+    assert response.status == "answered"
+    assert response.citations[0].passage_ids == ["p1"]
 
 
 @pytest.mark.parametrize(
@@ -147,6 +148,26 @@ def test_graph_unavailable_and_empty_corpus_do_not_call_model() -> None:
     assert answerer.calls == 0
 
 
+def test_capacity_limited_has_non_applicable_evidence_state() -> None:
+    class DeniedBudget:
+        def authorize(self, conversation_id: str, token_hash: str) -> bool:
+            return True
+
+        def reserve(self, request_id: str) -> bool:
+            return False
+
+        def persist(self, **kwargs: Any) -> None:
+            raise AssertionError("capacity response must not persist")
+
+    evidence, payload = one_paper_case()
+    answerer = Answerer(payload)
+    service = KnowledgeChatService(Retriever(evidence), answerer, DeniedBudget(), "test-secret")
+    response = service.chat(KnowledgeChatRequest(message="What was found?"), "request-1", "network")
+    assert response.status == "capacity_limited"
+    assert response.evidence_state == "not_applicable"
+    assert answerer.calls == 0
+
+
 @pytest.mark.parametrize(
     "message",
     [
@@ -160,6 +181,7 @@ def test_personal_medical_requests_refuse(message: str) -> None:
     evidence, payload = one_paper_case()
     response, answerer, _ = run(evidence, payload, message=message)
     assert response.status == "safety_refusal"
+    assert response.evidence_state == "not_applicable"
     assert answerer.calls == 0
 
 
@@ -216,6 +238,14 @@ def test_answered_response_requires_valid_state_and_source() -> None:
     with pytest.raises(ValidationError):
         KnowledgeChatResponse.model_validate(data)
     data = response.model_dump()
+    data["evidence_state"] = "not_applicable"
+    with pytest.raises(ValidationError):
+        KnowledgeChatResponse.model_validate(data)
+    data = response.model_dump()
+    data["status"] = "safety_refusal"
+    with pytest.raises(ValidationError):
+        KnowledgeChatResponse.model_validate(data)
+    data = response.model_dump()
     data["source_used"] = "general_web"
     with pytest.raises(ValidationError):
         KnowledgeChatResponse.model_validate(data)
@@ -237,3 +267,4 @@ def test_committed_openapi_exposes_required_assistant_fields() -> None:
     )
     assert "literature_evidence" in str(response["properties"]["source_used"])
     assert "no_relevant_corpus_evidence" in str(response["properties"]["evidence_state"])
+    assert "not_applicable" in str(response["properties"]["evidence_state"])

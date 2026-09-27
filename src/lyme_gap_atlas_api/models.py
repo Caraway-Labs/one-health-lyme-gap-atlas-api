@@ -447,6 +447,7 @@ EvidenceState = Literal[
     "insufficient_to_compare",
     "no_relevant_corpus_evidence",
     "evidence_unavailable",
+    "not_applicable",
 ]
 SourceUsed = Literal["literature_evidence"]
 
@@ -473,14 +474,24 @@ class KnowledgeChatResponse(BaseModel):
 
     @model_validator(mode="after")
     def answered_has_grounding(self) -> "KnowledgeChatResponse":
-        if self.status == "answered" and (
-            not self.claims
-            or not self.citations
-            or self.evidence_state
-            in {
-                "no_relevant_corpus_evidence",
-                "evidence_unavailable",
-            }
-        ):
-            raise ValueError("answered responses need claims, citations and an evidence state")
+        expected_non_answer = {
+            "no_evidence": "no_relevant_corpus_evidence",
+            "evidence_unavailable": "evidence_unavailable",
+            "safety_refusal": "not_applicable",
+            "capacity_limited": "not_applicable",
+        }
+        if self.status == "answered":
+            if (
+                not self.claims
+                or not self.citations
+                or self.evidence_state
+                in {
+                    "no_relevant_corpus_evidence",
+                    "evidence_unavailable",
+                    "not_applicable",
+                }
+            ):
+                raise ValueError("answered responses need claims, citations and an evidence state")
+        elif self.evidence_state != expected_non_answer[self.status]:
+            raise ValueError("evidence state must match response status")
         return self

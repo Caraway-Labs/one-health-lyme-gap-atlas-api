@@ -54,7 +54,12 @@ routes. Templates use US Letter pages, structured headings, explicit table heade
 addition to color, and page footers. Missing metric values are rendered as "Data unavailable",
 which remains distinct from a legitimate zero.
 
-The versioned contract is committed as `openapi.json`. Production uses the
+The versioned contract is committed as `openapi.json`. The repository's
+`.python-version` (Python 3.12) controls `uv` and OpenAPI export, matching
+the production image and hosted quality job. This keeps generated HTTP status
+descriptions stable across local and CI runs.
+
+Production uses the
 least-privilege `OH_LYME_API_SVC` Snowflake service user with the
 `OH_LYME_PROD_READ` role and key-pair authentication. Atlas reads use the
 configured `SNOWFLAKE_PRESENTATION_DATABASE` and

@@ -73,7 +73,6 @@ class ChatResponseBase(TypedDict):
     conversation_token: str | None
     configuration_version: str
     assistant_policy_version: str
-    evidence_state: EvidenceState
     source_used: SourceUsed
 
 
@@ -422,7 +421,6 @@ class KnowledgeChatService:
             "conversation_token": response_token,
             "configuration_version": CONFIGURATION_VERSION,
             "assistant_policy_version": policy.version,
-            "evidence_state": "evidence_unavailable",
             "source_used": "literature_evidence",
         }
         if bool(request.conversation_id) != bool(request.conversation_token):
@@ -435,13 +433,21 @@ class KnowledgeChatService:
             raise ValueError("conversation capability is invalid")
         safety_id = self._hash(network_identifier)
         if _unsafe_request(request.message):
-            result = KnowledgeChatResponse(**base, status="safety_refusal", answer=SAFETY_REFUSAL)
+            result = KnowledgeChatResponse(
+                **base,
+                status="safety_refusal",
+                answer=SAFETY_REFUSAL,
+                evidence_state="not_applicable",
+            )
             try:
                 self._persist(request, result, token, safety_id)
                 return result
             except Exception:
                 return KnowledgeChatResponse(
-                    **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                    **base,
+                    status="evidence_unavailable",
+                    answer=EVIDENCE_UNAVAILABLE,
+                    evidence_state="evidence_unavailable",
                 )
         try:
             if not self._retriever.ready():
@@ -453,23 +459,35 @@ class KnowledgeChatService:
             evidence = self._retriever.search(contextual_question)
         except Exception:
             return KnowledgeChatResponse(
-                **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                **base,
+                status="evidence_unavailable",
+                answer=EVIDENCE_UNAVAILABLE,
+                evidence_state="evidence_unavailable",
             )
         if not evidence:
             result = KnowledgeChatResponse(
-                **(base | {"evidence_state": "no_relevant_corpus_evidence"}),
+                **base,
                 status="no_evidence",
                 answer=NO_EVIDENCE,
+                evidence_state="no_relevant_corpus_evidence",
             )
             try:
                 self._persist(request, result, token, safety_id)
                 return result
             except Exception:
                 return KnowledgeChatResponse(
-                    **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                    **base,
+                    status="evidence_unavailable",
+                    answer=EVIDENCE_UNAVAILABLE,
+                    evidence_state="evidence_unavailable",
                 )
         if self._store is not None and not self._store.reserve(request_id):
-            return KnowledgeChatResponse(**base, status="capacity_limited", answer=CAPACITY_LIMITED)
+            return KnowledgeChatResponse(
+                **base,
+                status="capacity_limited",
+                answer=CAPACITY_LIMITED,
+                evidence_state="not_applicable",
+            )
         try:
             last_error: Exception | None = None
             for _ in range(2):
@@ -484,8 +502,9 @@ class KnowledgeChatService:
                 raise last_error or ValueError("grounding failed")
             citations = _enrich_citations(citations, self._provenance)
             result = KnowledgeChatResponse(
-                **(base | {"evidence_state": evidence_state}),
+                **base,
                 status="answered",
+                evidence_state=evidence_state,
                 answer="\n\n".join(claim.text for claim in claims),
                 model_id=getattr(self._answerer, "model_id", None),
                 claims=claims,
@@ -493,14 +512,20 @@ class KnowledgeChatService:
             )
         except Exception:
             return KnowledgeChatResponse(
-                **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                **base,
+                status="evidence_unavailable",
+                answer=EVIDENCE_UNAVAILABLE,
+                evidence_state="evidence_unavailable",
             )
         if self._store is not None:
             try:
                 self._persist(request, result, token, safety_id)
             except Exception:
                 return KnowledgeChatResponse(
-                    **base, status="evidence_unavailable", answer=EVIDENCE_UNAVAILABLE
+                    **base,
+                    status="evidence_unavailable",
+                    answer=EVIDENCE_UNAVAILABLE,
+                    evidence_state="evidence_unavailable",
                 )
         return result
 
@@ -566,12 +591,6 @@ def _validate_grounding(
                 or quote not in available[passage_id].excerpt
             ):
                 raise ValueError("support quote is absent from cited passage")
-            geography = re.findall(
-                r"\b(?:[Ii]n|from|within|across)\s+([A-Z][a-z]{2,})\b",
-                available[passage_id].excerpt,
-            )
-            if any(place.casefold() not in str(raw["text"]).casefold() for place in geography):
-                raise ValueError("claim omits material passage geography")
         _validate_claim_text(str(raw["text"]), list(quotes.values()))
         citation_ids: list[str] = []
         for pmid in sorted(actual_pmids):

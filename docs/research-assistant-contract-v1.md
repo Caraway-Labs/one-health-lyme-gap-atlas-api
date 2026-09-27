@@ -22,8 +22,11 @@ The existing service retrieves only through its fixed Neo4j template over the go
 | `insufficient_to_compare` | Relevant cited papers exist, but their scopes/outcomes do not support a useful comparison. |
 | `no_relevant_corpus_evidence` | No relevant passage was returned from the admitted Atlas corpus; this says nothing about evidence outside Atlas. |
 | `evidence_unavailable` | Retrieval, generation, grounding, or operational controls prevented an evidence answer. |
+| `not_applicable` | A safety refusal or capacity limit prevented evidence assessment; it does not describe evidence strength or availability. |
 
-The model proposes a multi-paper state from cited evidence. One cited paper is always reported as `single_study`; absent and unavailable evidence states are assigned by the service. The state is a lightweight indicator, not a quantitative certainty estimate.
+The model proposes a multi-paper state from cited evidence. One cited paper is always reported as `single_study`. The service assigns `no_relevant_corpus_evidence` to `no_evidence`, `evidence_unavailable` to unavailable responses, and `not_applicable` to `safety_refusal` and `capacity_limited`. The response model rejects mismatched status/state pairs. The state is a lightweight indicator, not a quantitative certainty estimate.
+
+Study-context fidelity is directed by the generation instructions and tested with known passages. The service does not infer geography from capitalization as a hard grounding gate; such a heuristic could mistake a scientific entity for a place. Formal product evaluation under KG #10 will assess context omissions beyond deterministic fixtures.
 
 `citations` preserve paper links and richer provenance: PMID, PMCID when available, claim and passage IDs, corpus unit IDs, section labels, corpus rules version, artifact ID, and contribution/JATS hashes. Where ADR 0007 persistence is enabled, the saved citation JSON also carries the answer model, retrieval configuration, and assistant policy identifiers. A simple UI may render the PubMed paper link while retaining the response's richer data for inspection and follow-up.
 
