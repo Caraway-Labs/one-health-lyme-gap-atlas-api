@@ -6,9 +6,10 @@ import threading
 import time
 from typing import Any
 
-from lyme_gap_atlas_shared import (
+from lyme_gap_atlas_shared.domain import (
     CountyInputs,
     ScoreSettings,
+    normalize_county_fips,
     priority_label,
     score_color,
     score_county,
@@ -76,6 +77,9 @@ class AtlasService:
     def county(
         self, fips: str, settings: ScoreSettings, dataset_version: str | None = None
     ) -> CountyDetail:
+        # Keep the public path pattern and its 422 response in the REST adapter.
+        # This invariant also applies to in-process callers of the service.
+        fips = normalize_county_fips(fips)
         snapshot = self.snapshot()
         self._require_version(snapshot, dataset_version)
         record = next((item for item in snapshot.counties if item.fips == fips), None)

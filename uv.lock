@@ -595,7 +595,7 @@ dependencies = [
     { name = "httpx" },
     { name = "neo4j" },
     { name = "one-health-lyme-gap-atlas-knowledge-graph" },
-    { name = "one-health-lyme-gap-atlas-shared" },
+    { name = "one-health-lyme-gap-atlas-shared", extra = ["observability", "snowflake"] },
     { name = "openai" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "pyjwt", extra = ["crypto"] },
@@ -617,7 +617,7 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14,<2" },
     { name = "neo4j", specifier = ">=6,<7" },
     { name = "one-health-lyme-gap-atlas-knowledge-graph", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph.git?rev=kg-v1.0.0" },
-    { name = "one-health-lyme-gap-atlas-shared", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.7" },
+    { name = "one-health-lyme-gap-atlas-shared", extras = ["snowflake", "observability"], git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=83ccbe76047185f6aacaff551afd8b03d88aa5cf" },
     { name = "openai", specifier = ">=2.8,<3" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.51b0,<1" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10,<3" },
@@ -638,14 +638,20 @@ dependencies = [
 
 [[package]]
 name = "one-health-lyme-gap-atlas-shared"
-version = "0.1.5"
-source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=v0.1.7#47ac020e4ee46bfd27789cb8b9ab548c15a41818" }
+version = "1.0.0"
+source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=83ccbe76047185f6aacaff551afd8b03d88aa5cf#83ccbe76047185f6aacaff551afd8b03d88aa5cf" }
 dependencies = [
-    { name = "cryptography" },
+    { name = "pydantic" },
+]
+
+[package.optional-dependencies]
+observability = [
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-sdk" },
-    { name = "pydantic" },
+]
+snowflake = [
+    { name = "cryptography" },
     { name = "pydantic-settings" },
     { name = "snowflake-connector-python" },
 ]

@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from statistics import fmean
 
-from lyme_gap_atlas_shared import ScoreSettings
+from lyme_gap_atlas_shared.domain import ScoreSettings
 
 from ..models import AtlasMetadata, CountyDetail, CountyScoreSummary
 from ..service import AtlasService

@@ -3,6 +3,12 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from lyme_gap_atlas_shared.domain import (
+    CountyInputs,
+    ScoreSettings,
+    normalize_county_fips,
+    score_county,
+)
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
@@ -23,6 +29,7 @@ from lyme_gap_atlas_api.reports.renderer import (
     ResourceLimitExceeded,
 )
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError, Snapshot
+from lyme_gap_atlas_api.service import AtlasService
 
 
 class FakeRepository:
@@ -270,6 +277,25 @@ def test_scores_geometry_detail_and_csv() -> None:
     assert api.get("/v1/atlas/geometry").headers["cache-control"].endswith("immutable")
     assert api.get("/v1/counties/08001").json()["release"]["sources"][0]["key"] == "human"
     assert "Adams" in api.get("/v1/atlas/ranking.csv?state=CO").text
+
+
+def test_atlas_application_service_uses_shared_domain_without_http() -> None:
+    repository = FakeRepository()
+    service = AtlasService(repository)
+    settings = ScoreSettings()
+
+    detail = service.county(normalize_county_fips("08001"), settings)
+    collection = service.scores(settings)
+
+    assert detail.score == collection.counties[0].score
+    assert detail.release.release_id == collection.release_id
+    assert detail.release.sources[0].key == "human"
+    assert detail.release.limitations == "Not individual risk."
+    assert detail.score == score_county(
+        CountyInputs(**repository.load_snapshot().counties[0].model_dump()), settings
+    )
+    with pytest.raises(ValueError, match="five ASCII digits"):
+        service.county("8001", settings)
 
 
 def test_validation_and_unknown_release() -> None:
