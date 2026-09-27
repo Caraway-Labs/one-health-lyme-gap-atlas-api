@@ -1,5 +1,12 @@
 name: Quality and deploy
 
+# CI_MAX_PARALLEL=4
+# Quality runs are not serialized. This workflow has no workflow-level
+# concurrency group: one group would queue every run at parallelism 1, which
+# is not a four-slot semaphore. There is no matrix, so strategy.max-parallel
+# does not apply. Overlapping quality jobs are bounded by the account's
+# hosted-runner limit. See docs/ci-and-production-deploy.md.
+
 on:
   pull_request:
   push:
@@ -7,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy_production:
-        description: Deploy the reviewed commit to production after quality checks
+        description: Redeploy this main commit to production after quality checks
         required: true
         type: boolean
         default: false
@@ -77,56 +84,38 @@ jobs:
           ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
           git /repo --redact --no-banner
   deploy:
+    # API_PRODUCTION_CONCURRENCY_GROUP=atlas-api-production
+    # LATEST_MAIN_WINS=true
+    # A push to main deploys after quality succeeds. workflow_dispatch with
+    # deploy_production redeploys that same commit. Pull requests do not deploy.
+    # A failed quality job does not deploy: this condition leaves GitHub's
+    # default success check in place. Only this job takes the production lock.
+    # cancel-in-progress drops an in-progress deploy when another api promotion
+    # arrives. The script
+    # still refuses the DigitalOcean call unless this SHA is origin/main, because
+    # cancellation follows arrival order rather than commit order. The previous
+    # group name was api-production; do not put quality in this group.
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.deploy_production &&
-      vars.DIGITALOCEAN_APP_ID != '' && github.ref == 'refs/heads/main'
+      vars.DIGITALOCEAN_APP_ID != '' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_production))
     needs: quality
     runs-on: ubuntu-latest
     environment:
       name: production
       url: https://api.carawaylabs.com/docs
-    concurrency: { group: api-production, cancel-in-progress: false }
+    concurrency:
+      group: ${{ vars.API_PRODUCTION_CONCURRENCY_GROUP || 'atlas-api-production' }}
+      cancel-in-progress: true
     steps:
-      - name: Deploy the stored App Platform configuration
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Promote this commit when it is still origin/main
         env:
+          CANDIDATE_SHA: ${{ github.sha }}
           DIGITALOCEAN_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          api="https://api.digitalocean.com/v2/apps/${DIGITALOCEAN_APP_ID}"
-          deployment_id="$(
-            curl --silent --show-error --fail-with-body \
-              --request POST \
-              --header "Authorization: Bearer ${DIGITALOCEAN_ACCESS_TOKEN}" \
-              --header "Content-Type: application/json" \
-              --data '{"force_build":true}' \
-              "${api}/deployments" | jq --exit-status --raw-output '.deployment.id'
-          )"
-          test -n "${deployment_id}"
-          echo "Triggered DigitalOcean deployment ${deployment_id}"
-
-          for attempt in {1..60}; do
-            deployment="$(
-              curl --silent --show-error --fail-with-body \
-                --header "Authorization: Bearer ${DIGITALOCEAN_ACCESS_TOKEN}" \
-                "${api}/deployments/${deployment_id}"
-            )"
-            phase="$(jq --raw-output '.deployment.phase // empty' <<<"${deployment}")"
-            echo "DigitalOcean deployment phase: ${phase}"
-
-            case "${phase}" in
-              ACTIVE)
-                exit 0
-                ;;
-              ERROR|CANCELED|SUPERSEDED)
-                echo "DigitalOcean deployment ${deployment_id} ended in ${phase}." >&2
-                exit 1
-                ;;
-            esac
-
-            sleep 10
-          done
-
-          echo "Timed out waiting for DigitalOcean deployment ${deployment_id}." >&2
-          exit 1
+          APP_NAME: api
+        run: PYTHONPATH=src python3 -m lyme_gap_atlas_api.production_deploy
