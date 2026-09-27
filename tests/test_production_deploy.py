@@ -410,9 +410,13 @@ def test_workflow_keeps_quality_parallel_and_serializes_only_deploy() -> None:
     assert "API_PRODUCTION_CONCURRENCY_GROUP" in deploy
     assert "production_deploy" in deploy
     assert "CANDIDATE_SHA: ${{ github.sha }}" in deploy
+    assert "github.event_name == 'push'" in deploy
     assert "github.event_name == 'workflow_dispatch'" in deploy
     assert "inputs.deploy_production" in deploy
     assert "github.ref == 'refs/heads/main'" in deploy
+    assert "vars.DIGITALOCEAN_APP_ID != ''" in deploy
+    assert "always()" not in deploy
+    assert "failure()" not in deploy
     assert "environment:" in deploy
     assert "name: production" in deploy
 

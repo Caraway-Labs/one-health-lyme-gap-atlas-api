@@ -73,8 +73,8 @@ the application, network, and feature-flag controls rather than database roles.
 
 ## Production promotion
 
-App Platform autodeploy is off (`deploy_on_push: false`). Production changes
-through **workflow_dispatch** on `main` with `deploy_production` enabled, after
-`quality` has succeeded for that commit. Overlapping promotions serialize on
+App Platform autodeploy is off (`deploy_on_push: false`). A push to `main`
+deploys production after `quality` succeeds. **workflow_dispatch** with
+`deploy_production` redeploys that commit. Overlapping promotions serialize on
 `atlas-api-production` and skip any candidate that is no longer `origin/main`.
 See [CI and production deployment](docs/ci-and-production-deploy.md).

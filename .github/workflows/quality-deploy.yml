@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy_production:
-        description: Deploy the reviewed commit to production after quality checks
+        description: Redeploy this main commit to production after quality checks
         required: true
         type: boolean
         default: false
@@ -86,14 +86,19 @@ jobs:
   deploy:
     # API_PRODUCTION_CONCURRENCY_GROUP=atlas-api-production
     # LATEST_MAIN_WINS=true
-    # Only this job takes the production lock. cancel-in-progress drops an
-    # in-progress deploy when another api promotion arrives. The script still
-    # refuses the DigitalOcean call unless this SHA is origin/main, because
+    # A push to main deploys after quality succeeds. workflow_dispatch with
+    # deploy_production redeploys that same commit. Pull requests do not deploy.
+    # A failed quality job does not deploy: this condition leaves GitHub's
+    # default success check in place. Only this job takes the production lock.
+    # cancel-in-progress drops an in-progress deploy when another api promotion
+    # arrives. The script
+    # still refuses the DigitalOcean call unless this SHA is origin/main, because
     # cancellation follows arrival order rather than commit order. The previous
     # group name was api-production; do not put quality in this group.
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.deploy_production &&
-      vars.DIGITALOCEAN_APP_ID != '' && github.ref == 'refs/heads/main'
+      vars.DIGITALOCEAN_APP_ID != '' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_production))
     needs: quality
     runs-on: ubuntu-latest
     environment:

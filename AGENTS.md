@@ -19,8 +19,9 @@ through [ADR 0009](../one-health-lyme-gap-atlas-knowledge-graph/docs/adr/0009-ex
 - Preserve source, retrieval time, geography, methodology/version, limitations,
   and `last_updated` semantics in atlas responses. For graph chat, fail closed
   without validated evidence and do not expose arbitrary Cypher.
-- Production deployment is an explicit, owner-reviewed promotion; a green CI
-  run or merge to `main` is not authorization to deploy.
+- A push to `main` that passes `quality` deploys production. Manual
+  `workflow_dispatch` with `deploy_production` is the redeploy path. See
+  `docs/ci-and-production-deploy.md`. Pull-request `quality` runs do not deploy.
 
 Run the CI-equivalent checks before handoff:
 

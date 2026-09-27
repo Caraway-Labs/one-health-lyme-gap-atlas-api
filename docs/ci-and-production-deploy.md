@@ -1,8 +1,8 @@
 # CI and production deployment
 
-Quality runs and production promotion are separate. Quality validates one
-commit. Promotion may ship that commit only after an explicit dispatch, and
-only when it is still the tip of `main`.
+Quality validates one commit. A push to `main` that passes `quality` deploys
+that commit when it is still the tip of `main`. Manual dispatch redeploys the
+same way.
 
 ## What runs in parallel
 
@@ -42,13 +42,19 @@ disables it.
 
 ## When production changes
 
-DigitalOcean does not deploy this app on push (`.do/app.yaml` sets
-`deploy_on_push: false`). Merging to `main` runs quality and stops there.
+A push to `main` runs `deploy` after `quality` succeeds, when
+`vars.DIGITALOCEAN_APP_ID` is set. `workflow_dispatch` on `main` with
+`deploy_production` set is the redeploy path for that same commit. Pull
+requests run `quality` only.
 
-Promotion is `workflow_dispatch` on `main` with `deploy_production` set, and
-only when `vars.DIGITALOCEAN_APP_ID` is set. The `deploy` job `needs: quality`,
-so a failed or skipped quality check does not promote that commit. The job
-uses the `production` environment.
+`.do/app.yaml` keeps `deploy_on_push: false`. DigitalOcean does not start its
+own deployment when `main` moves. This workflow is what calls the App Platform
+API. The `production` environment allows only the `main` branch and has no
+required reviewers, so a green push to `main` deploys without a separate
+approval.
+
+`deploy` needs `quality`. The job `if` does not use `always()` or `failure()`,
+so GitHub still requires `quality` to succeed before the job starts.
 
 The App Platform create-deployment API (`force_build: true`) rebuilds the
 branch configured on the app. It cannot pin a SHA. The deploy job checks out
@@ -76,20 +82,22 @@ created. The access token is not logged.
 
 ## Rollback
 
-Ship a commit that is the current tip of `main`. To return to older code,
-revert on `main`, wait for `quality` on that commit, then dispatch
-`deploy_production` again. Dispatching an older commit while a newer tip
-exists is skipped, so a stale run cannot roll production backward.
+Push a commit that is the current tip of `main`. To return to older code,
+revert on `main`. After `quality` succeeds, that revert deploys if it is still
+the tip. `workflow_dispatch` with `deploy_production` redeploys the current tip
+without another commit. Dispatching an older commit while a newer tip exists
+is skipped, so a stale run cannot roll production backward.
 
 If a newer deploy job cancels this GitHub job before the DigitalOcean request,
-re-dispatch promotion on the current `main` tip after its `quality` check is
-green. A DigitalOcean deployment that already started keeps running on App
-Platform; confirm its `source_commit_hash` before dispatching again.
+the next green push, or a redeploy dispatch, on the current `main` tip starts
+again. A DigitalOcean deployment that already started keeps running on App
+Platform; confirm its `source_commit_hash` before starting another one.
 
 ## Failure
 
 `ERROR`, `CANCELED`, and `SUPERSEDED` phases fail this job. A timeout fails
 this job. The previous production deployment remains the active one until a
-later promotion reaches `ACTIVE`. Re-dispatch on the current tip after the
-cause is fixed. Do not treat a green `quality` check, or a skip, as a
-production change.
+later promotion reaches `ACTIVE`. Push a fix to `main`, or redeploy the current
+tip with `workflow_dispatch`, after the cause is fixed. A superseded skip does
+not change production. A green `quality` check on a pull request does not
+deploy.

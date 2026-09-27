@@ -102,9 +102,8 @@ county/release cases. Keep Snowflake key-pair/least-privilege configuration,
 Neo4j evidence gates, Supabase authorization, feedback privacy and rate limits
 in API runtime code. The `quality-deploy.yml` gate includes uv, ruff, mypy,
 pytest, OpenAPI export/diff, Docker build, production-Typst regression and
-secret scanning. Independent quality runs are not serialized. Production
-promotion stays on explicit workflow dispatch; see
-`docs/ci-and-production-deploy.md`.
+secret scanning. Independent quality runs are not serialized. A green `quality` check on a
+push to `main` deploys production; see `docs/ci-and-production-deploy.md`.
 
 Relevant decisions: workspace ADRs 0002 and 0003, API ADR 0016, shared-python
 ADR 0001, and the workspace technology/governance baseline.
