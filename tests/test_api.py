@@ -298,6 +298,49 @@ def test_atlas_application_service_uses_shared_domain_without_http() -> None:
         service.county("8001", settings)
 
 
+def test_score_and_county_rest_contract_preserves_release_cache_and_errors() -> None:
+    api = client()
+    scores = api.get("/v1/atlas/scores?dataset_version=alpha-2026-08-06")
+    county = api.get("/v1/counties/08001?dataset_version=alpha-2026-08-06")
+
+    assert scores.status_code == county.status_code == 200
+    assert scores.headers["cache-control"] == "public, max-age=300"
+    assert county.headers["cache-control"] == "public, max-age=300"
+    assert scores.headers["etag"].startswith('"')
+    assert county.headers["etag"].startswith('"')
+    assert scores.headers["etag"] == api.get("/v1/atlas/scores").headers["etag"]
+    assert county.headers["etag"] == api.get("/v1/counties/08001").headers["etag"]
+
+    score_payload = scores.json()
+    county_payload = county.json()
+    assert score_payload["release_id"] == "alpha-2026-08-06"
+    assert score_payload["methodology_version"] == "alpha-0.2.0"
+    assert score_payload["settings"]["ecological_share"] == 65
+    assert len(score_payload["counties"]) == 1
+    assert score_payload["counties"][0]["score"]["score"] == 59.9
+    assert county_payload["score"] == score_payload["counties"][0]["score"]
+    assert county_payload["release"]["loaded_at"]
+    assert county_payload["release"]["generated_at"]
+    assert county_payload["release"]["sources"][0]["key"] == "human"
+    assert county_payload["release"]["limitations"] == "Not individual risk."
+
+    changed = api.get("/v1/atlas/scores?ecological_share=70")
+    assert changed.status_code == 200
+    assert changed.json()["settings"]["ecological_share"] == 70
+    assert changed.headers["etag"] != scores.headers["etag"]
+
+    for path, status in [
+        ("/v1/counties/8001", 422),
+        ("/v1/counties/99999", 404),
+        ("/v1/counties/08001?dataset_version=missing", 404),
+        ("/v1/atlas/scores?dataset_version=missing", 404),
+    ]:
+        response = api.get(path)
+        assert response.status_code == status
+        assert response.headers["content-type"].startswith("application/problem+json")
+        assert response.json()["status"] == status
+
+
 def test_validation_and_unknown_release() -> None:
     api = client()
     invalid = api.get("/v1/atlas/scores?ecological_share=63")
