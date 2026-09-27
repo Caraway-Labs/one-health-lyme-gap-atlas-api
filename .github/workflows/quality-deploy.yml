@@ -14,6 +14,8 @@ on:
 
 permissions:
   contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   quality:
@@ -25,7 +27,37 @@ jobs:
       - run: uv sync --extra dev --locked
       - run: uv run ruff check .
       - run: uv run mypy
-      - run: uv run pytest -q
+      - name: Pytest + coverage
+        run: |
+          mkdir -p test-results
+          uv run pytest -q
+
+      - name: Upload Pytest JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-junit
+          path: test-results/pytest-junit.xml
+          if-no-files-found: warn
+
+      - name: Publish API test results (PR check)
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Pytest Results
+          path: test-results/pytest-junit.xml
+          reporter: java-junit
+          fail-on-error: false
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          flags: api
+          name: atlas-api
+          fail_ci_if_error: false
       - run: uv run python scripts/export_openapi.py
       - run: git diff --exit-code -- openapi.json
       - run: docker build --tag lyme-atlas-api:quality .

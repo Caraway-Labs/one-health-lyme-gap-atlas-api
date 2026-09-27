@@ -8,4 +8,9 @@ __pycache__/
 dist/
 build/
 supabase/.temp/
+coverage.xml
+coverage.json
+htmlcov/
+.coverage
+test-results/
 

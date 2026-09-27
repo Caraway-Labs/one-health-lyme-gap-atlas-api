@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy>=1.14,<2", "pytest>=8.3,<9", "ruff>=0.9,<1"]
+dev = ["mypy>=1.14,<2", "pytest>=8.3,<9", "pytest-cov>=6,<7", "ruff>=0.9,<1"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lyme_gap_atlas_api"]
@@ -34,6 +34,13 @@ allow-direct-references = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = [
+  "--cov=lyme_gap_atlas_api",
+  "--cov-report=term-missing:skip-covered",
+  "--cov-report=xml:coverage.xml",
+  "--cov-report=json:coverage.json",
+  "--junitxml=test-results/pytest-junit.xml",
+]
 
 [tool.ruff]
 line-length = 100
@@ -46,3 +53,18 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.11"
 strict = true
 packages = ["lyme_gap_atlas_api"]
+
+[tool.coverage.run]
+source = ["lyme_gap_atlas_api"]
+branch = true
+omit = [
+  "*/tests/*",
+  "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
