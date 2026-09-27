@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from lyme_gap_atlas_shared import Score
+from lyme_gap_atlas_shared.domain import Score
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ProfileRole = Literal[

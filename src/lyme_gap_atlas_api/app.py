@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
-from lyme_gap_atlas_shared import ScoreSettings
+from lyme_gap_atlas_shared.domain import ScoreSettings
 from lyme_gap_atlas_shared.observability import configure_logging, configure_tracing
 from openai import OpenAI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
