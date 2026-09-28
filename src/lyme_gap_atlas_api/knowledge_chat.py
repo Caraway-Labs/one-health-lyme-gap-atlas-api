@@ -340,6 +340,20 @@ class SnowflakeCorpusProvenanceStore:
             return result
 
 
+_CLAIM_GROUNDING_INSTRUCTIONS = (
+    "Build every claim from its support quotes, not the other way around. "
+    "For each claim, first select returned passage IDs and their matching PMIDs, then select "
+    "an exact verbatim excerpt substring as the support quote for every cited passage. "
+    "Only then write one short, atomic claim about a finding explicitly present in those quotes. "
+    "Use a close extractive paraphrase: preserve the source's important scientific nouns, "
+    "entities, verbs, relationships, and material species, geography, population, and outcome "
+    "qualifiers. Avoid distant synonyms, smoother but unsupported interpretation, and combining "
+    "unrelated findings. Make each claim no broader than its cited quotes. Do not add unsupported "
+    "numbers or causal language. The validated claims[].text are the user-visible answer units; "
+    "keep answer consistent with those claims and do not add separate broader findings. "
+)
+
+
 class OpenAIAnswerer:
     def __init__(self, client: OpenAI, model: str = "gpt-5.6-luna") -> None:
         self._client = client
@@ -363,10 +377,8 @@ class OpenAIAnswerer:
         strictness = policy.strictness_for(question_class)
         passages = [item.__dict__ for item in evidence]
         correction_instruction = (
-            "The previous candidate failed deterministic grounding. Regenerate from only the "
-            "supplied passages. Use returned passage IDs and matching PMIDs, include an exact "
-            "verbatim excerpt substring for every cited passage, and omit unsupported numbers "
-            "or causal language. Do not reuse the previous candidate."
+            "The previous candidate failed deterministic grounding. Regenerate carefully from "
+            "only the supplied passages. Do not reuse the previous candidate."
             if correction
             else ""
         )
@@ -378,10 +390,10 @@ class OpenAIAnswerer:
             instructions=(
                 "Answer only from supplied steward-approved PubMed/PMC full-text passages. "
                 "Return JSON with answer, evidence_state, and claims. Each claim has claim_id, "
-                "text, passage_ids, pmids, and support_quotes mapping every cited passage ID "
-                "to a verbatim excerpt substring. State must be one of single_study, consistent, "
-                "limited, mixed, conflicting, insufficient_to_compare. Do not infer consensus "
-                "from paper count. Give a direct, concise-to-moderate synthesis first; preserve "
+                "text, passage_ids, pmids, and support_quotes. "
+                f"{_CLAIM_GROUNDING_INSTRUCTIONS}"
+                "State must be one of single_study, consistent, limited, mixed, conflicting, "
+                "insufficient_to_compare. Do not infer consensus from paper count. Preserve "
                 "disagreement and cite both sides. Include material species, geography, period, "
                 "population, sampling, denominator, outcome, validation, publication type, and "
                 "limitations when supplied and relevant. Do not invent missing context, generalize "

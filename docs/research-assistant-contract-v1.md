@@ -6,6 +6,8 @@ Owner: API repository. Applies to `POST /v1/knowledge-graph/chat` for the early-
 
 The existing service retrieves only through its fixed Neo4j template over the governed, steward-approved PubMed/PMC Open Access full-text corpus. It does not search the web or abstracts, execute model-authored Cypher, or use model background knowledge when graph evidence is absent. The response `configuration_version` identifies the KG retrieval configuration; `assistant_policy_version` identifies the deployment-controlled behavior policy; `model_id` identifies the answer model when generation ran. Every answered claim must link to returned passage IDs and exact PMID matches, with a verbatim support quote from each cited excerpt. Obvious unsupported additions fail closed. Automated lexical checks are conservative safeguards, not proof of scientific entailment; peer review and pre-general-go-live evaluation remain necessary.
 
+The first and corrective generation attempts share a quote-first claim contract: select returned passages and exact support quotes, then write short, atomic `claims[].text` with terminology and scope close to those quotes. The server builds the user-visible answer from validated claim text; the generated `answer` field must be consistent with those claims and cannot introduce broader findings. A corrective attempt adds only the fact that the previous candidate failed grounding. The deterministic validation threshold and citation requirements are unchanged.
+
 ## Response fields
 
 `source_used` is `literature_evidence` for this service. It is a typed capability identity, designed for later additional Atlas data or mixed-source values under API #100. It does not advertise those capabilities now.
