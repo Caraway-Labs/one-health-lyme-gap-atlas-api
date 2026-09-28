@@ -8,18 +8,13 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ValueState(StrEnum):
-    """Governed atlas-semantic-consumer-v1 value states, not a new taxonomy."""
+    """Owner-approved public V1 observation value states (API #52)."""
 
     OBSERVED = "OBSERVED"
     ZERO = "ZERO"
     MISSING = "MISSING"
-    UNKNOWN = "UNKNOWN"
     SUPPRESSED = "SUPPRESSED"
-    NOT_REPORTED = "NOT_REPORTED"
     UNAVAILABLE = "UNAVAILABLE"
-    NOT_DEFENSIBLE = "NOT_DEFENSIBLE"
-    NO_RECORDS = "NO_RECORDS"
-    NO_COUNTY_LINKED_RECORD = "NO_COUNTY_LINKED_RECORD"
 
 
 class GeographyType(StrEnum):
@@ -127,19 +122,11 @@ class Observation(BaseModel):
         if self.value_state == ValueState.OBSERVED and self.value in (None, 0):
             raise ValueError("OBSERVED requires a nonzero value")
         if (
-            self.value_state in {ValueState.NO_RECORDS, ValueState.NO_COUNTY_LINKED_RECORD}
-            and self.value != self.value_state.value
-        ):
-            raise ValueError("categorical state requires its literal value")
-        if (
             self.value_state
             in {
                 ValueState.MISSING,
-                ValueState.UNKNOWN,
                 ValueState.SUPPRESSED,
-                ValueState.NOT_REPORTED,
                 ValueState.UNAVAILABLE,
-                ValueState.NOT_DEFENSIBLE,
             }
             and self.value is not None
         ):

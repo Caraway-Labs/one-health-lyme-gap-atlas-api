@@ -53,8 +53,19 @@ def test_public_paths_and_generated_shapes() -> None:
     assert "422" not in responses
     assert set(responses["400"]["content"]) == {"application/problem+json"}
     assert schema["components"]["schemas"]["ValueState"]["enum"] == [
-        state.value for state in ValueState
+        "OBSERVED",
+        "ZERO",
+        "MISSING",
+        "SUPPRESSED",
+        "UNAVAILABLE",
     ]
+    assert {state.value for state in ValueState} == {
+        "OBSERVED",
+        "ZERO",
+        "MISSING",
+        "SUPPRESSED",
+        "UNAVAILABLE",
+    }
     public_states = set(schema["components"]["schemas"]["ValueState"]["enum"])
     assert "NOT_APPLICABLE" not in public_states
     assert "INCOMPLETE" not in public_states
@@ -104,7 +115,15 @@ def test_typed_geography_and_value_states() -> None:
         Observation.model_validate({**payload, "value": None, "value_state": "SUPPRESSED"}).value
         is None
     )
-    for orthogonal_dimension in ("NOT_APPLICABLE", "INCOMPLETE"):
+    for orthogonal_dimension in (
+        "NOT_APPLICABLE",
+        "INCOMPLETE",
+        "UNKNOWN",
+        "NOT_REPORTED",
+        "NOT_DEFENSIBLE",
+        "NO_RECORDS",
+        "NO_COUNTY_LINKED_RECORD",
+    ):
         with pytest.raises(ValidationError):
             Observation.model_validate(
                 {**payload, "value": None, "value_state": orthogonal_dimension}

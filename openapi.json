@@ -4803,16 +4803,11 @@
           "OBSERVED",
           "ZERO",
           "MISSING",
-          "UNKNOWN",
           "SUPPRESSED",
-          "NOT_REPORTED",
-          "UNAVAILABLE",
-          "NOT_DEFENSIBLE",
-          "NO_RECORDS",
-          "NO_COUNTY_LINKED_RECORD"
+          "UNAVAILABLE"
         ],
         "title": "ValueState",
-        "description": "Governed atlas-semantic-consumer-v1 value states, not a new taxonomy."
+        "description": "Owner-approved public V1 observation value states (API #52)."
       }
     }
   }
