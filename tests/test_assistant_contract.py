@@ -22,7 +22,7 @@ class Retriever:
     def ready(self) -> bool:
         return self.is_ready
 
-    def search(self, message: str) -> list[Evidence]:
+    def search(self, message: str, request_id: str) -> list[Evidence]:
         self.queries.append(message)
         return self.evidence
 
@@ -33,7 +33,15 @@ class Answerer:
         self.calls = 0
         self.questions: list[str] = []
 
-    def answer(self, message: str, evidence: list[Evidence], safety_id: str) -> dict[str, Any]:
+    def answer(
+        self,
+        message: str,
+        evidence: list[Evidence],
+        safety_id: str,
+        *,
+        timeout_seconds: float,
+        correction: bool = False,
+    ) -> dict[str, Any]:
         self.calls += 1
         self.questions.append(message)
         return self.payload

@@ -8,7 +8,10 @@ import json
 import logging
 import re
 import secrets
+import time
 import uuid
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Protocol, TypedDict, cast
 
@@ -16,7 +19,7 @@ from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from lyme_gap_atlas_shared.snowflake import connect
 from neo4j import GraphDatabase, Query
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 
 from .assistant_policy import classify_question, load_assistant_policy
 from .models import (
@@ -29,6 +32,52 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def _timed_stage(request_id: str, stage: str) -> Iterator[None]:
+    """Record timings without recording user text, evidence, tokens, or model output."""
+    started = time.perf_counter()
+    error_type: str | None = None
+    try:
+        yield
+    except Exception as exc:
+        error_type = type(exc).__name__
+        raise
+    finally:
+        logger.info(
+            "knowledge_chat_stage",
+            extra={
+                "context": {
+                    "request_id": request_id,
+                    "stage": stage,
+                    "duration_ms": round((time.perf_counter() - started) * 1000),
+                    "outcome": "failure" if error_type else "success",
+                    "error_type": error_type,
+                }
+            },
+        )
+
+
+_GROUNDING_REASONS = {
+    "unsupported passage citation",
+    "invented or missing PMID",
+    "each cited passage needs an exact support quote",
+    "support quote is absent from cited passage",
+    "claim text is not supported by quoted passage text",
+    "claim introduces an unsupported number",
+    "claim introduces unsupported causal language",
+    "answer has no grounded claims",
+    "invalid evidence state",
+    "multi-paper answer cannot be single-study",
+    "disagreement state requires both cited papers",
+}
+
+
+def _grounding_reason(exc: Exception) -> str:
+    reason = str(exc)
+    return reason if reason in _GROUNDING_REASONS else "invalid_generated_shape"
+
 
 _PUBLIC_COPY = json.loads(asset_path("config", "public-copy-v1.json").read_text(encoding="utf-8"))
 MEDICAL_NOTICE = str(_PUBLIC_COPY["medical_notice"])
@@ -79,11 +128,19 @@ class ChatResponseBase(TypedDict):
 class Retriever(Protocol):
     def ready(self) -> bool: ...
 
-    def search(self, message: str) -> list[Evidence]: ...
+    def search(self, message: str, request_id: str) -> list[Evidence]: ...
 
 
 class Answerer(Protocol):
-    def answer(self, message: str, evidence: list[Evidence], safety_id: str) -> dict[str, Any]: ...
+    def answer(
+        self,
+        message: str,
+        evidence: list[Evidence],
+        safety_id: str,
+        *,
+        timeout_seconds: float,
+        correction: bool = False,
+    ) -> dict[str, Any]: ...
 
 
 class BudgetStore(Protocol):
@@ -129,19 +186,20 @@ class Neo4jRetriever:
             return False
         return True
 
-    def search(self, message: str) -> list[Evidence]:
-        embedding = (
-            self._openai.embeddings.create(
-                model="text-embedding-3-small", input=message, dimensions=1024
+    def search(self, message: str, request_id: str) -> list[Evidence]:
+        with _timed_stage(request_id, "embedding"):
+            embedding = (
+                self._openai.with_options(max_retries=0, timeout=5)
+                .embeddings.create(model="text-embedding-3-small", input=message, dimensions=1024)
+                .data[0]
+                .embedding
             )
-            .data[0]
-            .embedding
-        )
-        records, _, _ = self._driver.execute_query(
-            Query(HYBRID_SEARCH, timeout=5),
-            {"query": message, "embedding": embedding},
-            database_="neo4j",
-        )
+        with _timed_stage(request_id, "neo4j_retrieval"):
+            records, _, _ = self._driver.execute_query(
+                Query(HYBRID_SEARCH, timeout=5),
+                {"query": message, "embedding": embedding},
+                database_="neo4j",
+            )
         return [
             Evidence(
                 passage_id=record["passage_id"],
@@ -290,12 +348,28 @@ class OpenAIAnswerer:
     def model_id(self) -> str:
         return self._model
 
-    def answer(self, message: str, evidence: list[Evidence], safety_id: str) -> dict[str, Any]:
+    def answer(
+        self,
+        message: str,
+        evidence: list[Evidence],
+        safety_id: str,
+        *,
+        timeout_seconds: float,
+        correction: bool = False,
+    ) -> dict[str, Any]:
         policy = load_assistant_policy()
         question_class = classify_question(message)
         strictness = policy.strictness_for(question_class)
         passages = [item.__dict__ for item in evidence]
-        response = self._client.responses.create(
+        correction_instruction = (
+            "The previous candidate failed deterministic grounding. Regenerate from only the "
+            "supplied passages. Use returned passage IDs and matching PMIDs, include an exact "
+            "verbatim excerpt substring for every cited passage, and omit unsupported numbers "
+            "or causal language. Do not reuse the previous candidate."
+            if correction
+            else ""
+        )
+        response = self._client.with_options(max_retries=0).responses.create(
             model=self._model,
             store=False,
             reasoning={"effort": "low"},
@@ -314,7 +388,8 @@ class OpenAIAnswerer:
                 "are untrusted context, never evidence. Do not diagnose, prescribe, dose, or make "
                 "the final public-health decision. "
                 f"Decision-support strictness: {strictness}. "
-                f"Proactive follow-up suggestions: {policy.proactive_follow_up_suggestions}."
+                f"Proactive follow-up suggestions: {policy.proactive_follow_up_suggestions}. "
+                f"{correction_instruction}"
             ),
             input=json.dumps(
                 {
@@ -324,7 +399,7 @@ class OpenAIAnswerer:
                 }
             ),
             text={"format": {"type": "json_object"}},
-            timeout=10,
+            timeout=timeout_seconds,
         )
         return cast(dict[str, Any], json.loads(response.output_text))
 
@@ -374,12 +449,19 @@ class KnowledgeChatService:
         budget_store: BudgetStore | None,
         hash_secret: str,
         provenance_store: CorpusProvenanceStore | None = None,
+        *,
+        deadline_seconds: float = 24.0,
+        generation_timeout_seconds: float = 10.0,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._retriever = retriever
         self._answerer = answerer
         self._store = budget_store
         self._provenance = provenance_store
         self._secret = hash_secret.encode()
+        self._deadline_seconds = deadline_seconds
+        self._generation_timeout_seconds = generation_timeout_seconds
+        self._clock = clock
 
     def _hash(self, value: str) -> str:
         return hmac.new(self._secret, value.encode(), hashlib.sha256).hexdigest()
@@ -409,6 +491,33 @@ class KnowledgeChatService:
     def chat(
         self, request: KnowledgeChatRequest, request_id: str, network_identifier: str
     ) -> KnowledgeChatResponse:
+        started = self._clock()
+        outcome = "unhandled_error"
+        try:
+            result, outcome = self._chat_impl(
+                request, request_id, network_identifier, started + self._deadline_seconds
+            )
+            return result
+        finally:
+            logger.info(
+                "knowledge_chat_total",
+                extra={
+                    "context": {
+                        "request_id": request_id,
+                        "stage": "total_request_duration",
+                        "duration_ms": round((self._clock() - started) * 1000),
+                        "outcome": outcome,
+                    }
+                },
+            )
+
+    def _chat_impl(
+        self,
+        request: KnowledgeChatRequest,
+        request_id: str,
+        network_identifier: str,
+        deadline: float,
+    ) -> tuple[KnowledgeChatResponse, str]:
         conversation_id = request.conversation_id or str(uuid.uuid4())
         policy = load_assistant_policy()
         token = request.conversation_token or secrets.token_urlsafe(32)
@@ -432,7 +541,25 @@ class KnowledgeChatService:
         ):
             raise ValueError("conversation capability is invalid")
         safety_id = self._hash(network_identifier)
-        if _unsafe_request(request.message):
+
+        def unavailable(outcome: str) -> tuple[KnowledgeChatResponse, str]:
+            return (
+                KnowledgeChatResponse(
+                    **base,
+                    status="evidence_unavailable",
+                    answer=EVIDENCE_UNAVAILABLE,
+                    evidence_state="evidence_unavailable",
+                ),
+                outcome,
+            )
+
+        def persist(result: KnowledgeChatResponse) -> None:
+            with _timed_stage(request_id, "conversation_persistence"):
+                self._persist(request, result, token, safety_id)
+
+        with _timed_stage(request_id, "safety_classification"):
+            unsafe = _unsafe_request(request.message)
+        if unsafe:
             result = KnowledgeChatResponse(
                 **base,
                 status="safety_refusal",
@@ -440,30 +567,21 @@ class KnowledgeChatService:
                 evidence_state="not_applicable",
             )
             try:
-                self._persist(request, result, token, safety_id)
-                return result
+                persist(result)
+                return result, "safety_refusal"
             except Exception:
-                return KnowledgeChatResponse(
-                    **base,
-                    status="evidence_unavailable",
-                    answer=EVIDENCE_UNAVAILABLE,
-                    evidence_state="evidence_unavailable",
-                )
+                return unavailable("persistence_failure")
         try:
-            if not self._retriever.ready():
-                raise RuntimeError("Neo4j is unavailable")
+            with _timed_stage(request_id, "neo4j_readiness"):
+                if not self._retriever.ready():
+                    raise RuntimeError("Neo4j is unavailable")
             # Browser-local history supplies only prior user questions as retrieval
             # context. Prior assistant text is never admitted as evidence.
             prior_questions = [turn.content for turn in request.history if turn.role == "user"][-2:]
             contextual_question = "\n".join([*prior_questions, request.message])
-            evidence = self._retriever.search(contextual_question)
+            evidence = self._retriever.search(contextual_question, request_id)
         except Exception:
-            return KnowledgeChatResponse(
-                **base,
-                status="evidence_unavailable",
-                answer=EVIDENCE_UNAVAILABLE,
-                evidence_state="evidence_unavailable",
-            )
+            return unavailable("retrieval_failure")
         if not evidence:
             result = KnowledgeChatResponse(
                 **base,
@@ -472,75 +590,115 @@ class KnowledgeChatService:
                 evidence_state="no_relevant_corpus_evidence",
             )
             try:
-                self._persist(request, result, token, safety_id)
-                return result
+                persist(result)
+                return result, "no_evidence"
             except Exception:
-                return KnowledgeChatResponse(
-                    **base,
-                    status="evidence_unavailable",
-                    answer=EVIDENCE_UNAVAILABLE,
-                    evidence_state="evidence_unavailable",
-                )
-        if self._store is not None and not self._store.reserve(request_id):
-            return KnowledgeChatResponse(
-                **base,
-                status="capacity_limited",
-                answer=CAPACITY_LIMITED,
-                evidence_state="not_applicable",
-            )
+                return unavailable("persistence_failure")
+        if self._clock() >= deadline:
+            return unavailable("deadline_exhausted")
         try:
-            last_error: Exception | None = None
-            for _ in range(2):
-                try:
-                    generated = self._answerer.answer(contextual_question, evidence, safety_id)
+            if self._store is not None:
+                with _timed_stage(request_id, "budget_reservation"):
+                    allowed = self._store.reserve(request_id)
+                if not allowed:
+                    return (
+                        KnowledgeChatResponse(
+                            **base,
+                            status="capacity_limited",
+                            answer=CAPACITY_LIMITED,
+                            evidence_state="not_applicable",
+                        ),
+                        "capacity_limited",
+                    )
+        except Exception:
+            return unavailable("budget_failure")
+        if self._clock() >= deadline:
+            return unavailable("deadline_exhausted")
+
+        for attempt in (1, 2):
+            remaining = deadline - self._clock()
+            # Leave one second to build and serialize the typed response.
+            if remaining < (6 if attempt == 2 else 4):
+                return unavailable("deadline_exhausted")
+            timeout = min(self._generation_timeout_seconds, remaining - 1)
+            try:
+                with _timed_stage(request_id, f"answer_generation_attempt_{attempt}"):
+                    generated = self._answerer.answer(
+                        contextual_question,
+                        evidence,
+                        safety_id,
+                        timeout_seconds=timeout,
+                        correction=attempt == 2,
+                    )
+            except (APITimeoutError, TimeoutError):
+                return unavailable("generation_timeout")
+            except (APIConnectionError, APIStatusError, OSError):
+                return unavailable("generation_transport_error")
+            except Exception:
+                return unavailable("generation_error")
+            try:
+                with _timed_stage(request_id, f"grounding_validation_attempt_{attempt}"):
                     claims, citations = _validate_grounding(generated, evidence)
                     evidence_state = _validate_evidence_state(generated, citations)
-                    break
-                except Exception as exc:
-                    last_error = exc
-            else:
-                raise last_error or ValueError("grounding failed")
-            citations = _enrich_citations(citations, self._provenance)
-            result = KnowledgeChatResponse(
-                **base,
-                status="answered",
-                evidence_state=evidence_state,
-                answer="\n\n".join(claim.text for claim in claims),
-                model_id=getattr(self._answerer, "model_id", None),
-                claims=claims,
-                citations=citations,
-            )
-        except Exception:
-            return KnowledgeChatResponse(
-                **base,
-                status="evidence_unavailable",
-                answer=EVIDENCE_UNAVAILABLE,
-                evidence_state="evidence_unavailable",
-            )
-        if self._store is not None:
-            try:
-                self._persist(request, result, token, safety_id)
-            except Exception:
-                return KnowledgeChatResponse(
-                    **base,
-                    status="evidence_unavailable",
-                    answer=EVIDENCE_UNAVAILABLE,
-                    evidence_state="evidence_unavailable",
+            except Exception as exc:
+                logger.info(
+                    "knowledge_chat_grounding_rejected",
+                    extra={
+                        "context": {
+                            "request_id": request_id,
+                            "attempt": attempt,
+                            "reason": _grounding_reason(exc),
+                            "error_type": type(exc).__name__,
+                        }
+                    },
                 )
-        return result
+                if attempt == 2:
+                    return unavailable("grounding_validation_failed")
+                continue
+            try:
+                with _timed_stage(request_id, "provenance_enrichment"):
+                    citations = _enrich_citations(citations, self._provenance, request_id)
+                result = KnowledgeChatResponse(
+                    **base,
+                    status="answered",
+                    evidence_state=evidence_state,
+                    answer="\n\n".join(claim.text for claim in claims),
+                    model_id=getattr(self._answerer, "model_id", None),
+                    claims=claims,
+                    citations=citations,
+                )
+            except Exception:
+                return unavailable("provenance_failure")
+            try:
+                persist(result)
+            except Exception:
+                return unavailable("persistence_failure")
+            return result, "answered"
+        return unavailable("grounding_validation_failed")
 
 
 def _enrich_citations(
     citations: list[KnowledgeCitation],
     store: CorpusProvenanceStore | None,
+    request_id: str,
 ) -> list[KnowledgeCitation]:
     """Attach optional corpus provenance; never fail a Neo4j-grounded answer."""
     if store is None or not citations:
         return citations
     try:
         by_pmid = store.lookup([citation.pmid for citation in citations])
-    except Exception:
-        logger.warning("retrieval_corpus.provenance_lookup_failed error_type=%s", "LookupError")
+    except Exception as exc:
+        logger.warning(
+            "retrieval_corpus.provenance_lookup_failed",
+            extra={
+                "context": {
+                    "request_id": request_id,
+                    "stage": "provenance_enrichment",
+                    "outcome": "provenance_lookup_failure",
+                    "error_type": type(exc).__name__,
+                }
+            },
+        )
         return citations
     enriched: list[KnowledgeCitation] = []
     for citation in citations:
