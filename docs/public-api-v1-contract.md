@@ -39,14 +39,26 @@ PMID/PMCID/article/passage provenance stays in the literature domain. A mapping
 to CDC MMG, PHIN VADS, USCDI, LOINC, or FHIR is optional reviewed metadata from
 data #469–#473 and does not assert live clinical exchange.
 
-The governed semantic consumer currently defines `OBSERVED`, `ZERO`, `MISSING`,
-`UNKNOWN`, `SUPPRESSED`, `NOT_REPORTED`, `UNAVAILABLE`, `NOT_DEFENSIBLE`,
-`NO_RECORDS`, and `NO_COUNTY_LINKED_RECORD`. It has no `NOT_APPLICABLE` or
-`INCOMPLETE` observation value state. Those concepts may exist in separate
-applicability/quality fields, but an API value-state alias requires a data-owner
-decision. See data `atlas-semantic-domain-v1.md` and
-`atlas-semantic-consumer-v1.schema.json`. #54 must enforce measure-declared
-grain and stratification and source-approved public projection at query time.
+The public `value_state` enum follows the governed observation value-state
+contract. `NOT_APPLICABLE` and `INCOMPLETE` are **not** observation value states.
+Applicability describes whether a measure applies to a geography, period, and
+stratification context. Completeness/quality describes evidence coverage or
+fitness; an `OBSERVED` value can still have incomplete supporting evidence.
+These are independent semantic dimensions, not mutually exclusive replacements
+for `value_state`. An adapter must never convert an unknown or missing value to
+`NOT_APPLICABLE` or `INCOMPLETE`, or synthesize applicability/completeness when
+the governed semantic layer does not supply them. Reviewed governed metadata
+may later be exposed as optional, additive fields without reinterpreting
+`value_state`. No speculative observation fields are present in this schema.
+Data [#191](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/issues/191)
+owns applicability and quality metadata semantics; its machine-readable
+consumer projection is Data [#194](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/issues/194).
+See `atlas-semantic-domain-v1.md` and `atlas-semantic-consumer-v1.schema.json`.
+#54 may proceed against today's governed value states. It owns data-backed
+observation execution, measure-specific temporal and stratification validation,
+opaque continuation-token issuance, and query mapping. It must preserve future
+applicability and completeness/quality semantics separately when supplied by the
+governed layer and must not fabricate either dimension.
 
 ## Bounds and access
 

@@ -1,6 +1,7 @@
 """API #52 contract assertions; no warehouse publication is implied."""
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -54,6 +55,13 @@ def test_public_paths_and_generated_shapes() -> None:
     assert schema["components"]["schemas"]["ValueState"]["enum"] == [
         state.value for state in ValueState
     ]
+    public_states = set(schema["components"]["schemas"]["ValueState"]["enum"])
+    assert "NOT_APPLICABLE" not in public_states
+    assert "INCOMPLETE" not in public_states
+    observation_fields = schema["components"]["schemas"]["Observation"]["properties"]
+    assert "applicability" not in observation_fields
+    assert "completeness" not in observation_fields
+    assert "value_state" in observation_fields
     assert "next_page_token" in schema["components"]["schemas"]["CollectionMeta"]["properties"]
 
 
@@ -96,6 +104,20 @@ def test_typed_geography_and_value_states() -> None:
         Observation.model_validate({**payload, "value": None, "value_state": "SUPPRESSED"}).value
         is None
     )
+    for orthogonal_dimension in ("NOT_APPLICABLE", "INCOMPLETE"):
+        with pytest.raises(ValidationError):
+            Observation.model_validate(
+                {**payload, "value": None, "value_state": orthogonal_dimension}
+            )
+
+
+def test_applicability_and_quality_are_documented_as_additive_dimensions() -> None:
+    contract = (Path(__file__).resolve().parents[1] / "docs/public-api-v1-contract.md").read_text(
+        encoding="utf-8"
+    )
+    assert "independent semantic dimensions" in contract
+    assert "optional, additive fields without reinterpreting" in contract
+    assert "must not fabricate either dimension" in contract
 
 
 def test_bounded_query_validation() -> None:
