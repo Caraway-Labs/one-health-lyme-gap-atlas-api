@@ -3,6 +3,12 @@
 Public FastAPI boundary between the web application and Snowflake, with fixed,
 governed Neo4j evidence retrieval for the knowledge-graph feature.
 
+The additive canonical public V1 contract is described in
+[`docs/public-api-v1-contract.md`](docs/public-api-v1-contract.md). The generated
+`openapi.json` is its authoritative HTTP schema; `/docs` and `/redoc` render it.
+Canonical resource handlers introduced by API #52 return a documented 503
+until the data-backed implementations in #53–#55 are delivered.
+
 ```powershell
 uv sync --extra dev
 uv run ruff check .
