@@ -45,6 +45,9 @@ class ApiSettings(SnowflakeSettings):
     openai_api_key: SecretStr | None = None
     kg_hash_secret: SecretStr | None = None
     kg_chat_model: str = "gpt-5.6-luna"
+    # Keep the typed chat response inside the observed public edge window.
+    kg_chat_deadline_seconds: float = Field(default=24, ge=10, le=28)
+    kg_generation_timeout_seconds: float = Field(default=10, ge=3, le=10)
     supabase_url: str = ""
     supabase_secret_key: SecretStr | None = None
     supabase_jwt_issuer: str = ""

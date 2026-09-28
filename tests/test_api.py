@@ -188,12 +188,20 @@ class FakeRetriever:
     def ready(self) -> bool:
         return True
 
-    def search(self, message: str) -> list[Evidence]:
+    def search(self, message: str, request_id: str) -> list[Evidence]:
         return self.evidence
 
 
 class FakeAnswerer:
-    def answer(self, message: str, evidence: list[Evidence], safety_id: str) -> dict[str, object]:
+    def answer(
+        self,
+        message: str,
+        evidence: list[Evidence],
+        safety_id: str,
+        *,
+        timeout_seconds: float,
+        correction: bool = False,
+    ) -> dict[str, object]:
         return {
             "answer": "Reviewed evidence associates the vector with the pathogen.",
             "evidence_state": "single_study",
@@ -213,7 +221,15 @@ class InventedCitationAnswerer:
     def __init__(self) -> None:
         self.calls = 0
 
-    def answer(self, message: str, evidence: list[Evidence], safety_id: str) -> dict[str, object]:
+    def answer(
+        self,
+        message: str,
+        evidence: list[Evidence],
+        safety_id: str,
+        *,
+        timeout_seconds: float,
+        correction: bool = False,
+    ) -> dict[str, object]:
         self.calls += 1
         return {
             "answer": "Unsupported answer.",
@@ -257,7 +273,7 @@ def test_ready_with_chat_enabled_does_not_probe_neo4j() -> None:
         def ready(self) -> bool:
             raise AssertionError("ready must not probe Neo4j")
 
-        def search(self, message: str) -> list[Evidence]:
+        def search(self, message: str, request_id: str) -> list[Evidence]:
             return []
 
     settings = ApiSettings(

@@ -197,6 +197,8 @@ def create_app(
                 SnowflakeBudgetStore(config) if config.conversation_persistence_enabled else None,
                 hash_secret.get_secret_value(),
                 SnowflakeCorpusProvenanceStore(config),
+                deadline_seconds=config.kg_chat_deadline_seconds,
+                generation_timeout_seconds=config.kg_generation_timeout_seconds,
             )
     app = FastAPI(
         title=config.app_name,
