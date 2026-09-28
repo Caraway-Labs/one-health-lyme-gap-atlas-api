@@ -170,6 +170,55 @@ def test_deadline_exhaustion_skips_second_generation() -> None:
     assert len(answerer.calls) == 1
 
 
+def test_measured_prework_allows_longer_generation_with_persistence_reserve() -> None:
+    class TimedStore(Store):
+        def __init__(self, clock: Clock) -> None:
+            super().__init__()
+            self.clock = clock
+
+        def reserve(self, request_id: str) -> bool:
+            self.clock.now += 7
+            return True
+
+        def persist(self, **kwargs: Any) -> None:
+            self.clock.now += 4
+            super().persist(**kwargs)
+
+    clock = Clock()
+    answerer = Answerer([valid_payload()], clock, elapsed=12)
+    store = TimedStore(clock)
+    service = KnowledgeChatService(Retriever(), answerer, store, "test-secret", clock=clock)
+    response = service.chat(
+        KnowledgeChatRequest(message="What did the study find?"), "req-budget", "network"
+    )
+    assert response.status == "answered"
+    assert answerer.calls == [(16, False)]
+    assert clock.now == 23
+    assert store.persist_calls == 1
+
+
+def test_generation_cap_shrinks_to_preserve_post_generation_work() -> None:
+    class TimedStore(Store):
+        def __init__(self, clock: Clock) -> None:
+            super().__init__()
+            self.clock = clock
+
+        def reserve(self, request_id: str) -> bool:
+            self.clock.now += 16
+            return True
+
+    clock = Clock()
+    answerer = Answerer([valid_payload()], clock)
+    service = KnowledgeChatService(
+        Retriever(), answerer, TimedStore(clock), "test-secret", clock=clock
+    )
+    response = service.chat(
+        KnowledgeChatRequest(message="What did the study find?"), "req-tight", "network"
+    )
+    assert response.status == "answered"
+    assert answerer.calls == [(7, False)]
+
+
 def test_success_retains_citation_and_persistence() -> None:
     store = Store()
     response, answerer = run([valid_payload()], store=store)

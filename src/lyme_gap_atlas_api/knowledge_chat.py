@@ -32,6 +32,7 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+_POST_GENERATION_RESERVE_SECONDS = 5.0
 
 
 @contextmanager
@@ -450,8 +451,8 @@ class KnowledgeChatService:
         hash_secret: str,
         provenance_store: CorpusProvenanceStore | None = None,
         *,
-        deadline_seconds: float = 24.0,
-        generation_timeout_seconds: float = 10.0,
+        deadline_seconds: float = 28.0,
+        generation_timeout_seconds: float = 16.0,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._retriever = retriever
@@ -617,10 +618,15 @@ class KnowledgeChatService:
 
         for attempt in (1, 2):
             remaining = deadline - self._clock()
-            # Leave one second to build and serialize the typed response.
-            if remaining < (6 if attempt == 2 else 4):
+            # Reserve time for grounding, provenance, Snowflake persistence,
+            # and serialization after the provider call. The production QA
+            # request spent ~7 seconds before generation and timed out at 10.
+            if remaining < _POST_GENERATION_RESERVE_SECONDS + 3:
                 return unavailable("deadline_exhausted")
-            timeout = min(self._generation_timeout_seconds, remaining - 1)
+            timeout = min(
+                self._generation_timeout_seconds,
+                remaining - _POST_GENERATION_RESERVE_SECONDS,
+            )
             try:
                 with _timed_stage(request_id, f"answer_generation_attempt_{attempt}"):
                     generated = self._answerer.answer(
