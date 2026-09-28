@@ -255,6 +255,7 @@ class ProblemDetails(BaseModel):
     detail: str
     instance: str
     request_id: str
+    code: str | None = None
     errors: list[dict[str, Any]] | None = None
 
 

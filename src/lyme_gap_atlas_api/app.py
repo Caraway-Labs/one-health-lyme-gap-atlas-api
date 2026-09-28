@@ -80,6 +80,8 @@ from .privacy_requests import (
     SupabasePrivacyRequestStore,
 )
 from .profiles import ProfileStore, ProfileStoreError, SupabaseProfileStore
+from .public_contract import PublicQueryError
+from .public_routes import router as public_router
 from .reports import (
     TEMPLATE_REGISTRY,
     CountyReport,
@@ -206,6 +208,8 @@ def create_app(
         description="Public API for Atlas data and reviewed knowledge-graph evidence chat.",
     )
     app.state.service = service
+    app.state.public_settings = config
+    app.include_router(public_router)
     accounts_configured = bool(
         config.supabase_url
         and config.supabase_secret_key
@@ -254,17 +258,50 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        is_canonical = request.url.path in {
+            "/v1/indicators",
+            "/v1/measures",
+            "/v1/observations",
+            "/v1/sources",
+        } or request.url.path.startswith(
+            (
+                "/v1/indicators/",
+                "/v1/measures/",
+                "/v1/geographies/",
+                "/v1/sources/",
+                "/v1/methodologies/",
+            )
+        )
+        response_status = 400 if is_canonical else 422
         problem = ProblemDetails(
             type="https://carawaylabs.com/problems/validation",
             title="Invalid request",
-            status=422,
+            status=response_status,
             detail="One or more request values are invalid.",
             instance=str(request.url.path),
             request_id=getattr(request.state, "request_id", "unavailable"),
             errors=json.loads(json.dumps(exc.errors(), default=str)),
+            code="INVALID_REQUEST" if is_canonical else None,
         )
         return JSONResponse(
-            problem.model_dump(mode="json"), status_code=422, media_type="application/problem+json"
+            problem.model_dump(mode="json", exclude=set() if is_canonical else {"code"}),
+            status_code=response_status,
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(PublicQueryError)
+    async def public_query_error(request: Request, exc: PublicQueryError) -> JSONResponse:
+        problem = ProblemDetails(
+            type=f"https://carawaylabs.com/problems/{exc.code.lower().replace('_', '-')}",
+            title="Invalid public query",
+            status=400,
+            detail=str(exc),
+            instance=request.url.path,
+            request_id=getattr(request.state, "request_id", "unavailable"),
+            code=exc.code,
+        )
+        return JSONResponse(
+            problem.model_dump(mode="json"), status_code=400, media_type="application/problem+json"
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -278,9 +315,26 @@ def create_app(
             detail=str(exc.detail),
             instance=str(request.url.path),
             request_id=getattr(request.state, "request_id", "unavailable"),
+            code=(
+                "RESOURCE_NOT_FOUND"
+                if exc.status_code == 404
+                and request.url.path.startswith(
+                    (
+                        "/v1/indicators/",
+                        "/v1/measures/",
+                        "/v1/geographies/",
+                        "/v1/sources/",
+                        "/v1/methodologies/",
+                    )
+                )
+                else "CANONICAL_DATA_UNAVAILABLE"
+                if exc.status_code == 503
+                and str(exc.detail) == "Canonical data delivery is not yet available."
+                else None
+            ),
         )
         return JSONResponse(
-            problem.model_dump(mode="json"),
+            problem.model_dump(mode="json", exclude={"code"} if problem.code is None else set()),
             status_code=exc.status_code,
             media_type="application/problem+json",
             headers=exc.headers,
