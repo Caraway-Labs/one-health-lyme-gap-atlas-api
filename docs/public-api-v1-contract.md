@@ -4,10 +4,10 @@ The FastAPI-generated `openapi.json` is the HTTP authority; `/openapi.json`, `/d
 and `/redoc` render the same application contract. This document records policy
 and handoff boundaries that an HTTP schema cannot fully express. The canonical
 routes are additive to all current `/v1/atlas/*`, county, report, feedback,
-chat, and authenticated `/v1/me/*` routes. The canonical handlers in #52 expose
-request/response schemas and validation but return a controlled 503 until
-#53–#55 connect reviewed public semantic projections. They do not claim a live
-governed observation feed.
+chat, and authenticated `/v1/me/*` routes. API #53 connects indicator and measure
+discovery to governed metadata views. Observation, geography, source, and
+methodology handlers remain controlled 503 pending their owning stories. This
+does not claim a live governed observation feed.
 
 ## Resources and semantics
 
@@ -124,3 +124,32 @@ and in-process services; they do not need to call the public REST endpoint.
 Snowflake query construction, credentials, HTTP policy and persistence remain
 API-owned. Literature retrieval, Neo4j traversal, prompts and answer generation
 are outside #52 (API #96–#99 and `docs/api-layer-inventory.md`).
+
+## Indicator and measure discovery (#53)
+
+The API reads `PRESENTATION.CURRENT_INDICATOR_METADATA_V` and
+`PRESENTATION.CURRENT_MEASURE_METADATA_V` through its configured presentation
+schema and least-privilege read role. IDs and release/schema versions come from
+the views. Indicator `measure_ids` join by indicator ID and release version.
+Lists sort by stable ID. Missing detail IDs return 404 Problem Details;
+unsupported query keys return 400 `UNSUPPORTED_FILTER`.
+
+Collections accept exact `indicator_id` or `measure_id` where applicable;
+measure collections also accept exact `indicator_id` and literal stored
+`geography_type` (such as `COUNTY_FIPS_5`, distinct from the observation
+geography enum). `domain`, `category`, and `availability` are unsupported.
+Availability is never inferred from observation presence. `page_size` is 1–500
+with default 100. Opaque page tokens bind offset, filter, and current release;
+reuse with a different filter or release fails. Responses use
+`Cache-Control: public, max-age=60, must-revalidate`.
+
+The view's `description` maps to `definition`; `semantic_contract_version`
+maps to `semantic_version`, with `release_version` exposed separately.
+`geography_semantics` and `temporal_semantics` retain the stored literals.
+The stored `measure_type` is a data type and `methodology` is text, not a
+methodology resource ID. Unknown denominator, strata, source association,
+standards mapping, domain, category, and measure definition remain null.
+No observation rows are scanned to fill them. Data #499 verified DEV; protected
+PROD promotion of V123/V124 and the read grants remains necessary for live
+PROD endpoint readiness. Observation, source, and methodology routes remain
+controlled 503 under their downstream stories.

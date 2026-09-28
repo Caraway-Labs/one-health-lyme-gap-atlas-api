@@ -1,13 +1,15 @@
 """Contract-only canonical REST adapter; data-backed services arrive in #53-#55."""
 
 from datetime import date
-from typing import Annotated, Any, NoReturn
+from typing import Annotated, Any, NoReturn, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from .config import ApiSettings
 from .public_contract import (
     CollectionEnvelope,
+    CollectionLinks,
+    CollectionMeta,
     Geography,
     GeographyType,
     Indicator,
@@ -19,6 +21,7 @@ from .public_contract import (
     ResourceEnvelope,
     Source,
 )
+from .public_metadata import MetadataService
 
 router = APIRouter(tags=["public-v1"])
 
@@ -65,12 +68,31 @@ def collection_pagination(
     request: Request,
     page_size: Annotated[int | None, Query(ge=1, le=500)] = None,
     page_token: str | None = None,
-) -> None:
+) -> tuple[int, str | None]:
     config: ApiSettings = request.app.state.public_settings
     size = page_size or config.public_page_size_default
     if size > config.public_page_size_max:
         raise PublicQueryError("INVALID_REQUEST", "page_size exceeds configured maximum.")
-    if page_token:
+    return size, page_token
+
+
+def metadata_query(request: Request, allowed: set[str]) -> None:
+    if set(request.query_params) - allowed:
+        raise PublicQueryError("UNSUPPORTED_FILTER", "This query filter is not supported in V1.")
+
+
+def metadata_service(request: Request) -> MetadataService:
+    return cast(MetadataService, request.app.state.metadata_service)
+
+
+def metadata_cache(response: Response) -> None:
+    response.headers["Cache-Control"] = "public, max-age=60, must-revalidate"
+
+
+def pending_pagination(
+    pagination: Annotated[tuple[int, str | None], Depends(collection_pagination)],
+) -> None:
+    if pagination[1]:
         raise PublicQueryError("INVALID_REQUEST", "No continuation token has been issued.")
 
 
@@ -80,31 +102,90 @@ def collection_pagination(
     responses=PROBLEMS,
     summary="Discover indicators",
 )
-def indicators(_pagination: Annotated[None, Depends(collection_pagination)]) -> NoReturn:
-    pending()
+def indicators(
+    request: Request,
+    response: Response,
+    pagination: Annotated[tuple[int, str | None], Depends(collection_pagination)],
+    service: Annotated[MetadataService, Depends(metadata_service)],
+    indicator_id: str | None = None,
+) -> CollectionEnvelope[Indicator]:
+    metadata_cache(response)
+    metadata_query(request, {"page_size", "page_token", "indicator_id"})
+    items, _ = service.discover()
+    if indicator_id is not None:
+        items = [item for item in items if item.indicator_id == indicator_id]
+    page, token = service.page(items, *pagination, {"indicator_id": indicator_id})
+    return CollectionEnvelope(
+        data=page, meta=CollectionMeta(next_page_token=token), links=CollectionLinks()
+    )
 
 
 @router.get(
     "/v1/indicators/{indicator_id}", response_model=ResourceEnvelope[Indicator], responses=PROBLEMS
 )
-def indicator(indicator_id: str) -> NoReturn:
-    pending()
+def indicator(
+    indicator_id: str,
+    response: Response,
+    service: Annotated[MetadataService, Depends(metadata_service)],
+) -> ResourceEnvelope[Indicator]:
+    metadata_cache(response)
+    items, _ = service.discover()
+    for item in items:
+        if item.indicator_id == indicator_id:
+            return ResourceEnvelope(data=item)
+    raise HTTPException(status_code=404, detail="Indicator not found.")
 
 
 @router.get("/v1/measures", response_model=CollectionEnvelope[Measure], responses=PROBLEMS)
-def measures(_pagination: Annotated[None, Depends(collection_pagination)]) -> NoReturn:
-    pending()
+def measures(
+    request: Request,
+    response: Response,
+    pagination: Annotated[tuple[int, str | None], Depends(collection_pagination)],
+    service: Annotated[MetadataService, Depends(metadata_service)],
+    measure_id: str | None = None,
+    indicator_id: str | None = None,
+    geography_type: str | None = None,
+) -> CollectionEnvelope[Measure]:
+    metadata_cache(response)
+    metadata_query(
+        request, {"page_size", "page_token", "measure_id", "indicator_id", "geography_type"}
+    )
+    _, items = service.discover()
+    if measure_id is not None:
+        items = [item for item in items if item.measure_id == measure_id]
+    if indicator_id is not None:
+        items = [item for item in items if item.indicator_id == indicator_id]
+    if geography_type is not None:
+        items = [item for item in items if item.geography_semantics == geography_type]
+    query = {
+        "measure_id": measure_id,
+        "indicator_id": indicator_id,
+        "geography_type": geography_type,
+    }
+    page, token = service.page(items, *pagination, query)
+    return CollectionEnvelope(
+        data=page, meta=CollectionMeta(next_page_token=token), links=CollectionLinks()
+    )
 
 
 @router.get(
     "/v1/measures/{measure_id}", response_model=ResourceEnvelope[Measure], responses=PROBLEMS
 )
-def measure(measure_id: str) -> NoReturn:
-    pending()
+def measure(
+    measure_id: str,
+    response: Response,
+    service: Annotated[MetadataService, Depends(metadata_service)],
+) -> ResourceEnvelope[Measure]:
+    metadata_cache(response)
+    _, items = service.discover()
+    for item in items:
+        if item.measure_id == measure_id:
+            return ResourceEnvelope(data=item)
+    raise HTTPException(status_code=404, detail="Measure not found.")
 
 
 @router.get("/v1/sources", response_model=CollectionEnvelope[Source], responses=PROBLEMS)
-def sources(_pagination: Annotated[None, Depends(collection_pagination)]) -> NoReturn:
+def sources(_pagination: Annotated[None, Depends(pending_pagination)]) -> NoReturn:
     pending()
 
 

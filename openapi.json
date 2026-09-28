@@ -15,6 +15,22 @@
         "operationId": "indicators_v1_indicators_get",
         "parameters": [
           {
+            "name": "indicator_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Indicator Id"
+            }
+          },
+          {
             "name": "page_size",
             "in": "query",
             "required": false,
@@ -203,6 +219,54 @@
         "summary": "Measures",
         "operationId": "measures_v1_measures_get",
         "parameters": [
+          {
+            "name": "measure_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Measure Id"
+            }
+          },
+          {
+            "name": "indicator_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Indicator Id"
+            }
+          },
+          {
+            "name": "geography_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Geography Type"
+            }
+          },
           {
             "name": "page_size",
             "in": "query",
@@ -3359,7 +3423,14 @@
             "title": "Label"
           },
           "definition": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Definition"
           },
           "measure_ids": {
@@ -3373,6 +3444,39 @@
             "type": "string",
             "title": "Semantic Version"
           },
+          "release_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Version"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
           "limitations": {
             "items": {
               "type": "string"
@@ -3381,10 +3485,17 @@
             "title": "Limitations"
           },
           "standards_mappings": {
-            "items": {
-              "$ref": "#/components/schemas/StandardsMapping"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StandardsMapping"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Standards Mappings"
           }
         },
@@ -3726,58 +3837,187 @@
             "title": "Label"
           },
           "definition": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Definition"
           },
           "semantic_version": {
             "type": "string",
             "title": "Semantic Version"
           },
+          "release_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Version"
+          },
+          "measure_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measure Type"
+          },
           "unit": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Unit"
           },
           "denominator": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Denominator"
           },
           "geography_types": {
-            "items": {
-              "$ref": "#/components/schemas/GeographyType"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GeographyType"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Geography Types"
           },
           "temporal_grains": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Temporal Grains"
           },
+          "geography_semantics": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geography Semantics"
+          },
+          "temporal_semantics": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temporal Semantics"
+          },
           "allowed_value_states": {
-            "items": {
-              "$ref": "#/components/schemas/ValueState"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValueState"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Allowed Value States"
           },
           "allowed_strata": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Allowed Strata"
           },
+          "missingness_semantics": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missingness Semantics"
+          },
           "methodology_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Methodology Id"
           },
+          "methodology": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology"
+          },
           "source_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Source Ids"
           },
           "limitations": {
@@ -3788,10 +4028,17 @@
             "title": "Limitations"
           },
           "standards_mappings": {
-            "items": {
-              "$ref": "#/components/schemas/StandardsMapping"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StandardsMapping"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Standards Mappings"
           }
         },
@@ -3801,15 +4048,7 @@
           "indicator_id",
           "label",
           "definition",
-          "semantic_version",
-          "unit",
-          "denominator",
-          "geography_types",
-          "temporal_grains",
-          "allowed_value_states",
-          "allowed_strata",
-          "methodology_id",
-          "source_ids"
+          "semantic_version"
         ],
         "title": "Measure"
       },
