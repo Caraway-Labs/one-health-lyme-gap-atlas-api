@@ -815,7 +815,7 @@
           "public-v1"
         ],
         "summary": "Observations",
-        "description": "Ordered by measure, geography, period, strata, and evidence ID. Opaque page tokens bind to query and continuation state; no user sorting or aggregation. A measure and bounded typed geography/time selection are required.",
+        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. The current release contains only the 2023 annual period and has no supported strata. A measure and bounded county/time selection are required; no user sorting or aggregation.",
         "operationId": "observations_v1_observations_get",
         "parameters": [
           {
@@ -4132,7 +4132,14 @@
             "title": "Unit"
           },
           "denominator": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Denominator"
           },
           "strata": {
@@ -4147,8 +4154,37 @@
             "title": "Source Id"
           },
           "methodology_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Methodology Id"
+          },
+          "methodology": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology"
+          },
+          "release_methodology_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Methodology Version"
           },
           "methodology_version": {
             "type": "string",
@@ -4165,6 +4201,39 @@
           "provenance_ref": {
             "type": "string",
             "title": "Provenance Ref"
+          },
+          "source_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Label"
+          },
+          "source_vintage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Vintage"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
           },
           "source_published_at": {
             "anyOf": [
@@ -5043,10 +5112,11 @@
           "ZERO",
           "MISSING",
           "SUPPRESSED",
-          "UNAVAILABLE"
+          "UNAVAILABLE",
+          "NO_COUNTY_LINKED_RECORD"
         ],
         "title": "ValueState",
-        "description": "Owner-approved public V1 observation value states (API #52)."
+        "description": "Public V1 states, including the governed county status added by API #54."
       }
     }
   }

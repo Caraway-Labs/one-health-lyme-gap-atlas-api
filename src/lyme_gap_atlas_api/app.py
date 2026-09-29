@@ -82,6 +82,11 @@ from .privacy_requests import (
 from .profiles import ProfileStore, ProfileStoreError, SupabaseProfileStore
 from .public_contract import PublicQueryError
 from .public_metadata import MetadataRepository, MetadataService, SnowflakeMetadataRepository
+from .public_observations import (
+    ObservationRepository,
+    ObservationService,
+    SnowflakeObservationRepository,
+)
 from .public_routes import router as public_router
 from .reports import (
     TEMPLATE_REGISTRY,
@@ -154,6 +159,7 @@ def create_app(
     auth_admin: AuthAdmin | None = None,
     feedback_store: FeedbackStore | None = None,
     metadata_repository: MetadataRepository | None = None,
+    observation_repository: ObservationRepository | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
@@ -213,6 +219,9 @@ def create_app(
     app.state.public_settings = config
     app.state.metadata_service = MetadataService(
         metadata_repository or SnowflakeMetadataRepository(config)
+    )
+    app.state.observation_service = ObservationService(
+        observation_repository or SnowflakeObservationRepository(config)
     )
     app.include_router(public_router)
     accounts_configured = bool(
@@ -296,17 +305,20 @@ def create_app(
 
     @app.exception_handler(PublicQueryError)
     async def public_query_error(request: Request, exc: PublicQueryError) -> JSONResponse:
+        response_status = 404 if exc.code == "RESOURCE_NOT_FOUND" else 400
         problem = ProblemDetails(
             type=f"https://carawaylabs.com/problems/{exc.code.lower().replace('_', '-')}",
             title="Invalid public query",
-            status=400,
+            status=response_status,
             detail=str(exc),
             instance=request.url.path,
             request_id=getattr(request.state, "request_id", "unavailable"),
             code=exc.code,
         )
         return JSONResponse(
-            problem.model_dump(mode="json"), status_code=400, media_type="application/problem+json"
+            problem.model_dump(mode="json"),
+            status_code=response_status,
+            media_type="application/problem+json",
         )
 
     @app.exception_handler(StarletteHTTPException)

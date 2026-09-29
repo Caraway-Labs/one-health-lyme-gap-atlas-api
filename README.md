@@ -6,8 +6,9 @@ governed Neo4j evidence retrieval for the knowledge-graph feature.
 The additive canonical public V1 contract is described in
 [`docs/public-api-v1-contract.md`](docs/public-api-v1-contract.md). The generated
 `openapi.json` is its authoritative HTTP schema; `/docs` and `/redoc` render it.
-Canonical resource handlers introduced by API #52 return a documented 503
-until the data-backed implementations in #53–#55 are delivered.
+Indicator and measure discovery (#53) and bounded county observation queries
+(#54) read governed current-release views. Geography, source, and methodology
+handlers retain their documented 503 until their owning stories are delivered.
 
 ```powershell
 uv sync --extra dev
