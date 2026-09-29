@@ -2,11 +2,16 @@
 
 from datetime import UTC, date, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
-from lyme_gap_atlas_api.public_observations import SnowflakeObservationRepository
+from lyme_gap_atlas_api.public_observations import (
+    ObservationService,
+    SnowflakeObservationRepository,
+)
+from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
 
 
 def row(fips: str, value: str | None, state: str, measure: str = "case_count_floor_2023") -> tuple:
@@ -203,3 +208,51 @@ def test_repository_only_queries_projection_with_bound_parameters(monkeypatch) -
     assert bindings[0][0] == "case_count_floor_2023"
     assert bindings[0][-2:] == (3, 0)
     assert "01001" not in statements[0]
+
+
+def test_repository_uses_current_release_and_bound_measure_lookup(monkeypatch) -> None:
+    statements = []
+    bindings = []
+
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def execute(self, statement, parameters=None):
+            statements.append(statement)
+            bindings.append(parameters)
+
+        def fetchone(self):
+            return ("release-1",) if "CURRENT_RELEASE_V" in statements[-1] else (1,)
+
+    class Connection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def cursor(self):
+            return Cursor()
+
+    monkeypatch.setattr(
+        "lyme_gap_atlas_api.public_observations.connect", lambda _settings: Connection()
+    )
+    repository = SnowflakeObservationRepository(ApiSettings())
+    assert repository.current_release() == "release-1"
+    assert repository.measure_exists("case_count_floor_2023", "release-1")
+    assert "CURRENT_RELEASE_V" in statements[0]
+    assert "CURRENT_COUNTY_OBSERVATIONS_V" in statements[1]
+    assert bindings[1] == ("case_count_floor_2023", "release-1")
+    assert "case_count_floor_2023" not in statements[1]
+
+
+def test_unrepresentable_governed_shape_fails_closed() -> None:
+    good = row("01001", None, "MISSING")
+    with pytest.raises(AtlasDataUnavailableError):
+        ObservationService._observation((*good[:8], "UNKNOWN", *good[9:]))
+    with pytest.raises(AtlasDataUnavailableError):
+        ObservationService._observation((*good[:11], "unexpected-strata", *good[12:]))
