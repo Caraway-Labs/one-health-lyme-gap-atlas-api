@@ -85,7 +85,7 @@ class SnowflakeObservationRepository:
             "RELEASE_VERSION, SOURCE_KEY, SOURCE_LABEL, SOURCE_VINTAGE, SOURCE_URL, "
             "RETRIEVED_AT, TRANSFORMATION_VERSION, METHODOLOGY, "
             "RELEASE_METHODOLOGY_VERSION, OBSERVATION_LIMITATIONS, "
-            "MEASURE_LIMITATION, RELEASE_LIMITATIONS "
+            "MEASURE_LIMITATION, RELEASE_LIMITATIONS, SOURCE_ID, DATASET_ID, METHODOLOGY_ID "
             f"FROM {self.view} WHERE MEASURE_ID = %s AND COUNTY_FIPS IN ({placeholders}) "
             "AND PERIOD_START >= %s AND PERIOD_END <= %s AND RELEASE_VERSION = %s "
             "ORDER BY MEASURE_ID, COUNTY_FIPS, PERIOD_START, OBSERVATION_ID "
@@ -185,8 +185,17 @@ class ObservationService:
             observation_limitation,
             measure_limitation,
             release_limitation,
+            lineage_source_id,
+            dataset_id,
+            methodology_id,
         ) = row
-        if geography_type != "COUNTY" or supported_strata is not None:
+        if (
+            geography_type != "COUNTY"
+            or supported_strata is not None
+            or not lineage_source_id
+            or not dataset_id
+            or not methodology_id
+        ):
             raise AtlasDataUnavailableError("Unsupported governed observation shape")
         try:
             return Observation(
@@ -203,7 +212,9 @@ class ObservationService:
                 unit=unit,
                 denominator=denominator,
                 source_id=source_id,
-                methodology_id=None,
+                lineage_source_id=lineage_source_id,
+                dataset_id=dataset_id,
+                methodology_id=methodology_id,
                 methodology=methodology,
                 methodology_version=transformation_version,
                 release_methodology_version=release_methodology_version,

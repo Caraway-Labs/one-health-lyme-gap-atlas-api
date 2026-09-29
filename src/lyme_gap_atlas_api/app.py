@@ -87,6 +87,11 @@ from .public_observations import (
     ObservationService,
     SnowflakeObservationRepository,
 )
+from .public_provenance import (
+    ProvenanceRepository,
+    ProvenanceService,
+    SnowflakeProvenanceRepository,
+)
 from .public_routes import router as public_router
 from .reports import (
     TEMPLATE_REGISTRY,
@@ -160,6 +165,7 @@ def create_app(
     feedback_store: FeedbackStore | None = None,
     metadata_repository: MetadataRepository | None = None,
     observation_repository: ObservationRepository | None = None,
+    provenance_repository: ProvenanceRepository | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
@@ -222,6 +228,9 @@ def create_app(
     )
     app.state.observation_service = ObservationService(
         observation_repository or SnowflakeObservationRepository(config)
+    )
+    app.state.provenance_service = ProvenanceService(
+        provenance_repository or SnowflakeProvenanceRepository(config)
     )
     app.include_router(public_router)
     accounts_configured = bool(
