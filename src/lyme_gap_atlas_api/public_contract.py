@@ -62,29 +62,38 @@ class EvidenceReference(BaseModel):
 class Indicator(BaseModel):
     indicator_id: str
     label: str
-    definition: str
+    definition: str | None
     measure_ids: list[str]
     semantic_version: str
+    release_version: str | None = None
+    domain: str | None = None
+    category: str | None = None
     limitations: list[str] = Field(default_factory=list)
-    standards_mappings: list[StandardsMapping] = Field(default_factory=list)
+    standards_mappings: list[StandardsMapping] | None = None
 
 
 class Measure(BaseModel):
     measure_id: str
     indicator_id: str
     label: str
-    definition: str
+    definition: str | None
     semantic_version: str
-    unit: str
-    denominator: str
-    geography_types: list[GeographyType]
-    temporal_grains: list[str]
-    allowed_value_states: list[ValueState]
-    allowed_strata: list[str]
-    methodology_id: str
-    source_ids: list[str]
+    release_version: str | None = None
+    measure_type: str | None = None
+    unit: str | None = None
+    denominator: str | None = None
+    geography_types: list[GeographyType] | None = None
+    temporal_grains: list[str] | None = None
+    geography_semantics: str | None = None
+    temporal_semantics: str | None = None
+    allowed_value_states: list[ValueState] | None = None
+    allowed_strata: list[str] | None = None
+    missingness_semantics: str | None = None
+    methodology_id: str | None = None
+    methodology: str | None = None
+    source_ids: list[str] | None = None
     limitations: list[str] = Field(default_factory=list)
-    standards_mappings: list[StandardsMapping] = Field(default_factory=list)
+    standards_mappings: list[StandardsMapping] | None = None
 
 
 class Observation(BaseModel):

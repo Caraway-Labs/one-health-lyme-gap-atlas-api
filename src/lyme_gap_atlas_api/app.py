@@ -81,6 +81,7 @@ from .privacy_requests import (
 )
 from .profiles import ProfileStore, ProfileStoreError, SupabaseProfileStore
 from .public_contract import PublicQueryError
+from .public_metadata import MetadataRepository, MetadataService, SnowflakeMetadataRepository
 from .public_routes import router as public_router
 from .reports import (
     TEMPLATE_REGISTRY,
@@ -152,6 +153,7 @@ def create_app(
     privacy_request_store: PrivacyRequestStore | None = None,
     auth_admin: AuthAdmin | None = None,
     feedback_store: FeedbackStore | None = None,
+    metadata_repository: MetadataRepository | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
@@ -209,6 +211,9 @@ def create_app(
     )
     app.state.service = service
     app.state.public_settings = config
+    app.state.metadata_service = MetadataService(
+        metadata_repository or SnowflakeMetadataRepository(config)
+    )
     app.include_router(public_router)
     accounts_configured = bool(
         config.supabase_url
