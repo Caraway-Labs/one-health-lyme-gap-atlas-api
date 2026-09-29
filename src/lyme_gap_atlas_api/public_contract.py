@@ -8,13 +8,14 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ValueState(StrEnum):
-    """Owner-approved public V1 observation value states (API #52)."""
+    """Public V1 states, including the governed county status added by API #54."""
 
     OBSERVED = "OBSERVED"
     ZERO = "ZERO"
     MISSING = "MISSING"
     SUPPRESSED = "SUPPRESSED"
     UNAVAILABLE = "UNAVAILABLE"
+    NO_COUNTY_LINKED_RECORD = "NO_COUNTY_LINKED_RECORD"
 
 
 class GeographyType(StrEnum):
@@ -106,14 +107,19 @@ class Observation(BaseModel):
     value: float | str | None
     value_state: ValueState
     unit: str
-    denominator: str
+    denominator: str | None
     strata: dict[str, str] = Field(default_factory=dict)
     source_id: str
-    methodology_id: str
+    methodology_id: str | None
+    methodology: str | None = None
+    release_methodology_version: str | None = None
     methodology_version: str
     semantic_version: str
     release_id: str
     provenance_ref: str
+    source_label: str | None = None
+    source_vintage: str | None = None
+    source_url: str | None = None
     source_published_at: datetime | None = None
     atlas_acquired_at: datetime | None = None
     atlas_processed_at: datetime | None = None
@@ -140,6 +146,11 @@ class Observation(BaseModel):
             and self.value is not None
         ):
             raise ValueError("this value state requires a null value")
+        if (
+            self.value_state == ValueState.NO_COUNTY_LINKED_RECORD
+            and self.value != "no_county_linked_record"
+        ):
+            raise ValueError("NO_COUNTY_LINKED_RECORD requires the governed status value")
         for field in ("source_published_at", "atlas_acquired_at", "atlas_processed_at"):
             stamp = getattr(self, field)
             if stamp is not None and (stamp.tzinfo is None or stamp.utcoffset() is None):
@@ -211,7 +222,7 @@ class ObservationQuery(BaseModel):
     page_size: int = Field(default=100, ge=1, le=500)
     page_token: str | None = None
 
-    def validate_bounds(self, *, ceiling: int) -> None:
+    def validate_bounds(self, *, ceiling: int, annual: bool = False) -> None:
         if self.year is not None and (self.start_date is not None or self.end_date is not None):
             raise PublicQueryError("INVALID_REQUEST", "Use year or a date range, not both.")
         if self.year is None and (self.start_date is None or self.end_date is None):
@@ -231,9 +242,14 @@ class ObservationQuery(BaseModel):
                 raise PublicQueryError("INVALID_REQUEST", str(exc)) from exc
         if len(set(self.geography_id)) != len(self.geography_id):
             raise PublicQueryError("INVALID_REQUEST", "Duplicate geography_id is invalid.")
-        # A day is the smallest possible supported bucket. This conservative upper
-        # bound never silently admits a request that could exceed the ceiling.
-        buckets = 1 if self.year is not None else (self.end_date - self.start_date).days + 1  # type: ignore[operator]
+        # The current projection has at most one row per county and annual bucket.
+        # Keep the day-level fallback for callers without a governed annual grain.
+        if self.year is not None:
+            buckets = 1
+        elif annual:
+            buckets = self.end_date.year - self.start_date.year + 1  # type: ignore[union-attr]
+        else:
+            buckets = (self.end_date - self.start_date).days + 1  # type: ignore[operator]
         if len(self.geography_id) * buckets > ceiling:
             raise PublicQueryError(
                 "QUERY_TOO_BROAD",

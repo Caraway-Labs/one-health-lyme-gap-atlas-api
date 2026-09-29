@@ -58,6 +58,7 @@ def test_public_paths_and_generated_shapes() -> None:
         "MISSING",
         "SUPPRESSED",
         "UNAVAILABLE",
+        "NO_COUNTY_LINKED_RECORD",
     ]
     assert {state.value for state in ValueState} == {
         "OBSERVED",
@@ -65,6 +66,7 @@ def test_public_paths_and_generated_shapes() -> None:
         "MISSING",
         "SUPPRESSED",
         "UNAVAILABLE",
+        "NO_COUNTY_LINKED_RECORD",
     }
     public_states = set(schema["components"]["schemas"]["ValueState"]["enum"])
     assert "NOT_APPLICABLE" not in public_states
@@ -182,8 +184,8 @@ def test_canonical_problem_and_legacy_compatibility() -> None:
             "measure_id": "m",
             "geography_type": "county",
             "geography_id": "08001",
-            "start_date": "2023-01-01",
-            "end_date": "2023-02-01",
+            "start_date": "2020-01-01",
+            "end_date": "2031-01-01",
         },
     )
     assert broad.status_code == 400

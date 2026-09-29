@@ -22,6 +22,7 @@ from .public_contract import (
     Source,
 )
 from .public_metadata import MetadataService
+from .public_observations import ObservationService
 
 router = APIRouter(tags=["public-v1"])
 
@@ -259,26 +260,27 @@ def observation_query(
         page_size=page_size,
         page_token=page_token,
     )
-    query.validate_bounds(ceiling=config.public_query_result_ceiling)
-    if query.stratification:
-        raise PublicQueryError(
-            "UNSUPPORTED_STRATIFICATION",
-            "Stratification must be declared by the measure; discovery is pending #53.",
-        )
-    if query.page_token:
-        raise PublicQueryError(
-            "INVALID_REQUEST", "No continuation token has been issued for this query."
-        )
+    if query.geography_type != GeographyType.county:
+        raise PublicQueryError("UNSUPPORTED_FILTER", "Only county geography is supported.")
+    query.validate_bounds(ceiling=config.public_query_result_ceiling, annual=True)
     return query
+
+
+def observation_service(request: Request) -> ObservationService:
+    return cast(ObservationService, request.app.state.observation_service)
 
 
 @router.get(
     "/v1/observations",
     response_model=CollectionEnvelope[Observation],
     responses=PROBLEMS,
-    description="Ordered by measure, geography, period, strata, and evidence ID. "
-    "Opaque page tokens bind to query and continuation state; no user sorting or aggregation. "
-    "A measure and bounded typed geography/time selection are required.",
+    description="Current published county observations only. Ordered by measure ID, county FIPS, "
+    "period start, and observation ID. Opaque page tokens bind to filters and release. "
+    "The current release contains only the 2023 annual period and has no supported strata. "
+    "A measure and bounded county/time selection are required; no user sorting or aggregation.",
 )
-def observations(query: Annotated[ObservationQuery, Depends(observation_query)]) -> NoReturn:
-    pending()
+def observations(
+    query: Annotated[ObservationQuery, Depends(observation_query)],
+    service: Annotated[ObservationService, Depends(observation_service)],
+) -> CollectionEnvelope[Observation]:
+    return service.search(query)

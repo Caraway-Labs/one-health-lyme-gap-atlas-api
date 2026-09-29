@@ -5,9 +5,9 @@ and `/redoc` render the same application contract. This document records policy
 and handoff boundaries that an HTTP schema cannot fully express. The canonical
 routes are additive to all current `/v1/atlas/*`, county, report, feedback,
 chat, and authenticated `/v1/me/*` routes. API #53 connects indicator and measure
-discovery to governed metadata views. Observation, geography, source, and
-methodology handlers remain controlled 503 pending their owning stories. This
-does not claim a live governed observation feed.
+discovery to governed metadata views. API #54 publishes the bounded current-release
+county observation projection. Geography, source, and methodology handlers remain
+controlled 503 pending their owning stories.
 
 ## Resources and semantics
 
@@ -24,11 +24,11 @@ analysis-grade geometry access (workspace ADR 0003; API #85).
 
 Collections have `data`, `meta`, and `links`. Single resources have `data`.
 `page_size` defaults to 100 and cannot exceed 500; `meta.next_page_token` is
-nullable when exhausted. A future issuing service must generate opaque tokens
+nullable when exhausted. The issuing service generates opaque tokens
 bound to query, sort continuation, and release state, reject incompatible reuse,
 and must not make clients parse them. Observation ordering is measure ID,
-geography type/ID, period start/end, declared strata in canonical order, then
-stable observation/evidence ID. No arbitrary sorting or aggregation is offered.
+county FIPS, period start, then stable observation ID. No arbitrary sorting or
+aggregation is offered.
 
 Each observation retains value plus governed `value_state`, typed geography,
 period, source, method/version, semantic version, release, provenance reference,
@@ -39,8 +39,10 @@ PMID/PMCID/article/passage provenance stays in the literature domain. A mapping
 to CDC MMG, PHIN VADS, USCDI, LOINC, or FHIR is optional reviewed metadata from
 data #469–#473 and does not assert live clinical exchange.
 
-The owner-approved public V1 `value_state` enum is `OBSERVED`, `ZERO`,
-`MISSING`, `SUPPRESSED`, and `UNAVAILABLE`. `NOT_APPLICABLE` and `INCOMPLETE`
+The public V1 `value_state` enum is `OBSERVED`, `ZERO`, `MISSING`,
+`SUPPRESSED`, `UNAVAILABLE`, and `NO_COUNTY_LINKED_RECORD`. The latter preserves
+the governed categorical status with literal value `no_county_linked_record`;
+it is neither null nor zero. `NOT_APPLICABLE` and `INCOMPLETE`
 are **not** observation value states.
 Applicability describes whether a measure applies to a geography, period, and
 stratification context. Completeness/quality describes evidence coverage or
@@ -51,10 +53,10 @@ for `value_state`. An adapter must never convert an unknown or missing value to
 the governed semantic layer does not supply them. Reviewed governed metadata
 may later be exposed as optional, additive fields without reinterpreting
 `value_state`. No speculative observation fields are present in this schema.
-The Data semantic consumer schema currently permits five additional states:
-`UNKNOWN`, `NOT_REPORTED`, `NOT_DEFENSIBLE`, `NO_RECORDS`, and
-`NO_COUNTY_LINKED_RECORD`. The public V1 enum does not silently map any of them
-to one of its five states. #54 must fail explicitly if a selected governed
+The Data semantic consumer schema currently permits four other states:
+`UNKNOWN`, `NOT_REPORTED`, `NOT_DEFENSIBLE`, and `NO_RECORDS`.
+The public V1 enum does not silently map any of them
+to another state. #54 fails explicitly if a selected governed
 observation has a state this public contract cannot represent; it must not
 publish a coerced value state. Broader public state support requires
 a reviewed API contract change that preserves the Data meanings.
@@ -62,9 +64,15 @@ Data [#191](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/issue
 owns applicability and quality metadata semantics; its machine-readable
 consumer projection is Data [#194](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/issues/194).
 See `atlas-semantic-domain-v1.md` and `atlas-semantic-consumer-v1.schema.json`.
-#54 may proceed against today's governed value states. It owns data-backed
-observation execution, measure-specific temporal and stratification validation,
-opaque continuation-token issuance, and query mapping. It must preserve future
+#54 reads only `PRESENTATION.CURRENT_COUNTY_OBSERVATIONS_V`. The current release
+publishes `human_status`, `case_count_floor_2023`, and `incidence_floor_2023`,
+each for the inclusive 2023 calendar year. There is one period per county and
+measure; a date range returns every governed period it contains without
+implying historical periods. No strata are currently governed. Unknown
+denominators and methodology resource IDs remain null; the response preserves
+the available source key, URL, vintage, retrieval time, method text and versions,
+and limitations. The observation ID is the stable compact provenance reference.
+It must preserve future
 applicability and completeness/quality semantics separately when supplied by the
 governed layer and must not fabricate either dimension.
 
@@ -76,8 +84,8 @@ invalid FIPS, unsupported filters/strata, or unsupported measure grain fail
 explicitly with 400 Problem Details. The default estimated logical-result
 ceiling is 10,000; this is a pre-execution bound, never truncation. #54 must
 estimate from resolved measure geography/time/stratum dimensions before its
-warehouse call. The #52 HTTP preflight conservatively bounds date span times
-requested geography count and leaves measure-specific checks to #54.
+warehouse call. #54 uses the governed annual grain to bound requested years
+times county count before querying; pagination never truncates the result.
 
 Ordinary canonical reads are anonymous: no Atlas account, Supabase token, or
 API key. Initial configurable policy defaults are 60 requests/minute/IP and
