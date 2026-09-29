@@ -117,7 +117,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service pending #53-#55; application/problem+json",
+            "description": "Canonical data service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -199,7 +199,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service pending #53-#55; application/problem+json",
+            "description": "Canonical data service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -354,7 +354,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service pending #53-#55; application/problem+json",
+            "description": "Canonical data service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -436,7 +436,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service pending #53-#55; application/problem+json",
+            "description": "Canonical data service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -543,7 +543,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service pending #53-#55; application/problem+json",
+            "description": "Canonical data service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -625,7 +625,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service pending #53-#55; application/problem+json",
+            "description": "Canonical data service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -707,7 +707,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service pending #53-#55; application/problem+json",
+            "description": "Canonical data service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -797,7 +797,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service pending #53-#55; application/problem+json",
+            "description": "Canonical data service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1008,7 +1008,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service pending #53-#55; application/problem+json",
+            "description": "Canonical data service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4058,6 +4058,10 @@
             "type": "string",
             "title": "Methodology Id"
           },
+          "measure_id": {
+            "type": "string",
+            "title": "Measure Id"
+          },
           "version": {
             "type": "string",
             "title": "Version"
@@ -4072,14 +4076,25 @@
             },
             "type": "array",
             "title": "Limitations"
+          },
+          "semantic_version": {
+            "type": "string",
+            "title": "Semantic Version"
+          },
+          "release_version": {
+            "type": "string",
+            "title": "Release Version"
           }
         },
         "type": "object",
         "required": [
           "methodology_id",
+          "measure_id",
           "version",
           "description",
-          "limitations"
+          "limitations",
+          "semantic_version",
+          "release_version"
         ],
         "title": "Methodology"
       },
@@ -4152,6 +4167,28 @@
           "source_id": {
             "type": "string",
             "title": "Source Id"
+          },
+          "lineage_source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lineage Source Id"
+          },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id"
           },
           "methodology_id": {
             "anyOf": [
@@ -4788,8 +4825,31 @@
             "title": "Label"
           },
           "publisher": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Publisher"
+          },
+          "lineage_source_id": {
+            "type": "string",
+            "title": "Lineage Source Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "semantic_version": {
+            "type": "string",
+            "title": "Semantic Version"
+          },
+          "release_version": {
+            "type": "string",
+            "title": "Release Version"
           },
           "source_url": {
             "anyOf": [
@@ -4801,6 +4861,17 @@
               }
             ],
             "title": "Source Url"
+          },
+          "source_vintage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Vintage"
           },
           "source_version": {
             "anyOf": [
@@ -4823,7 +4894,8 @@
                 "type": "null"
               }
             ],
-            "title": "Published At"
+            "title": "Published At",
+            "deprecated": true
           },
           "atlas_acquired_at": {
             "anyOf": [
@@ -4835,7 +4907,32 @@
                 "type": "null"
               }
             ],
-            "title": "Atlas Acquired At"
+            "title": "Atlas Acquired At",
+            "deprecated": true
+          },
+          "upstream_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upstream Updated At"
+          },
+          "source_retrieved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Retrieved At"
           },
           "limitations": {
             "items": {
@@ -4849,7 +4946,11 @@
         "required": [
           "source_id",
           "label",
-          "publisher"
+          "publisher",
+          "lineage_source_id",
+          "dataset_id",
+          "semantic_version",
+          "release_version"
         ],
         "title": "Source"
       },

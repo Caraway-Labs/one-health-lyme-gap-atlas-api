@@ -1,4 +1,4 @@
-"""Contract-only canonical REST adapter; data-backed services arrive in #53-#55."""
+"""Canonical public V1 REST adapter over governed read services."""
 
 from datetime import date
 from typing import Annotated, Any, NoReturn, cast
@@ -23,6 +23,7 @@ from .public_contract import (
 )
 from .public_metadata import MetadataService
 from .public_observations import ObservationService
+from .public_provenance import ProvenanceService
 
 router = APIRouter(tags=["public-v1"])
 
@@ -53,7 +54,7 @@ PROBLEMS: dict[int | str, dict[str, Any]] = {
         },
     },
     503: {
-        "description": "Canonical data service pending #53-#55; application/problem+json",
+        "description": "Canonical data service unavailable; application/problem+json",
         "content": {
             "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
         },
@@ -88,13 +89,6 @@ def metadata_service(request: Request) -> MetadataService:
 
 def metadata_cache(response: Response) -> None:
     response.headers["Cache-Control"] = "public, max-age=60, must-revalidate"
-
-
-def pending_pagination(
-    pagination: Annotated[tuple[int, str | None], Depends(collection_pagination)],
-) -> None:
-    if pagination[1]:
-        raise PublicQueryError("INVALID_REQUEST", "No continuation token has been issued.")
 
 
 @router.get(
@@ -185,14 +179,33 @@ def measure(
     raise HTTPException(status_code=404, detail="Measure not found.")
 
 
+def provenance_service(request: Request) -> ProvenanceService:
+    return cast(ProvenanceService, request.app.state.provenance_service)
+
+
 @router.get("/v1/sources", response_model=CollectionEnvelope[Source], responses=PROBLEMS)
-def sources(_pagination: Annotated[None, Depends(pending_pagination)]) -> NoReturn:
-    pending()
+def sources(
+    request: Request,
+    response: Response,
+    pagination: Annotated[tuple[int, str | None], Depends(collection_pagination)],
+    service: Annotated[ProvenanceService, Depends(provenance_service)],
+) -> CollectionEnvelope[Source]:
+    metadata_query(request, {"page_size", "page_token"})
+    metadata_cache(response)
+    page, token = service.sources(*pagination)
+    return CollectionEnvelope(
+        data=page, meta=CollectionMeta(next_page_token=token), links=CollectionLinks()
+    )
 
 
 @router.get("/v1/sources/{source_id}", response_model=ResourceEnvelope[Source], responses=PROBLEMS)
-def source(source_id: str) -> NoReturn:
-    pending()
+def source(
+    source_id: str,
+    response: Response,
+    service: Annotated[ProvenanceService, Depends(provenance_service)],
+) -> ResourceEnvelope[Source]:
+    metadata_cache(response)
+    return ResourceEnvelope(data=service.source(source_id))
 
 
 @router.get(
@@ -200,8 +213,13 @@ def source(source_id: str) -> NoReturn:
     response_model=ResourceEnvelope[Methodology],
     responses=PROBLEMS,
 )
-def methodology(methodology_id: str) -> NoReturn:
-    pending()
+def methodology(
+    methodology_id: str,
+    response: Response,
+    service: Annotated[ProvenanceService, Depends(provenance_service)],
+) -> ResourceEnvelope[Methodology]:
+    metadata_cache(response)
+    return ResourceEnvelope(data=service.methodology(methodology_id))
 
 
 @router.get(

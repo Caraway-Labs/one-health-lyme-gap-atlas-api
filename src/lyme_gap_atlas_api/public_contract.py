@@ -110,6 +110,8 @@ class Observation(BaseModel):
     denominator: str | None
     strata: dict[str, str] = Field(default_factory=dict)
     source_id: str
+    lineage_source_id: str | None = None
+    dataset_id: str | None = None
     methodology_id: str | None
     methodology: str | None = None
     release_methodology_version: str | None = None
@@ -168,19 +170,29 @@ class Geography(BaseModel):
 class Source(BaseModel):
     source_id: str
     label: str
-    publisher: str
+    publisher: str | None
+    lineage_source_id: str
+    dataset_id: str
+    semantic_version: str
+    release_version: str
     source_url: str | None = None
+    source_vintage: str | None = None
     source_version: str | None = None
-    published_at: datetime | None = None
-    atlas_acquired_at: datetime | None = None
+    published_at: datetime | None = Field(default=None, deprecated=True)
+    atlas_acquired_at: datetime | None = Field(default=None, deprecated=True)
+    upstream_updated_at: datetime | None = None
+    source_retrieved_at: datetime | None = None
     limitations: list[str] = Field(default_factory=list)
 
 
 class Methodology(BaseModel):
     methodology_id: str
+    measure_id: str
     version: str
     description: str
     limitations: list[str]
+    semantic_version: str
+    release_version: str
 
 
 class CollectionMeta(BaseModel):

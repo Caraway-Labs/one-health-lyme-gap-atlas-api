@@ -6,8 +6,8 @@ and handoff boundaries that an HTTP schema cannot fully express. The canonical
 routes are additive to all current `/v1/atlas/*`, county, report, feedback,
 chat, and authenticated `/v1/me/*` routes. API #53 connects indicator and measure
 discovery to governed metadata views. API #54 publishes the bounded current-release
-county observation projection. Geography, source, and methodology handlers remain
-controlled 503 pending their owning stories.
+county observation projection. API #55 resolves current-release sources and
+methodologies. Geography remains controlled 503 pending its owning story.
 
 ## Resources and semantics
 
@@ -75,6 +75,31 @@ and limitations. The observation ID is the stable compact provenance reference.
 It must preserve future
 applicability and completeness/quality semantics separately when supplied by the
 governed layer and must not fabricate either dimension.
+
+## Source and methodology resources (#55)
+
+`/v1/sources` and `/v1/sources/{source_id}` read only
+`PRESENTATION.CURRENT_SOURCE_METADATA_V`; `/v1/methodologies/{methodology_id}`
+reads only `PRESENTATION.CURRENT_METHODOLOGY_METADATA_V`. The public source
+resource ID is the governed `source_key`. The separate `lineage_source_id` and
+`dataset_id` retain the source/dataset identities; a lineage source ID alone is
+not unique across current source rows. Observation `source_id` is the source
+resource key, and observation `methodology_id` resolves the exact method resource.
+`release_version` binds these current-release relationships. The observation's
+`methodology_version` is its transformation version, distinct from the method
+resource's governed `version` and the release method version.
+
+The source note is preserved verbatim in `limitations`. `publisher`,
+`upstream_updated_at`, and `source_retrieved_at` remain null when the approved
+projection does not govern them. Observation `atlas_acquired_at` is its own
+retrieval timestamp; the 2023 observation period and governed release are
+separate. No generic last-updated time is inferred. Legacy contract-only source
+fields `published_at` and `atlas_acquired_at` remain null; clients should use
+the precisely named governed fields instead. Source lists use bounded
+pagination and opaque release-bound page tokens. Sources and methodologies use
+the metadata cache policy and RFC 9457 404 responses for unknown IDs. Data
+[#515](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/issues/515)
+owns the reviewed projection and mapping authority.
 
 ## Bounds and access
 
@@ -157,7 +182,6 @@ maps to `semantic_version`, with `release_version` exposed separately.
 The stored `measure_type` is a data type and `methodology` is text, not a
 methodology resource ID. Unknown denominator, strata, source association,
 standards mapping, domain, category, and measure definition remain null.
-No observation rows are scanned to fill them. Data #499 verified DEV; protected
-PROD promotion of V123/V124 and the read grants remains necessary for live
-PROD endpoint readiness. Observation, source, and methodology routes remain
-controlled 503 under their downstream stories.
+No observation rows are scanned to fill them. Data #499's V123/V124 views and
+read grants reached PROD for #53; #54 and #55 delivered the observation,
+source, and methodology routes.

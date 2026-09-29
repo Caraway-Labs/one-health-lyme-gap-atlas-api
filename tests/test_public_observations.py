@@ -41,6 +41,11 @@ def row(fips: str, value: str | None, state: str, measure: str = "case_count_flo
         "Observation limit",
         "Measure limit",
         "Release limit",
+        "cdc_lyme",
+        "x5j9-wybp",
+        "human_confirmed_probable_case_floor_v1"
+        if measure == "case_count_floor_2023"
+        else "human_source_native_status_mapping_v1",
     )
 
 
@@ -105,6 +110,10 @@ def test_county_period_state_and_deterministic_pagination() -> None:
     assert (zero["value"], zero["value_state"]) == (0, "ZERO")
     assert missing["denominator"] is None
     assert missing["semantic_version"] == "1.0.0"
+    assert missing["source_id"] == "human"
+    assert missing["lineage_source_id"] == "cdc_lyme"
+    assert missing["dataset_id"] == "x5j9-wybp"
+    assert missing["methodology_id"] == "human_confirmed_probable_case_floor_v1"
     assert missing["atlas_acquired_at"] is not None
     assert missing["limitations"] == ["Observation limit", "Measure limit", "Release limit"]
     token = first.json()["meta"]["next_page_token"]
@@ -256,3 +265,5 @@ def test_unrepresentable_governed_shape_fails_closed() -> None:
         ObservationService._observation((*good[:8], "UNKNOWN", *good[9:]))
     with pytest.raises(AtlasDataUnavailableError):
         ObservationService._observation((*good[:11], "unexpected-strata", *good[12:]))
+    with pytest.raises(AtlasDataUnavailableError):
+        ObservationService._observation((*good[:-1], None))
