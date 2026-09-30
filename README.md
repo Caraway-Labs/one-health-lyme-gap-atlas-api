@@ -6,6 +6,8 @@ governed Neo4j evidence retrieval for the knowledge-graph feature.
 The additive canonical public V1 contract is described in
 [`docs/public-api-v1-contract.md`](docs/public-api-v1-contract.md). The generated
 `openapi.json` is its authoritative HTTP schema; `/docs` and `/redoc` render it.
+Start with the [public API guide](docs/public-api-guide.md) for tested requests,
+interpretation, pagination, errors, and reproducibility.
 Indicator and measure discovery (#53), bounded county observation queries
 (#54), and source/methodology metadata (#55) read governed current-release views.
 Geography retains its documented 503 until its owning story is delivered.
