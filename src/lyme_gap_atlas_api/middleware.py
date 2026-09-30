@@ -2,15 +2,159 @@ import asyncio
 import hashlib
 import json
 import logging
+import math
+import secrets
 import time
 import uuid
 from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
+from typing import cast
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
+
+_PUBLIC_COLLECTIONS = {"/v1/indicators", "/v1/measures", "/v1/sources", "/v1/observations"}
+_PUBLIC_DETAILS = ("/v1/indicators/", "/v1/measures/", "/v1/sources/", "/v1/methodologies/")
+
+
+class PublicReadProtectionMiddleware(BaseHTTPMiddleware):
+    """Single-process, ephemeral anonymous protection for canonical public reads."""
+
+    def __init__(
+        self, app: object, requests_per_minute: int, concurrent_requests: int, max_query_bytes: int
+    ) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self.limit = requests_per_minute
+        self.concurrent_limit = concurrent_requests
+        self.max_query_bytes = max_query_bytes
+        self.salt = secrets.token_bytes(32)
+        self.requests: dict[str, deque[float]] = {}
+        self.concurrent: dict[str, int] = {}
+        self.lock = asyncio.Lock()
+
+    @staticmethod
+    def _problem(
+        request: Request, status: int, code: str, detail: str, retry: int | None = None
+    ) -> Response:
+        headers = {"Cache-Control": "no-store"}
+        if retry is not None:
+            headers["Retry-After"] = str(retry)
+        return Response(
+            status_code=status,
+            media_type="application/problem+json",
+            headers=headers,
+            content=json.dumps(
+                {
+                    "type": f"https://carawaylabs.com/problems/{code.lower().replace('_', '-')}",
+                    "title": {
+                        400: "Invalid request",
+                        413: "Payload too large",
+                        414: "URI too long",
+                        429: "Too many requests",
+                    }[status],
+                    "status": status,
+                    "detail": detail,
+                    "instance": request.url.path,
+                    "request_id": getattr(request.state, "request_id", "unavailable"),
+                    "code": code,
+                }
+            ),
+        )
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        path = request.url.path
+        if request.method != "GET" or not (
+            path in _PUBLIC_COLLECTIONS or path.startswith(_PUBLIC_DETAILS)
+        ):
+            return await call_next(request)
+        if len(request.scope.get("query_string", b"")) > self.max_query_bytes:
+            return self._problem(request, 414, "INVALID_REQUEST", "Query string is too long.")
+        if (
+            request.headers.get("transfer-encoding")
+            or request.headers.get("content-length", "0") != "0"
+        ):
+            return self._problem(
+                request, 413, "INVALID_REQUEST", "GET request bodies are unsupported."
+            )
+        repeated = {
+            key for key in request.query_params if len(request.query_params.getlist(key)) > 1
+        }
+        allowed_repeated = (
+            {"geography_id", "stratification"} if path == "/v1/observations" else set()
+        )
+        if repeated - allowed_repeated:
+            return self._problem(
+                request, 400, "INVALID_REQUEST", "Repeated query parameters are unsupported."
+            )
+        client = request.headers.get("do-connecting-ip") or (
+            request.client.host if request.client else "unknown"
+        )
+        key = hashlib.sha256(self.salt + client.encode()).hexdigest()
+        now = time.monotonic()
+        async with self.lock:
+            if len(self.requests) > 10_000:
+                self.requests = {
+                    k: window
+                    for k, window in self.requests.items()
+                    if window and now - window[-1] < 60
+                }
+            window = self.requests.setdefault(key, deque())
+            while window and now - window[0] >= 60:
+                window.popleft()
+            if len(window) >= self.limit or self.concurrent.get(key, 0) >= self.concurrent_limit:
+                retry = (
+                    max(1, math.ceil(60 - (now - window[0]))) if len(window) >= self.limit else 1
+                )
+                logger.info(
+                    "public_read_rejected", extra={"context": {"reason": "rate_or_concurrency"}}
+                )
+                return self._problem(
+                    request, 429, "RATE_LIMITED", "Public request limit reached.", retry
+                )
+            window.append(now)
+            self.concurrent[key] = self.concurrent.get(key, 0) + 1
+        try:
+            response = await call_next(request)
+        finally:
+            async with self.lock:
+                remaining = self.concurrent[key] - 1
+                if remaining:
+                    self.concurrent[key] = remaining
+                else:
+                    del self.concurrent[key]
+        # Detail resources have stable release/version-bearing representations.
+        # Conditional requests save response transfer; shared caches honor max-age.
+        if response.status_code == 200 and path.startswith(_PUBLIC_DETAILS):
+            chunks = [chunk async for chunk in cast(StreamingResponse, response).body_iterator]
+            body = b"".join(chunk.encode() if isinstance(chunk, str) else chunk for chunk in chunks)
+            etag = '"' + hashlib.sha256(body).hexdigest() + '"'
+            headers = dict(response.headers)
+            headers["ETag"] = etag
+            if etag in [
+                item.strip() for item in request.headers.get("if-none-match", "").split(",")
+            ]:
+                logger.info(
+                    "public_read_conditional_hit", extra={"context": {"resource": "detail"}}
+                )
+                return Response(
+                    status_code=304,
+                    headers={
+                        "ETag": etag,
+                        "Cache-Control": headers.get(
+                            "cache-control", "public, max-age=60, must-revalidate"
+                        ),
+                    },
+                )
+            headers.pop("content-length", None)
+            return Response(
+                content=body, status_code=200, headers=headers, media_type=response.media_type
+            )
+        return response
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
@@ -57,6 +201,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: object, requests_per_minute: int) -> None:
         super().__init__(app)  # type: ignore[arg-type]
         self.limit = requests_per_minute
+        self.salt = secrets.token_bytes(32)
         self.requests: dict[str, deque[float]] = defaultdict(deque)
 
     async def dispatch(
@@ -68,7 +213,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             request.client.host if request.client else "unknown"
         )
         now = time.monotonic()
-        window = self.requests[client]
+        key = hashlib.sha256(self.salt + client.encode()).hexdigest()
+        if len(self.requests) > 10_000:
+            self.requests = defaultdict(
+                deque,
+                {
+                    k: values
+                    for k, values in self.requests.items()
+                    if values and now - values[-1] < 60
+                },
+            )
+        window = self.requests[key]
         while window and now - window[0] > 60:
             window.popleft()
         if len(window) >= self.limit:
@@ -84,6 +239,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 status_code=429,
                 media_type="application/problem+json",
                 content=json.dumps(problem),
+                headers={
+                    "Retry-After": str(max(1, math.ceil(60 - (now - window[0])))),
+                    "Cache-Control": "no-store",
+                },
             )
         window.append(now)
         return await call_next(request)

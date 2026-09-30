@@ -120,6 +120,37 @@ keys would need demonstrated quota, attribution, partner, SLA, or restricted
 resource need. Private `/v1/me/*` remains authenticated. Interactive reads
 are not bulk export; immutable downloads need a separate decision.
 
+## Public read protection (#56)
+
+Canonical public GET resources use a single-process, rolling 60-second limit of
+60 requests and five concurrent requests per connecting address. A rejected
+request returns 429 Problem Details with `Retry-After` (one to 60 seconds) and
+`Cache-Control: no-store`. The existing general API limit remains in force.
+Address-derived keys are salted per process and held only in memory; neither
+keys nor raw addresses enter application logs. The production app has one
+instance and one worker. This in-memory policy must be re-evaluated before
+increasing either count. No API key is required for ordinary public reads.
+
+Canonical GET query strings are capped at 8,192 bytes; GET bodies are rejected.
+Repeated scalar parameters fail explicitly; only `geography_id` and
+`stratification` accept repeated values on observations. Snowflake public-read
+statements use a 15-second connector query timeout. The existing 1–500 page
+size, 500 geography maximum, annual time dimension, and 10,000 estimated
+logical-result ceiling reject over-broad observations before the observation
+query. Unsupported filters and strata still fail explicitly.
+
+Collection page tokens retain the filter/release binding and are now signed.
+Tampered, incompatible, or pre-restart tokens fail with 400 `INVALID_REQUEST`;
+clients may start again from the first page. Current-release resources retain
+`Cache-Control: public, max-age=60, must-revalidate`. Stable detail responses
+also emit content-derived ETags and answer matching `If-None-Match` with 304.
+Collection response timestamps vary by request, so collections use their public
+TTL without ETags. Shared-cache hit ratio, if available, belongs to the edge;
+the application logs conditional detail hits but does not claim a CDN hit rate.
+Existing request completion logs supply latency and status counts; bounded-query
+and rate-limit rejections emit categorical, address-free events. Snowflake query
+history and App Platform CPU/memory alerts supply backend pressure evidence.
+
 Public errors use RFC 9457 `application/problem+json` with stable `code`:
 `INVALID_REQUEST`, `RESOURCE_NOT_FOUND`, `UNSUPPORTED_FILTER`,
 `UNSUPPORTED_STRATIFICATION`, `QUERY_TOO_BROAD`. Existing error infrastructure

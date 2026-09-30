@@ -184,7 +184,8 @@ def test_repository_only_queries_projection_with_bound_parameters(monkeypatch) -
         def __exit__(self, *_args):
             return False
 
-        def execute(self, statement, parameters=None):
+        def execute(self, statement, parameters=None, *, timeout=None):
+            assert timeout == 15
             statements.append(statement)
             bindings.append(parameters)
 
@@ -230,7 +231,8 @@ def test_repository_uses_current_release_and_bound_measure_lookup(monkeypatch) -
         def __exit__(self, *_args):
             return False
 
-        def execute(self, statement, parameters=None):
+        def execute(self, statement, parameters=None, *, timeout=None):
+            assert timeout == 15
             statements.append(statement)
             bindings.append(parameters)
 

@@ -51,6 +51,7 @@ from .middleware import (
     FeedbackLimitMiddleware,
     KnowledgeChatLimitMiddleware,
     PrivacyRequestLimitMiddleware,
+    PublicReadProtectionMiddleware,
     RateLimitMiddleware,
     RequestContextMiddleware,
 )
@@ -265,6 +266,12 @@ def create_app(
     )
     app.add_middleware(GZipMiddleware, minimum_size=1_000)
     app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_per_minute)
+    app.add_middleware(
+        PublicReadProtectionMiddleware,
+        requests_per_minute=config.public_rate_limit_per_minute,
+        concurrent_requests=config.public_concurrent_requests_per_ip,
+        max_query_bytes=config.public_max_query_bytes,
+    )
     app.add_middleware(KnowledgeChatLimitMiddleware)
     app.add_middleware(FeedbackLimitMiddleware)
     app.add_middleware(PrivacyRequestLimitMiddleware)
@@ -315,6 +322,8 @@ def create_app(
     @app.exception_handler(PublicQueryError)
     async def public_query_error(request: Request, exc: PublicQueryError) -> JSONResponse:
         response_status = 404 if exc.code == "RESOURCE_NOT_FOUND" else 400
+        if exc.code == "QUERY_TOO_BROAD":
+            logger.info("public_read_rejected", extra={"context": {"reason": "query_too_broad"}})
         problem = ProblemDetails(
             type=f"https://carawaylabs.com/problems/{exc.code.lower().replace('_', '-')}",
             title="Invalid public query",

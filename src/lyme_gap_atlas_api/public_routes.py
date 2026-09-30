@@ -53,12 +53,29 @@ PROBLEMS: dict[int | str, dict[str, Any]] = {
             "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
         },
     },
+    413: {
+        "description": "GET request body rejected; application/problem+json",
+        "content": {
+            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
+        },
+    },
+    414: {
+        "description": "Query string too long; application/problem+json",
+        "content": {
+            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
+        },
+    },
     503: {
         "description": "Canonical data service unavailable; application/problem+json",
         "content": {
             "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
         },
     },
+}
+
+DETAIL_RESPONSES = {
+    **PROBLEMS,
+    304: {"description": "Not modified. ETag matches If-None-Match; empty response body."},
 }
 
 
@@ -116,7 +133,9 @@ def indicators(
 
 
 @router.get(
-    "/v1/indicators/{indicator_id}", response_model=ResourceEnvelope[Indicator], responses=PROBLEMS
+    "/v1/indicators/{indicator_id}",
+    response_model=ResourceEnvelope[Indicator],
+    responses=DETAIL_RESPONSES,
 )
 def indicator(
     indicator_id: str,
@@ -164,7 +183,9 @@ def measures(
 
 
 @router.get(
-    "/v1/measures/{measure_id}", response_model=ResourceEnvelope[Measure], responses=PROBLEMS
+    "/v1/measures/{measure_id}",
+    response_model=ResourceEnvelope[Measure],
+    responses=DETAIL_RESPONSES,
 )
 def measure(
     measure_id: str,
@@ -198,7 +219,9 @@ def sources(
     )
 
 
-@router.get("/v1/sources/{source_id}", response_model=ResourceEnvelope[Source], responses=PROBLEMS)
+@router.get(
+    "/v1/sources/{source_id}", response_model=ResourceEnvelope[Source], responses=DETAIL_RESPONSES
+)
 def source(
     source_id: str,
     response: Response,
@@ -211,7 +234,7 @@ def source(
 @router.get(
     "/v1/methodologies/{methodology_id}",
     response_model=ResourceEnvelope[Methodology],
-    responses=PROBLEMS,
+    responses=DETAIL_RESPONSES,
 )
 def methodology(
     methodology_id: str,

@@ -1,7 +1,5 @@
 """Bounded current-release county observation access for public V1."""
 
-import base64
-import binascii
 import hashlib
 import json
 from datetime import date
@@ -21,6 +19,7 @@ from .public_contract import (
     ObservationQuery,
     PublicQueryError,
 )
+from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
 
 
@@ -51,7 +50,10 @@ class SnowflakeObservationRepository:
         )
         try:
             with connect(self.settings) as connection, connection.cursor() as cursor:
-                cursor.execute(f"SELECT RELEASE_ID FROM {schema}.CURRENT_RELEASE_V")
+                cursor.execute(
+                    f"SELECT RELEASE_ID FROM {schema}.CURRENT_RELEASE_V",
+                    timeout=self.settings.public_query_timeout_seconds,
+                )
                 row = cursor.fetchone()
             if row is None:
                 raise AtlasDataUnavailableError("No current governed release")
@@ -68,6 +70,7 @@ class SnowflakeObservationRepository:
                     f"SELECT 1 FROM {self.view} "
                     "WHERE MEASURE_ID = %s AND RELEASE_VERSION = %s LIMIT 1",
                     (measure_id, release),
+                    timeout=self.settings.public_query_timeout_seconds,
                 )
                 return cursor.fetchone() is not None
         except Exception as exc:
@@ -94,7 +97,9 @@ class SnowflakeObservationRepository:
         params = (query.measure_id, *fips, start, end, release, query.page_size + 1, offset)
         try:
             with connect(self.settings) as connection, connection.cursor() as cursor:
-                cursor.execute(statement, params)
+                cursor.execute(
+                    statement, params, timeout=self.settings.public_query_timeout_seconds
+                )
                 return cursor.fetchall()
         except Exception as exc:
             raise AtlasDataUnavailableError("Governed observations are unavailable") from exc
@@ -133,8 +138,7 @@ class ObservationService:
 
     @staticmethod
     def _token(fingerprint: str, release: str, offset: int) -> str:
-        payload = json.dumps({"query": fingerprint, "release": release, "offset": offset})
-        return base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
+        return encode({"query": fingerprint, "release": release, "offset": offset})
 
     @staticmethod
     def _offset(token: str | None, fingerprint: str, release: str) -> int:
@@ -143,7 +147,7 @@ class ObservationService:
         if len(token) > 2048:
             raise PublicQueryError("INVALID_REQUEST", "Invalid page_token.")
         try:
-            payload = json.loads(base64.urlsafe_b64decode(token + "=" * (-len(token) % 4)))
+            payload = decode(token)
             offset = payload["offset"]
             if (
                 payload["query"] != fingerprint
@@ -154,7 +158,7 @@ class ObservationService:
             ):
                 raise ValueError
             return offset
-        except (ValueError, KeyError, TypeError, UnicodeError, binascii.Error) as exc:
+        except (ValueError, KeyError, TypeError) as exc:
             raise PublicQueryError("INVALID_REQUEST", "Invalid page_token.") from exc
 
     @staticmethod
