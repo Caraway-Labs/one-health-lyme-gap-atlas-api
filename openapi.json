@@ -116,6 +116,26 @@
               }
             }
           },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Canonical data service unavailable; application/problem+json",
             "content": {
@@ -198,6 +218,26 @@
               }
             }
           },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Canonical data service unavailable; application/problem+json",
             "content": {
@@ -207,6 +247,9 @@
                 }
               }
             }
+          },
+          "304": {
+            "description": "Not modified. ETag matches If-None-Match; empty response body."
           }
         }
       }
@@ -353,6 +396,26 @@
               }
             }
           },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Canonical data service unavailable; application/problem+json",
             "content": {
@@ -435,6 +498,26 @@
               }
             }
           },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Canonical data service unavailable; application/problem+json",
             "content": {
@@ -444,6 +527,9 @@
                 }
               }
             }
+          },
+          "304": {
+            "description": "Not modified. ETag matches If-None-Match; empty response body."
           }
         }
       }
@@ -542,6 +628,26 @@
               }
             }
           },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Canonical data service unavailable; application/problem+json",
             "content": {
@@ -624,6 +730,26 @@
               }
             }
           },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Canonical data service unavailable; application/problem+json",
             "content": {
@@ -633,6 +759,9 @@
                 }
               }
             }
+          },
+          "304": {
+            "description": "Not modified. ETag matches If-None-Match; empty response body."
           }
         }
       }
@@ -706,6 +835,26 @@
               }
             }
           },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Canonical data service unavailable; application/problem+json",
             "content": {
@@ -715,6 +864,9 @@
                 }
               }
             }
+          },
+          "304": {
+            "description": "Not modified. ETag matches If-None-Match; empty response body."
           }
         }
       }
@@ -788,6 +940,26 @@
           },
           "429": {
             "description": "Rate limited; Retry-After; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -999,6 +1171,26 @@
           },
           "429": {
             "description": "Rate limited; Retry-After; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {

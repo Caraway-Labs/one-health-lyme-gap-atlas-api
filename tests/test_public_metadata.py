@@ -1,5 +1,8 @@
 """API #53 governed metadata discovery contract."""
 
+import base64
+import json
+
 from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
@@ -65,6 +68,14 @@ def test_metadata_discovery_filters_pagination_and_nulls() -> None:
     assert first.json()["data"][0]["definition"] is None
     assert first.json()["data"][0]["release_version"] == "release-1"
     token = first.json()["meta"]["next_page_token"]
+    raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4))
+    payload = json.loads(raw[:-32])
+    payload["offset"] = 0
+    tampered = base64.urlsafe_b64encode(json.dumps(payload).encode() + raw[-32:]).decode()
+    assert (
+        client.get("/v1/indicators", params={"page_token": tampered}).json()["code"]
+        == "INVALID_REQUEST"
+    )
     assert (
         client.get("/v1/indicators", params={"page_size": 1, "page_token": token}).json()["data"][
             0
@@ -107,7 +118,8 @@ def test_repository_reads_only_governed_metadata_views(monkeypatch) -> None:
         def __exit__(self, *_args):
             return False
 
-        def execute(self, statement):
+        def execute(self, statement, *, timeout=None):
+            assert timeout == 15
             statements.append(statement)
 
         def fetchall(self):

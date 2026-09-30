@@ -1,14 +1,12 @@
 """Current-release public source and methodology resources (Data #515)."""
 
-import base64
-import binascii
-import json
 from typing import Any, Protocol, cast
 
 from lyme_gap_atlas_shared.snowflake import connect
 
 from .config import ApiSettings
 from .public_contract import Methodology, PublicQueryError, Source
+from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
 
 
@@ -30,7 +28,9 @@ class SnowflakeProvenanceRepository:
     def _read(self, statement: str, params: tuple[Any, ...] = (), *, one: bool = False) -> Any:
         try:
             with connect(self.settings) as connection, connection.cursor() as cursor:
-                cursor.execute(statement, params)
+                cursor.execute(
+                    statement, params, timeout=self.settings.public_query_timeout_seconds
+                )
                 return cursor.fetchone() if one else cursor.fetchall()
         except Exception as exc:
             raise AtlasDataUnavailableError("Governed provenance is unavailable") from exc
@@ -128,7 +128,7 @@ class ProvenanceService:
             if len(token) > 2048:
                 raise PublicQueryError("INVALID_REQUEST", "Invalid page_token.")
             try:
-                payload = json.loads(base64.urlsafe_b64decode(token + "=" * (-len(token) % 4)))
+                payload = decode(token)
                 offset = payload["offset"]
                 if (
                     payload["release"] != release
@@ -137,19 +137,13 @@ class ProvenanceService:
                     or offset > 10_000
                 ):
                     raise ValueError
-            except (ValueError, KeyError, TypeError, UnicodeError, binascii.Error) as exc:
+            except (ValueError, KeyError, TypeError) as exc:
                 raise PublicQueryError("INVALID_REQUEST", "Invalid page_token.") from exc
         rows = self.repository.sources(release, size + 1, offset)
         page = [self._source(row) for row in rows[:size]]
         next_token = None
         if len(rows) > size:
-            next_token = (
-                base64.urlsafe_b64encode(
-                    json.dumps({"release": release, "offset": offset + size}).encode()
-                )
-                .decode()
-                .rstrip("=")
-            )
+            next_token = encode({"release": release, "offset": offset + size})
         return page, next_token
 
     def source(self, source_id: str) -> Source:

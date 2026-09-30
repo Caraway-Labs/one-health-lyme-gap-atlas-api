@@ -111,7 +111,8 @@ def test_repository_queries_only_public_views_with_bound_identifiers(monkeypatch
         def __exit__(self, *_args):
             return False
 
-        def execute(self, statement, params=()):
+        def execute(self, statement, params=(), *, timeout=None):
+            assert timeout == 15
             calls.append((statement, params))
 
         def fetchone(self):

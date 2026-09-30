@@ -52,6 +52,13 @@ def test_public_paths_and_generated_shapes() -> None:
     responses = paths["/v1/observations"]["get"]["responses"]
     assert "422" not in responses
     assert set(responses["400"]["content"]) == {"application/problem+json"}
+    for path in (
+        "/v1/indicators/{indicator_id}",
+        "/v1/measures/{measure_id}",
+        "/v1/sources/{source_id}",
+        "/v1/methodologies/{methodology_id}",
+    ):
+        assert "304" in paths[path]["get"]["responses"]
     assert schema["components"]["schemas"]["ValueState"]["enum"] == [
         "OBSERVED",
         "ZERO",
@@ -149,6 +156,7 @@ def test_bounded_query_validation() -> None:
         config.public_concurrent_requests_per_ip,
     ) == (60, 5)
     assert config.public_query_result_ceiling == 10_000
+    assert config.public_query_timeout_seconds == 15
     base = {"measure_id": "m", "geography_type": "county", "geography_id": ["08001"]}
     ObservationQuery(**base, year=2023).validate_bounds(ceiling=10_000)
     with pytest.raises(PublicQueryError, match="year or a date range"):

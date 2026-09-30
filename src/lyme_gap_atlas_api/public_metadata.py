@@ -1,8 +1,5 @@
 """Governed current-release metadata discovery, independent of HTTP transport."""
 
-import base64
-import binascii
-import json
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar
 
@@ -10,6 +7,7 @@ from lyme_gap_atlas_shared.snowflake import connect
 
 from .config import ApiSettings
 from .public_contract import Indicator, Measure, PublicQueryError
+from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
 
 
@@ -40,7 +38,8 @@ class SnowflakeMetadataRepository:
                 cursor.execute(
                     "SELECT INDICATOR_ID, LABEL, DESCRIPTION, LIMITATION, DOMAIN, CATEGORY, "
                     "SEMANTIC_CONTRACT_VERSION, RELEASE_VERSION "
-                    f"FROM {schema}.CURRENT_INDICATOR_METADATA_V ORDER BY INDICATOR_ID"
+                    f"FROM {schema}.CURRENT_INDICATOR_METADATA_V ORDER BY INDICATOR_ID",
+                    timeout=self.settings.public_query_timeout_seconds,
                 )
                 indicators = cursor.fetchall()
                 cursor.execute(
@@ -49,7 +48,8 @@ class SnowflakeMetadataRepository:
                     "SUPPORTED_STRATIFICATIONS, SOURCE_REFERENCES, STANDARDS_MAPPINGS, "
                     "MISSINGNESS_SEMANTICS, METHODOLOGY, LIMITATION, "
                     "SEMANTIC_CONTRACT_VERSION, RELEASE_VERSION "
-                    f"FROM {schema}.CURRENT_MEASURE_METADATA_V ORDER BY MEASURE_ID"
+                    f"FROM {schema}.CURRENT_MEASURE_METADATA_V ORDER BY MEASURE_ID",
+                    timeout=self.settings.public_query_timeout_seconds,
                 )
                 measures = cursor.fetchall()
             return MetadataRows(indicators, measures)
@@ -146,21 +146,17 @@ class MetadataService:
             if len(token) > 2048:
                 raise PublicQueryError("INVALID_REQUEST", "Invalid page_token.")
             try:
-                payload = json.loads(base64.urlsafe_b64decode(token + "=" * (-len(token) % 4)))
+                payload = decode(token)
                 if payload["query"] != query or payload["release"] != release:
                     raise ValueError
                 offset = payload["offset"]
                 if type(offset) is not int or offset < 0 or offset >= len(items):
                     raise ValueError
-            except (ValueError, KeyError, TypeError, binascii.Error) as exc:
+            except (ValueError, KeyError, TypeError) as exc:
                 raise PublicQueryError("INVALID_REQUEST", "Invalid page_token.") from exc
         end = offset + size
         next_token = None
         if end < len(items):
             payload = {"query": query, "release": release, "offset": end}
-            next_token = (
-                base64.urlsafe_b64encode(json.dumps(payload, sort_keys=True).encode())
-                .decode()
-                .rstrip("=")
-            )
+            next_token = encode(payload)
         return items[offset:end], next_token
