@@ -34,4 +34,4 @@ COPY --from=typst /opt/typst/typst /usr/local/bin/typst
 COPY src ./src
 RUN typst --version | grep --fixed-strings "typst ${TYPST_VERSION}"
 EXPOSE 8080
-CMD ["uvicorn", "lyme_gap_atlas_api.app:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
+CMD ["uvicorn", "lyme_gap_atlas_api.app:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-access-log"]

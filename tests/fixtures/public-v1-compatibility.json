@@ -1,0 +1,399 @@
+{
+  "paths": {
+    "/v1/indicators": {
+      "method": "get",
+      "response": "CollectionEnvelope_Indicator_",
+      "errors": [
+        "400",
+        "404",
+        "429",
+        "503"
+      ],
+      "parameters": []
+    },
+    "/v1/indicators/{indicator_id}": {
+      "method": "get",
+      "response": "ResourceEnvelope_Indicator_",
+      "errors": [
+        "400",
+        "404",
+        "429",
+        "503"
+      ],
+      "parameters": [
+        "indicator_id"
+      ]
+    },
+    "/v1/measures": {
+      "method": "get",
+      "response": "CollectionEnvelope_Measure_",
+      "errors": [
+        "400",
+        "404",
+        "429",
+        "503"
+      ],
+      "parameters": []
+    },
+    "/v1/measures/{measure_id}": {
+      "method": "get",
+      "response": "ResourceEnvelope_Measure_",
+      "errors": [
+        "400",
+        "404",
+        "429",
+        "503"
+      ],
+      "parameters": [
+        "measure_id"
+      ]
+    },
+    "/v1/observations": {
+      "method": "get",
+      "response": "CollectionEnvelope_Observation_",
+      "errors": [
+        "400",
+        "404",
+        "429",
+        "503"
+      ],
+      "parameters": [
+        "geography_id",
+        "geography_type",
+        "measure_id"
+      ]
+    },
+    "/v1/sources": {
+      "method": "get",
+      "response": "CollectionEnvelope_Source_",
+      "errors": [
+        "400",
+        "404",
+        "429",
+        "503"
+      ],
+      "parameters": []
+    },
+    "/v1/sources/{source_id}": {
+      "method": "get",
+      "response": "ResourceEnvelope_Source_",
+      "errors": [
+        "400",
+        "404",
+        "429",
+        "503"
+      ],
+      "parameters": [
+        "source_id"
+      ]
+    },
+    "/v1/methodologies/{methodology_id}": {
+      "method": "get",
+      "response": "ResourceEnvelope_Methodology_",
+      "errors": [
+        "400",
+        "404",
+        "429",
+        "503"
+      ],
+      "parameters": [
+        "methodology_id"
+      ]
+    }
+  },
+  "models": {
+    "CollectionEnvelope_Indicator_": {
+      "required": [
+        "data",
+        "meta",
+        "links"
+      ],
+      "properties": [
+        "data",
+        "meta",
+        "links"
+      ]
+    },
+    "CollectionEnvelope_Measure_": {
+      "required": [
+        "data",
+        "meta",
+        "links"
+      ],
+      "properties": [
+        "data",
+        "meta",
+        "links"
+      ]
+    },
+    "CollectionEnvelope_Observation_": {
+      "required": [
+        "data",
+        "meta",
+        "links"
+      ],
+      "properties": [
+        "data",
+        "meta",
+        "links"
+      ]
+    },
+    "CollectionEnvelope_Source_": {
+      "required": [
+        "data",
+        "meta",
+        "links"
+      ],
+      "properties": [
+        "data",
+        "meta",
+        "links"
+      ]
+    },
+    "CollectionMeta": {
+      "required": [],
+      "properties": [
+        "next_page_token",
+        "response_at"
+      ]
+    },
+    "Indicator": {
+      "required": [
+        "indicator_id",
+        "label",
+        "definition",
+        "measure_ids",
+        "semantic_version"
+      ],
+      "properties": [
+        "indicator_id",
+        "label",
+        "definition",
+        "measure_ids",
+        "semantic_version",
+        "release_version",
+        "domain",
+        "category",
+        "limitations",
+        "standards_mappings"
+      ]
+    },
+    "Measure": {
+      "required": [
+        "measure_id",
+        "indicator_id",
+        "label",
+        "definition",
+        "semantic_version"
+      ],
+      "properties": [
+        "measure_id",
+        "indicator_id",
+        "label",
+        "definition",
+        "semantic_version",
+        "release_version",
+        "measure_type",
+        "unit",
+        "denominator",
+        "geography_types",
+        "temporal_grains",
+        "geography_semantics",
+        "temporal_semantics",
+        "allowed_value_states",
+        "allowed_strata",
+        "missingness_semantics",
+        "methodology_id",
+        "methodology",
+        "source_ids",
+        "limitations",
+        "standards_mappings"
+      ]
+    },
+    "Observation": {
+      "required": [
+        "observation_id",
+        "measure_id",
+        "geography",
+        "period_start",
+        "period_end",
+        "temporal_grain",
+        "value",
+        "value_state",
+        "unit",
+        "denominator",
+        "source_id",
+        "methodology_id",
+        "methodology_version",
+        "semantic_version",
+        "release_id",
+        "provenance_ref",
+        "limitations",
+        "evidence"
+      ],
+      "properties": [
+        "observation_id",
+        "measure_id",
+        "geography",
+        "period_start",
+        "period_end",
+        "temporal_grain",
+        "value",
+        "value_state",
+        "unit",
+        "denominator",
+        "strata",
+        "source_id",
+        "lineage_source_id",
+        "dataset_id",
+        "methodology_id",
+        "methodology",
+        "release_methodology_version",
+        "methodology_version",
+        "semantic_version",
+        "release_id",
+        "provenance_ref",
+        "source_label",
+        "source_vintage",
+        "source_url",
+        "source_published_at",
+        "atlas_acquired_at",
+        "atlas_processed_at",
+        "limitations",
+        "evidence"
+      ]
+    },
+    "GeographyIdentity": {
+      "required": [
+        "geography_type",
+        "geography_id"
+      ],
+      "properties": [
+        "geography_type",
+        "geography_id"
+      ]
+    },
+    "EvidenceReference": {
+      "required": [
+        "resource_type",
+        "resource_id"
+      ],
+      "properties": [
+        "resource_type",
+        "resource_id",
+        "source_id",
+        "provenance_ref",
+        "semantic_version",
+        "methodology_version",
+        "release_id",
+        "uri"
+      ]
+    },
+    "Source": {
+      "required": [
+        "source_id",
+        "label",
+        "publisher",
+        "lineage_source_id",
+        "dataset_id",
+        "semantic_version",
+        "release_version"
+      ],
+      "properties": [
+        "source_id",
+        "label",
+        "publisher",
+        "lineage_source_id",
+        "dataset_id",
+        "semantic_version",
+        "release_version",
+        "source_url",
+        "source_vintage",
+        "source_version",
+        "published_at",
+        "atlas_acquired_at",
+        "upstream_updated_at",
+        "source_retrieved_at",
+        "limitations"
+      ]
+    },
+    "Methodology": {
+      "required": [
+        "methodology_id",
+        "measure_id",
+        "version",
+        "description",
+        "limitations",
+        "semantic_version",
+        "release_version"
+      ],
+      "properties": [
+        "methodology_id",
+        "measure_id",
+        "version",
+        "description",
+        "limitations",
+        "semantic_version",
+        "release_version"
+      ]
+    },
+    "ProblemDetails": {
+      "required": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "instance",
+        "request_id"
+      ],
+      "properties": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "instance",
+        "request_id",
+        "code",
+        "errors"
+      ]
+    }
+  },
+  "enums": {
+    "ValueState": [
+      "OBSERVED",
+      "ZERO",
+      "MISSING",
+      "SUPPRESSED",
+      "UNAVAILABLE",
+      "NO_COUNTY_LINKED_RECORD"
+    ]
+  },
+  "nullable": {
+    "CollectionMeta": [
+      "next_page_token"
+    ],
+    "Indicator": [
+      "definition",
+      "release_version"
+    ],
+    "Measure": [
+      "definition",
+      "release_version",
+      "denominator",
+      "methodology_id",
+      "source_ids"
+    ],
+    "Observation": [
+      "value",
+      "denominator",
+      "methodology_id"
+    ],
+    "Source": [
+      "publisher",
+      "source_retrieved_at"
+    ],
+    "ProblemDetails": [
+      "code"
+    ]
+  }
+}

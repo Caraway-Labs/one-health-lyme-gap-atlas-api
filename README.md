@@ -86,4 +86,5 @@ App Platform autodeploy is off (`deploy_on_push: false`). A push to `main`
 deploys production after `quality` succeeds. **workflow_dispatch** with
 `deploy_production` redeploys that commit. Overlapping promotions serialize on
 `atlas-api-production` and skip any candidate that is no longer `origin/main`.
-See [CI and production deployment](docs/ci-and-production-deploy.md).
+See [CI and production deployment](docs/ci-and-production-deploy.md) and the
+[public API support runbook](docs/public-api-support.md).

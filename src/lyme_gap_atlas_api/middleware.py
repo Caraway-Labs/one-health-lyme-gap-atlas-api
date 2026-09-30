@@ -20,6 +20,18 @@ _PUBLIC_COLLECTIONS = {"/v1/indicators", "/v1/measures", "/v1/sources", "/v1/obs
 _PUBLIC_DETAILS = ("/v1/indicators/", "/v1/measures/", "/v1/sources/", "/v1/methodologies/")
 
 
+def _log_route(request: Request) -> str:
+    """Keep request identity and query values out of operational telemetry."""
+    path = request.url.path
+    if path in _PUBLIC_COLLECTIONS:
+        return path
+    for prefix in _PUBLIC_DETAILS:
+        if path.startswith(prefix):
+            return prefix + "{id}"
+    route = request.scope.get("route")
+    return str(route.path) if route is not None else "unmatched"
+
+
 class PublicReadProtectionMiddleware(BaseHTTPMiddleware):
     """Single-process, ephemeral anonymous protection for canonical public reads."""
 
@@ -173,7 +185,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                     "context": {
                         "request_id": request_id,
                         "method": request.method,
-                        "path": request.url.path,
+                        "path": _log_route(request),
                         "failure_type": type(exc).__name__,
                     }
                 },
@@ -188,7 +200,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 "context": {
                     "request_id": request_id,
                     "method": request.method,
-                    "path": request.url.path,
+                    "path": _log_route(request),
                     "status_code": response.status_code,
                     "duration_ms": round((time.perf_counter() - started_at) * 1000),
                 }
