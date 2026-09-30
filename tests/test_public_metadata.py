@@ -67,6 +67,9 @@ def test_metadata_discovery_filters_pagination_and_nulls() -> None:
     assert first.json()["data"][0]["measure_ids"] == ["a", "b"]
     assert first.json()["data"][0]["definition"] is None
     assert first.json()["data"][0]["release_version"] == "release-1"
+    indicator = client.get("/v1/indicators/alpha")
+    assert indicator.status_code == 200
+    assert indicator.json()["data"] == first.json()["data"][0]
     token = first.json()["meta"]["next_page_token"]
     raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4))
     payload = json.loads(raw[:-32])

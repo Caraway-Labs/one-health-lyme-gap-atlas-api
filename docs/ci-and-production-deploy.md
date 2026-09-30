@@ -80,6 +80,15 @@ URL, UTC timestamp, and `result=success`, `result=skipped`, or
 `result=failure`. The DigitalOcean deployment id is included when one was
 created. The access token is not logged.
 
+After an `ACTIVE` promotion, the workflow runs the bounded anonymous canonical
+API smoke in `scripts/probe_public_api.py` once per shape. It validates
+discovery, observations, provenance, typed errors, and a provisional 20-second
+request ceiling. A smoke failure fails the deploy job even though the App
+Platform deployment may already be active; inspect the active source SHA and
+follow the rollback path below. A superseded deploy skip can still run the
+smoke against the current public service, but is not evidence that the skipped
+candidate deployed.
+
 ## Rollback
 
 Push a commit that is the current tip of `main`. To return to older code,
