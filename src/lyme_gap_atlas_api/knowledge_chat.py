@@ -976,11 +976,8 @@ class KnowledgeChatService:
         except EmbeddingFailure:
             return unavailable("embedding_failure")
         except Neo4jQueryFailure as exc:
-            return unavailable(
-                "neo4j_timeout"
-                if isinstance(exc.__cause__, TimeoutError)
-                else "neo4j_query_failure"
-            )
+            return unavailable("neo4j_timeout" if isinstance(exc.__cause__, TimeoutError)
+                               else "neo4j_query_failure")
         except RuntimeError:
             return unavailable("retrieval_dependency_unavailable")
         except Exception:
@@ -1044,21 +1041,16 @@ class KnowledgeChatService:
             except (APITimeoutError, TimeoutError):
                 return unavailable("generation_timeout")
             except APIStatusError as exc:
-                logger.warning(
-                    "knowledge_chat_provider_failure",
-                    extra={
-                        "context": {
-                            "request_id": request_id,
-                            "provider": "openai",
-                            "model_id": _safe_identifier(getattr(self._answerer, "model_id", None)),
-                            "provider_request_id": _safe_identifier(
-                                getattr(exc, "request_id", None)
-                            ),
-                            "failure_category": "provider_rejection",
-                            "status_code": exc.status_code,
-                        }
-                    },
-                )
+                logger.warning("knowledge_chat_provider_failure", extra={"context": {
+                    "request_id": request_id,
+                    "provider": "openai",
+                    "model_id": _safe_identifier(getattr(self._answerer, "model_id", None)),
+                    "provider_request_id": _safe_identifier(
+                        getattr(exc, "request_id", None)
+                    ),
+                    "failure_category": "provider_rejection",
+                    "status_code": exc.status_code,
+                }})
                 return unavailable("provider_rejection")
             except (APIConnectionError, OSError):
                 return unavailable("generation_transport_error")
