@@ -344,6 +344,9 @@ _CLAIM_GROUNDING_INSTRUCTIONS = (
     "Build every claim from its support quotes, not the other way around. "
     "For each claim, first select returned passage IDs and their matching PMIDs, then select "
     "an exact verbatim excerpt substring as the support quote for every cited passage. "
+    'Set support_quotes to an object keyed by each cited passage ID, for example '
+    '{"passage-1": "verbatim words from that passage excerpt"}; use the exact IDs in '
+    'passage_ids as keys, with no other keys. '
     "Only then write one short, atomic claim about a finding explicitly present in those quotes. "
     "Use a close extractive paraphrase: preserve the source's important scientific nouns, "
     "entities, verbs, relationships, and material species, geography, population, and outcome "
@@ -756,9 +759,7 @@ def _validate_grounding(
         actual_pmids = {available[item].pmid for item in passage_ids}
         if pmids != actual_pmids:
             raise ValueError("invented or missing PMID")
-        quotes = raw.get("support_quotes")
-        if not isinstance(quotes, dict) or set(quotes) != set(passage_ids):
-            raise ValueError("each cited passage needs an exact support quote")
+        quotes = _support_quotes(raw.get("support_quotes"), passage_ids)
         for passage_id in passage_ids:
             quote = quotes[passage_id]
             if (
@@ -796,6 +797,28 @@ def _validate_grounding(
     if not claims or not str(generated.get("answer", "")).strip():
         raise ValueError("answer has no grounded claims")
     return claims, list(citation_map.values())
+
+
+def _support_quotes(value: Any, passage_ids: list[str]) -> dict[str, Any]:
+    """Accept two unambiguous model JSON shapes, then apply the same exact checks."""
+    if isinstance(value, dict):
+        quotes = value
+    elif isinstance(value, list):
+        # Models sometimes serialize a keyed mapping as records. Never infer a
+        # passage ID from position or fill in a missing quote from retrieval.
+        quotes = {}
+        for item in value:
+            if not isinstance(item, dict) or set(item) != {"passage_id", "quote"}:
+                raise ValueError("each cited passage needs an exact support quote")
+            passage_id = item["passage_id"]
+            if not isinstance(passage_id, str) or passage_id in quotes:
+                raise ValueError("each cited passage needs an exact support quote")
+            quotes[passage_id] = item["quote"]
+    else:
+        raise ValueError("each cited passage needs an exact support quote")
+    if set(quotes) != set(passage_ids):
+        raise ValueError("each cited passage needs an exact support quote")
+    return quotes
 
 
 _STOPWORDS = frozenset(
