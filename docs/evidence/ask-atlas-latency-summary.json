@@ -1,0 +1,269 @@
+{
+  "issue": 123,
+  "audited_main_sha": "bbed4044ca860416c3aba7f5d0f36ee3145c9a0c",
+  "samples": [
+    {
+      "label": "A",
+      "source_sha": "b547565ab6f430ccdc144e8d184cf5539a838750",
+      "client_ms": 31270,
+      "api_ms": 30937,
+      "service_ms": 30919,
+      "stages_ms": {
+        "safety_classification": 0,
+        "neo4j_readiness": 35,
+        "embedding": 5862,
+        "neo4j_retrieval": 285,
+        "budget_reservation": 3893,
+        "answer_generation_attempt_1": 9754,
+        "grounding_validation_attempt_1": 1,
+        "provenance_enrichment": 3947,
+        "conversation_persistence": 7116
+      },
+      "service_residual_ms": 26.0,
+      "api_minus_service_ms": 18,
+      "client_minus_api_ms": 333,
+      "snowflake_named_stages_ms": 14956,
+      "snowflake_service_percent": 48.37,
+      "generation_service_percent": 31.55
+    },
+    {
+      "label": "B",
+      "source_sha": "b547565ab6f430ccdc144e8d184cf5539a838750",
+      "client_ms": 20070,
+      "api_ms": 19818,
+      "service_ms": 19797,
+      "stages_ms": {
+        "safety_classification": 1,
+        "neo4j_readiness": 10,
+        "embedding": 582,
+        "neo4j_retrieval": 170,
+        "budget_reservation": 3451,
+        "answer_generation_attempt_1": 6214,
+        "grounding_validation_attempt_1": 0,
+        "provenance_enrichment": 3336,
+        "conversation_persistence": 6025
+      },
+      "service_residual_ms": 8.0,
+      "api_minus_service_ms": 21,
+      "client_minus_api_ms": 252,
+      "snowflake_named_stages_ms": 12812,
+      "snowflake_service_percent": 64.72,
+      "generation_service_percent": 31.39
+    },
+    {
+      "label": "C",
+      "source_sha": "b9591550e4f7abd87ca0c57a4d810f182c725f7c",
+      "client_ms": 21980,
+      "api_ms": 21627,
+      "service_ms": 21605,
+      "stages_ms": {
+        "safety_classification": 0,
+        "neo4j_readiness": 48,
+        "embedding": 3118,
+        "neo4j_retrieval": 106,
+        "budget_reservation": 4853,
+        "answer_generation_attempt_1": 7600,
+        "grounding_validation_attempt_1": 2,
+        "provenance_enrichment": 1215,
+        "conversation_persistence": 4537
+      },
+      "service_residual_ms": 126,
+      "api_minus_service_ms": 22,
+      "client_minus_api_ms": 353,
+      "snowflake_named_stages_ms": 10605,
+      "snowflake_service_percent": 49.09,
+      "generation_service_percent": 35.18,
+      "nested_operations": [
+        {
+          "operation": "connection_setup",
+          "duration_ms": 2383,
+          "outcome": "success"
+        },
+        {
+          "operation": "budget.execute",
+          "duration_ms": 2463,
+          "outcome": "success"
+        },
+        {
+          "operation": "budget.fetch",
+          "duration_ms": 0,
+          "outcome": "success"
+        },
+        {
+          "operation": "provenance.execute",
+          "duration_ms": 1213,
+          "outcome": "success"
+        },
+        {
+          "operation": "provenance.fetch",
+          "duration_ms": 0,
+          "outcome": "success"
+        },
+        {
+          "operation": "persistence.execute",
+          "duration_ms": 2598,
+          "outcome": "success"
+        },
+        {
+          "operation": "persistence.execute",
+          "duration_ms": 1928,
+          "outcome": "success"
+        },
+        {
+          "operation": "connection_close",
+          "duration_ms": 113,
+          "outcome": "success"
+        }
+      ],
+      "connection_setup_count": 1,
+      "connection_close_count": 1,
+      "execute_count": 4
+    }
+  ],
+  "server_history": {
+    "rows_per_original_sample": 19,
+    "original_sample_count": 2,
+    "all_rows_successful": true,
+    "all_recorded_queue_provisioning_repair_overload_and_blocking_ms_zero": true,
+    "samples": [
+      {
+        "label": "A",
+        "server_call_union_ms": 6979,
+        "api_snowflake_ms": 14956,
+        "outside_call_remainder_ms": 7977,
+        "stages": [
+          {
+            "name": "budget",
+            "api_ms": 3893,
+            "server_call_union_ms": 1200,
+            "outside_call_remainder_ms": 2693,
+            "before_first_call_reconstructed_ms": 2555.165,
+            "after_last_call_reconstructed_ms": 137.835,
+            "between_calls_ms": 0
+          },
+          {
+            "name": "provenance",
+            "api_ms": 3947,
+            "server_call_union_ms": 1279,
+            "outside_call_remainder_ms": 2668,
+            "before_first_call_reconstructed_ms": 2512.78,
+            "after_last_call_reconstructed_ms": 155.22,
+            "between_calls_ms": 0
+          },
+          {
+            "name": "persistence",
+            "api_ms": 7116,
+            "server_call_union_ms": 4500,
+            "outside_call_remainder_ms": 2616,
+            "before_first_call_reconstructed_ms": 2447.729,
+            "after_last_call_reconstructed_ms": 127.271,
+            "between_calls_ms": 41
+          }
+        ]
+      },
+      {
+        "label": "B",
+        "server_call_union_ms": 5000,
+        "api_snowflake_ms": 12812,
+        "outside_call_remainder_ms": 7812,
+        "stages": [
+          {
+            "name": "budget",
+            "api_ms": 3451,
+            "server_call_union_ms": 953,
+            "outside_call_remainder_ms": 2498,
+            "before_first_call_reconstructed_ms": 2356.79,
+            "after_last_call_reconstructed_ms": 141.21,
+            "between_calls_ms": 0
+          },
+          {
+            "name": "provenance",
+            "api_ms": 3336,
+            "server_call_union_ms": 726,
+            "outside_call_remainder_ms": 2610,
+            "before_first_call_reconstructed_ms": 2471.348,
+            "after_last_call_reconstructed_ms": 138.652,
+            "between_calls_ms": 0
+          },
+          {
+            "name": "persistence",
+            "api_ms": 6025,
+            "server_call_union_ms": 3321,
+            "outside_call_remainder_ms": 2704,
+            "before_first_call_reconstructed_ms": 2445.102,
+            "after_last_call_reconstructed_ms": 212.898,
+            "between_calls_ms": 46
+          }
+        ]
+      }
+    ],
+    "matching_confidence": "category/time/order/session match; explicit parent/root relationships absent"
+  },
+  "matched_original_comparison": {
+    "before_label": "A",
+    "after_label": "C",
+    "client_reduction_ms": 9290,
+    "client_reduction_percent": 29.71,
+    "snowflake_named_stage_reduction_ms": 4351,
+    "cited_passage_sets_match": true,
+    "cited_corpus_provenance_matches": true,
+    "full_retrieved_payload_identity_verified": false
+  },
+  "success_outcomes": {
+    "model": "gpt-5.6-luna",
+    "evidence_state": "single_study",
+    "generation_attempts": 1,
+    "grounding": "passed",
+    "retrieved_passages": 7,
+    "retrieved_papers": 2,
+    "cited_pmid": "42381666",
+    "answer_characters": [
+      285,
+      365,
+      307
+    ],
+    "claim_counts": [
+      2,
+      3,
+      2
+    ]
+  },
+  "earlier_failure": {
+    "client_http_status": 504,
+    "client_ms": 20040,
+    "backend_http_status": 503,
+    "backend_approx_ms": 19700,
+    "generation_attempts": 2,
+    "attempt_spans_available": false
+  },
+  "limits": [
+    "Three successful observations and two distinct failure classes; no p95, capacity, proven cold/warm classification or causal/sustained reuse speedup.",
+    "Nested connector spans must not be added to enclosing stage totals.",
+    "Connector execute includes client/transport and is not server execution time.",
+    "Provider usage/cost/tier not available; second paid canary held.",
+    "Stored-row readback, capability-bearing follow-up and browser restoration not independently verified.",
+    "Initial bounded telemetry contained no chat/provider records; later existing QA failure D was correlated without new requests or QA-batch spending."
+  ],
+  "new_qa_failure": {
+    "label": "D",
+    "client_http_status": 504,
+    "client_ms": 3148,
+    "backend_http_status": 503,
+    "api_ms": 3012,
+    "service_ms": 3005,
+    "stages_ms": {
+      "safety_classification": 1,
+      "neo4j_readiness": 3003
+    },
+    "service_residual_ms": 1,
+    "api_minus_service_ms": 7,
+    "client_minus_api_ms": 136,
+    "outcome": "retrieval_dependency_unavailable",
+    "generation_attempts": 0,
+    "validation_outcome": "not_run",
+    "provider_response_records": 0,
+    "excluded_from_successful_latency_comparisons": true,
+    "connectivity_diagnosis_owner": "existing QA work; not duplicated here",
+    "operator_graph_health_proves_api_path": false
+  }
+}
