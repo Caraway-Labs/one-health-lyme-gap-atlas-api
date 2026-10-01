@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass
-from threading import get_ident
+from threading import Thread, get_ident
 from typing import Any, Protocol, TypedDict, cast
 
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
@@ -42,6 +42,7 @@ from .models import (
     KnowledgeClaim,
     SourceUsed,
 )
+from .neo4j_diagnostics import log_serving_graph_probe
 
 logger = logging.getLogger(__name__)
 _POST_GENERATION_RESERVE_SECONDS = 5.0
@@ -456,6 +457,13 @@ class Neo4jRetriever:
             connection_timeout=3.0,
         )
         self._openai = openai
+        # Diagnostics must not gate App Platform startup or health readiness.
+        Thread(
+            target=log_serving_graph_probe,
+            args=(self._driver, _neo4j_failure_category),
+            name="neo4j-serving-probe",
+            daemon=True,
+        ).start()
 
     def ready(self) -> bool:
         try:
