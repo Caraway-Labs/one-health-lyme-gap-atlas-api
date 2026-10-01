@@ -5,7 +5,7 @@ import json
 import logging
 import re
 import uuid
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -27,6 +27,7 @@ from .auth import (
     optional_authenticated_user,
 )
 from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
+from .briefings import add_briefing_openapi
 from .config import ApiSettings, get_settings
 from .feedback import (
     FEEDBACK_IDEMPOTENCY_MISMATCH_TYPE,
@@ -117,6 +118,14 @@ from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtl
 from .service import AtlasService
 
 logger = logging.getLogger(__name__)
+
+
+class AtlasFastAPI(FastAPI):
+    def openapi(self) -> dict[str, Any]:
+        schema = super().openapi()
+        if "BriefingArtifact" not in schema.get("components", {}).get("schemas", {}):
+            add_briefing_openapi(schema)
+        return schema
 
 
 def _score_settings(
@@ -232,7 +241,7 @@ def create_app(
                 generation_timeout_seconds=config.kg_generation_timeout_seconds,
                 snowflake_settings=config,
             )
-    app = FastAPI(
+    app = AtlasFastAPI(
         title=config.app_name,
         version=config.app_version,
         description="Public API for Atlas data and reviewed knowledge-graph evidence chat.",
