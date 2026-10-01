@@ -418,3 +418,59 @@ def test_openapi_contains_versioned_contracts_without_subscriber_route_or_change
         "briefing" in path or "subscriber" in path or "digest" in path for path in schema["paths"]
     )
     assert create_app(settings=ApiSettings()).openapi() == schema
+
+
+def test_limitation_reordering_and_duplicates_replay_the_first_complete_artifact() -> None:
+    service = BriefingService(InMemoryBriefingStore())
+    first = service.generate(
+        request(),
+        snapshot([document()], limitations=["z limitation", "a limitation"]),
+        generated_at="2026-10-01T00:01:00Z",
+    )
+    replay = service.generate(
+        request(),
+        snapshot([document()], limitations=["a limitation", "z limitation", "a limitation"]),
+        generated_at="2026-10-01T00:02:00Z",
+    )
+    assert replay == first
+    assert first.limitations[-2:] == ("a limitation", "z limitation")
+
+
+@pytest.mark.parametrize("timestamp", ["2000-01-01T00:00:00Z", "malformed"])
+def test_store_receipt_generation_time_must_be_valid_and_reach_snapshot(timestamp: str) -> None:
+    class EarlyReceiptStore:
+        def insert_if_absent(self, artifact: BriefingArtifact) -> BriefingArtifact:
+            return artifact.model_copy(update={"generated_at": timestamp})
+
+    with pytest.raises(BriefingError):
+        BriefingService(EarlyReceiptStore()).generate(
+            request(),
+            snapshot([]),
+            generated_at="2026-10-01T00:01:00Z",
+        )
+
+
+@pytest.mark.parametrize("confidence", [True, False, "1", "0.5"])
+def test_normalized_confidence_does_not_coerce_boolean_or_text(confidence: Any) -> None:
+    with pytest.raises(ValidationError):
+        IntelligenceTag(
+            value="county:08001",
+            origin="inferred",
+            method="reviewed-method",
+            method_version="1",
+            confidence=confidence,
+        )
+
+
+@pytest.mark.parametrize("confidence", [0, 1, 0.5, None])
+def test_normalized_confidence_accepts_json_numbers_and_unknown(confidence: Any) -> None:
+    assert (
+        IntelligenceTag(
+            value="county:08001",
+            origin="inferred",
+            method="reviewed-method",
+            method_version="1",
+            confidence=confidence,
+        ).confidence
+        == confidence
+    )

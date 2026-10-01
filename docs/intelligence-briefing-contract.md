@@ -120,3 +120,15 @@ source, source subscription, mailbox, email, LLM call or spending commitment.
 Rollback is to omit these internal components from future composition; existing
 released routes and storage are unchanged. Keep #90 open until the owning review,
 integration and consumer evidence support its delivery claim.
+
+## Snapshot integration constraint
+
+A snapshot ID must identify immutable, complete input evidence for that cutoff.
+DATA V135's current `INTELLIGENCE_FEED_V` exposes the latest fetched capture per
+publication/revision/source/transport. Repolls replace that latest projection;
+it cannot reconstruct a historical fetched-at window. Historical digests must
+consume a previously frozen governed snapshot or a separately approved as-of
+capture-history projection. Re-querying the latest-only view for an old cutoff
+is not supported evidence. Reusing a snapshot/artifact identity with altered
+input fails the input checksum/idempotency check; the storage receipt is checked
+against the complete candidate artifact except its first generation timestamp.

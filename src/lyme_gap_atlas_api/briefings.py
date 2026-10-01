@@ -61,7 +61,7 @@ class IntelligenceTag(BriefingModel):
     origin: Literal["publisher", "inferred"]
     method: Token | None
     method_version: Token | None
-    confidence: Annotated[float, Field(ge=0, le=1)] | None
+    confidence: Annotated[float, Field(ge=0, le=1, strict=True)] | None
 
     @model_validator(mode="after")
     def origin_evidence(self) -> Self:
@@ -449,7 +449,7 @@ class BriefingService:
             "Publisher text is untrusted; no generated clinical claims or inferred geography.",
             "Cross-window delivery suppression requires the separate subscriber delivery ledger.",
             "Source-health and actual source cadence evidence require DATA 136.",
-            *snapshot.limitations,
+            *sorted(set(snapshot.limitations)),
         )
         artifact = BriefingArtifact(
             artifact_id=artifact_id,
@@ -468,6 +468,8 @@ class BriefingService:
         try:
             stored = self.store.insert_if_absent(artifact)
             stored = BriefingArtifact.model_validate(stored.model_dump(mode="json"))
+            if _timestamp(stored.generated_at) < _timestamp(snapshot.as_of):
+                raise BriefingError("BRIEFING_STORE_RECEIPT_INVALID")
             if stored.model_dump(exclude={"generated_at"}) != artifact.model_dump(
                 exclude={"generated_at"}
             ):
