@@ -1,0 +1,49 @@
+{
+  "contract_version": "1.0.0",
+  "item_id": "1394a4e1c0bf2a6d258e57a05268114a6251f69983549366fdda5fa3c57239ea",
+  "revision_id": "65bd8e397012ea11086b55589339e8c3086bed4788f5e81eb9429e2e0ec4bab9",
+  "source_id": "synthetic-publication",
+  "registry_version": 1,
+  "canonical_url": "https://example.org/publication/fixture",
+  "title": "Synthetic county investigation briefing",
+  "excerpt": null,
+  "published_at": "2026-09-29T08:00:00Z",
+  "updated_at": null,
+  "event_at": null,
+  "fetched_at": "2026-09-30T08:00:00Z",
+  "field_states": {
+    "canonical_url": "present",
+    "title": "present",
+    "published_at": "present",
+    "updated_at": "not_provided",
+    "event_at": "not_provided",
+    "excerpt": "withheld"
+  },
+  "geographies": [],
+  "topics": [
+    {
+      "value": "tick-borne",
+      "origin": "publisher",
+      "method": null,
+      "method_version": null,
+      "confidence": null
+    }
+  ],
+  "transport": "rss",
+  "transport_identity_sha256": "8077b5ce1204463dd3e8926acb82c69f47c4edf216a3dc6f289bebf9ef172286",
+  "deduplication_key": "1394a4e1c0bf2a6d258e57a05268114a6251f69983549366fdda5fa3c57239ea",
+  "content_sha256": "10512ab0027ff5194f0b068f6b82263b9b030f89f87dee63a949236aa0571f3d",
+  "provenance": {
+    "run_id": "fixture-run-rss",
+    "artifact_id": "fixture-artifact-rss",
+    "artifact_sha256": "6bc53417ac1453d68e03786c2cbf2e49351280a5627093922e00f3c8a1080375",
+    "parser_version": "fixture-parser-v1",
+    "fetch_version": "fixture-fetch-v1",
+    "normalization_version": "intelligence-identity-v1"
+  },
+  "limitations": [
+    "Synthetic contract example; not a measured county observation",
+    "No supported county relevance metadata; no health-risk inference"
+  ],
+  "content_is_untrusted": true
+}

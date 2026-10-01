@@ -1,0 +1,9 @@
+title = "Atlas API secret scanning"
+[extend]
+useDefault = true
+[[allowlists]]
+description = "Reviewed deterministic DATA v1 intelligence deduplication hash in synthetic contract fixtures, not a credential"
+condition = "AND"
+paths = ['''^tests/fixtures/intelligence/(atom|email|rss|web)-item\.json$''', '''^tests/fixtures/intelligence/synthetic-digest\.json$''']
+regexTarget = "secret"
+regexes = ['''^1394a4e1c0bf2a6d258e57a05268114a6251f69983549366fdda5fa3c57239ea$''']
