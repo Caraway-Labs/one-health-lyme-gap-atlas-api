@@ -1,0 +1,108 @@
+{
+  "contract_version": "1.0.0",
+  "generation_version": "deterministic-digest-v1",
+  "mode": "digest",
+  "notice": "Periodic intelligence digest; not an official public-health alert or a disease-risk estimate.",
+  "artifact_id": "2a00c77a9139d305bd66112217bac386fc40d6e8f4e6b7e22758dd51e025cd1f",
+  "input_sha256": "313bb136074be9b2f0589f585583ff7a118c2f043c4f4f96a2b5b8e86d4add40",
+  "snapshot_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "generated_at": "2026-10-01T00:01:00Z",
+  "preference_revision": "preferences-1",
+  "digest_version": "digest-1",
+  "window": {
+    "start": "2026-09-30T00:00:00Z",
+    "end": "2026-10-01T00:00:00Z",
+    "basis": "fetched_at"
+  },
+  "scope": {
+    "geographies": [],
+    "topics": [
+      "tick-borne"
+    ],
+    "sources": []
+  },
+  "ranked_items": [
+    {
+      "rank": 1,
+      "item_id": "1394a4e1c0bf2a6d258e57a05268114a6251f69983549366fdda5fa3c57239ea",
+      "matching_values": 1,
+      "publisher_recency": "2026-09-29T08:00:00Z",
+      "evidence": [
+        {
+          "item": {
+            "contract_version": "1.0.0",
+            "item_id": "1394a4e1c0bf2a6d258e57a05268114a6251f69983549366fdda5fa3c57239ea",
+            "revision_id": "65bd8e397012ea11086b55589339e8c3086bed4788f5e81eb9429e2e0ec4bab9",
+            "source_id": "synthetic-publication",
+            "registry_version": 1,
+            "canonical_url": "https://example.org/publication/fixture",
+            "title": "Synthetic county investigation briefing",
+            "published_at": "2026-09-29T08:00:00Z",
+            "updated_at": null,
+            "event_at": null,
+            "excerpt": null,
+            "fetched_at": "2026-09-30T08:00:00Z",
+            "field_states": {
+              "canonical_url": "present",
+              "title": "present",
+              "published_at": "present",
+              "updated_at": "not_provided",
+              "event_at": "not_provided",
+              "excerpt": "withheld"
+            },
+            "geographies": [],
+            "topics": [
+              {
+                "value": "tick-borne",
+                "origin": "publisher",
+                "method": null,
+                "method_version": null,
+                "confidence": null
+              }
+            ],
+            "transport": "rss",
+            "transport_identity_sha256": "8077b5ce1204463dd3e8926acb82c69f47c4edf216a3dc6f289bebf9ef172286",
+            "deduplication_key": "1394a4e1c0bf2a6d258e57a05268114a6251f69983549366fdda5fa3c57239ea",
+            "content_sha256": "10512ab0027ff5194f0b068f6b82263b9b030f89f87dee63a949236aa0571f3d",
+            "provenance": {
+              "run_id": "fixture-run-rss",
+              "artifact_id": "fixture-artifact-rss",
+              "artifact_sha256": "6bc53417ac1453d68e03786c2cbf2e49351280a5627093922e00f3c8a1080375",
+              "parser_version": "fixture-parser-v1",
+              "fetch_version": "fixture-fetch-v1",
+              "normalization_version": "intelligence-identity-v1"
+            },
+            "limitations": [
+              "Synthetic contract example; not a measured county observation",
+              "No supported county relevance metadata; no health-risk inference"
+            ],
+            "content_is_untrusted": true
+          },
+          "source": {
+            "source_id": "synthetic-publication",
+            "registry_version": 1,
+            "organization": "Synthetic publisher",
+            "reviewed_trust_classification": "research_index"
+          },
+          "why_matched": [
+            {
+              "dimension": "topic",
+              "value": "tick-borne",
+              "origin": "publisher"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "matching_publications": 1,
+  "omitted_publications": 0,
+  "limitations": [
+    "Bounded capture window uses retrieval time; publisher chronology remains separate.",
+    "No matches do not establish absence of disease or complete publisher coverage.",
+    "Ranking uses exact preference matches, publisher recency and stable item ID; trust categories are unweighted.",
+    "Publisher text is untrusted; no generated clinical claims or inferred geography.",
+    "Cross-window delivery suppression requires the separate subscriber delivery ledger.",
+    "Source-health and actual source cadence evidence require DATA 136."
+  ]
+}
