@@ -11,9 +11,10 @@ import secrets
 import time
 import uuid
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass
+from threading import get_ident
 from typing import Any, Protocol, TypedDict, cast
 
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
@@ -40,6 +41,108 @@ _DIAGNOSTICS: ContextVar[dict[str, Any] | None] = ContextVar(
     "knowledge_chat_diagnostics", default=None
 )
 _REQUEST_ID: ContextVar[str] = ContextVar("knowledge_chat_request_id", default="unavailable")
+
+
+class _RequestSnowflakeSession:
+    """Lazy, exclusive worker-thread ownership; never a cross-request pool."""
+
+    def __init__(self, settings: SnowflakeSettings, stack: ExitStack) -> None:
+        self.settings = settings
+        self.stack = stack
+        self.owner = get_ident()
+        self.connection: Any = None
+
+    def get(self) -> Any:
+        if get_ident() != self.owner:
+            raise RuntimeError("Snowflake request session cannot cross worker threads")
+        if self.connection is None:
+            with _snowflake_timing("connection_setup"):
+                self.connection = connect(self.settings)
+                self.stack.callback(self.connection.close)
+        elif self.connection.is_closed():
+            # Never retry an uncertain reservation or write on a new connection.
+            raise RuntimeError("Snowflake request session is closed")
+        return self.connection
+
+
+_SNOWFLAKE_SESSION: ContextVar[_RequestSnowflakeSession | None] = ContextVar(
+    "knowledge_chat_snowflake_session", default=None
+)
+
+
+@contextmanager
+def _snowflake_timing(operation: str, cursor: Any = None) -> Iterator[None]:
+    """Nested dependency details, deliberately excluded from additive stage totals."""
+    started = time.perf_counter()
+    outcome = "success"
+    try:
+        with _span(f"snowflake.{operation}", _REQUEST_ID.get()):
+            yield
+    except BaseException:
+        outcome = "failure"
+        raise
+    finally:
+        logger.info(
+            "knowledge_chat_snowflake_operation",
+            extra={
+                "context": {
+                    "request_id": _REQUEST_ID.get(),
+                    "operation": operation,
+                    "duration_ms": round((time.perf_counter() - started) * 1000),
+                    "outcome": outcome,
+                    "query_id": _safe_identifier(getattr(cursor, "sfqid", None)),
+                }
+            },
+        )
+
+
+@contextmanager
+def _request_snowflake_session(settings: SnowflakeSettings | None) -> Iterator[None]:
+    with ExitStack() as stack:
+        session = None if settings is None else _RequestSnowflakeSession(settings, stack)
+        token = _SNOWFLAKE_SESSION.set(session)
+        try:
+            yield
+        finally:
+            try:
+                if session is not None and session.connection is not None:
+                    with _snowflake_timing("connection_close"):
+                        stack.close()
+            finally:
+                _SNOWFLAKE_SESSION.reset(token)
+
+
+@contextmanager
+def _chat_snowflake_connection(settings: SnowflakeSettings) -> Iterator[Any]:
+    session = _SNOWFLAKE_SESSION.get()
+    if session is not None and session.settings is settings:
+        connection = session.get()
+        # The shared connector does not set AUTOCOMMIT in session_parameters.
+        # Its connection context commits/rolls back each adapter operation.
+        # Keep those boundaries while moving only close to request teardown.
+        try:
+            yield connection
+        except BaseException:
+            with _snowflake_timing("transaction_rollback"):
+                connection.rollback()
+            raise
+        else:
+            with _snowflake_timing("transaction_commit"):
+                connection.commit()
+    else:
+        # Standalone adapters and injected test stores retain their original lifecycle.
+        with connect(settings) as connection:
+            yield connection
+
+
+def _snowflake_execute(cursor: Any, sql: str, params: tuple[Any, ...], operation: str) -> None:
+    with _snowflake_timing(f"{operation}.execute", cursor):
+        cursor.execute(sql, params)
+
+
+def _snowflake_fetchone(cursor: Any, operation: str) -> Any:
+    with _snowflake_timing(f"{operation}.fetch", cursor):
+        return cursor.fetchone()
 
 
 def _safe_identifier(value: object) -> str | None:
@@ -381,22 +484,32 @@ class SnowflakeBudgetStore:
 
     def authorize(self, conversation_id: str, token_hash: str) -> bool:
         db = _governance_database(self._settings)
-        with connect(self._settings) as connection, connection.cursor() as cursor:
-            cursor.execute(
+        with (
+            _chat_snowflake_connection(self._settings) as connection,
+            connection.cursor() as cursor,
+        ):
+            _snowflake_execute(
+                cursor,
                 f"CALL {db}.GOVERNANCE.SP_VERIFY_KG_CONVERSATION_TOKEN(%s,%s)",
                 (conversation_id, token_hash),
+                "authorization",
             )
-            row = cursor.fetchone()
+            row = _snowflake_fetchone(cursor, "authorization")
             return bool(row and row[0])
 
     def reserve(self, request_id: str) -> bool:
         db = _governance_database(self._settings)
-        with connect(self._settings) as connection, connection.cursor() as cursor:
-            cursor.execute(
+        with (
+            _chat_snowflake_connection(self._settings) as connection,
+            connection.cursor() as cursor,
+        ):
+            _snowflake_execute(
+                cursor,
                 f"CALL {db}.GOVERNANCE.SP_RESERVE_KG_LLM_BUDGET(%s,%s,%s,%s,%s,%s,%s)",
                 ("chat", request_id, "openai", "gpt-5.6-luna", 0.05, 5, 100),
+                "budget",
             )
-            row = cursor.fetchone()
+            row = _snowflake_fetchone(cursor, "budget")
             if row is None:
                 return False
             payload = row[0] if isinstance(row[0], dict) else json.loads(str(row[0]))
@@ -418,9 +531,13 @@ class SnowflakeBudgetStore:
             (request_id, "assistant", response.answer, response.status, citations),
         )
         db = _governance_database(self._settings)
-        with connect(self._settings) as connection, connection.cursor() as cursor:
+        with (
+            _chat_snowflake_connection(self._settings) as connection,
+            connection.cursor() as cursor,
+        ):
             for turn_request_id, role, body, status, turn_citations in turns:
-                cursor.execute(
+                _snowflake_execute(
+                    cursor,
                     f"CALL {db}.GOVERNANCE.SP_PERSIST_KG_CONVERSATION_TURN"
                     "(%s,%s,%s,%s,%s,%s,%s,%s,PARSE_JSON(%s))",
                     (
@@ -434,6 +551,7 @@ class SnowflakeBudgetStore:
                         status,
                         json.dumps(turn_citations),
                     ),
+                    "persistence",
                 )
 
 
@@ -461,12 +579,17 @@ class SnowflakeCorpusProvenanceStore:
         if not unique:
             return {}
         db = _governance_database(self._settings)
-        with connect(self._settings) as connection, connection.cursor() as cursor:
-            cursor.execute(
+        with (
+            _chat_snowflake_connection(self._settings) as connection,
+            connection.cursor() as cursor,
+        ):
+            _snowflake_execute(
+                cursor,
                 f"CALL {db}.GOVERNANCE.SP_LOOKUP_RETRIEVAL_CORPUS_PROVENANCE(PARSE_JSON(%s))",
                 (json.dumps(unique),),
+                "provenance",
             )
-            row = cursor.fetchone()
+            row = _snowflake_fetchone(cursor, "provenance")
             payload = [] if row is None else row[0]
             if isinstance(payload, str):
                 payload = json.loads(payload)
@@ -642,6 +765,7 @@ class KnowledgeChatService:
         deadline_seconds: float = 28.0,
         generation_timeout_seconds: float = 16.0,
         clock: Callable[[], float] = time.monotonic,
+        snowflake_settings: SnowflakeSettings | None = None,
     ) -> None:
         self._retriever = retriever
         self._answerer = answerer
@@ -651,6 +775,7 @@ class KnowledgeChatService:
         self._deadline_seconds = deadline_seconds
         self._generation_timeout_seconds = generation_timeout_seconds
         self._clock = clock
+        self._snowflake_settings = snowflake_settings
 
     def _hash(self, value: str) -> str:
         return hmac.new(self._secret, value.encode(), hashlib.sha256).hexdigest()
@@ -697,9 +822,10 @@ class KnowledgeChatService:
         request_token = _REQUEST_ID.set(request_id)
         result: KnowledgeChatResponse | None = None
         try:
-            result, outcome = self._chat_impl(
-                request, request_id, network_identifier, started + self._deadline_seconds
-            )
+            with _request_snowflake_session(self._snowflake_settings):
+                result, outcome = self._chat_impl(
+                    request, request_id, network_identifier, started + self._deadline_seconds
+                )
             return result
         except ValueError:
             outcome = "invalid_conversation_capability"

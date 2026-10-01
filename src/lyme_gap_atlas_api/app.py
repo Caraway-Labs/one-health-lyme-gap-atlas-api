@@ -230,6 +230,7 @@ def create_app(
                 SnowflakeCorpusProvenanceStore(config),
                 deadline_seconds=config.kg_chat_deadline_seconds,
                 generation_timeout_seconds=config.kg_generation_timeout_seconds,
+                snowflake_settings=config,
             )
     app = FastAPI(
         title=config.app_name,
