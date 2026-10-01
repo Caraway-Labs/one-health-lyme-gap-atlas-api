@@ -105,6 +105,11 @@ def test_load_snapshot_uses_configured_governed_presentation_database(monkeypatc
 
     assert snapshot.metadata.release_id == "governed-2026-09-15"
     assert snapshot.counties[0].fips == "08001"
+    county_sql = next(sql for sql in cursor.statements if "CURRENT_COUNTY_ATLAS_V" in sql)
+    assert "TO_JSON(GEOMETRY_JSON)" in county_sql
+    assert "TIGER" not in county_sql.upper()
+    assert "ANALYSIS" not in county_sql.upper()
+    assert snapshot.counties[0].geometry == {"type": "Polygon", "coordinates": []}
     assert all(
         '"ONE_HEALTH_LYME_GAP_ATLAS_PROD"."PRESENTATION".' in sql for sql in cursor.statements
     )

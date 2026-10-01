@@ -24,6 +24,7 @@ class GeographyType(StrEnum):
 
 
 class GeographyIdentity(BaseModel):
+    """Stable FIPS join identity, independent of display or analysis polygons."""
     geography_type: GeographyType
     geography_id: str
 
@@ -161,6 +162,7 @@ class Observation(BaseModel):
 
 
 class Geography(BaseModel):
+    """County/state identity metadata; geometry is a separate display resource."""
     geography: GeographyIdentity
     label: str
     parent: GeographyIdentity | None = None

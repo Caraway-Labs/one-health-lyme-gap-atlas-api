@@ -692,7 +692,15 @@ def create_app(
         except LookupError as exc:
             raise HTTPException(status_code=404, detail="Dataset release not found") from exc
 
-    @app.get("/v1/atlas/geometry", tags=["atlas"])
+    @app.get(
+        "/v1/atlas/geometry",
+        tags=["atlas"],
+        description=(
+            "Existing generalized CDC/ATSDR SVI 2022 display geometry in EPSG:4326, "
+            "identified by stable five-digit county FIPS. This resource never returns "
+            "internal 2025 TIGER/Line analysis polygons used for raster aggregation."
+        ),
+    )
     def geometry(request: Request, dataset_version: str | None = None) -> Response:
         try:
             payload = json.dumps(service.geometry(dataset_version), separators=(",", ":")).encode()

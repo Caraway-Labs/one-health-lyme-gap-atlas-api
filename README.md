@@ -11,6 +11,8 @@ interpretation, pagination, errors, and reproducibility.
 Indicator and measure discovery (#53), bounded county observation queries
 (#54), and source/methodology metadata (#55) read governed current-release views.
 Geography retains its documented 503 until its owning story is delivered.
+The [county geography contract](docs/county-geography-contract.md) distinguishes
+stable FIPS identity, existing SVI display geometry, and internal TIGER analysis geometry.
 
 ```powershell
 uv sync --extra dev

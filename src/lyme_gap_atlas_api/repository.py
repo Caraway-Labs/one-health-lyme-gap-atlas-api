@@ -109,6 +109,8 @@ class SnowflakeAtlasRepository:
 
     @staticmethod
     def _county(row: tuple[Any, ...]) -> CountyRecord:
+        # CURRENT_COUNTY_ATLAS_V.GEOMETRY_JSON is SVI display geometry.
+        # Do not substitute the internal TIGER analysis geometry projection.
         return CountyRecord(
             release_id=row[0],
             fips=row[1],

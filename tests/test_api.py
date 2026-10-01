@@ -196,7 +196,8 @@ def test_chat_runtime_log_only_exposes_bounded_model_identifier(capsys: Any) -> 
     create_app(FakeRepository(), settings)
     output = capsys.readouterr().err
     events = [
-        row["context"] for row in (json.loads(line) for line in output.splitlines())
+        row["context"]
+        for row in (json.loads(line) for line in output.splitlines())
         if row.get("message") == "knowledge_chat_runtime_configuration"
     ]
     assert len(events) == 1
@@ -320,6 +321,49 @@ def test_scores_geometry_detail_and_csv() -> None:
     assert api.get("/v1/atlas/geometry").headers["cache-control"].endswith("immutable")
     assert api.get("/v1/counties/08001").json()["release"]["sources"][0]["key"] == "human"
     assert "Adams" in api.get("/v1/atlas/ranking.csv?state=CO").text
+
+
+def test_display_geometry_payload_and_conditional_cache_remain_compatible() -> None:
+    api = client()
+    response = api.get("/v1/atlas/geometry?dataset_version=alpha-2026-08-06")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/geo+json"
+    assert response.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert response.json() == {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "id": "08001",
+                "properties": {"fips": "08001"},
+                "geometry": {"type": "Polygon", "coordinates": []},
+            }
+        ],
+    }
+    cached = api.get("/v1/atlas/geometry", headers={"If-None-Match": response.headers["etag"]})
+    assert cached.status_code == 304
+    assert api.get("/v1/atlas/geometry?dataset_version=unknown").status_code == 404
+
+
+def test_display_coordinates_are_preserved_independently_of_analysis_geometry() -> None:
+    display = {"type": "Polygon", "coordinates": [[[-105, 39], [-104, 39], [-104, 40], [-105, 39]]]}
+    analysis = {
+        "type": "Polygon",
+        "coordinates": [[[-105.01, 39], [-104, 39], [-104, 40.01], [-105.01, 39]]],
+    }
+    snapshot = FakeRepository().load_snapshot()
+    snapshot.counties[0] = snapshot.counties[0].model_copy(update={"geometry": display})
+
+    class GeometryRepository(FakeRepository):
+        analysis_geometry = analysis
+
+        def load_snapshot(self) -> Snapshot:
+            return snapshot
+
+    payload = AtlasService(GeometryRepository()).geometry()
+    assert payload["features"][0]["geometry"] == display
+    assert payload["features"][0]["geometry"] != analysis
+    assert payload["features"][0]["id"] == "08001"
 
 
 def test_atlas_application_service_uses_shared_domain_without_http() -> None:
