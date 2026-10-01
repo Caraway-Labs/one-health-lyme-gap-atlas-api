@@ -23,7 +23,13 @@ from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from lyme_gap_atlas_shared.snowflake import connect
 from neo4j import GraphDatabase, Query
-from neo4j.exceptions import AuthError, ConfigurationError, ServiceUnavailable, SessionExpired
+from neo4j.exceptions import (
+    AuthError,
+    ConfigurationError,
+    ConnectionAcquisitionTimeoutError,
+    ServiceUnavailable,
+    SessionExpired,
+)
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 from opentelemetry import trace
 
@@ -406,19 +412,28 @@ def _neo4j_failure_category(error: BaseException) -> str:
     """Classify bounded exception chains without copying messages or addresses."""
     chain: list[BaseException] = []
     seen: set[int] = set()
-    current: BaseException | None = error
-    while current is not None and id(current) not in seen and len(chain) < 8:
+    pending: list[BaseException] = [error]
+    while pending and len(chain) < 8:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
         chain.append(current)
         seen.add(id(current))
-        current = current.__cause__ or (
-            None if current.__suppress_context__ else current.__context__
-        )
+        # Driver `raise ... from None` suppresses text display, not type evidence.
+        # Inspect types only; never format any exception or traceback.
+        if current.__context__ is not None:
+            pending.append(current.__context__)
+        if current.__cause__ is not None:
+            pending.append(current.__cause__)
+        if isinstance(current, BaseExceptionGroup):
+            pending.extend(reversed(current.exceptions[:8]))
     for exception_type, category in (
         (AuthError, "authentication"),
         (ConfigurationError, "configuration"),
         (ssl.SSLError, "tls"),
         (socket.gaierror, "dns"),
         (TimeoutError, "timeout"),
+        (ConnectionAcquisitionTimeoutError, "timeout"),
         (ConnectionRefusedError, "connection_refused"),
         (ServiceUnavailable, "service_unavailable"),
         (SessionExpired, "session_expired"),
