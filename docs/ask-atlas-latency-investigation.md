@@ -12,7 +12,7 @@ Neo4j retrieval and local grounding validation are much smaller in these samples
 One matched original question returned in **21.98s after reuse versus 31.27s
 before**, but embedding, generation and database stages all changed. The entire
 9.29s difference cannot be credited to connection reuse. The original follow-up
-took 20.07s. Three successes and one earlier failure do not establish p95,
+took 20.07s. Three successes and two distinct failure classes do not establish p95,
 capacity, a cold-start effect or sustained speedup.
 
 The reuse story [#125](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-api/issues/125)
@@ -140,6 +140,26 @@ request's time between attempts or infer a configured edge timeout from the
 observed boundary alone. [Prompt repair #122](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-api/pull/122)
 preceded A/B; all three successes validated on the first attempt.
 
+A later, separately owned QA request is a different failure class, D:
+
+| D boundary/stage | Milliseconds |
+| --- | ---: |
+| Client edge 504 | 3,148 |
+| API boundary, backend typed 503 | 3,012 |
+| Service | 3,005 |
+| Safety classification | 1 |
+| Neo4j readiness failure | 3,003 |
+| Service residual / API minus service / client minus API | 1 / 7 / 136 |
+
+D's outcome is `retrieval_dependency_unavailable`, generation attempts zero,
+validation not run. It failed before embedding, retrieval and generation; there
+is no provider response record. It is not part of a successful-latency average or
+evidence that LLM execution is slow. Operator-side graph/index health does not
+prove the API-to-Neo4j path works. The QA owner owns connectivity diagnosis and
+the new bug; this report attributes the observed failure stage without duplicating
+that investigation. The backend/edge status difference remains a boundary fact,
+not proof of an edge timeout setting or of the connectivity cause.
+
 The nominal 28s service deadline is checked before generation, and generation
 is limited by the remaining budget less a 5s post-generation reserve. It is not
 a hard end-to-end deadline on post-generation database work. Provenance plus
@@ -194,10 +214,12 @@ SHA256 receipts remain in the isolated local evidence workspace. Question,
 history, conversation capability, request/provider/query/session IDs, internal
 addresses and full logs are not included in this report or its JSON.
 
-The refreshed bounded runtime tail contained no Ask Atlas stage/provider records,
-so it contributes no new chat sample. Existing authorized QA evidence is reused;
-no request was made for this investigation wave and no QA-batch budget was used.
-Additional batch receipts were not available in the inspected artifact locations.
+The initial refreshed runtime tail contained no Ask Atlas stage/provider records.
+A later bounded tail privately correlates the QA owner's already executed D
+request to two stage records and its total. Existing authorized QA evidence is
+reused; no request was made for this investigation wave and no QA-batch budget
+was used. Additional successful batch receipts were not available in the
+inspected artifact locations.
 Missing referenced parent-workspace guidance/ADRs were recorded; available repo
 instructions, README and deployment guidance were followed.
 

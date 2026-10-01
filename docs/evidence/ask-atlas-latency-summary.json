@@ -237,11 +237,33 @@
     "attempt_spans_available": false
   },
   "limits": [
-    "Three successful observations and one earlier failure; no p95, capacity, proven cold/warm classification or causal/sustained reuse speedup.",
+    "Three successful observations and two distinct failure classes; no p95, capacity, proven cold/warm classification or causal/sustained reuse speedup.",
     "Nested connector spans must not be added to enclosing stage totals.",
     "Connector execute includes client/transport and is not server execution time.",
     "Provider usage/cost/tier not available; second paid canary held.",
     "Stored-row readback, capability-bearing follow-up and browser restoration not independently verified.",
-    "Current bounded telemetry contained no chat/provider records; no new requests or QA-batch spending for this wave."
-  ]
+    "Initial bounded telemetry contained no chat/provider records; later existing QA failure D was correlated without new requests or QA-batch spending."
+  ],
+  "new_qa_failure": {
+    "label": "D",
+    "client_http_status": 504,
+    "client_ms": 3148,
+    "backend_http_status": 503,
+    "api_ms": 3012,
+    "service_ms": 3005,
+    "stages_ms": {
+      "safety_classification": 1,
+      "neo4j_readiness": 3003
+    },
+    "service_residual_ms": 1,
+    "api_minus_service_ms": 7,
+    "client_minus_api_ms": 136,
+    "outcome": "retrieval_dependency_unavailable",
+    "generation_attempts": 0,
+    "validation_outcome": "not_run",
+    "provider_response_records": 0,
+    "excluded_from_successful_latency_comparisons": true,
+    "connectivity_diagnosis_owner": "existing QA work; not duplicated here",
+    "operator_graph_health_proves_api_path": false
+  }
 }
