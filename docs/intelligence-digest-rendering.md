@@ -11,7 +11,9 @@ resolver must read the approved immutable artifact store; there is no default
 resolver or live storage composition. These prerequisites authorize neither
 subscriber consent nor delivery. A missing artifact, resolver failure or binding
 mismatch fails closed. Resolver failures have finite diagnostics without the raw
-exception chain. Validation is repeated even for an existing Pydantic instance,
+exception chain. Prerequisite/artifact validation errors likewise raise outside
+their handlers, retaining neither rejected input nor a raw validation exception
+in their context/cause or logged traceback. Validation is repeated even for an existing Pydantic instance,
 because `model_copy` can bypass validation.
 
 The immutable `RenderedDigest` contains a fixed subject, plain text and escaped
@@ -31,6 +33,8 @@ The window remains explicitly based on capture retrieval time. Unknown publisher
 dates stay unknown. No clinical summary, geography inference, trust weighting or
 Atlas deep link is invented. Empty and truncated artifacts retain the fixed
 non-alert notice, window, scope, counts and limitations.
+An artifact with no ranked items distinguishes zero matches from all matching
+publications omitted; it never labels omitted matches as absent.
 
 All publisher text and URLs are escaped for HTML text and attributes. Links use
 the accepted #90 HTTPS canonical-URL validation. There are no images, remote

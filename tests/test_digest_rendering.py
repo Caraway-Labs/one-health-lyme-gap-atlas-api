@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import FrozenInstanceError
 from typing import Any
 
@@ -167,3 +168,43 @@ def test_item_count_limit_precedes_rendering() -> None:
     oversized = artifact.model_copy(update={"ranked_items": artifact.ranked_items * 101})
     with pytest.raises(DigestRenderError, match="BOUND_EXCEEDED"):
         render(oversized)
+
+
+@pytest.mark.parametrize("boundary", ["prerequisites", "artifact"])
+def test_validation_errors_have_no_rejected_input_chain_or_logged_output(
+    boundary: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    artifact = generate([])
+    required = prerequisites(artifact)
+    marker = "PRIVATE_REJECTED_INPUT_93812"
+    if boundary == "prerequisites":
+        required = required.model_copy(update={"preference_revision": f"<{marker}>"})
+        expected = "DIGEST_RENDER_PREREQUISITES_INVALID"
+    else:
+        artifact = artifact.model_copy(update={"notice": marker})
+        expected = "DIGEST_RENDER_ARTIFACT_INVALID"
+    renderer = DigestRenderer(resolve_artifact=lambda required: artifact)
+    with caplog.at_level(logging.ERROR):
+        try:
+            renderer.render(required)
+        except DigestRenderError as error:
+            assert str(error) == expected
+            assert error.__context__ is None and error.__cause__ is None
+            logging.getLogger(__name__).exception("Offline digest validation failed")
+        else:
+            pytest.fail("invalid input was accepted")
+    assert expected in caplog.text
+    assert marker not in caplog.text
+    assert "ValidationError" not in caplog.text
+
+
+def test_all_matches_omitted_is_distinct_from_no_matches_in_both_bodies() -> None:
+    artifact = generate([document()]).model_copy(
+        update={"ranked_items": (), "matching_publications": 1, "omitted_publications": 1}
+    )
+    message = render(artifact)
+    for body in (message.text, message.html):
+        assert "Matching publications: 1; omitted: 1" in body
+        assert "All matching publications were omitted from this frozen artifact." in body
+        assert "No matching items" not in body

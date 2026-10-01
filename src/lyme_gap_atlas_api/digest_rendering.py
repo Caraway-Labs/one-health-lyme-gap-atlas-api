@@ -59,12 +59,15 @@ class DigestRenderer:
         self._resolve = resolve_artifact
 
     def render(self, prerequisites: DigestRenderPrerequisites) -> RenderedDigest:
+        invalid = False
         try:
             prerequisites = DigestRenderPrerequisites.model_validate(
                 prerequisites.model_dump(mode="json")
             )
         except (ValidationError, TypeError, AttributeError):
-            raise DigestRenderError("DIGEST_RENDER_PREREQUISITES_INVALID") from None
+            invalid = True
+        if invalid:
+            raise DigestRenderError("DIGEST_RENDER_PREREQUISITES_INVALID")
         failed = False
         try:
             artifact = self._resolve(prerequisites)
@@ -85,7 +88,9 @@ class DigestRenderer:
                 raise DigestRenderError("DIGEST_RENDER_BOUND_EXCEEDED")
             artifact = BriefingArtifact.model_validate(artifact.model_dump(mode="json"))
         except (ValidationError, TypeError, AttributeError):
-            raise DigestRenderError("DIGEST_RENDER_ARTIFACT_INVALID") from None
+            invalid = True
+        if invalid:
+            raise DigestRenderError("DIGEST_RENDER_ARTIFACT_INVALID")
         if any(
             getattr(artifact, field) != getattr(prerequisites, field)
             for field in ("artifact_id", "input_sha256", "preference_revision", "digest_version")
@@ -114,7 +119,11 @@ class DigestRenderer:
         html = ['<!doctype html><html lang="en"><body>']
         html.extend(f"<p>{escape(line, quote=True)}</p>" for line in lines)
         if not artifact.ranked_items:
-            lines.append("No matching items in this frozen capture window.")
+            lines.append(
+                "No matching items in this frozen capture window."
+                if artifact.matching_publications == 0
+                else "All matching publications were omitted from this frozen artifact."
+            )
             html.append(f"<p>{escape(lines[-1])}</p>")
         for rank, row in enumerate(artifact.ranked_items, 1):
             if row.rank != rank or not row.evidence:
