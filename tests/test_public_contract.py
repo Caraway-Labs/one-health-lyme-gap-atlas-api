@@ -116,6 +116,20 @@ def test_typed_geography_and_value_states() -> None:
         "evidence": {"resource_type": "observation", "resource_id": "o1"},
     }
     assert Observation.model_validate(payload).value_state == ValueState.ZERO
+    # Synthetic contract evidence only: analytical provenance fits existing fields
+    # without granting a public polygon surface or implying warehouse publication.
+    analytical = Observation.model_validate(
+        {
+            **payload,
+            "methodology_version": "atlas-county-analysis-geometry/1",
+            "methodology": "atlas-grid-county-area-weight/1",
+            "limitations": ["Frozen 2025 boundaries; no historical boundary reconstruction."],
+        }
+    ).model_dump()
+    assert analytical["geography"] == payload["geography"]
+    assert analytical["methodology_version"] == "atlas-county-analysis-geometry/1"
+    assert analytical["provenance_ref"] == "trace"
+    assert not {"geometry", "analysis_geometry", "display_geometry"} & analytical.keys()
     with pytest.raises(ValidationError):
         Observation.model_validate({**payload, "value_state": "OBSERVED"})
     with pytest.raises(ValidationError):

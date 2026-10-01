@@ -45,6 +45,11 @@ class AtlasService:
         return snapshot.metadata
 
     def geometry(self, dataset_version: str | None = None) -> dict[str, Any]:
+        """Return only governed SVI display GeoJSON, joined by canonical county FIPS.
+
+        Analytical TIGER polygons belong to raster aggregation, never this resource.
+        Keep the legacy GeoJSON shape and original display coordinates unchanged.
+        """
         snapshot = self.snapshot()
         self._require_version(snapshot, dataset_version)
         return {
