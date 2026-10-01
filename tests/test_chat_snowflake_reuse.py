@@ -50,6 +50,7 @@ class Connection:
         self.closed = False
         self.commits = 0
         self.rollbacks = 0
+        self._session_parameters: dict[str, Any] = {}
         self.calls: list[tuple[str, Any]] = []
 
     def __enter__(self) -> "Connection":
@@ -304,3 +305,88 @@ def test_copied_context_cannot_share_connection_with_another_thread(monkeypatch:
             with pytest.raises(RuntimeError, match="worker threads"):
                 future.result(timeout=5)
     assert connection.closed
+
+@pytest.mark.parametrize("autocommit", [None, False, True])
+@pytest.mark.parametrize("fails", [False, True])
+def test_effective_autocommit_matches_connector_exit(
+    monkeypatch: Any, autocommit: bool | None, fails: bool
+) -> None:
+    settings = ApiSettings()
+    connection = Connection()
+    if autocommit is not None:
+        connection._session_parameters["AUTOCOMMIT"] = autocommit
+    monkeypatch.setattr(chat, "connect", lambda settings: connection)
+    original = RuntimeError("operation failed")
+    with chat._request_snowflake_session(settings):
+        if fails:
+            with pytest.raises(RuntimeError) as caught, chat._chat_snowflake_connection(settings):
+                raise original
+            assert caught.value is original
+        else:
+            with chat._chat_snowflake_connection(settings):
+                pass
+    assert connection.commits == int(not fails and autocommit is not True)
+    assert connection.rollbacks == int(fails and autocommit is not True)
+    assert connection.closed
+    assert chat._SNOWFLAKE_SESSION.get() is None
+
+
+@pytest.mark.parametrize("transaction", ["commit", "rollback"])
+def test_transaction_failure_still_closes_and_resets(
+    monkeypatch: Any, transaction: str
+) -> None:
+    settings = ApiSettings()
+    connection = Connection()
+    failure = RuntimeError("transaction failed")
+
+    def fail() -> None:
+        raise failure
+
+    monkeypatch.setattr(connection, transaction, fail)
+    monkeypatch.setattr(chat, "connect", lambda settings: connection)
+    with (
+        pytest.raises(RuntimeError) as caught,
+        chat._request_snowflake_session(settings),
+        chat._chat_snowflake_connection(settings),
+    ):
+        if transaction == "rollback":
+            raise ValueError("operation failed")
+    assert caught.value is failure  # Connector baseline propagates transaction failure.
+    assert connection.closed
+    assert chat._SNOWFLAKE_SESSION.get() is None
+
+
+@pytest.mark.parametrize("failure_stage", ["transport", "binding"])
+def test_locked_cursor_failed_second_execute_does_not_log_stale_query(
+    monkeypatch: Any, caplog: Any, failure_stage: str
+) -> None:
+    import logging
+    from unittest.mock import MagicMock
+
+    from snowflake.connector.cursor import SnowflakeCursor
+
+    caplog.set_level(logging.INFO, logger=chat.__name__)
+    connection = MagicMock()
+    connection.is_closed.return_value = False
+    connection.is_pyformat = False
+    connection.log_max_query_length = 1000
+    cursor = SnowflakeCursor(connection)
+    failure = RuntimeError("private transport or binding failure")
+    monkeypatch.setattr(cursor, "_init_result_and_meta", lambda data: None)
+    helper = MagicMock(return_value={"success": True, "data": {"queryId": "first-call"}})
+    monkeypatch.setattr(cursor, "_execute_helper", helper)
+    chat._snowflake_execute(cursor, "CALL FIRST(?)", ("private",), "persist_user")
+    assert cursor.sfqid == "first-call"
+    if failure_stage == "transport":
+        helper.side_effect = failure
+    else:
+        connection._process_params_qmarks.side_effect = failure
+    with pytest.raises(RuntimeError) as caught:
+        chat._snowflake_execute(cursor, "CALL SECOND(?)", ("private",), "persist_assistant")
+    assert caught.value is failure
+    assert cursor.sfqid == "first-call"  # Real connector reset retains this old ID.
+    records = [r.context for r in caplog.records if r.msg == "knowledge_chat_snowflake_operation"]
+    assert records[0]["query_id"] == "first-call"
+    assert records[-1]["query_id"] is None
+    assert records[-1]["outcome"] == "failure"
+    assert "private transport" not in caplog.text

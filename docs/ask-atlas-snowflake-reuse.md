@@ -18,9 +18,10 @@ by another worker. A closed connection fails rather than reconnecting and
 replaying an uncertain budget reservation or write. The maximum is one live
 reused connection per active chat request; existing request/worker limits apply.
 
-The shared connection factory does not set AUTOCOMMIT in session parameters.
-Its connector context therefore commits/rolls back at adapter exit. Reuse
-preserves those operation boundaries explicitly while moving only physical
+Login can update effective AUTOCOMMIT session parameters. Reuse mirrors the
+locked connector's exit decision: commit/rollback only when AUTOCOMMIT is
+absent or false, using the effective connection parameters at adapter exit.
+This preserves those operation boundaries while moving only physical
 close to request teardown. No SQL/schema/transaction policy change or parallel
 Snowflake statement execution is intended. Partial-turn failure stays fail-closed
 and is not retried automatically.

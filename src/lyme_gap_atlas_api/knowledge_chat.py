@@ -71,7 +71,9 @@ _SNOWFLAKE_SESSION: ContextVar[_RequestSnowflakeSession | None] = ContextVar(
 
 
 @contextmanager
-def _snowflake_timing(operation: str, cursor: Any = None) -> Iterator[None]:
+def _snowflake_timing(
+    operation: str, cursor: Any = None, *, query_on_failure: bool = True
+) -> Iterator[None]:
     """Nested dependency details, deliberately excluded from additive stage totals."""
     started = time.perf_counter()
     outcome = "success"
@@ -90,7 +92,11 @@ def _snowflake_timing(operation: str, cursor: Any = None) -> Iterator[None]:
                     "operation": operation,
                     "duration_ms": round((time.perf_counter() - started) * 1000),
                     "outcome": outcome,
-                    "query_id": _safe_identifier(getattr(cursor, "sfqid", None)),
+                    "query_id": (
+                        _safe_identifier(getattr(cursor, "sfqid", None))
+                        if outcome == "success" or query_on_failure
+                        else None
+                    ),
                 }
             },
         )
@@ -117,18 +123,19 @@ def _chat_snowflake_connection(settings: SnowflakeSettings) -> Iterator[Any]:
     session = _SNOWFLAKE_SESSION.get()
     if session is not None and session.settings is settings:
         connection = session.get()
-        # The shared connector does not set AUTOCOMMIT in session_parameters.
-        # Its connection context commits/rolls back each adapter operation.
-        # Keep those boundaries while moving only close to request teardown.
+        # Match the locked connector's __exit__ decision using effective session
+        # parameters (login can update them), while deferring close to teardown.
         try:
             yield connection
         except BaseException:
-            with _snowflake_timing("transaction_rollback"):
-                connection.rollback()
+            if not connection._session_parameters.get("AUTOCOMMIT", False):
+                with _snowflake_timing("transaction_rollback"):
+                    connection.rollback()
             raise
         else:
-            with _snowflake_timing("transaction_commit"):
-                connection.commit()
+            if not connection._session_parameters.get("AUTOCOMMIT", False):
+                with _snowflake_timing("transaction_commit"):
+                    connection.commit()
     else:
         # Standalone adapters and injected test stores retain their original lifecycle.
         with connect(settings) as connection:
@@ -136,7 +143,9 @@ def _chat_snowflake_connection(settings: SnowflakeSettings) -> Iterator[Any]:
 
 
 def _snowflake_execute(cursor: Any, sql: str, params: tuple[Any, ...], operation: str) -> None:
-    with _snowflake_timing(f"{operation}.execute", cursor):
+    # Failed execute may leave sfqid from the previous CALL on a reused cursor.
+    # Omit attribution on failure rather than mutate SDK cursor state.
+    with _snowflake_timing(f"{operation}.execute", cursor, query_on_failure=False):
         cursor.execute(sql, params)
 
 
