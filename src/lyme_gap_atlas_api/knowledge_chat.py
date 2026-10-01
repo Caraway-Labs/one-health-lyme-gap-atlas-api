@@ -498,6 +498,11 @@ _CLAIM_GROUNDING_INSTRUCTIONS = (
     "Set support_quotes to an object keyed by each cited passage ID, for example "
     '{"passage-1": "verbatim words from that passage excerpt"}; use the exact IDs in '
     "passage_ids as keys, with no other keys. "
+    "Every claim, including a claim about a study limitation, must have at least one returned "
+    "passage ID, its matching PMID, and an exact support quote from that passage. Never add "
+    "a claim with empty passage_ids, pmids, or support_quotes; omit any finding or limitation "
+    "that the supplied excerpts do not explicitly support. Do not add an uncited concluding "
+    "claim or a placeholder claim to answer every part of the question. "
     "Only then write one short, atomic claim about a finding explicitly present in those quotes. "
     "Use a close extractive paraphrase: preserve the source's important scientific nouns, "
     "entities, verbs, relationships, and material species, geography, population, and outcome "

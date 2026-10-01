@@ -11,7 +11,9 @@ from lyme_gap_atlas_api.knowledge_chat import (
     Evidence,
     KnowledgeChatService,
     OpenAIAnswerer,
+    _shape_diagnostics,
     _validate_claim_text,
+    _validate_grounding,
 )
 from lyme_gap_atlas_api.models import KnowledgeChatRequest
 
@@ -83,6 +85,9 @@ def test_first_and_corrective_attempts_share_quote_first_claim_rules() -> None:
         assert "then select an exact verbatim excerpt substring" in instructions
         assert 'support_quotes to an object keyed by each cited passage ID' in instructions
         assert '{"passage-1": "verbatim words from that passage excerpt"}' in instructions
+        assert "Every claim, including a claim about a study limitation" in instructions
+        assert "Never add a claim with empty passage_ids, pmids, or support_quotes" in instructions
+        assert "omit any finding or limitation" in instructions
         assert "Only then write one short, atomic claim" in instructions
         assert "close extractive paraphrase" in instructions
         assert "preserve the source's important scientific nouns" in instructions
@@ -159,6 +164,26 @@ def test_existing_close_paraphrase_still_passes() -> None:
     _validate_claim_text(
         "Ixodes abundance was linked to Borrelia prevalence in Germany.", [EXCERPT]
     )
+
+
+def test_redacted_bologna_failure_shape_remains_rejected() -> None:
+    candidate = generated_claim()
+    candidate["claims"].append({**candidate["claims"][0], "claim_id": "claim-2"})
+    candidate["claims"].append(
+        {
+            "claim_id": "claim-3",
+            "text": "A limitation without passage support.",
+            "passage_ids": [],
+            "pmids": [],
+            "support_quotes": {},
+        }
+    )
+    shape = _shape_diagnostics(candidate, EVIDENCE)
+    assert shape["claim_count"] == 3
+    assert shape["claim_shapes"][2]["passage_id_count"] == 0
+    assert shape["claim_shapes"][2]["support_quote_count"] == 0
+    with pytest.raises(ValueError, match="unsupported passage citation"):
+        _validate_grounding(candidate, EVIDENCE)
 
 
 @pytest.mark.parametrize(
