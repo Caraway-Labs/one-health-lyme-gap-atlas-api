@@ -25,7 +25,7 @@ CALL () {
  CALL db.index.vector.queryNodes('evidence_passage_summary',20,probe.embedding)
  YIELD node AS hit,score
  OPTIONAL MATCH (joined:Paper {id:hit.paper_id})
- RETURN count(hit) AS raw_vector_hits,count(joined) AS joined_rows,
+ RETURN count(DISTINCT hit) AS raw_vector_hits,count(joined) AS joined_rows,
  count(CASE WHEN joined IS NULL THEN 1 END) AS unmatched_hits,
  count(DISTINCT joined.pmid) AS joined_unique_pmids
 }

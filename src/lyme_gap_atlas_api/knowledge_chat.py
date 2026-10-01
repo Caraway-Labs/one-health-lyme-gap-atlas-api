@@ -458,12 +458,22 @@ class Neo4jRetriever:
         )
         self._openai = openai
         # Diagnostics must not gate App Platform startup or health readiness.
-        Thread(
-            target=log_serving_graph_probe,
-            args=(self._driver, _neo4j_failure_category),
-            name="neo4j-serving-probe",
-            daemon=True,
-        ).start()
+        try:
+            Thread(
+                target=log_serving_graph_probe,
+                args=(self._driver, _neo4j_failure_category),
+                name="neo4j-serving-probe",
+                daemon=True,
+            ).start()
+        except Exception as error:
+            logger.warning(
+                "knowledge_chat_serving_graph_probe",
+                extra={"context": {
+                    "probe": "startup", "database": "neo4j", "outcome": "failure",
+                    "error_category": _neo4j_failure_category(error),
+                }},
+                exc_info=False,
+            )
 
     def ready(self) -> bool:
         try:

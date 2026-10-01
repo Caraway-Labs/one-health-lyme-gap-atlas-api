@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+import pytest
 from neo4j import READ_ACCESS
 
 from lyme_gap_atlas_api.knowledge_chat import _neo4j_failure_category
@@ -110,6 +111,21 @@ def test_probe_query_contains_no_generation_or_paper_filter() -> None:
     assert "OPTIONAL MATCH (joined:Paper" in COUNTS_QUERY
     assert "pmid IN" not in COUNTS_QUERY
     assert "CREATE" not in COUNTS_QUERY
+    assert "count(DISTINCT hit) AS raw_vector_hits,count(joined) AS joined_rows" in COUNTS_QUERY
+
+
+def test_duplicate_paper_join_fanout_is_not_normalized_away(caplog: Any) -> None:
+    class FanoutDriver(Driver):
+        def run(self, query: Any) -> Any:
+            rows = super().run(query)
+            if str(query) == COUNTS_QUERY:
+                rows[0].row.update(raw_vector_hits=20, joined_rows=21, joined_unique_pmids=20)
+            return rows
+
+    with caplog.at_level(logging.INFO):
+        log_serving_graph_probe(FanoutDriver(), _neo4j_failure_category)  # type: ignore[arg-type]
+    counts = [r.context for r in caplog.records if r.context["probe"] == "counts"][0]
+    assert counts["raw_vector_hits"] == 20 and counts["joined_rows"] == 21
 
 
 def test_retriever_constructor_runs_probe_once(monkeypatch: Any) -> None:
@@ -131,3 +147,28 @@ def test_retriever_constructor_runs_probe_once(monkeypatch: Any) -> None:
     monkeypatch.setattr(chat, "Thread", Thread)
     chat.Neo4jRetriever("bolt://unused", "unused", SECRET, None)  # type: ignore[arg-type]
     assert len(calls) == 1 and calls[0][0] is driver
+
+
+@pytest.mark.parametrize("fail_during", ["construction", "start"])
+def test_diagnostic_thread_failure_never_blocks_constructor(
+    monkeypatch: Any, caplog: Any, fail_during: str
+) -> None:
+    import lyme_gap_atlas_api.knowledge_chat as chat
+
+    driver = object()
+    monkeypatch.setattr(chat.GraphDatabase, "driver", lambda *args, **kwargs: driver)
+
+    class FailingThread:
+        def __init__(self, **kwargs: Any) -> None:
+            if fail_during == "construction":
+                raise RuntimeError(SECRET)
+
+        def start(self) -> None:
+            raise RuntimeError(SECRET)
+
+    monkeypatch.setattr(chat, "Thread", FailingThread)
+    retriever = chat.Neo4jRetriever("bolt://unused", "unused", SECRET, None)  # type: ignore[arg-type]
+    assert retriever._driver is driver
+    assert caplog.records[-1].context["probe"] == "startup"
+    assert caplog.records[-1].context["error_category"] == "unknown"
+    assert not caplog.records[-1].exc_info and SECRET not in caplog.text
