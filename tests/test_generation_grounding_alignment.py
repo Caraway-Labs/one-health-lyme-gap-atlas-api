@@ -81,6 +81,8 @@ def test_first_and_corrective_attempts_share_quote_first_claim_rules() -> None:
     for instructions in (first, corrective):
         assert "first select returned passage IDs and their matching PMIDs" in instructions
         assert "then select an exact verbatim excerpt substring" in instructions
+        assert 'support_quotes to an object keyed by each cited passage ID' in instructions
+        assert '{"passage-1": "verbatim words from that passage excerpt"}' in instructions
         assert "Only then write one short, atomic claim" in instructions
         assert "close extractive paraphrase" in instructions
         assert "preserve the source's important scientific nouns" in instructions
@@ -107,6 +109,50 @@ def test_quote_first_candidate_answers_in_one_generation_call() -> None:
     assert result.evidence_state == "single_study"
     assert result.citations[0].pmid == "12345678"
     assert len(client.responses.calls) == 1
+
+
+def test_exact_quote_records_from_model_answer_without_retry() -> None:
+    payload = generated_claim()
+    payload["claims"][0]["support_quotes"] = [
+        {"passage_id": "passage-1", "quote": EXCERPT}
+    ]
+
+    class RecordResponses(Responses):
+        def create(self, **kwargs: Any) -> Any:
+            self.calls.append(kwargs)
+            return type("Response", (), {"output_text": json.dumps(payload)})()
+
+    client = Client()
+    client.responses = RecordResponses()
+    service = KnowledgeChatService(
+        Retriever(), OpenAIAnswerer(client), None, "test-secret"  # type: ignore[arg-type]
+    )
+    result = service.chat(
+        KnowledgeChatRequest(message="What did the study find?"), "req-2", "network"
+    )
+
+    assert result.status == "answered"
+    assert result.citations[0].passage_ids == ["passage-1"]
+    assert len(client.responses.calls) == 1
+
+
+@pytest.mark.parametrize(
+    "records",
+    [
+        [],
+        [{"passage_id": "other", "quote": EXCERPT}],
+        [{"passage_id": "passage-1", "quote": EXCERPT}] * 2,
+        [{"passage_id": "passage-1", "quote": "invented"}],
+        [{"passage_id": "passage-1", "quote": EXCERPT, "extra": "x"}],
+    ],
+)
+def test_quote_records_still_require_unique_exact_evidence(records: list[dict[str, str]]) -> None:
+    from lyme_gap_atlas_api.knowledge_chat import _validate_grounding
+
+    payload = generated_claim()
+    payload["claims"][0]["support_quotes"] = records
+    with pytest.raises(ValueError, match="support quote"):
+        _validate_grounding(payload, EVIDENCE)
 
 
 def test_existing_close_paraphrase_still_passes() -> None:
