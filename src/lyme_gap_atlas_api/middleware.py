@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import math
+import re
 import secrets
 import time
 import uuid
@@ -173,27 +174,57 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        request_id = request.headers.get("x-request-id", str(uuid.uuid4()))[:128]
+        supplied_id = request.headers.get("x-request-id", "")
+        request_id = (
+            supplied_id
+            if re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", supplied_id)
+            else str(uuid.uuid4())
+        )
         request.state.request_id = request_id
         started_at = time.perf_counter()
+        chat_route = request.url.path == "/v1/knowledge-graph/chat"
+        failure_type: str | None = None
         try:
             response = await call_next(request)
         except Exception as exc:
-            logger.error(
-                "api_request_failed",
-                extra={
-                    "context": {
+            failure_type = type(exc).__name__
+            if not chat_route:
+                logger.error(
+                    "api_request_failed",
+                    extra={"context": {
                         "request_id": request_id,
                         "method": request.method,
                         "path": _log_route(request),
-                        "failure_type": type(exc).__name__,
-                    }
-                },
-            )
-            raise
+                        "failure_type": failure_type,
+                    }},
+                )
+                raise
+            # Catch before FastAPI's outer OTel middleware can record the raw
+            # exception message/stack. Preserve the existing generic 500 body.
+            response = Response("Internal Server Error", status_code=500)
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
+        if chat_route:
+            diagnostics = getattr(request.state, "knowledge_chat_diagnostics", {})
+            outcome = diagnostics.get("outcome")
+            if failure_type and outcome == "answered":
+                outcome = "response_serialization_failure"
+            if outcome is None:
+                outcome = {
+                    422: "request_validation_failure",
+                    429: "rate_limited",
+                    503: "route_unavailable",
+                }.get(response.status_code, "unhandled_error")
+            logger.info("knowledge_chat_total", extra={"context": {
+                **diagnostics,
+                "request_id": request_id,
+                "http_status": response.status_code,
+                "duration_ms": round((time.perf_counter() - started_at) * 1000),
+                "outcome": outcome,
+                "failure_type": failure_type,
+            }})
+            return response
         logger.info(
             "api_request_completed",
             extra={

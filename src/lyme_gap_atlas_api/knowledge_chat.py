@@ -11,7 +11,8 @@ import secrets
 import time
 import uuid
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Protocol, TypedDict, cast
 
@@ -20,6 +21,7 @@ from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from lyme_gap_atlas_shared.snowflake import connect
 from neo4j import GraphDatabase, Query
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
+from opentelemetry import trace
 
 from .assistant_policy import classify_question, load_assistant_policy
 from .models import (
@@ -33,6 +35,52 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 _POST_GENERATION_RESERVE_SECONDS = 5.0
+_RETRIEVAL_VERSION = "hybrid-fulltext-vector-v1"
+_DIAGNOSTICS: ContextVar[dict[str, Any] | None] = ContextVar(
+    "knowledge_chat_diagnostics", default=None
+)
+_REQUEST_ID: ContextVar[str] = ContextVar("knowledge_chat_request_id", default="unavailable")
+
+
+def _safe_identifier(value: object) -> str | None:
+    """Only emit bounded operational identifiers, never arbitrary provider text."""
+    if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", value):
+        return value
+    return None
+
+
+@contextmanager
+def _span(name: str, request_id: str, **attributes: str | int | bool | None) -> Iterator[None]:
+    """Tracing is optional and exporter failures must not affect answers."""
+    try:
+        span = trace.get_tracer(__name__).start_span(f"knowledge_chat.{name}")
+    except Exception:
+        span = None
+    try:
+        if span is not None:
+            try:
+                span.set_attribute("request.id", request_id)
+                for key, value in attributes.items():
+                    if value is not None:
+                        span.set_attribute(key, value)
+            except Exception:
+                pass
+        try:
+            yield
+        except Exception as exc:
+            if span is not None:
+                with suppress(Exception):
+                    span.set_attribute("stage.outcome", "failure")
+                    span.set_attribute("failure.type", type(exc).__name__)
+            raise
+        else:
+            if span is not None:
+                with suppress(Exception):
+                    span.set_attribute("stage.outcome", "success")
+    finally:
+        if span is not None:
+            with suppress(Exception):
+                span.end()
 
 
 @contextmanager
@@ -40,24 +88,30 @@ def _timed_stage(request_id: str, stage: str) -> Iterator[None]:
     """Record timings without recording user text, evidence, tokens, or model output."""
     started = time.perf_counter()
     error_type: str | None = None
-    try:
-        yield
-    except Exception as exc:
-        error_type = type(exc).__name__
-        raise
-    finally:
-        logger.info(
-            "knowledge_chat_stage",
-            extra={
-                "context": {
-                    "request_id": request_id,
-                    "stage": stage,
-                    "duration_ms": round((time.perf_counter() - started) * 1000),
-                    "outcome": "failure" if error_type else "success",
-                    "error_type": error_type,
-                }
-            },
-        )
+    with _span(stage, request_id):
+        try:
+            yield
+        except Exception as exc:
+            error_type = type(exc).__name__
+            raise
+        finally:
+            diagnostics = _DIAGNOSTICS.get()
+            if diagnostics is not None:
+                diagnostics.setdefault("stage_latencies_ms", {})[stage] = round(
+                    (time.perf_counter() - started) * 1000
+                )
+            logger.info(
+                "knowledge_chat_stage",
+                extra={
+                    "context": {
+                        "request_id": request_id,
+                        "stage": stage,
+                        "duration_ms": round((time.perf_counter() - started) * 1000),
+                        "outcome": "failure" if error_type else "success",
+                        "error_type": error_type,
+                    }
+                },
+            )
 
 
 _GROUNDING_REASONS = {
@@ -78,6 +132,62 @@ _GROUNDING_REASONS = {
 def _grounding_reason(exc: Exception) -> str:
     reason = str(exc)
     return reason if reason in _GROUNDING_REASONS else "invalid_generated_shape"
+
+
+def _shape_diagnostics(candidate: object, evidence: list[Evidence]) -> dict[str, Any]:
+    """Bounded structural counts; IDs and candidate strings never leave this function."""
+    expected = {"answer", "evidence_state", "claims"}
+    if not isinstance(candidate, dict):
+        return {"top_level_type": type(candidate).__name__}
+    claims = candidate.get("claims")
+    available = {item.passage_id: item.pmid for item in evidence}
+    result: dict[str, Any] = {
+        "top_level_type": "object",
+        "expected_fields_present": len(expected & candidate.keys()),
+        "expected_fields_missing": len(expected - candidate.keys()),
+        "claims_type": type(claims).__name__,
+        "claim_count": min(len(claims), 1000) if isinstance(claims, list) else 0,
+    }
+    shapes: list[dict[str, Any]] = []
+    if isinstance(claims, list):
+        for raw in claims[:5]:
+            if not isinstance(raw, dict):
+                shapes.append({"type": type(raw).__name__})
+                continue
+            ids = raw.get("passage_ids")
+            pmids = raw.get("pmids")
+            quotes = raw.get("support_quotes")
+            ids_list = ids if isinstance(ids, list) else []
+            pmids_list = pmids if isinstance(pmids, list) else []
+            quote_ids: list[object] = []
+            if isinstance(quotes, dict):
+                quote_ids = list(quotes)
+            elif isinstance(quotes, list):
+                quote_ids = [item.get("passage_id") for item in quotes if isinstance(item, dict)]
+            cited = {item for item in ids_list if isinstance(item, str)}
+            quoted = {item for item in quote_ids if isinstance(item, str)}
+            shapes.append(
+                {
+                    "passage_id_count": min(len(ids_list), 1000),
+                    "pmid_count": min(len(pmids_list), 1000),
+                    "support_quote_count": min(len(quote_ids), 1000),
+                    "quote_representation": "mapping"
+                    if isinstance(quotes, dict)
+                    else ("record_list" if isinstance(quotes, list) else "other"),
+                    "duplicate_passage_id_count": min(len(ids_list) - len(cited), 1000),
+                    "duplicate_quote_id_count": min(len(quote_ids) - len(quoted), 1000),
+                    "missing_quote_id_count": min(len(cited - quoted), 1000),
+                    "extra_quote_id_count": min(len(quoted - cited), 1000),
+                    "unknown_passage_id_count": min(len(cited - available.keys()), 1000),
+                    "pmid_mismatch": (
+                        set(pmids_list) != {available[item] for item in cited if item in available}
+                        if all(isinstance(item, str) for item in pmids_list)
+                        else True
+                    ),
+                }
+            )
+    result["claim_shapes"] = shapes
+    return result
 
 
 _PUBLIC_COPY = json.loads(asset_path("config", "public-copy-v1.json").read_text(encoding="utf-8"))
@@ -165,6 +275,18 @@ class CorpusProvenanceStore(Protocol):
     def lookup(self, pmids: list[str]) -> dict[str, dict[str, Any]]: ...
 
 
+class EmbeddingFailure(RuntimeError):
+    """Embedding provider failed before retrieval."""
+
+
+class Neo4jQueryFailure(RuntimeError):
+    """Fixed retrieval query failed after embedding."""
+
+
+class AuthorizationDependencyFailure(RuntimeError):
+    """Conversation capability store failed before chat processing."""
+
+
 class Neo4jRetriever:
     """Read-only retriever exposing no arbitrary-Cypher interface."""
 
@@ -188,18 +310,47 @@ class Neo4jRetriever:
         return True
 
     def search(self, message: str, request_id: str) -> list[Evidence]:
-        with _timed_stage(request_id, "embedding"):
-            embedding = (
-                self._openai.with_options(max_retries=0, timeout=5)
-                .embeddings.create(model="text-embedding-3-small", input=message, dimensions=1024)
-                .data[0]
-                .embedding
-            )
-        with _timed_stage(request_id, "neo4j_retrieval"):
-            records, _, _ = self._driver.execute_query(
-                Query(HYBRID_SEARCH, timeout=5),
-                {"query": message, "embedding": embedding},
-                database_="neo4j",
+        try:
+            with _timed_stage(request_id, "embedding"):
+                embedding = (
+                    self._openai.with_options(max_retries=0, timeout=5)
+                    .embeddings.create(
+                        model="text-embedding-3-small", input=message, dimensions=1024
+                    )
+                    .data[0]
+                    .embedding
+                )
+        except Exception as exc:
+            raise EmbeddingFailure from exc
+        started = time.perf_counter()
+        category = "success"
+        records: list[Any] = []
+        try:
+            with _timed_stage(request_id, "neo4j_retrieval"):
+                records, _, _ = self._driver.execute_query(
+                    Query(HYBRID_SEARCH, timeout=5),
+                    {"query": message, "embedding": embedding},
+                    database_="neo4j",
+                )
+        except Exception as exc:
+            category = "neo4j_timeout" if isinstance(exc, TimeoutError) else "neo4j_query_failure"
+            raise Neo4jQueryFailure from exc
+        finally:
+            logger.info(
+                "knowledge_chat_retrieval",
+                extra={
+                    "context": {
+                        "request_id": request_id,
+                        "retrieval_version": _RETRIEVAL_VERSION,
+                        "configuration_version": CONFIGURATION_VERSION,
+                        "requested_top_k": 20,
+                        "candidate_passage_count": len(records),
+                        "unique_paper_count": len({str(row["pmid"]) for row in records}),
+                        "empty": not bool(records),
+                        "duration_ms": round((time.perf_counter() - started) * 1000),
+                        "outcome": category,
+                    }
+                },
             )
         return [
             Evidence(
@@ -344,9 +495,9 @@ _CLAIM_GROUNDING_INSTRUCTIONS = (
     "Build every claim from its support quotes, not the other way around. "
     "For each claim, first select returned passage IDs and their matching PMIDs, then select "
     "an exact verbatim excerpt substring as the support quote for every cited passage. "
-    'Set support_quotes to an object keyed by each cited passage ID, for example '
+    "Set support_quotes to an object keyed by each cited passage ID, for example "
     '{"passage-1": "verbatim words from that passage excerpt"}; use the exact IDs in '
-    'passage_ids as keys, with no other keys. '
+    "passage_ids as keys, with no other keys. "
     "Only then write one short, atomic claim about a finding explicitly present in those quotes. "
     "Use a close extractive paraphrase: preserve the source's important scientific nouns, "
     "entities, verbs, relationships, and material species, geography, population, and outcome "
@@ -417,7 +568,24 @@ class OpenAIAnswerer:
             text={"format": {"type": "json_object"}},
             timeout=timeout_seconds,
         )
-        return cast(dict[str, Any], json.loads(response.output_text))
+        provider_id = _safe_identifier(getattr(response, "_request_id", None))
+        response_id = _safe_identifier(getattr(response, "id", None))
+        logger.info(
+            "knowledge_chat_provider_response",
+            extra={
+                "context": {
+                    "request_id": _REQUEST_ID.get(),
+                    "provider": "openai",
+                    "model_id": _safe_identifier(self._model),
+                    "provider_request_id": provider_id,
+                    "provider_response_id": response_id,
+                    "configuration_version": CONFIGURATION_VERSION,
+                    "outcome": "completed",
+                }
+            },
+        )
+        with _span("generated_json_parsing", _REQUEST_ID.get(), provider_request_id=provider_id):
+            return cast(dict[str, Any], json.loads(response.output_text))
 
 
 def _unsafe_request(message: str) -> bool:
@@ -505,27 +673,53 @@ class KnowledgeChatService:
         return True
 
     def chat(
-        self, request: KnowledgeChatRequest, request_id: str, network_identifier: str
+        self,
+        request: KnowledgeChatRequest,
+        request_id: str,
+        network_identifier: str,
+        completion: dict[str, Any] | None = None,
     ) -> KnowledgeChatResponse:
         started = self._clock()
         outcome = "unhandled_error"
+        diagnostics: dict[str, Any] = {
+            "retrieval_passage_count": 0,
+            "retrieval_paper_count": 0,
+            "generation_attempts": 0,
+            "validation_outcome": "not_run",
+            "stage_latencies_ms": {},
+        }
+        context_token = _DIAGNOSTICS.set(diagnostics)
+        request_token = _REQUEST_ID.set(request_id)
+        result: KnowledgeChatResponse | None = None
         try:
             result, outcome = self._chat_impl(
                 request, request_id, network_identifier, started + self._deadline_seconds
             )
             return result
+        except ValueError:
+            outcome = "invalid_conversation_capability"
+            raise
+        except AuthorizationDependencyFailure:
+            outcome = "authorization_dependency_failure"
+            raise
         finally:
-            logger.info(
-                "knowledge_chat_total",
-                extra={
-                    "context": {
-                        "request_id": request_id,
-                        "stage": "total_request_duration",
-                        "duration_ms": round((self._clock() - started) * 1000),
-                        "outcome": outcome,
-                    }
-                },
-            )
+            _DIAGNOSTICS.reset(context_token)
+            _REQUEST_ID.reset(request_token)
+            context = {
+                "request_id": request_id,
+                "service_duration_ms": round((self._clock() - started) * 1000),
+                "outcome": outcome,
+                "evidence_state": result.evidence_state if result is not None else None,
+                "provider": "openai",
+                "model_id": _safe_identifier(getattr(self._answerer, "model_id", None)),
+                "configuration_version": CONFIGURATION_VERSION,
+                "retrieval_version": _RETRIEVAL_VERSION,
+                **diagnostics,
+            }
+            if completion is None:
+                logger.info("knowledge_chat_total", extra={"context": context})
+            else:
+                completion.update(context)
 
     def _chat_impl(
         self,
@@ -550,12 +744,13 @@ class KnowledgeChatService:
         }
         if bool(request.conversation_id) != bool(request.conversation_token):
             raise ValueError("conversation_id and conversation_token must be provided together")
-        if (
-            request.conversation_id
-            and self._store is not None
-            and not self._store.authorize(conversation_id, self._hash(token))
-        ):
-            raise ValueError("conversation capability is invalid")
+        if request.conversation_id and self._store is not None:
+            try:
+                authorized = self._store.authorize(conversation_id, self._hash(token))
+            except Exception as exc:
+                raise AuthorizationDependencyFailure from exc
+            if not authorized:
+                raise ValueError("conversation capability is invalid")
         safety_id = self._hash(network_identifier)
 
         def unavailable(outcome: str) -> tuple[KnowledgeChatResponse, str]:
@@ -596,6 +791,17 @@ class KnowledgeChatService:
             prior_questions = [turn.content for turn in request.history if turn.role == "user"][-2:]
             contextual_question = "\n".join([*prior_questions, request.message])
             evidence = self._retriever.search(contextual_question, request_id)
+            diagnostics = _DIAGNOSTICS.get()
+            if diagnostics is not None:
+                diagnostics["retrieval_passage_count"] = len(evidence)
+                diagnostics["retrieval_paper_count"] = len({item.pmid for item in evidence})
+        except EmbeddingFailure:
+            return unavailable("embedding_failure")
+        except Neo4jQueryFailure as exc:
+            return unavailable("neo4j_timeout" if isinstance(exc.__cause__, TimeoutError)
+                               else "neo4j_query_failure")
+        except RuntimeError:
+            return unavailable("retrieval_dependency_unavailable")
         except Exception:
             return unavailable("retrieval_failure")
         if not evidence:
@@ -632,6 +838,9 @@ class KnowledgeChatService:
             return unavailable("deadline_exhausted")
 
         for attempt in (1, 2):
+            diagnostics = _DIAGNOSTICS.get()
+            if diagnostics is not None:
+                diagnostics["generation_attempts"] = attempt
             remaining = deadline - self._clock()
             # Reserve time for grounding, provenance, Snowflake persistence,
             # and serialization after the provider call. The production QA
@@ -653,8 +862,22 @@ class KnowledgeChatService:
                     )
             except (APITimeoutError, TimeoutError):
                 return unavailable("generation_timeout")
-            except (APIConnectionError, APIStatusError, OSError):
+            except APIStatusError as exc:
+                logger.warning("knowledge_chat_provider_failure", extra={"context": {
+                    "request_id": request_id,
+                    "provider": "openai",
+                    "model_id": _safe_identifier(getattr(self._answerer, "model_id", None)),
+                    "provider_request_id": _safe_identifier(
+                        getattr(exc, "request_id", None)
+                    ),
+                    "failure_category": "provider_rejection",
+                    "status_code": exc.status_code,
+                }})
+                return unavailable("provider_rejection")
+            except (APIConnectionError, OSError):
                 return unavailable("generation_transport_error")
+            except json.JSONDecodeError:
+                return unavailable("malformed_generated_json")
             except Exception:
                 return unavailable("generation_error")
             try:
@@ -662,6 +885,8 @@ class KnowledgeChatService:
                     claims, citations = _validate_grounding(generated, evidence)
                     evidence_state = _validate_evidence_state(generated, citations)
             except Exception as exc:
+                if diagnostics is not None:
+                    diagnostics["validation_outcome"] = _grounding_reason(exc)
                 logger.info(
                     "knowledge_chat_grounding_rejected",
                     extra={
@@ -670,12 +895,16 @@ class KnowledgeChatService:
                             "attempt": attempt,
                             "reason": _grounding_reason(exc),
                             "error_type": type(exc).__name__,
+                            "shape": _shape_diagnostics(generated, evidence),
+                            "corrective_retry_attempted": attempt == 2,
                         }
                     },
                 )
                 if attempt == 2:
-                    return unavailable("grounding_validation_failed")
+                    return unavailable("corrective_retry_exhausted")
                 continue
+            if diagnostics is not None:
+                diagnostics["validation_outcome"] = "passed"
             try:
                 with _timed_stage(request_id, "provenance_enrichment"):
                     citations = _enrich_citations(citations, self._provenance, request_id)
