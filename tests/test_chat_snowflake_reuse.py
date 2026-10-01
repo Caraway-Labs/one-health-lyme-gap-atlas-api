@@ -276,14 +276,17 @@ def test_cancellation_unwinds_connection_and_request_context(monkeypatch: Any) -
     connection = Connection()
     settings = ApiSettings()
     monkeypatch.setattr(chat, "connect", lambda settings: connection)
-    with pytest.raises(KeyboardInterrupt), chat._request_snowflake_session(settings):
-        with chat._chat_snowflake_connection(settings):
-            raise KeyboardInterrupt
+    with (
+        pytest.raises(KeyboardInterrupt),
+        chat._request_snowflake_session(settings),
+        chat._chat_snowflake_connection(settings),
+    ):
+        raise KeyboardInterrupt
     assert connection.closed and connection.rollbacks == 1
     assert chat._SNOWFLAKE_SESSION.get() is None
 
 
-def test_copied_request_context_cannot_share_connection_with_another_thread(monkeypatch: Any) -> None:
+def test_copied_context_cannot_share_connection_with_another_thread(monkeypatch: Any) -> None:
     connection = Connection()
     settings = ApiSettings()
     monkeypatch.setattr(chat, "connect", lambda settings: connection)
