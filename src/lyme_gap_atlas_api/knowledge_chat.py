@@ -8,6 +8,8 @@ import json
 import logging
 import re
 import secrets
+import socket
+import ssl
 import time
 import uuid
 from collections.abc import Callable, Iterator
@@ -21,6 +23,7 @@ from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from lyme_gap_atlas_shared.snowflake import connect
 from neo4j import GraphDatabase, Query
+from neo4j.exceptions import AuthError, ConfigurationError, ServiceUnavailable, SessionExpired
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 from opentelemetry import trace
 
@@ -399,6 +402,32 @@ class AuthorizationDependencyFailure(RuntimeError):
     """Conversation capability store failed before chat processing."""
 
 
+def _neo4j_failure_category(error: BaseException) -> str:
+    """Classify bounded exception chains without copying messages or addresses."""
+    chain: list[BaseException] = []
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen and len(chain) < 8:
+        chain.append(current)
+        seen.add(id(current))
+        current = current.__cause__ or (
+            None if current.__suppress_context__ else current.__context__
+        )
+    for exception_type, category in (
+        (AuthError, "authentication"),
+        (ConfigurationError, "configuration"),
+        (ssl.SSLError, "tls"),
+        (socket.gaierror, "dns"),
+        (TimeoutError, "timeout"),
+        (ConnectionRefusedError, "connection_refused"),
+        (ServiceUnavailable, "service_unavailable"),
+        (SessionExpired, "session_expired"),
+    ):
+        if any(isinstance(item, exception_type) for item in chain):
+            return category
+    return "unknown"
+
+
 class Neo4jRetriever:
     """Read-only retriever exposing no arbitrary-Cypher interface."""
 
@@ -416,8 +445,17 @@ class Neo4jRetriever:
     def ready(self) -> bool:
         try:
             self._driver.verify_connectivity()
-        except Exception:
-            logger.warning("neo4j_connectivity_unavailable", exc_info=False)
+        except Exception as error:
+            logger.warning(
+                "neo4j_connectivity_unavailable",
+                extra={
+                    "context": {
+                        "request_id": _REQUEST_ID.get(),
+                        "error_category": _neo4j_failure_category(error),
+                    }
+                },
+                exc_info=False,
+            )
             return False
         return True
 
@@ -938,8 +976,11 @@ class KnowledgeChatService:
         except EmbeddingFailure:
             return unavailable("embedding_failure")
         except Neo4jQueryFailure as exc:
-            return unavailable("neo4j_timeout" if isinstance(exc.__cause__, TimeoutError)
-                               else "neo4j_query_failure")
+            return unavailable(
+                "neo4j_timeout"
+                if isinstance(exc.__cause__, TimeoutError)
+                else "neo4j_query_failure"
+            )
         except RuntimeError:
             return unavailable("retrieval_dependency_unavailable")
         except Exception:
@@ -1003,16 +1044,21 @@ class KnowledgeChatService:
             except (APITimeoutError, TimeoutError):
                 return unavailable("generation_timeout")
             except APIStatusError as exc:
-                logger.warning("knowledge_chat_provider_failure", extra={"context": {
-                    "request_id": request_id,
-                    "provider": "openai",
-                    "model_id": _safe_identifier(getattr(self._answerer, "model_id", None)),
-                    "provider_request_id": _safe_identifier(
-                        getattr(exc, "request_id", None)
-                    ),
-                    "failure_category": "provider_rejection",
-                    "status_code": exc.status_code,
-                }})
+                logger.warning(
+                    "knowledge_chat_provider_failure",
+                    extra={
+                        "context": {
+                            "request_id": request_id,
+                            "provider": "openai",
+                            "model_id": _safe_identifier(getattr(self._answerer, "model_id", None)),
+                            "provider_request_id": _safe_identifier(
+                                getattr(exc, "request_id", None)
+                            ),
+                            "failure_category": "provider_rejection",
+                            "status_code": exc.status_code,
+                        }
+                    },
+                )
                 return unavailable("provider_rejection")
             except (APIConnectionError, OSError):
                 return unavailable("generation_transport_error")
