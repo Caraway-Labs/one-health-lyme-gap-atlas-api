@@ -12,6 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
+from lyme_gap_atlas_kg import CONFIGURATION_VERSION
 from lyme_gap_atlas_shared.domain import ScoreSettings
 from lyme_gap_atlas_shared.observability import configure_logging, configure_tracing
 from openai import OpenAI
@@ -46,6 +47,7 @@ from .knowledge_chat import (
     OpenAIAnswerer,
     SnowflakeBudgetStore,
     SnowflakeCorpusProvenanceStore,
+    _safe_identifier,
 )
 from .middleware import (
     FeedbackLimitMiddleware,
@@ -178,6 +180,18 @@ def create_app(
         config.snowflake_database,
         config.presentation_database,
         config.snowflake_presentation_schema,
+    )
+    logger.info(
+        "knowledge_chat_runtime_configuration",
+        extra={
+            "context": {
+                "enabled": config.knowledge_chat_enabled,
+                "provider": "openai",
+                "model_id": _safe_identifier(config.kg_chat_model),
+                "configuration_version": CONFIGURATION_VERSION,
+                "app_version": config.app_version,
+            }
+        },
     )
     feedback_topology_safe = feedback_process_topology_safe()
     if not feedback_topology_safe:
@@ -1064,8 +1078,14 @@ def create_app(
         client = request.headers.get("do-connecting-ip") or (
             request.client.host if request.client else "unknown"
         )
+        request.state.knowledge_chat_diagnostics = {}
         try:
-            result = knowledge_chat_service.chat(payload, request.state.request_id, client)
+            result = knowledge_chat_service.chat(
+                payload,
+                request.state.request_id,
+                client,
+                request.state.knowledge_chat_diagnostics,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         if result.status in {"evidence_unavailable", "capacity_limited"}:

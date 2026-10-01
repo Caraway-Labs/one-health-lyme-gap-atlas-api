@@ -1,4 +1,6 @@
+import json
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -179,6 +181,28 @@ def pdf_client(renderer: FakePdfRenderer) -> TestClient:
 
 def test_neo4j_community_runtime_identity_defaults_to_shared_graph_user() -> None:
     assert ApiSettings().neo4j_runtime_user == "graph_runtime"
+
+
+def test_chat_runtime_log_only_exposes_bounded_model_identifier(capsys: Any) -> None:
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+        knowledge_chat_enabled=False,
+        kg_chat_model="model-secret=value",
+        openai_api_key="private-api-key",
+    )
+    create_app(FakeRepository(), settings)
+    output = capsys.readouterr().err
+    events = [
+        row["context"] for row in (json.loads(line) for line in output.splitlines())
+        if row.get("message") == "knowledge_chat_runtime_configuration"
+    ]
+    assert len(events) == 1
+    assert events[0]["model_id"] is None
+    assert "model-secret=value" not in output
+    assert "private-api-key" not in output
 
 
 class FakeRetriever:
