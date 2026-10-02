@@ -2,6 +2,7 @@
 
 import json
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from opentelemetry import trace
@@ -11,7 +12,11 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 from lyme_gap_atlas_api import dependency_telemetry as telemetry
 from lyme_gap_atlas_api.app import create_app
+from lyme_gap_atlas_api.auth import _ObservedJWKClient
+from lyme_gap_atlas_api.auth_admin import SupabaseAuthAdmin
 from lyme_gap_atlas_api.config import ApiSettings
+from lyme_gap_atlas_api.privacy_requests import SupabasePrivacyRequestStore
+from lyme_gap_atlas_api.profiles import SupabaseProfileStore
 
 SECRET = "private-SQL-body-prompt-credential-198.51.100.10"
 
@@ -48,6 +53,12 @@ class Resource:
 
     def fetchall(self):
         return [(SECRET,)]
+
+    def fetchone(self):
+        return (SECRET,)
+
+    def close(self):
+        return None
 
 
 @pytest.mark.parametrize(
@@ -120,3 +131,78 @@ def test_public_route_dependency_is_child_of_server(spans, monkeypatch):
     dependencies = [s for s in finished if s.name.startswith("atlas.dependency.")]
     assert len([s for s in dependencies if s.name.endswith(".execute")]) == 2
     assert all(s.parent.span_id == root.context.span_id for s in dependencies)
+
+
+@pytest.mark.parametrize(
+    "adapter,operation",
+    [
+        (SupabaseProfileStore, "profile_request"),
+        (SupabasePrivacyRequestStore, "privacy_request"),
+        (SupabaseAuthAdmin, "auth_admin_request"),
+    ],
+)
+@pytest.mark.parametrize("status", [200, 503])
+def test_supabase_boundaries(spans, adapter, operation, status):
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(status, json={"private": SECRET})
+        )
+    )
+    store = adapter(
+        ApiSettings(supabase_url="https://example.invalid", supabase_secret_key="test-placeholder"),
+        client,
+    )
+
+    def run():
+        if adapter is SupabaseAuthAdmin:
+            return store._request("GET", f"https://example.invalid/{SECRET}")
+        return store._request("GET", params={"user_id": SECRET})
+
+    if status == 503:
+        with pytest.raises(RuntimeError):
+            run()
+    else:
+        assert run().json() == {"private": SECRET}
+    dependency = spans.get_finished_spans()[0]
+    assert dependency.attributes["atlas.dependency.operation"] == operation
+    assert dependency.attributes["atlas.dependency.outcome"] == (
+        "success" if status == 200 else "failure"
+    )
+    assert SECRET not in str(dependency.attributes)
+
+
+def test_jwks_refresh_boundary(spans, monkeypatch):
+    monkeypatch.setattr("jwt.PyJWKClient.fetch_data", lambda self: {"private": SECRET})
+    assert _ObservedJWKClient("https://example.invalid").fetch_data() == {"private": SECRET}
+    span = spans.get_finished_spans()[0]
+    assert span.attributes["atlas.dependency.operation"] == "jwks_fetch"
+    assert SECRET not in str(span.attributes)
+
+
+def test_optional_attribute_and_end_failure(monkeypatch):
+    class BrokenSpan(trace.NonRecordingSpan):
+        def set_attribute(self, *args):
+            raise RuntimeError(SECRET)
+
+        def end(self, *args):
+            raise RuntimeError(SECRET)
+
+    class Tracer:
+        def start_span(self, *args, **kwargs):
+            return BrokenSpan(trace.INVALID_SPAN_CONTEXT)
+
+    monkeypatch.setattr(trace, "get_tracer", lambda *args: Tracer())
+    with telemetry.dependency_span("snowflake", "execute"):
+        assert True
+
+
+def test_proxy_preserves_other_sdk_methods(spans, monkeypatch):
+    resource = Resource()
+    resource.version = SECRET
+    monkeypatch.setattr(telemetry, "shared_connect", lambda *args, **kwargs: resource)
+    with telemetry.connect(ApiSettings()) as connection:
+        assert connection.version == SECRET
+        with connection.cursor() as cursor:
+            assert cursor.fetchone() == (SECRET,)
+        connection.close()
+    assert SECRET not in str([s.attributes for s in spans.get_finished_spans()])
