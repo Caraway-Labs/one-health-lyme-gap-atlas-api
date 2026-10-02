@@ -113,7 +113,8 @@ def test_public_route_dependency_is_child_of_server(spans, monkeypatch):
     monkeypatch.setattr(telemetry, "shared_connect", lambda *args, **kwargs: resource)
     client = TestClient(create_app(settings=ApiSettings()))
     response = client.get("/v1/indicators")
-    assert response.status_code == 200
+    # Successful I/O with no admitted metadata retains the existing fail-closed 503.
+    assert response.status_code == 503
     finished = spans.get_finished_spans()
     root = next(s for s in finished if s.kind == trace.SpanKind.SERVER)
     dependencies = [s for s in finished if s.name.startswith("atlas.dependency.")]
