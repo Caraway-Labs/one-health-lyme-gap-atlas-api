@@ -3,7 +3,7 @@
   "info": {
     "title": "One Health Lyme Gap Atlas API",
     "summary": "Governed Atlas analytics, metadata, and provenance",
-    "description": "Read-only structured data from the One Health Lyme Gap Atlas.\nOrdinary public reads are anonymous and require no API key.\n\n## Interpretation and reproducibility\nV1 (`/v1`) is the HTTP contract version; the application version is separate.\nRead source, methodology, semantic/release versions, and limitations together.\nSurveillance floors and gap scores are not diagnoses, individual risk estimates,\nor causal claims. Null, zero, suppressed values, and no linked records have\ndistinct meanings. Response time is not publisher freshness.\n\n## Queries and errors\nCanonical collections use `data`, `meta`, and `links`; details use `data`.\nPagination defaults to 100 items (maximum 500). Send opaque `next_page_token`\nas `page_token` with the same filters; null means exhaustion. Tokens bind to\nquery/release and may expire on restart. Current-release observations require\none measure, 1\u2013500 county FIPS IDs, and a year or complete inclusive date range.\nThe default pre-execution logical-result ceiling is 10,000, not truncation.\nOnly the annual 2023 period is currently published; no strata are supported.\n\nErrors use RFC 9457 `application/problem+json` with `request_id` for support.\nCanonical errors carry stable `code` values; legacy Atlas routes retain their\nexisting error semantics (including 422 validation). Respect `Retry-After` on\n429/503. Canonical metadata/observations cache for 60 seconds; supported detail\nresources return ETags and 304 on matching `If-None-Match`. See each operation\nfor legacy cache and export behavior.\n\n## Contract consumers\nFumadocs is the public human-facing documentation consumer; `/docs` and `/redoc`\nrender this authoritative contract. Existing operation IDs remain stable for\ngenerated clients. Breaking public changes require an approved migration and\ndeprecation plan; optional additive fields may appear within V1.\nOnly separately approved ML outputs may be published. Internal conversational\nAI, literature retrieval, account, and feedback product routes are excluded.\n",
+    "description": "Complete first-party Atlas product contract for existing client generation. External developer documentation must use /public/openapi.json.\n\nRead-only structured data from the One Health Lyme Gap Atlas.\nOrdinary public reads are anonymous and require no API key.\n\n## Interpretation and reproducibility\nV1 (`/v1`) is the HTTP contract version; the application version is separate.\nRead source, methodology, semantic/release versions, and limitations together.\nSurveillance floors and gap scores are not diagnoses, individual risk estimates,\nor causal claims. Null, zero, suppressed values, and no linked records have\ndistinct meanings. Response time is not publisher freshness.\n\n## Queries and errors\nCanonical collections use `data`, `meta`, and `links`; details use `data`.\nPagination defaults to 100 items (maximum 500). Send opaque `next_page_token`\nas `page_token` with the same filters; null means exhaustion. Tokens bind to\nquery/release and may expire on restart. Current-release observations require\none measure, 1\u2013500 county FIPS IDs, and a year or complete inclusive date range.\nThe default pre-execution logical-result ceiling is 10,000, not truncation.\nOnly the annual 2023 period is currently published; no strata are supported.\n\nErrors use RFC 9457 `application/problem+json` with `request_id` for support.\nCanonical errors carry stable `code` values; legacy Atlas routes retain their\nexisting error semantics (including 422 validation). Respect `Retry-After` on\n429/503. Canonical metadata/observations cache for 60 seconds; supported detail\nresources return ETags and 304 on matching `If-None-Match`. See each operation\nfor legacy cache and export behavior.\n\n## Contract consumers\nFumadocs consumes the external `public-openapi.json` at `/public/openapi.json`.\nThe complete first-party `openapi.json`, `/docs`, and `/redoc` remain engineering\nsurfaces for existing product clients. Existing operation IDs remain stable for\ngenerated clients. Breaking public changes require an approved migration and\ndeprecation plan; optional additive fields may appear within V1.\nOnly separately approved ML outputs may be published. Internal conversational\nAI, literature retrieval, account, and feedback product routes are excluded from the external projection.\n",
     "contact": {
       "name": "Caraway Labs",
       "url": "https://carawaylabs.com/"
@@ -2236,6 +2236,586 @@
         }
       }
     },
+    "/health/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Live",
+        "operationId": "live_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Live Health Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Ready",
+        "operationId": "ready_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Ready Health Ready Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/profile": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Get Profile",
+        "operationId": "get_profile_v1_me_profile_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Save Profile",
+        "operationId": "save_profile_v1_me_profile_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserProfileWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/privacy-requests": {
+      "post": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Create Privacy Request",
+        "operationId": "create_privacy_request_v1_me_privacy_requests_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivacyRequestCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacyRequestCreated"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/privacy-requests/{request_id}/confirm": {
+      "post": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Confirm Privacy Request",
+        "operationId": "confirm_privacy_request_v1_me_privacy_requests__request_id__confirm_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivacyRequestConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacyRequestStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/privacy-requests/{request_id}": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Get Privacy Request",
+        "operationId": "get_privacy_request_v1_me_privacy_requests__request_id__get",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacyRequestStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/privacy-requests/{request_id}/export": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Download Privacy Export",
+        "operationId": "download_privacy_export_v1_me_privacy_requests__request_id__export_get",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/atlas/metadata": {
       "get": {
         "tags": [
@@ -3592,6 +4172,193 @@
           }
         }
       }
+    },
+    "/v1/feedback": {
+      "post": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "Submit Feedback",
+        "operationId": "submit_feedback_v1_feedback_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackSubmissionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSubmissionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/v1/knowledge-graph/chat": {
+      "post": {
+        "tags": [
+          "knowledge graph"
+        ],
+        "summary": "Knowledge Graph Chat",
+        "operationId": "knowledge_graph_chat_v1_knowledge_graph_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeChatResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3670,6 +4437,30 @@
           "states"
         ],
         "title": "AtlasMetadata"
+      },
+      "ChatHistoryTurn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatHistoryTurn"
       },
       "CollectionEnvelope_Indicator_": {
         "properties": {
@@ -4155,6 +4946,318 @@
         ],
         "title": "EvidenceReference"
       },
+      "FeedbackContext": {
+        "properties": {
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "county_fips": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{5}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "County Fips"
+          },
+          "compare_county_fips": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{5}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compare County Fips"
+          },
+          "selected_county_fips": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected County Fips"
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9._-]{1,64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset"
+          },
+          "evidence_view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "ecological",
+                  "human",
+                  "complete"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence View"
+          },
+          "explorer_view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tiles",
+                  "multiples",
+                  "matrix",
+                  "ranking",
+                  "maps",
+                  "scatter",
+                  "compare",
+                  "trends"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explorer View"
+          },
+          "explorer_metric": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "score",
+                  "completeness"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explorer Metric"
+          },
+          "ecological_share": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "multipleOf": 5.0,
+                "maximum": 85.0,
+                "minimum": 40.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecological Share"
+          },
+          "low_incidence_breakpoint": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 25.0,
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Incidence Breakpoint"
+          },
+          "missing_human_weakness": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "multipleOf": 5.0,
+                "maximum": 90.0,
+                "minimum": 40.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Human Weakness"
+          },
+          "source_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ids"
+          },
+          "evidence_item_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Item Ids"
+          },
+          "item_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedbackContext",
+        "description": "Closed geography and view context for a feedback submission."
+      },
+      "FeedbackSubmissionRequest": {
+        "properties": {
+          "submission_token": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Submission Token"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "data_issue",
+              "usability",
+              "bug",
+              "feature_idea",
+              "general"
+            ],
+            "title": "Category"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Message"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 254
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "route_id": {
+            "type": "string",
+            "enum": [
+              "overview",
+              "geographic_explorer",
+              "evidence_library",
+              "assistant",
+              "account",
+              "privacy",
+              "ai_ethics"
+            ],
+            "title": "Route Id"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeedbackContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "app_version": {
+            "type": "string",
+            "pattern": "^atlas-web/[A-Za-z0-9._-]{1,32}$",
+            "title": "App Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "submission_token",
+          "category",
+          "message",
+          "route_id",
+          "app_version"
+        ],
+        "title": "FeedbackSubmissionRequest"
+      },
+      "FeedbackSubmissionResponse": {
+        "properties": {
+          "feedback_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Feedback Id"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Received At"
+          },
+          "replayed": {
+            "type": "boolean",
+            "title": "Replayed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "feedback_id",
+          "received_at",
+          "replayed"
+        ],
+        "title": "FeedbackSubmissionResponse"
+      },
       "Geography": {
         "properties": {
           "geography": {
@@ -4209,6 +5312,19 @@
           "state"
         ],
         "title": "GeographyType"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
       },
       "Indicator": {
         "properties": {
@@ -4309,6 +5425,319 @@
           "semantic_version"
         ],
         "title": "Indicator"
+      },
+      "KnowledgeChatRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "conversation_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Token"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ChatHistoryTurn"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "History"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "KnowledgeChatRequest"
+      },
+      "KnowledgeChatResponse": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "conversation_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Token"
+          },
+          "configuration_version": {
+            "type": "string",
+            "title": "Configuration Version"
+          },
+          "assistant_policy_version": {
+            "type": "string",
+            "title": "Assistant Policy Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "no_evidence",
+              "evidence_unavailable",
+              "safety_refusal",
+              "capacity_limited"
+            ],
+            "title": "Status"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "evidence_state": {
+            "type": "string",
+            "enum": [
+              "single_study",
+              "consistent",
+              "limited",
+              "mixed",
+              "conflicting",
+              "insufficient_to_compare",
+              "no_relevant_corpus_evidence",
+              "evidence_unavailable",
+              "not_applicable"
+            ],
+            "title": "Evidence State"
+          },
+          "source_used": {
+            "type": "string",
+            "const": "literature_evidence",
+            "title": "Source Used"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeClaim"
+            },
+            "type": "array",
+            "title": "Claims"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeCitation"
+            },
+            "type": "array",
+            "title": "Citations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "conversation_id",
+          "configuration_version",
+          "assistant_policy_version",
+          "status",
+          "answer",
+          "evidence_state",
+          "source_used"
+        ],
+        "title": "KnowledgeChatResponse"
+      },
+      "KnowledgeCitation": {
+        "properties": {
+          "citation_id": {
+            "type": "string",
+            "title": "Citation Id"
+          },
+          "pmid": {
+            "type": "string",
+            "pattern": "^\\d{1,10}$",
+            "title": "Pmid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "pubmed_url": {
+            "type": "string",
+            "title": "Pubmed Url"
+          },
+          "claim_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Claim Ids"
+          },
+          "passage_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Passage Ids"
+          },
+          "source_label": {
+            "type": "string",
+            "title": "Source Label",
+            "default": "PubMed / PMC Open Access"
+          },
+          "pmcid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pmcid"
+          },
+          "corpus_unit_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corpus Unit Ids"
+          },
+          "section_labels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Labels"
+          },
+          "corpus_rules_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corpus Rules Version"
+          },
+          "artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Id"
+          },
+          "contribution_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contribution Sha256"
+          },
+          "jats_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jats Sha256"
+          }
+        },
+        "type": "object",
+        "required": [
+          "citation_id",
+          "pmid",
+          "title",
+          "pubmed_url",
+          "claim_ids",
+          "passage_ids"
+        ],
+        "title": "KnowledgeCitation"
+      },
+      "KnowledgeClaim": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "citation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Citation Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "text",
+          "citation_ids"
+        ],
+        "title": "KnowledgeClaim"
       },
       "Measure": {
         "properties": {
@@ -4855,6 +6284,316 @@
         ],
         "title": "Observation"
       },
+      "PrivacyOmission": {
+        "properties": {
+          "system": {
+            "type": "string",
+            "title": "System"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "not_connected",
+              "not_account_linked",
+              "browser_only"
+            ],
+            "title": "Reason"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "system",
+          "reason",
+          "detail"
+        ],
+        "title": "PrivacyOmission"
+      },
+      "PrivacyRequestConfirm": {
+        "properties": {
+          "nonce": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 16,
+            "title": "Nonce"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "nonce"
+        ],
+        "title": "PrivacyRequestConfirm"
+      },
+      "PrivacyRequestCreate": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "export",
+              "deletion"
+            ],
+            "title": "Action"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "PrivacyRequestCreate"
+      },
+      "PrivacyRequestCreated": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "export",
+              "deletion"
+            ],
+            "title": "Action"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "verified",
+              "confirmed",
+              "in_progress",
+              "completed",
+              "needs_support"
+            ],
+            "title": "State"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "download_available": {
+            "type": "boolean",
+            "title": "Download Available",
+            "default": false
+          },
+          "omissions": {
+            "items": {
+              "$ref": "#/components/schemas/PrivacyOmission"
+            },
+            "type": "array",
+            "title": "Omissions"
+          },
+          "support_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Reason"
+          },
+          "confirmation_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmation Expires At"
+          },
+          "confirmation_nonce": {
+            "type": "string",
+            "title": "Confirmation Nonce"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "action",
+          "state",
+          "created_at",
+          "confirmation_nonce"
+        ],
+        "title": "PrivacyRequestCreated"
+      },
+      "PrivacyRequestStatus": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "export",
+              "deletion"
+            ],
+            "title": "Action"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "verified",
+              "confirmed",
+              "in_progress",
+              "completed",
+              "needs_support"
+            ],
+            "title": "State"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "download_available": {
+            "type": "boolean",
+            "title": "Download Available",
+            "default": false
+          },
+          "omissions": {
+            "items": {
+              "$ref": "#/components/schemas/PrivacyOmission"
+            },
+            "type": "array",
+            "title": "Omissions"
+          },
+          "support_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Reason"
+          },
+          "confirmation_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmation Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "action",
+          "state",
+          "created_at"
+        ],
+        "title": "PrivacyRequestStatus"
+      },
+      "ProblemDetails": {
+        "description": "RFC 9457 error. Canonical public resources add stable code; legacy routes may omit it.",
+        "properties": {
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Code"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Errors"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "request_id"
+        ],
+        "title": "ProblemDetails",
+        "type": "object"
+      },
       "ResourceEnvelope_Geography_": {
         "properties": {
           "data": {
@@ -5238,6 +6977,186 @@
           "relationship"
         ],
         "title": "StandardsMapping"
+      },
+      "UserProfile": {
+        "properties": {
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "general_public_citizen",
+                  "district_level_epidemiologist",
+                  "state_level_epidemiologist",
+                  "state_director_level_epidemiologist",
+                  "national_level_epidemiologist"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "state_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Code"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          }
+        },
+        "type": "object",
+        "title": "UserProfile"
+      },
+      "UserProfileResponse": {
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile"
+        ],
+        "title": "UserProfileResponse"
+      },
+      "UserProfileWrite": {
+        "properties": {
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "general_public_citizen",
+                  "district_level_epidemiologist",
+                  "state_level_epidemiologist",
+                  "state_director_level_epidemiologist",
+                  "national_level_epidemiologist"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "state_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Code"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UserProfileWrite"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       },
       "ValueState": {
         "type": "string",
@@ -6064,73 +7983,6 @@
           "evidence"
         ],
         "title": "RankedBriefingItem",
-        "type": "object"
-      },
-      "ProblemDetails": {
-        "description": "RFC 9457 error. Canonical public resources add stable code; legacy routes may omit it.",
-        "properties": {
-          "type": {
-            "title": "Type",
-            "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "integer"
-          },
-          "detail": {
-            "title": "Detail",
-            "type": "string"
-          },
-          "instance": {
-            "title": "Instance",
-            "type": "string"
-          },
-          "request_id": {
-            "title": "Request Id",
-            "type": "string"
-          },
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Code"
-          },
-          "errors": {
-            "anyOf": [
-              {
-                "items": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Errors"
-          }
-        },
-        "required": [
-          "type",
-          "title",
-          "status",
-          "detail",
-          "instance",
-          "request_id"
-        ],
-        "title": "ProblemDetails",
         "type": "object"
       }
     }

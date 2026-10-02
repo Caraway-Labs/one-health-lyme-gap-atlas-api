@@ -36,7 +36,7 @@ def test_public_paths_and_generated_shapes() -> None:
         assert "get" in paths[path]
         assert "401" not in paths[path]["get"]["responses"]
         assert "400" in paths[path]["get"]["responses"]
-    assert "/v1/me/profile" not in paths
+    assert "/v1/me/profile" in paths
     params = paths["/v1/observations"]["get"]["parameters"]
     names = {param["name"] for param in params}
     assert {

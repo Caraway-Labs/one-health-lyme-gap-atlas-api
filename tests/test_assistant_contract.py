@@ -1,6 +1,8 @@
 """Deterministic early-access Research Assistant contract blockers."""
 
+import json
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -265,8 +267,9 @@ def test_answered_response_requires_valid_state_and_source() -> None:
         KnowledgeChatResponse.model_validate(data)
 
 
-def test_internal_assistant_model_retains_required_fields() -> None:
-    response = KnowledgeChatResponse.model_json_schema()
+def test_committed_openapi_exposes_required_assistant_fields() -> None:
+    contract = json.loads(Path("openapi.json").read_text(encoding="utf-8"))
+    response = contract["components"]["schemas"]["KnowledgeChatResponse"]
     assert {"evidence_state", "source_used", "assistant_policy_version"} <= set(
         response["required"]
     )

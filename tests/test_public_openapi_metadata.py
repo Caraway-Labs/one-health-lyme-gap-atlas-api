@@ -16,7 +16,7 @@ IDS = json.loads((ROOT / "tests/fixtures/public-operation-ids.json").read_text()
 
 
 def test_public_metadata_and_stable_operation_ids() -> None:
-    schema = create_app(settings=ApiSettings()).openapi()
+    schema = create_app(settings=ApiSettings()).public_openapi()
     assert set(schema["paths"]) == set(IDS)
     assert schema["info"]["title"] == "One Health Lyme Gap Atlas API"
     assert schema["info"]["version"] == ApiSettings().app_version
@@ -68,7 +68,7 @@ def test_internal_product_routes_remain_registered_and_callable() -> None:
 
 def test_examples_validate_and_error_matches_runtime() -> None:
     client = TestClient(create_app(settings=ApiSettings()))
-    schema = client.get("/openapi.json").json()
+    schema = client.get("/public/openapi.json").json()
     operation = schema["paths"]["/v1/observations"]["get"]
     example = operation["responses"]["200"]["content"]["application/json"]["examples"]
     for item in example.values():

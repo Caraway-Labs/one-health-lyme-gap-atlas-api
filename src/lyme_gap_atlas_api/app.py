@@ -99,6 +99,7 @@ from .public_observations import (
     ObservationService,
     SnowflakeObservationRepository,
 )
+from .public_openapi import public_projection
 from .public_provenance import (
     ProvenanceRepository,
     ProvenanceService,
@@ -149,6 +150,9 @@ class AtlasFastAPI(FastAPI):
             }
         )
         return schema
+
+    def public_openapi(self) -> dict[str, Any]:
+        return public_projection(self.openapi())
 
 
 def _score_settings(
@@ -261,7 +265,14 @@ def create_app(
     app = AtlasFastAPI(
         title=config.app_name,
         version=config.app_version,
-        description=API_DESCRIPTION,
+        description=(
+            "Complete first-party Atlas product contract for existing client generation. "
+            "External developer documentation must use /public/openapi.json.\n\n"
+            + API_DESCRIPTION.replace(
+                "product routes are excluded.",
+                "product routes are excluded from the external projection.",
+            )
+        ),
         summary=API_SUMMARY,
         contact={"name": "Caraway Labs", "url": "https://carawaylabs.com"},
         openapi_tags=TAGS,
@@ -432,11 +443,15 @@ def create_app(
             ),
         )
 
-    @app.get("/health/live", tags=["health"], include_in_schema=False)
+    @app.get("/public/openapi.json", include_in_schema=False)
+    def external_openapi() -> dict[str, Any]:
+        return app.public_openapi()
+
+    @app.get("/health/live", tags=["health"])
     def live() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/health/ready", tags=["health"], include_in_schema=False)
+    @app.get("/health/ready", tags=["health"])
     def ready() -> dict[str, str]:
         try:
             # Process readiness is Snowflake (+ chat wiring when enabled).
@@ -482,7 +497,6 @@ def create_app(
         response_model=UserProfileResponse,
         tags=["account"],
         responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
-        include_in_schema=False,
     )
     def get_profile(
         request: Request,
@@ -514,7 +528,6 @@ def create_app(
         response_model=UserProfileResponse,
         tags=["account"],
         responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
-        include_in_schema=False,
     )
     def save_profile(
         payload: UserProfileWrite,
@@ -579,7 +592,6 @@ def create_app(
         response_model=PrivacyRequestCreated,
         tags=["account"],
         responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
-        include_in_schema=False,
     )
     def create_privacy_request(
         payload: PrivacyRequestCreate,
@@ -616,7 +628,6 @@ def create_app(
             409: {"model": ProblemDetails},
             503: {"model": ProblemDetails},
         },
-        include_in_schema=False,
     )
     def confirm_privacy_request(
         request_id: Annotated[uuid.UUID, Path()],
@@ -653,7 +664,6 @@ def create_app(
             404: {"model": ProblemDetails},
             503: {"model": ProblemDetails},
         },
-        include_in_schema=False,
     )
     def get_privacy_request(
         request_id: Annotated[uuid.UUID, Path()],
@@ -688,7 +698,6 @@ def create_app(
             409: {"model": ProblemDetails},
             503: {"model": ProblemDetails},
         },
-        include_in_schema=False,
     )
     def download_privacy_export(
         request_id: Annotated[uuid.UUID, Path()],
@@ -1056,7 +1065,6 @@ def create_app(
             429: {"model": ProblemDetails},
             503: {"model": ProblemDetails},
         },
-        include_in_schema=False,
     )
     def submit_feedback(
         payload: FeedbackSubmissionRequest,
@@ -1186,7 +1194,6 @@ def create_app(
                 "headers": {"Retry-After": {"schema": {"type": "string"}}},
             },
         },
-        include_in_schema=False,
     )
     def knowledge_graph_chat(
         request: Request, payload: KnowledgeChatRequest, response: Response

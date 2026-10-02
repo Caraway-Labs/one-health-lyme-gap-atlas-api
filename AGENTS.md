@@ -11,13 +11,18 @@ through [ADR 0009](../one-health-lyme-gap-atlas-knowledge-graph/docs/adr/0009-ex
 - This service is the sole browser-facing boundary for Snowflake. Keep all
   credentials and query logic server-side; use the approved least-privilege
   service identity and never log secrets, bearer tokens, or prompts.
-- `openapi.json` is the committed REST contract. For endpoint, payload, error,
+- `openapi.json` is the complete first-party REST contract; preserve internal
+  product schemas for existing Web client and validator generation. The separate
+  `public-openapi.json` is the external developer projection, served at
+  `/public/openapi.json`; only approved public GETs and reachable schemas belong
+  there. `scripts/export_openapi.py` regenerates both; keep both drift checks.
+  For endpoint, payload, error,
   pagination, cache/freshness, or provenance changes, update it with
   `scripts/export_openapi.py`, add API/contract tests, and coordinate generated
   client changes with the web repository. Breaking public-contract changes need
   an approved ADR, migration plan, and deprecation path.
 - Public API / developer experience is part of done: public endpoint work is
-  incomplete while `openapi.json`, developer-facing metadata, or relevant
+  incomplete while either OpenAPI export, developer-facing metadata, or relevant
   contract tests are stale. Preserve intentional, unique, stable `operationId`
   values (including existing IDs), summaries, descriptions, domain tags,
   request/response examples, errors, and useful schema field descriptions.
@@ -49,5 +54,6 @@ uv run mypy
 uv run pytest -q
 uv run python scripts/export_openapi.py
 git diff --exit-code -- openapi.json
+git diff --exit-code -- public-openapi.json
 docker build .
 ```

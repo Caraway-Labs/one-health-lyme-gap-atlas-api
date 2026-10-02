@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTRACT = json.loads((ROOT / "openapi.json").read_text(encoding="utf-8"))
+CONTRACT = json.loads((ROOT / "public-openapi.json").read_text(encoding="utf-8"))
 FLOOR = json.loads(
     (ROOT / "tests/fixtures/public-v1-compatibility.json").read_text(encoding="utf-8")
 )

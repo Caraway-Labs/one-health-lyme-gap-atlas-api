@@ -5,7 +5,10 @@ governed Neo4j evidence retrieval for the knowledge-graph feature.
 
 The additive canonical public V1 contract is described in
 [`docs/public-api-v1-contract.md`](docs/public-api-v1-contract.md). The generated
-`openapi.json` is its authoritative HTTP schema; `/docs` and `/redoc` render it.
+`public-openapi.json` is its external HTTP schema, served at `/public/openapi.json`.
+The complete `openapi.json` and `/openapi.json` remain stable for first-party Web
+client/validator generation; `/docs` and `/redoc` render that engineering contract.
+`scripts/export_openapi.py` regenerates both contracts.
 Start with the [public API guide](docs/public-api-guide.md) for tested requests,
 interpretation, pagination, errors, and reproducibility.
 For operator signals, see the [API indicator contract](docs/api-operational-indicators.md)

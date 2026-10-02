@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 GUIDE = (ROOT / "docs/public-api-guide.md").read_text(encoding="utf-8")
-SCHEMA = json.loads((ROOT / "openapi.json").read_text(encoding="utf-8"))
+SCHEMA = json.loads((ROOT / "public-openapi.json").read_text(encoding="utf-8"))
 
 
 def test_curl_examples_match_openapi() -> None:

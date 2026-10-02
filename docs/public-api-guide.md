@@ -6,9 +6,11 @@ serves anonymous, read-only JSON without an API key. Collections have `data`,
 `application/problem+json` with a stable `code`, HTTP `status`, `detail`, and
 `request_id`. The OpenAPI application version is separate from the V1 contract.
 
+The public machine-readable contract is `/public/openapi.json`; the complete
+first-party `/openapi.json` remains available for existing product clients.
 Use the [interactive API reference](https://api.carawaylabs.com/docs),
 [readable reference](https://api.carawaylabs.com/redoc), or
-[machine-readable OpenAPI JSON](https://api.carawaylabs.com/openapi.json).
+[public OpenAPI JSON](https://api.carawaylabs.com/public/openapi.json).
 The [governed V1 contract](public-api-v1-contract.md) explains semantic policy.
 These routes publish current-release metadata and county observations. They
 do not provide historical-release selection, arbitrary aggregation, or geometry.
