@@ -185,11 +185,11 @@ def _span(name: str, request_id: str, **attributes: str | int | bool | None) -> 
                 pass
         try:
             yield
-        except Exception:
+        except Exception as exc:
             if span is not None:
                 with suppress(Exception):
                     span.set_attribute("stage.outcome", "failure")
-                    span.set_attribute("failure.type", "unhandled_error")
+                    span.set_attribute("failure.type", failure_class(exc))
             raise
         else:
             if span is not None:
