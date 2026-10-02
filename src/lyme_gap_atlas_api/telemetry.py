@@ -128,15 +128,8 @@ class _PrivateSpan(trace.Span):
             self._span.update_name(name)
 
     def set_attribute(self, key: str, value: Any) -> None:
-        if key in {
-            "request.id",
-            "http.route",
-            "http.method",
-            "http.status_code",
-            "http.response.status_code",
-            "http.request.method",
-            "error.type",
-        } or key.startswith(("atlas.request.", "atlas.telemetry.")):
+        value = _request_attribute(key, value)
+        if value is not None:
             with suppress(Exception):
                 self._span.set_attribute(key, value)
 
@@ -167,9 +160,10 @@ class _PrivateTracer:
     def start_span(self, name: str, *args: Any, **kwargs: Any) -> Any:
         attributes = kwargs.pop("attributes", None) or {}
         safe = {
-            key: value
+            key: clean
             for key, value in attributes.items()
             if key in {"http.route", "http.method", "http.request.method"}
+            and (clean := _request_attribute(key, value)) is not None
         }
         kwargs["record_exception"] = False
         kwargs["set_status_on_exception"] = False
@@ -193,6 +187,33 @@ class PrivateInstrumentationProvider(trace.TracerProvider):
 
     def get_tracer(self, *args: Any, **kwargs: Any) -> Any:
         return _PrivateTracer(trace.get_tracer_provider().get_tracer(*args, **kwargs))
+
+
+def _request_attribute(key: str, value: Any) -> Any:
+    enums = {
+        "http.route": ROUTES,
+        "http.method": METHODS | {"OTHER"},
+        "http.request.method": METHODS | {"OTHER"},
+        "atlas.request.status_class": {f"{i}xx" for i in range(1, 6)} | {"unknown"},
+        "atlas.request.outcome": OUTCOMES,
+        "atlas.request.failure_class": FAILURES,
+        "atlas.telemetry.schema_version": {"1"},
+    }
+    if key in enums:
+        if isinstance(value, str) and value in enums[key]:
+            return value
+        return "unmatched" if key == "http.route" else "OTHER" if "method" in key else None
+    if key in {"http.status_code", "http.response.status_code"}:
+        return value if type(value) is int and 100 <= value <= 599 else None
+    if key == "request.id":
+        return (
+            value
+            if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", value)
+            else None
+        )
+    if key == "error.type":
+        return "http_error"  # Do not copy arbitrary semantic-convention exception/type payloads.
+    return None
 
 
 def server_request_hook(span: Any, scope: dict[str, Any]) -> None:
