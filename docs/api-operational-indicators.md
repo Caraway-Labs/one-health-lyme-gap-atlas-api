@@ -55,12 +55,12 @@ to unrelated complete logs to construct a mixed denominator.
 | Indicator | Numerator / denominator or statistic | Interpretation |
 | --- | --- | --- |
 | Observed volume/rate | count(P) / elapsed seconds | Retained server requests; not all requests when sampled. |
-| Operational availability | (E − X) / E | Request handled without unexpected failure; expected input/auth/protection outcomes can be available without delivering a result. Display E/P, C/P, and delivery alongside this. |
+| Operational availability | (E − X) / E | Request handled without unexpected failure; expected input/auth/protection outcomes can be available without delivering a result. Display classification coverage E/P, capacity share of all observed product requests C/P, and delivery alongside this. |
 | Delivery success | D / S | Valid response delivery; expected 4xx/protection are not delivered results. Display S/P status coverage. |
 | Unexpected failure | X / E | Complement of operational availability; independent of transport status. |
 | Transport error | included completed HTTP 5xx / S | Counts capacity 503 too; label HTTP 5xx, never label this infrastructure failure. Display S/P. |
 | Client rejection | bounded expected validation/auth/not-found/payload rejections / S | 4xx explain demand and product use; not automatically server failures. Unsupported methods are separate from P. |
-| Protection/capacity | C / E | Local HTTP 429, bounded concurrency/rate-limit rejection, Ask Atlas budget `capacity_limited`; split reason and route. No implicit saturation, queue-depth, CPU, or headroom claim. |
+| Protection/capacity among evaluable requests | C / E | Local HTTP 429, bounded concurrency/rate-limit rejection, Ask Atlas budget `capacity_limited`; split reason and route. Display classification coverage E/P and the separate capacity share of all observed product requests C/P. No implicit saturation, queue-depth, CPU, or headroom claim. |
 | Request latency | p50, p95, qualified p99 of completed server span duration | Same route/method/outcome cohort, observed count N and units alongside. Includes application/dependency waiting; not browser end-to-end time. |
 | Dependency success/failure | successful/failed bounded terminal operations / all completed classified operations for that dependency and operation | Include attempts, show unknown count and N. Separate readiness probes from user-serving I/O, connection from query, and optional enrichment from mandatory work. |
 | Dependency latency | p50/p95 of completed operation spans | Child timing identifies I/O; cannot be summed across overlapping or nested stages. |
@@ -71,6 +71,14 @@ If a response aborts without a completion status, show the bounded failed-reques
 event separately and include it in X only where the request contract supplies
 the included route and unexpected failure outcome. Report completeness. An
 incomplete trace is not evidence of a successful response.
+
+The two capacity ratios have distinct populations: **C/P** is the share of all
+observed product requests confirmed as capacity/protection rejection; **C/E** is
+the share of evaluable requests confirmed as capacity/protection rejection.
+Unknown classifications remain in P but outside E, so C/P can understate the
+capacity share when coverage is incomplete. Label each denominator explicitly
+and display E/P; do not compare or substitute these ratios without that coverage.
+Neither ratio counts an unknown request as confirmed non-capacity.
 
 ## Ask Atlas outcomes and causes
 
