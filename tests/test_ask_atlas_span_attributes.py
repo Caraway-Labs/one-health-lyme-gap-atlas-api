@@ -115,3 +115,59 @@ def test_deadline_guard_counts_only_started_generation(
     assert len(generation_spans) == expected_calls
     assert all(s.name != "knowledge_chat.answer_generation_attempt_2" for s in finished)
     assert SECRET not in json.dumps([dict(s.attributes or {}) for s in finished])
+
+
+@pytest.mark.parametrize("use_completion", [True, False])
+def test_close_failure_clears_success_and_preserves_exception(
+    spans: InMemorySpanExporter, monkeypatch: Any, caplog: Any, use_completion: bool,
+) -> None:
+    import logging
+
+    from test_chat_snowflake_reuse import Connection
+
+    from lyme_gap_atlas_api import knowledge_chat as chat
+    from lyme_gap_atlas_api.config import ApiSettings
+
+    caplog.set_level(logging.INFO)
+    clock = Clock()
+    failure = RuntimeError(SECRET)
+
+    class FailingClose(Connection):
+        def close(self) -> None:
+            self.closed = True
+            clock.now += 2
+            raise failure
+
+    connection = FailingClose()
+    monkeypatch.setattr(chat, "connect", lambda settings: connection)
+    settings = ApiSettings()
+    service = KnowledgeChatService(
+        TimedRetriever(), TimedAnswerer([valid_payload()], clock, elapsed=1),
+        chat.SnowflakeBudgetStore(settings), SECRET,
+        chat.SnowflakeCorpusProvenanceStore(settings), clock=clock,
+        snowflake_settings=settings,
+    )
+    completion: dict[str, Any] = {}
+    with pytest.raises(RuntimeError) as raised:
+        service.chat(KnowledgeChatRequest(message=SECRET), "safe", SECRET,
+                     completion if use_completion else None)
+    assert raised.value is failure
+    contexts = [r.context for r in caplog.records if r.msg == "knowledge_chat_total"]
+    context = completion if use_completion else contexts[0]
+    assert context["outcome"] == "unhandled_error"
+    assert context["evidence_state"] is None
+    assert context["service_duration_ms"] == 3000
+    finished = spans.get_finished_spans()
+    boundary = next(s for s in finished if s.name == "knowledge_chat.service")
+    close = next(s for s in finished if s.name == "knowledge_chat.snowflake.connection_close")
+    attrs = dict(boundary.attributes or {})
+    assert attrs["atlas.ask_atlas.outcome"] == "unhandled_error"
+    assert attrs["atlas.ask_atlas.outcome_class"] == "failure"
+    assert attrs["atlas.ask_atlas.evidence_state"] == "unavailable"
+    assert boundary.status.status_code == trace.StatusCode.ERROR
+    assert boundary.status.description is None
+    assert boundary.end_time >= close.end_time
+    assert boundary.start_time <= close.start_time
+    assert SECRET not in json.dumps([dict(s.attributes or {}) for s in finished])
+    assert not any(s.events for s in finished)
+    assert SECRET not in caplog.text
