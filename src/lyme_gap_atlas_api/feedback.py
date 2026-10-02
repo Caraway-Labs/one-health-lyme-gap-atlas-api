@@ -16,8 +16,8 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
-from lyme_gap_atlas_shared.snowflake import connect
 
+from .dependency_telemetry import connect
 from .models import FeedbackSubmissionRequest, FeedbackSubmissionResponse
 
 logger = logging.getLogger(__name__)

@@ -3,9 +3,8 @@
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar
 
-from lyme_gap_atlas_shared.snowflake import connect
-
 from .config import ApiSettings
+from .dependency_telemetry import connect
 from .public_contract import Indicator, Measure, PublicQueryError
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier

@@ -14,6 +14,7 @@ import httpx
 
 from .auth_admin import AuthAdmin, AuthAdminError, AuthUserSnapshot
 from .config import ApiSettings
+from .dependency_telemetry import dependency_span
 from .feedback import FeedbackExportRow, FeedbackStore, FeedbackStoreError
 from .models import (
     PrivacyAction,
@@ -254,8 +255,9 @@ class SupabasePrivacyRequestStore:
         }
         headers.update(kwargs.pop("headers", {}))
         try:
-            response = self._client.request(method, self._url, headers=headers, **kwargs)
-            response.raise_for_status()
+            with dependency_span("supabase", "privacy_request"):
+                response = self._client.request(method, self._url, headers=headers, **kwargs)
+                response.raise_for_status()
             return response
         except httpx.HTTPError as exc:
             upstream_status = (
