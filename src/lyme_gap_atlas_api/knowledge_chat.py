@@ -966,11 +966,16 @@ class KnowledgeChatService:
                     request, request_id, network_identifier, started + self._deadline_seconds
                 )
             return result
-        except ValueError:
-            outcome = "invalid_conversation_capability"
-            raise
-        except AuthorizationDependencyFailure:
-            outcome = "authorization_dependency_failure"
+        except Exception as exc:
+            if result is None and isinstance(exc, ValueError):
+                outcome = "invalid_conversation_capability"
+            elif result is None and isinstance(exc, AuthorizationDependencyFailure):
+                outcome = "authorization_dependency_failure"
+            else:
+                outcome = "unhandled_error"
+            result = None
+            with suppress(Exception):
+                trace.get_current_span().set_status(trace.StatusCode.ERROR)
             raise
         finally:
             _DIAGNOSTICS.reset(context_token)
