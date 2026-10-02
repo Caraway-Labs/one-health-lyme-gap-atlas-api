@@ -197,3 +197,51 @@ def test_exporter_failure_preserves_response(monkeypatch, caplog):
     assert response.status_code == 200
     assert response.headers["X-Request-ID"] == "export-safe"
     assert SECRET not in caplog.text
+
+
+def test_ask_atlas_http_ancestry_and_contract(instrumented):
+    from test_knowledge_chat_diagnostics import (
+        EVIDENCE,
+        Answerer,
+        Retriever,
+        candidate,
+    )
+
+    from lyme_gap_atlas_api.knowledge_chat import KnowledgeChatService
+
+    _, exporter = instrumented
+    service = KnowledgeChatService(
+        Retriever(EVIDENCE), Answerer([candidate()]), None, "test-placeholder"
+    )
+    client = TestClient(
+        create_app(
+            settings=ApiSettings(knowledge_chat_enabled=True), knowledge_chat_service=service
+        )
+    )
+    response = client.post(
+        "/v1/knowledge-graph/chat",
+        json={"message": "Explain corpus evidence"},
+        headers={
+            "X-Request-ID": "chat-correlation",
+            "traceparent": "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "answered"
+    finished = exporter.get_finished_spans()
+    roots = [s for s in finished if s.kind == trace.SpanKind.SERVER]
+    assert len(roots) == 1
+    root = roots[0]
+    assert root.attributes["request.id"] == "chat-correlation"
+    assert root.context.trace_id == int("0123456789abcdef0123456789abcdef", 16)
+    assert root.parent.span_id == int("0123456789abcdef", 16)
+    assert all(s.context.trace_id == root.context.trace_id for s in finished)
+    ids = {s.context.span_id for s in finished}
+    assert all(s.parent.span_id in ids for s in finished if s is not root)
+    boundaries = [s for s in finished if s.name == "knowledge_chat.service"]
+    # PR158 is independently owned: when integrated, verify its unchanged boundary.
+    if boundaries:
+        assert len(boundaries) == 1
+        assert boundaries[0].parent.span_id == root.context.span_id
+        assert boundaries[0].attributes["atlas.ask_atlas.outcome"] == "answered"
+        assert boundaries[0].attributes["atlas.ask_atlas.outcome_class"] == "answered"
