@@ -38,4 +38,5 @@ Dashboard ownership is the root Atlas repository, UID `ohla-ask-atlas`. Prior
 traces cannot acquire these new dimensions retroactively. Deploy via the existing
 API quality-gated main workflow after independent review; rollback by reverting
 this telemetry change through the same workflow. API #133 remains independent.
-`nReview corrections: generation_attempts increments only immediately before an actual answerer call after the deadline guard. A session teardown exception clears stale answered evidence, reports unhandled_error and ERROR on the service span without an exception message/event, and propagates the original exception. The service boundary includes connection_close.
+
+Review corrections: generation_attempts increments only immediately before an actual answerer call after the deadline guard. A session teardown exception clears stale answered evidence, reports unhandled_error and ERROR on the service span without an exception message/event, and propagates the original exception. The service boundary includes connection_close.
