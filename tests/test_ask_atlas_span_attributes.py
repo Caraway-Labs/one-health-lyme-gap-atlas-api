@@ -14,6 +14,9 @@ from test_knowledge_chat_diagnostics import (
     Retriever,
     candidate,
 )
+from test_knowledge_chat_latency import Answerer as TimedAnswerer
+from test_knowledge_chat_latency import Clock, valid_payload
+from test_knowledge_chat_latency import Retriever as TimedRetriever
 
 from lyme_gap_atlas_api.knowledge_chat import KnowledgeChatService, _completion_attributes
 from lyme_gap_atlas_api.models import KnowledgeChatRequest
@@ -82,3 +85,33 @@ def test_closed_attributes_reject_arbitrary_diagnostics(spans: InMemorySpanExpor
     assert attrs["atlas.ask_atlas.generation_attempts"] == 2
     assert attrs["atlas.ask_atlas.retrieval_passage_count"] == 100
     assert attrs["atlas.ask_atlas.retrieval_paper_count"] == 0
+
+
+@pytest.mark.parametrize("deadline,elapsed,expected_calls", [(7, 0, 0), (12, 9, 1)])
+def test_deadline_guard_counts_only_started_generation(
+    spans: InMemorySpanExporter, deadline: float, elapsed: float, expected_calls: int,
+) -> None:
+    clock = Clock()
+    rejected = valid_payload()
+    rejected["claims"][0]["pmids"] = ["999"]
+    answerer = TimedAnswerer([rejected, valid_payload()], clock, elapsed=elapsed)
+    service = KnowledgeChatService(
+        TimedRetriever(), answerer, None, SECRET, deadline_seconds=deadline, clock=clock,
+    )
+    completion: dict[str, Any] = {}
+    result = service.chat(
+        KnowledgeChatRequest(message="What did the study find?"), "safe", SECRET, completion,
+    )
+    assert result.status == "evidence_unavailable"
+    assert completion["outcome"] == "deadline_exhausted"
+    assert completion["generation_attempts"] == len(answerer.calls) == expected_calls
+    finished = spans.get_finished_spans()
+    attrs = dict(finished[-1].attributes or {})
+    assert attrs["atlas.ask_atlas.generation_attempts"] == expected_calls
+    assert attrs["atlas.ask_atlas.outcome"] == "deadline_exhausted"
+    generation_spans = [
+        s for s in finished if s.name.startswith("knowledge_chat.answer_generation_")
+    ]
+    assert len(generation_spans) == expected_calls
+    assert all(s.name != "knowledge_chat.answer_generation_attempt_2" for s in finished)
+    assert SECRET not in json.dumps([dict(s.attributes or {}) for s in finished])
