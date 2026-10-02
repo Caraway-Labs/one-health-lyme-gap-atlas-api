@@ -1,5 +1,6 @@
 """Closed completion schemas exclude sensitive content even from faulty diagnostics."""
 
+import io
 import json
 import logging
 
@@ -106,6 +107,40 @@ def test_sdk_logs_cannot_emit_url_or_exception(caplog):
     assert any(r.msg == "telemetry_backend_warning" for r in caplog.records)
 
 
+@pytest.mark.parametrize("dedicated_error_handler", [False, True])
+def test_uvicorn_stderr_hierarchy_cannot_emit_exception_chain(monkeypatch, dedicated_error_handler):
+    from uvicorn.logging import DefaultFormatter
+
+    output = io.StringIO()
+    handler = logging.StreamHandler(output)
+    handler.setFormatter(DefaultFormatter(fmt="%(levelprefix)s %(message)s", use_colors=False))
+    parent = logging.getLogger("uvicorn")
+    error = logging.getLogger("uvicorn.error")
+    access = logging.getLogger("uvicorn.access")
+    monkeypatch.setattr(parent, "handlers", [handler])
+    monkeypatch.setattr(parent, "propagate", False)
+    monkeypatch.setattr(error, "handlers", [handler] if dedicated_error_handler else [])
+    monkeypatch.setattr(error, "propagate", not dedicated_error_handler)
+    monkeypatch.setattr(access, "handlers", [handler])
+    monkeypatch.setattr(access, "propagate", False)
+    error.setLevel(logging.INFO)
+    access.setLevel(logging.INFO)
+    protect_dependency_logs()
+    try:
+        try:
+            raise ValueError(SECRET)
+        except ValueError as original:
+            raise RuntimeError(SECRET) from original
+    except RuntimeError:
+        error.exception("Exception in ASGI application %s", SECRET)
+    access.info("GET /private/%s?token=%s", SECRET, SECRET)
+    text = output.getvalue()
+    assert "api_server_error" in text
+    assert SECRET not in text
+    assert "Traceback" not in text
+    assert "ValueError" not in text
+
+
 def test_readiness_error_text_and_codes_not_logged(monkeypatch, caplog):
     class UnsafeError(RuntimeError):
         errno = SECRET
@@ -126,7 +161,8 @@ def test_readiness_error_text_and_codes_not_logged(monkeypatch, caplog):
 
 
 @pytest.mark.parametrize("suffix", ["", "/confirm", "/export"])
-def test_privacy_failure_correlates_http_request_not_resource(monkeypatch, caplog, suffix):
+@pytest.mark.parametrize("tracing", [True, False])
+def test_privacy_failure_correlates_http_request_not_resource(monkeypatch, caplog, suffix, tracing):
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
     from test_privacy_requests import _api
@@ -140,7 +176,7 @@ def test_privacy_failure_correlates_http_request_not_resource(monkeypatch, caplo
         def get(self, request_id):
             raise PrivacyRequestStoreError("get", "upstream_http", 503)
 
-    provider = TracerProvider()
+    provider = TracerProvider() if tracing else trace.NoOpTracerProvider()
     monkeypatch.setattr(trace, "get_tracer_provider", lambda: provider)
     monkeypatch.setattr("lyme_gap_atlas_api.app.configure_logging", lambda: None)
     caplog.set_level(logging.INFO)

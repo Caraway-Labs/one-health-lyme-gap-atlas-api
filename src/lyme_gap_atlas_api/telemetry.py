@@ -3,10 +3,13 @@
 import re
 import uuid
 from contextlib import contextmanager, suppress
+from contextvars import ContextVar
 from typing import Any
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
+
+REQUEST_CORRELATION: ContextVar[str] = ContextVar("atlas_http_request_id", default="unavailable")
 
 ROUTES = frozenset(
     {
@@ -64,6 +67,15 @@ FAILURES = frozenset(
 
 def request_id(value: str) -> str:
     return value if re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", value) else str(uuid.uuid4())
+
+
+@contextmanager
+def request_correlation(value: str) -> Any:
+    token = REQUEST_CORRELATION.set(value)
+    try:
+        yield
+    finally:
+        REQUEST_CORRELATION.reset(token)
 
 
 def request_dimensions(
