@@ -201,7 +201,7 @@ def test_chat_runtime_log_only_exposes_bounded_model_identifier(capsys: Any) -> 
         if row.get("message") == "knowledge_chat_runtime_configuration"
     ]
     assert len(events) == 1
-    assert events[0]["model_id"] is None
+    assert "model_id" not in events[0]
     assert "model-secret=value" not in output
     assert "private-api-key" not in output
 

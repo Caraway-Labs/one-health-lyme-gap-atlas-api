@@ -386,7 +386,6 @@ def test_locked_cursor_failed_second_execute_does_not_log_stale_query(
     assert caught.value is failure
     assert cursor.sfqid == "first-call"  # Real connector reset retains this old ID.
     records = [r.context for r in caplog.records if r.msg == "knowledge_chat_snowflake_operation"]
-    assert records[0]["query_id"] == "first-call"
-    assert records[-1]["query_id"] is None
+    assert all("query_id" not in record for record in records)
     assert records[-1]["outcome"] == "failure"
     assert "private transport" not in caplog.text

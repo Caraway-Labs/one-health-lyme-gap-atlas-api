@@ -92,7 +92,7 @@ def test_fixed_autocommit_probe_logs_counts_and_hash_only(caplog: Any) -> None:
     assert contexts[1]["paper_nodes"] == 100
     assert contexts[2]["raw_vector_hits"] == 20
     assert contexts[2]["joined_rows"] == 20
-    assert len(contexts[0]["database_id_sha256"]) == 64
+    assert "database_id_sha256" not in contexts[0]
     assert contexts[3]["indexes"][0]["expected_vector_dimension"]
     assert SECRET not in str(contexts)
     assert SECRET not in caplog.text

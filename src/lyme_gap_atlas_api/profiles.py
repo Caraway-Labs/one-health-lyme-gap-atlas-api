@@ -1,6 +1,5 @@
 """Server-only Supabase profile persistence adapter."""
 
-import logging
 from collections.abc import Mapping
 from typing import Any, Protocol
 from uuid import UUID
@@ -11,8 +10,9 @@ from pydantic import ValidationError
 from .config import ApiSettings
 from .dependency_telemetry import dependency_span
 from .models import UserProfile, UserProfileWrite
+from .telemetry_logging import operational_logger
 
-logger = logging.getLogger(__name__)
+logger = operational_logger(__name__)
 
 
 class ProfileStoreError(RuntimeError):

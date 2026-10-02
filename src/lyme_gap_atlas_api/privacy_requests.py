@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import logging
 import secrets
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -26,8 +25,9 @@ from .models import (
     UserProfile,
 )
 from .profiles import ProfileStore, ProfileStoreError
+from .telemetry_logging import operational_logger
 
-logger = logging.getLogger(__name__)
+logger = operational_logger(__name__)
 
 NONCE_TTL = timedelta(minutes=15)
 EXPORT_TTL = timedelta(hours=1)

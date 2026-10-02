@@ -98,17 +98,16 @@ class _SnowflakeBoundary:
             return original
 
         def call(*args: Any, **kwargs: Any) -> Any:
+            if name == "cursor":
+                return _SnowflakeBoundary(original(*args, **kwargs), "cursor")
             with dependency_span("snowflake", name):
                 result = original(*args, **kwargs)
-            if name == "cursor":
-                return _SnowflakeBoundary(result, "cursor")
             return self if result is self._resource else result
 
         return call
 
     def __enter__(self) -> "_SnowflakeBoundary":
-        with dependency_span("snowflake", f"{self._kind}_enter"):
-            entered = self._resource.__enter__()
+        entered = self._resource.__enter__()
         return self if entered is self._resource else _SnowflakeBoundary(entered, self._kind)
 
     def __exit__(self, *args: Any) -> Any:

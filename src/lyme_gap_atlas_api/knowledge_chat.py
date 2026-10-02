@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-import logging
 import re
 import secrets
 import socket
@@ -34,6 +33,7 @@ from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 from opentelemetry import trace
 
 from .assistant_policy import classify_question, load_assistant_policy
+from .dependency_telemetry import failure_class
 from .models import (
     EvidenceState,
     KnowledgeChatRequest,
@@ -43,8 +43,9 @@ from .models import (
     SourceUsed,
 )
 from .neo4j_diagnostics import log_serving_graph_probe
+from .telemetry_logging import emit_completion, operational_logger
 
-logger = logging.getLogger(__name__)
+logger = operational_logger(__name__)
 _POST_GENERATION_RESERVE_SECONDS = 5.0
 _RETRIEVAL_VERSION = "hybrid-fulltext-vector-v1"
 _DIAGNOSTICS: ContextVar[dict[str, Any] | None] = ContextVar(
@@ -102,11 +103,6 @@ def _snowflake_timing(
                     "operation": operation,
                     "duration_ms": round((time.perf_counter() - started) * 1000),
                     "outcome": outcome,
-                    "query_id": (
-                        _safe_identifier(getattr(cursor, "sfqid", None))
-                        if outcome == "success" or query_on_failure
-                        else None
-                    ),
                 }
             },
         )
@@ -189,11 +185,11 @@ def _span(name: str, request_id: str, **attributes: str | int | bool | None) -> 
                 pass
         try:
             yield
-        except Exception as exc:
+        except Exception:
             if span is not None:
                 with suppress(Exception):
                     span.set_attribute("stage.outcome", "failure")
-                    span.set_attribute("failure.type", type(exc).__name__)
+                    span.set_attribute("failure.type", "unhandled_error")
             raise
         else:
             if span is not None:
@@ -214,7 +210,7 @@ def _timed_stage(request_id: str, stage: str) -> Iterator[None]:
         try:
             yield
         except Exception as exc:
-            error_type = type(exc).__name__
+            error_type = failure_class(exc)
             raise
         finally:
             diagnostics = _DIAGNOSTICS.get()
@@ -260,21 +256,21 @@ def _shape_diagnostics(candidate: object, evidence: list[Evidence]) -> dict[str,
     """Bounded structural counts; IDs and candidate strings never leave this function."""
     expected = {"answer", "evidence_state", "claims"}
     if not isinstance(candidate, dict):
-        return {"top_level_type": type(candidate).__name__}
+        return {"top_level_type": _shape_type(candidate)}
     claims = candidate.get("claims")
     available = {item.passage_id: item.pmid for item in evidence}
     result: dict[str, Any] = {
         "top_level_type": "object",
         "expected_fields_present": len(expected & candidate.keys()),
         "expected_fields_missing": len(expected - candidate.keys()),
-        "claims_type": type(claims).__name__,
+        "claims_type": _shape_type(claims),
         "claim_count": min(len(claims), 1000) if isinstance(claims, list) else 0,
     }
     shapes: list[dict[str, Any]] = []
     if isinstance(claims, list):
         for raw in claims[:5]:
             if not isinstance(raw, dict):
-                shapes.append({"type": type(raw).__name__})
+                shapes.append({"type": _shape_type(raw)})
                 continue
             ids = raw.get("passage_ids")
             pmids = raw.get("pmids")
@@ -310,6 +306,11 @@ def _shape_diagnostics(candidate: object, evidence: list[Evidence]) -> dict[str,
             )
     result["claim_shapes"] = shapes
     return result
+
+
+def _shape_type(value: object) -> str:
+    kind = type(value)
+    return kind.__name__ if kind in {dict, list, str, int, float, bool, type(None)} else "other"
 
 
 _PUBLIC_COPY = json.loads(asset_path("config", "public-copy-v1.json").read_text(encoding="utf-8"))
@@ -776,23 +777,18 @@ class OpenAIAnswerer:
             text={"format": {"type": "json_object"}},
             timeout=timeout_seconds,
         )
-        provider_id = _safe_identifier(getattr(response, "_request_id", None))
-        response_id = _safe_identifier(getattr(response, "id", None))
         logger.info(
             "knowledge_chat_provider_response",
             extra={
                 "context": {
                     "request_id": _REQUEST_ID.get(),
                     "provider": "openai",
-                    "model_id": _safe_identifier(self._model),
-                    "provider_request_id": provider_id,
-                    "provider_response_id": response_id,
                     "configuration_version": CONFIGURATION_VERSION,
                     "outcome": "completed",
                 }
             },
         )
-        with _span("generated_json_parsing", _REQUEST_ID.get(), provider_request_id=provider_id):
+        with _span("generated_json_parsing", _REQUEST_ID.get()):
             return cast(dict[str, Any], json.loads(response.output_text))
 
 
@@ -928,7 +924,7 @@ class KnowledgeChatService:
                 **diagnostics,
             }
             if completion is None:
-                logger.info("knowledge_chat_total", extra={"context": context})
+                emit_completion(logger, "knowledge_chat_total", context)
             else:
                 completion.update(context)
 
@@ -1077,10 +1073,6 @@ class KnowledgeChatService:
                 logger.warning("knowledge_chat_provider_failure", extra={"context": {
                     "request_id": request_id,
                     "provider": "openai",
-                    "model_id": _safe_identifier(getattr(self._answerer, "model_id", None)),
-                    "provider_request_id": _safe_identifier(
-                        getattr(exc, "request_id", None)
-                    ),
                     "failure_category": "provider_rejection",
                     "status_code": exc.status_code,
                 }})
@@ -1105,7 +1097,7 @@ class KnowledgeChatService:
                             "request_id": request_id,
                             "attempt": attempt,
                             "reason": _grounding_reason(exc),
-                            "error_type": type(exc).__name__,
+                            "error_type": "validation_error",
                             "shape": _shape_diagnostics(generated, evidence),
                             "corrective_retry_attempted": attempt == 2,
                         }
@@ -1156,7 +1148,7 @@ def _enrich_citations(
                     "request_id": request_id,
                     "stage": "provenance_enrichment",
                     "outcome": "provenance_lookup_failure",
-                    "error_type": type(exc).__name__,
+                    "error_type": failure_class(exc),
                 }
             },
         )

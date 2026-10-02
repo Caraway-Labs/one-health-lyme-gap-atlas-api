@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import logging
 import re
 import uuid
 from typing import Annotated, Any, Literal
@@ -48,7 +47,6 @@ from .knowledge_chat import (
     OpenAIAnswerer,
     SnowflakeBudgetStore,
     SnowflakeCorpusProvenanceStore,
-    _safe_identifier,
 )
 from .middleware import (
     FeedbackLimitMiddleware,
@@ -117,8 +115,9 @@ from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
 from .telemetry import PrivateInstrumentationProvider, server_request_hook, server_response_hook
+from .telemetry_logging import operational_logger, protect_dependency_logs
 
-logger = logging.getLogger(__name__)
+logger = operational_logger(__name__)
 
 
 class AtlasFastAPI(FastAPI):
@@ -182,22 +181,16 @@ def create_app(
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
+    protect_dependency_logs()
     configure_tracing("one-health-lyme-gap-atlas-api")
-    logger.info(
-        "atlas_runtime_configuration role=%s database=%s presentation_database=%s "
-        "presentation_schema=%s",
-        config.snowflake_role,
-        config.snowflake_database,
-        config.presentation_database,
-        config.snowflake_presentation_schema,
-    )
+    logger.info("atlas_runtime_configuration",
+                extra={"context": {"telemetry_schema_version": "1"}})
     logger.info(
         "knowledge_chat_runtime_configuration",
         extra={
             "context": {
                 "enabled": config.knowledge_chat_enabled,
                 "provider": "openai",
-                "model_id": _safe_identifier(config.kg_chat_model),
                 "configuration_version": CONFIGURATION_VERSION,
                 "app_version": config.app_version,
             }

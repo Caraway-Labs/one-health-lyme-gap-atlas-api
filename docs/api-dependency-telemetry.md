@@ -12,8 +12,9 @@ Coverage:
 
 - Snowflake legacy snapshot/readiness, public metadata/observations/provenance,
   and feedback procedure adapters delegate to the shared connection constructor.
-  Connect, cursor construction, execute, fetchone/fetchall, explicit close, and
-  context entry/teardown are timed independently. Teardown includes the SDK's
+  Connect, execute, fetchone/fetchall, explicit close, and context teardown are
+  timed independently. Cursor construction and context entry are local SDK work
+  and have no dependency span. Teardown includes the SDK's
   commit/rollback/close work. There is no span covering the connection lifetime.
 - Supabase profile, privacy and auth-admin requests include network response
   reading and HTTP status checking. JWKS spans cover actual network refresh,

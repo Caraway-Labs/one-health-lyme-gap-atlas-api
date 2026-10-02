@@ -8,6 +8,45 @@ from typing import Any
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
+ROUTES = frozenset(
+    {
+        "/docs",
+        "/docs/oauth2-redirect",
+        "/health/live",
+        "/health/ready",
+        "/openapi.json",
+        "/redoc",
+        "/v1/atlas/geometry",
+        "/v1/atlas/metadata",
+        "/v1/atlas/ranking.csv",
+        "/v1/atlas/scores",
+        "/v1/counties/{fips}",
+        "/v1/counties/{fips}/report.pdf",
+        "/v1/feedback",
+        "/v1/geographies/{geography_type}/{geography_id}",
+        "/v1/indicators",
+        "/v1/indicators/{id}",
+        "/v1/indicators/{indicator_id}",
+        "/v1/knowledge-graph/chat",
+        "/v1/me/privacy-requests",
+        "/v1/me/privacy-requests/{request_id}",
+        "/v1/me/privacy-requests/{request_id}/confirm",
+        "/v1/me/privacy-requests/{request_id}/export",
+        "/v1/me/profile",
+        "/v1/measures",
+        "/v1/measures/{id}",
+        "/v1/measures/{measure_id}",
+        "/v1/methodologies/{id}",
+        "/v1/methodologies/{methodology_id}",
+        "/v1/observations",
+        "/v1/sources",
+        "/v1/sources/{id}",
+        "/v1/sources/{source_id}",
+        "/v1/states/{state}/report.pdf",
+        "unmatched",
+    }
+)
+
 METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE"})
 OUTCOMES = frozenset({"success", "client_error", "server_error", "cancelled"})
 FAILURES = frozenset(
@@ -34,7 +73,7 @@ def request_dimensions(
     status = status if 100 <= status <= 599 else 500
     return {
         "method": method if method in METHODS else "OTHER",
-        "path": route,
+        "path": route if route in ROUTES else "unmatched",
         "status_code": status,
         "status_class": f"{status // 100}xx",
         "outcome": "server_error"
@@ -57,7 +96,8 @@ def enrich_request(span: Any, correlation: str, dimensions: dict[str, Any]) -> N
         span.set_attribute("request.id", correlation)
         span.set_attribute("http.route", dimensions["path"])
         span.set_attribute("http.method", dimensions["method"])
-        span.set_attribute("http.status_code", dimensions["status_code"])
+        if "status_code" in dimensions:
+            span.set_attribute("http.status_code", dimensions["status_code"])
         for field in ("status_class", "outcome", "failure_class"):
             span.set_attribute(f"atlas.request.{field}", dimensions[field])
         span.set_attribute("atlas.telemetry.schema_version", "1")

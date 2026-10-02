@@ -1,10 +1,12 @@
 """Request correlation survives real FastAPI instrumentation without unsafe data."""
 
+import asyncio
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -13,6 +15,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
+from lyme_gap_atlas_api.middleware import RequestContextMiddleware
 
 SECRET = "private-question-evidence-token-198.51.100.99"
 
@@ -65,7 +68,7 @@ def test_request_root_and_redaction(instrumented, caplog, supplied, path, status
     assert attrs["atlas.request.status_class"] == f"{status // 100}xx"
     assert attrs["http.route"] == (
         "unmatched"
-        if status == 404
+        if status in {404, 500}
         else "/v1/geographies/{geography_type}/{geography_id}"
         if status == 503
         else path
@@ -146,3 +149,51 @@ def test_instrumentation_start_failure_is_optional(monkeypatch):
     response = client.get("/health/live", headers={"X-Request-ID": "still-safe"})
     assert response.status_code == 200
     assert response.headers["X-Request-ID"] == "still-safe"
+
+
+def test_cancellation_propagates_without_fabricated_response(instrumented, caplog):
+    _, exporter = instrumented
+    caplog.set_level(logging.INFO)
+
+    async def cancelled(request):
+        raise asyncio.CancelledError()
+
+    with trace.get_tracer("test").start_as_current_span("cancelled-request") as span:
+        request = Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/health/live",
+                "headers": [],
+                "scheme": "http",
+                "state": {"request_id": "cancel-safe", "request_span": span},
+            }
+        )
+        middleware = RequestContextMiddleware(lambda: None)
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(middleware.dispatch(request, cancelled))
+    finished = exporter.get_finished_spans()[-1]
+    assert finished.attributes["atlas.request.outcome"] == "cancelled"
+    assert "http.status_code" not in finished.attributes
+    event = next(r.context for r in caplog.records if r.msg == "api_request_failed")
+    assert event["outcome"] == "cancelled"
+    assert "status_code" not in event
+
+
+def test_exporter_failure_preserves_response(monkeypatch, caplog):
+    from opentelemetry.sdk.trace.export import SpanExporter
+
+    class BrokenExporter(SpanExporter):
+        def export(self, spans):
+            raise RuntimeError(SECRET)
+
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(BrokenExporter()))
+    monkeypatch.setattr(trace, "get_tracer_provider", lambda: provider)
+    monkeypatch.setattr("lyme_gap_atlas_api.app.configure_logging", lambda: None)
+    client = TestClient(create_app(settings=ApiSettings()))
+    caplog.set_level(logging.INFO)
+    response = client.get("/health/live", headers={"X-Request-ID": "export-safe"})
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "export-safe"
+    assert SECRET not in caplog.text

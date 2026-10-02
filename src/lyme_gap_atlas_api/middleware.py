@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 import json
-import logging
 import math
 import secrets
 import time
@@ -15,8 +14,9 @@ from starlette.responses import StreamingResponse
 
 from .telemetry import enrich_request, request_dimensions
 from .telemetry import request_id as normalize_request_id
+from .telemetry_logging import emit_completion, operational_logger
 
-logger = logging.getLogger(__name__)
+logger = operational_logger(__name__)
 
 _PUBLIC_COLLECTIONS = {"/v1/indicators", "/v1/measures", "/v1/sources", "/v1/observations"}
 _PUBLIC_DETAILS = ("/v1/indicators/", "/v1/measures/", "/v1/sources/", "/v1/methodologies/")
@@ -187,19 +187,25 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             span = getattr(request.state, "request_span", None)
             dimensions = request_dimensions(request.method, _log_route(request), 500, "cancelled")
             dimensions["outcome"] = "cancelled"
+            dimensions.pop("status_code")
+            dimensions["status_class"] = "unknown"
             enrich_request(span, request_id, dimensions)
+            emit_completion(logger, "api_request_failed", {
+                **dimensions, "request_id": request_id,
+                "duration_ms": round((time.perf_counter() - started_at) * 1000),
+            })
             raise
         except Exception as exc:
             failure_type = type(exc).__name__
             request.state.request_failure_class = "unhandled_error"
             if not chat_route:
-                logger.error(
-                    "api_request_failed",
-                    extra={"context": {
+                emit_completion(
+                    logger, "api_request_failed", {
                         "request_id": request_id,
+                        "duration_ms": round((time.perf_counter() - started_at) * 1000),
                         **request_dimensions(request.method, _log_route(request), 500,
                                              "unhandled_error"),
-                    }},
+                    },
                 )
                 raise
             # Catch before FastAPI's outer OTel middleware can record the raw
@@ -225,23 +231,21 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                     429: "rate_limited",
                     503: "route_unavailable",
                 }.get(response.status_code, "unhandled_error")
-            logger.info("knowledge_chat_total", extra={"context": {
+            emit_completion(logger, "knowledge_chat_total", {
                 **diagnostics,
+                **dimensions,
                 "request_id": request_id,
                 "http_status": response.status_code,
                 "duration_ms": round((time.perf_counter() - started_at) * 1000),
                 "outcome": outcome,
                 "failure_type": failure_type,
-            }})
+            })
             return response
-        logger.info(
-            "api_request_completed",
-            extra={
-                "context": {
+        emit_completion(
+            logger, "api_request_completed", {
                     "request_id": request_id,
                     **dimensions,
                     "duration_ms": round((time.perf_counter() - started_at) * 1000),
-                }
             },
         )
         return response
