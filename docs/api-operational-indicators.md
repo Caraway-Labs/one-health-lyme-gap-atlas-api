@@ -158,7 +158,9 @@ user questions solely to fill panels.
 
 `GET /health/live` returns 200 `{ "status": "ok" }` when the process can serve
 the endpoint. It performs no repository, Neo4j, provider, account, renderer, or
-exporter I/O. It is excluded from FastAPI tracing and all product indicators.
+exporter I/O. It is excluded from all product indicators. Baseline FastAPI
+instrumentation excludes it from tracing; #159 intentionally traces it as a
+server request. Presence of probe spans must not change the product denominator.
 It cannot prove public data, inference, export, or edge reachability is healthy.
 
 `GET /health/ready` returns 200 `{ "status": "ready" }` only when the
@@ -188,6 +190,17 @@ dependency-operation contract, and #158 Ask Atlas dimensions when integrated.
 Do not use a service-name-only selector (it counts child spans). Attribute
 absence is a contract gap, not grounds to invent classifications. Keep request
 IDs/trace IDs for drill-down only; never group by them, raw URL, user or query.
+
+The proposed #159 contract (PR #163) selects SERVER spans and uses `http.route`,
+`http.method`, `http.status_code`, `atlas.request.status_class`,
+`atlas.request.outcome`, and `atlas.request.failure_class`. Its HTTP
+`success/client_error/server_error/cancelled` outcomes are transport categories:
+`server_error` is not by itself an unexpected infrastructure classification.
+PR #158 supplies `atlas.ask_atlas.*` on `knowledge_chat.service` children.
+Until final integration, use these as proposed mappings, verify their exact
+deployed schema, and join/deduplicate service causes only as described above.
+The operational contract does not require a second root span or duplicating
+dependency instrumentation.
 
 These signals are **advisory now**. Future enforceable targets require an
 approved owner, population and exclusions, unbiased/complete measurement source,
