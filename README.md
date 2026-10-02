@@ -8,6 +8,8 @@ The additive canonical public V1 contract is described in
 `openapi.json` is its authoritative HTTP schema; `/docs` and `/redoc` render it.
 Start with the [public API guide](docs/public-api-guide.md) for tested requests,
 interpretation, pagination, errors, and reproducibility.
+For operator signals, see the [API indicator contract](docs/api-operational-indicators.md)
+and [natural-traffic validation runbook](docs/production-observability-validation.md).
 Indicator and measure discovery (#53), bounded county observation queries
 (#54), and source/methodology metadata (#55) read governed current-release views.
 Geography retains its documented 503 until its owning story is delivered.
