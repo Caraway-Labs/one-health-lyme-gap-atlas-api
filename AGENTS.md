@@ -16,6 +16,23 @@ through [ADR 0009](../one-health-lyme-gap-atlas-knowledge-graph/docs/adr/0009-ex
   `scripts/export_openapi.py`, add API/contract tests, and coordinate generated
   client changes with the web repository. Breaking public-contract changes need
   an approved ADR, migration plan, and deprecation path.
+- Public API / developer experience is part of done: public endpoint work is
+  incomplete while `openapi.json`, developer-facing metadata, or relevant
+  contract tests are stale. Preserve intentional, unique, stable `operationId`
+  values (including existing IDs), summaries, descriptions, domain tags,
+  request/response examples, errors, and useful schema field descriptions.
+  Document applicable pagination, query bounds, freshness/cache, provenance,
+  missingness/value states, versioning, and RFC 9457 Problem Details semantics.
+  Check downstream Fumadocs/OpenAPI consumers and generated-client/SDK
+  compatibility; this does not authorize implementing deferred SDKs or auth.
+  See `docs/public-api-v1-contract.md` and `docs/public-api-guide.md`.
+- The external developer surface is governed structured data/Snowflake
+  analytics, metadata/provenance, and separately approved ML outputs. Keep
+  anonymous public reads. Internal Ask Atlas, PubMed RAG, Research Assistant,
+  KG retrieval, and LLM orchestration routes must stay outside public OpenAPI
+  unless an explicit product decision changes that boundary. Preserve their
+  internal product behavior; add tests/CI to catch accidental public exposure
+  and contract drift. Use the breaking-change rules above for public changes.
 - Preserve source, retrieval time, geography, methodology/version, limitations,
   and `last_updated` semantics in atlas responses. For graph chat, fail closed
   without validated evidence and do not expose arbitrary Cypher.
