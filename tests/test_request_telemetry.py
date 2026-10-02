@@ -120,6 +120,18 @@ def test_child_span_uses_canonical_request_parent(instrumented):
     assert child.context.trace_id == root.context.trace_id
 
 
+def test_unmatched_public_detail_subpath_is_not_guessed(instrumented, caplog):
+    client, exporter = instrumented
+    caplog.set_level(logging.INFO)
+    response = client.get(f"/v1/sources/{SECRET}/extra")
+    assert response.status_code == 404
+    root = next(s for s in exporter.get_finished_spans() if s.kind == trace.SpanKind.SERVER)
+    assert root.attributes["http.route"] == "unmatched"
+    event = next(r.context for r in caplog.records if r.msg == "api_request_completed")
+    assert event["path"] == "unmatched"
+    assert SECRET not in caplog.text
+
+
 def test_concurrent_context_isolation(instrumented):
     client, exporter = instrumented
     ids = [f"parallel-{i}" for i in range(12)]
