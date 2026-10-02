@@ -116,6 +116,7 @@ from .reports.renderer import (
 from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
+from .telemetry import PrivateInstrumentationProvider, server_request_hook, server_response_hook
 
 logger = logging.getLogger(__name__)
 
@@ -1111,7 +1112,13 @@ def create_app(
             response.headers["Retry-After"] = "30"
         return result
 
-    FastAPIInstrumentor.instrument_app(app, excluded_urls="health/live")
+    FastAPIInstrumentor.instrument_app(
+        app,
+        tracer_provider=PrivateInstrumentationProvider(),
+        server_request_hook=server_request_hook,
+        client_response_hook=server_response_hook,
+        exclude_spans=["receive"],
+    )
     return app
 
 

@@ -3,10 +3,8 @@ import hashlib
 import json
 import logging
 import math
-import re
 import secrets
 import time
-import uuid
 from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
 from typing import cast
@@ -14,6 +12,9 @@ from typing import cast
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
+
+from .telemetry import enrich_request, request_dimensions
+from .telemetry import request_id as normalize_request_id
 
 logger = logging.getLogger(__name__)
 
@@ -175,27 +176,29 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         supplied_id = request.headers.get("x-request-id", "")
-        request_id = (
-            supplied_id
-            if re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", supplied_id)
-            else str(uuid.uuid4())
-        )
+        request_id = getattr(request.state, "request_id", None) or normalize_request_id(supplied_id)
         request.state.request_id = request_id
         started_at = time.perf_counter()
         chat_route = request.url.path == "/v1/knowledge-graph/chat"
         failure_type: str | None = None
         try:
             response = await call_next(request)
+        except asyncio.CancelledError:
+            span = getattr(request.state, "request_span", None)
+            dimensions = request_dimensions(request.method, _log_route(request), 500, "cancelled")
+            dimensions["outcome"] = "cancelled"
+            enrich_request(span, request_id, dimensions)
+            raise
         except Exception as exc:
             failure_type = type(exc).__name__
+            request.state.request_failure_class = "unhandled_error"
             if not chat_route:
                 logger.error(
                     "api_request_failed",
                     extra={"context": {
                         "request_id": request_id,
-                        "method": request.method,
-                        "path": _log_route(request),
-                        "failure_type": failure_type,
+                        **request_dimensions(request.method, _log_route(request), 500,
+                                             "unhandled_error"),
                     }},
                 )
                 raise
@@ -205,6 +208,12 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
+        dimensions = request_dimensions(
+            request.method, _log_route(request), response.status_code,
+            "unhandled_error" if failure_type else "none",
+        )
+        request.state.request_dimensions = dimensions
+        enrich_request(getattr(request.state, "request_span", None), request_id, dimensions)
         if chat_route:
             diagnostics = getattr(request.state, "knowledge_chat_diagnostics", {})
             outcome = diagnostics.get("outcome")
@@ -230,9 +239,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             extra={
                 "context": {
                     "request_id": request_id,
-                    "method": request.method,
-                    "path": _log_route(request),
-                    "status_code": response.status_code,
+                    **dimensions,
                     "duration_ms": round((time.perf_counter() - started_at) * 1000),
                 }
             },
