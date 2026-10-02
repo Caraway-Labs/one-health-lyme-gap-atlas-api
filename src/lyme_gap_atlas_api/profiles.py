@@ -9,6 +9,7 @@ import httpx
 from pydantic import ValidationError
 
 from .config import ApiSettings
+from .dependency_telemetry import dependency_span
 from .models import UserProfile, UserProfileWrite
 
 logger = logging.getLogger(__name__)
@@ -74,8 +75,9 @@ class SupabaseProfileStore:
         headers.update(kwargs.pop("headers", {}))
         operation = method.lower()
         try:
-            response = self._client.request(method, self._url, headers=headers, **kwargs)
-            response.raise_for_status()
+            with dependency_span("supabase", "profile_request"):
+                response = self._client.request(method, self._url, headers=headers, **kwargs)
+                response.raise_for_status()
             return response
         except httpx.HTTPError as exc:
             upstream_status = (

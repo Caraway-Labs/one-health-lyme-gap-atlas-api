@@ -11,6 +11,7 @@ from uuid import UUID
 import httpx
 
 from .config import ApiSettings
+from .dependency_telemetry import dependency_span
 
 logger = logging.getLogger(__name__)
 
@@ -58,15 +59,16 @@ class SupabaseAuthAdmin:
 
     def _request(self, method: str, url: str) -> httpx.Response:
         try:
-            response = self._client.request(
-                method,
-                url,
-                headers={
-                    "apikey": self._secret,
-                    "Authorization": f"Bearer {self._secret}",
-                },
-            )
-            response.raise_for_status()
+            with dependency_span("supabase", "auth_admin_request"):
+                response = self._client.request(
+                    method,
+                    url,
+                    headers={
+                        "apikey": self._secret,
+                        "Authorization": f"Bearer {self._secret}",
+                    },
+                )
+                response.raise_for_status()
             return response
         except httpx.HTTPError as exc:
             upstream_status = (

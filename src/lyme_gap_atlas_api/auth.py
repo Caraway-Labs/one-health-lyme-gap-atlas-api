@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 import jwt
@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 from jwt import PyJWKClient
 
 from .config import ApiSettings
+from .dependency_telemetry import dependency_span
 
 
 class AuthenticatedUser(Protocol):
@@ -41,13 +42,20 @@ class TokenVerifier(Protocol):
     def verify(self, authorization: str | None) -> AuthenticatedUser: ...
 
 
+class _ObservedJWKClient(PyJWKClient):
+    def fetch_data(self) -> Any:
+        # Instrument actual network refresh only; cached signing-key lookup is local.
+        with dependency_span("supabase", "jwks_fetch"):
+            return super().fetch_data()
+
+
 class SupabaseTokenVerifier:
     """Validate bearer tokens with Supabase's rotating public JWKS."""
 
     def __init__(self, settings: ApiSettings) -> None:
         self._issuer = settings.supabase_jwt_issuer
         self._audience = settings.supabase_jwt_audience
-        self._jwks = PyJWKClient(f"{self._issuer}/.well-known/jwks.json")
+        self._jwks = _ObservedJWKClient(f"{self._issuer}/.well-known/jwks.json")
 
     def verify(self, authorization: str | None) -> AuthenticatedUser:
         if not authorization or not authorization.startswith("Bearer "):
