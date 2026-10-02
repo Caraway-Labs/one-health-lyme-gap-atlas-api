@@ -28,7 +28,7 @@ def _log_route(request: Request) -> str:
     if path in _PUBLIC_COLLECTIONS:
         return path
     for prefix in _PUBLIC_DETAILS:
-        if path.startswith(prefix):
+        if path.startswith(prefix) and path[len(prefix):] and "/" not in path[len(prefix):]:
             return prefix + "{id}"
     route = request.scope.get("route")
     return str(route.path) if route is not None else "unmatched"
