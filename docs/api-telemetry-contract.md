@@ -78,12 +78,20 @@ never account identity or request data. Runtime configuration events contain
 safe configuration/feature/version fields; no connection identity/host/secrets.
 `atlas_readiness_check_failed` emits only a bounded dependency failure category.
 
+Privacy resource UUIDs are not HTTP request IDs. Privacy failure events use the
+active HTTP correlation context even when tracing is disabled; standalone
+workflow failures use `unavailable`, never the resource identifier.
+
 `OperationalLogger` protects all these application emitters from logging errors
 and disables traceback/stack payloads. SDK log filters suppress content-bearing
 INFO/DEBUG messages and convert warnings/errors to `dependency_sdk_warning` or
 `telemetry_backend_warning` with bounded failure context. This intentionally
 removes raw SDK debugging detail; diagnose with bounded dependency traces and
 existing operator evidence. The shared formatter still owns timestamps/levels.
+Uvicorn's independent stderr handlers and direct error/access emitters are
+filtered too: bounded `api_server_error` / `api_server_warning` replaces raw
+ASGI exception chains and request text, including when propagation to root is
+disabled. API exceptions still propagate with the original response behavior.
 
 ## Privacy, quality and operations
 

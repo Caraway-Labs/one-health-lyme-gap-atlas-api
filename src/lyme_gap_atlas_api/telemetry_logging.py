@@ -6,7 +6,9 @@ import re
 from contextlib import suppress
 from typing import Any
 
-from .telemetry import FAILURES, METHODS, OUTCOMES, ROUTES
+from opentelemetry import trace
+
+from .telemetry import FAILURES, METHODS, OUTCOMES, REQUEST_CORRELATION, ROUTES
 
 
 class OperationalLogger(logging.LoggerAdapter):  # type: ignore[type-arg]
@@ -26,6 +28,18 @@ def operational_logger(name: str) -> OperationalLogger:
     return OperationalLogger(logging.getLogger(name))
 
 
+def operational_request_id() -> str:
+    """HTTP correlation only; a privacy/workflow resource UUID is never a request ID."""
+    correlation = REQUEST_CORRELATION.get()
+    if correlation != "unavailable":
+        return correlation
+    with suppress(Exception):
+        value = getattr(trace.get_current_span(), "attributes", {}).get("request.id")
+        if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", value):
+            return value
+    return "unavailable"
+
+
 class _DependencyLogFilter(logging.Filter):
     """Third-party SDK logs bypass our event schemas and can contain full URLs."""
 
@@ -39,26 +53,45 @@ class _DependencyLogFilter(logging.Filter):
             "urllib3",
             "opentelemetry.sdk",
             "opentelemetry.exporter",
+            "uvicorn",
         )
         if not record.name.startswith(prefixes):
             return True
         if record.levelno < logging.WARNING:
             return False
         record.msg = (
-            "telemetry_backend_warning"
-            if record.name.startswith("opentelemetry")
-            else "dependency_sdk_warning"
+            ("api_server_error" if record.levelno >= logging.ERROR else "api_server_warning")
+            if record.name.startswith("uvicorn")
+            else (
+                "telemetry_backend_warning"
+                if record.name.startswith("opentelemetry")
+                else "dependency_sdk_warning"
+            )
         )
         record.args = ()
         record.exc_info = None
         record.exc_text = None
         record.stack_info = None
-        record.context = {"failure_class": "dependency_error"}
+        record.context = {
+            "failure_class": "unhandled_error"
+            if record.name.startswith("uvicorn")
+            else "dependency_error"
+        }
         return True
 
 
 def protect_dependency_logs() -> None:
-    for handler in logging.getLogger().handlers:
+    # Uvicorn's default parent owns stderr with propagate=False; filtering root
+    # alone cannot sanitize its exception chain. Filter direct emitters too so a
+    # later handler replacement on those loggers cannot bypass the boundary.
+    loggers = [logging.getLogger(name) for name in ("uvicorn", "uvicorn.error", "uvicorn.access")]
+    for logger in loggers:
+        if not any(isinstance(item, _DependencyLogFilter) for item in logger.filters):
+            logger.addFilter(_DependencyLogFilter())
+    handlers = [
+        handler for logger in [logging.getLogger(), *loggers] for handler in logger.handlers
+    ]
+    for handler in handlers:
         if not any(isinstance(item, _DependencyLogFilter) for item in handler.filters):
             handler.addFilter(_DependencyLogFilter())
 

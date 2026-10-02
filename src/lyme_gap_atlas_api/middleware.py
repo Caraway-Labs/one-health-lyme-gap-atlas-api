@@ -12,7 +12,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
 
-from .telemetry import enrich_request, request_dimensions
+from .telemetry import enrich_request, request_correlation, request_dimensions
 from .telemetry import request_id as normalize_request_id
 from .telemetry_logging import emit_completion, operational_logger
 
@@ -182,7 +182,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         chat_route = request.url.path == "/v1/knowledge-graph/chat"
         failure_type: str | None = None
         try:
-            response = await call_next(request)
+            with request_correlation(request_id):
+                response = await call_next(request)
         except asyncio.CancelledError:
             span = getattr(request.state, "request_span", None)
             dimensions = request_dimensions(request.method, _log_route(request), 500, "cancelled")
