@@ -1,0 +1,78 @@
+{
+  "/v1/indicators": {
+    "get": "indicators_v1_indicators_get"
+  },
+  "/v1/indicators/{indicator_id}": {
+    "get": "indicator_v1_indicators__indicator_id__get"
+  },
+  "/v1/measures": {
+    "get": "measures_v1_measures_get"
+  },
+  "/v1/measures/{measure_id}": {
+    "get": "measure_v1_measures__measure_id__get"
+  },
+  "/v1/sources": {
+    "get": "sources_v1_sources_get"
+  },
+  "/v1/sources/{source_id}": {
+    "get": "source_v1_sources__source_id__get"
+  },
+  "/v1/methodologies/{methodology_id}": {
+    "get": "methodology_v1_methodologies__methodology_id__get"
+  },
+  "/v1/geographies/{geography_type}/{geography_id}": {
+    "get": "geography_v1_geographies__geography_type___geography_id__get"
+  },
+  "/v1/observations": {
+    "get": "observations_v1_observations_get"
+  },
+  "/health/live": {
+    "get": "live_health_live_get"
+  },
+  "/health/ready": {
+    "get": "ready_health_ready_get"
+  },
+  "/v1/me/profile": {
+    "get": "get_profile_v1_me_profile_get",
+    "put": "save_profile_v1_me_profile_put"
+  },
+  "/v1/me/privacy-requests": {
+    "post": "create_privacy_request_v1_me_privacy_requests_post"
+  },
+  "/v1/me/privacy-requests/{request_id}/confirm": {
+    "post": "confirm_privacy_request_v1_me_privacy_requests__request_id__confirm_post"
+  },
+  "/v1/me/privacy-requests/{request_id}": {
+    "get": "get_privacy_request_v1_me_privacy_requests__request_id__get"
+  },
+  "/v1/me/privacy-requests/{request_id}/export": {
+    "get": "download_privacy_export_v1_me_privacy_requests__request_id__export_get"
+  },
+  "/v1/atlas/metadata": {
+    "get": "metadata_v1_atlas_metadata_get"
+  },
+  "/v1/atlas/geometry": {
+    "get": "geometry_v1_atlas_geometry_get"
+  },
+  "/v1/atlas/scores": {
+    "get": "scores_v1_atlas_scores_get"
+  },
+  "/v1/counties/{fips}": {
+    "get": "county_v1_counties__fips__get"
+  },
+  "/v1/counties/{fips}/report.pdf": {
+    "get": "county_report_pdf_v1_counties__fips__report_pdf_get"
+  },
+  "/v1/states/{state}/report.pdf": {
+    "get": "state_report_pdf_v1_states__state__report_pdf_get"
+  },
+  "/v1/atlas/ranking.csv": {
+    "get": "ranking_csv_v1_atlas_ranking_csv_get"
+  },
+  "/v1/feedback": {
+    "post": "submit_feedback_v1_feedback_post"
+  },
+  "/v1/knowledge-graph/chat": {
+    "post": "knowledge_graph_chat_v1_knowledge_graph_chat_post"
+  }
+}

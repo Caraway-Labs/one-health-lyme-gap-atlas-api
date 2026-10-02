@@ -8,7 +8,7 @@ serves anonymous, read-only JSON without an API key. Collections have `data`,
 
 Use the [interactive API reference](https://api.carawaylabs.com/docs),
 [readable reference](https://api.carawaylabs.com/redoc), or
-[machine-readable OpenAPI JSON](https://api.carawaylabs.com/openapi.json).
+[public OpenAPI JSON](https://api.carawaylabs.com/openapi.json).
 The [governed V1 contract](public-api-v1-contract.md) explains semantic policy.
 These routes publish current-release metadata and county observations. They
 do not provide historical-release selection, arbitrary aggregation, or geometry.

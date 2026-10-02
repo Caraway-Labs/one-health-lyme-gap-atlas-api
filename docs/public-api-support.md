@@ -1,6 +1,7 @@
 # Public V1 API support and release gate
 
-Owner: Atlas API maintainers. This runbook covers the anonymous canonical `/v1` read API. The committed `openapi.json` is the contract; `tests/fixtures/public-v1-compatibility.json` is a selective compatibility floor captured from it, not a second schema.
+Owner: Atlas API maintainers. This runbook covers the anonymous canonical `/v1` read API. The committed `openapi.json` is the contract; `tests/fixtures/public-v1-compatibility.json` is a selective compatibility floor captured from it, not a second schema. CI also protects the separate first-party build artifact without exposing
+internal product operations in the public schema.
 
 ## #58 audit at `3524863565705c194e5bdf65ffad93af2e6aee0d`
 

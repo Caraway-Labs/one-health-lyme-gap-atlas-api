@@ -4,12 +4,14 @@ import hashlib
 import json
 import re
 import uuid
+from copy import deepcopy
 from typing import Annotated, Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, Response
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION
 from lyme_gap_atlas_shared.domain import ScoreSettings
@@ -83,12 +85,22 @@ from .privacy_requests import (
 )
 from .profiles import ProfileStore, ProfileStoreError, SupabaseProfileStore
 from .public_contract import PublicQueryError
+from .public_docs import (
+    API_DESCRIPTION,
+    API_SUMMARY,
+    EMPTY_COLLECTION_EXAMPLE,
+    LEGACY_ERRORS,
+    MISSING_OBSERVATION_EXAMPLE,
+    TAGS,
+    problem_response,
+)
 from .public_metadata import MetadataRepository, MetadataService, SnowflakeMetadataRepository
 from .public_observations import (
     ObservationRepository,
     ObservationService,
     SnowflakeObservationRepository,
 )
+from .public_openapi import public_projection
 from .public_provenance import (
     ProvenanceRepository,
     ProvenanceService,
@@ -121,11 +133,55 @@ logger = operational_logger(__name__)
 
 
 class AtlasFastAPI(FastAPI):
-    def openapi(self) -> dict[str, Any]:
-        schema = super().openapi()
+    _first_party_schema: dict[str, Any] | None = None
+
+    def first_party_openapi(self) -> dict[str, Any]:
+        """Complete codegen build artifact; never served by public docs or HTTP."""
+        if self._first_party_schema is not None:
+            return self._first_party_schema
+        schema = get_openapi(
+            title=self.title,
+            version=self.version,
+            openapi_version=self.openapi_version,
+            summary="Complete first-party Atlas product contract",
+            description=(
+                "Build artifact for existing first-party Web client and validator "
+                "generation. Not an external developer contract or HTTP surface. "
+                "Use the public openapi.json for external documentation."
+            ),
+            terms_of_service=self.terms_of_service,
+            contact=self.contact,
+            license_info=self.license_info,
+            routes=self.routes,
+            webhooks=self.webhooks.routes,
+            tags=self.openapi_tags,
+            servers=self.servers,
+            separate_input_output_schemas=self.separate_input_output_schemas,
+            external_docs=self.openapi_external_docs,
+        )
         if "BriefingArtifact" not in schema.get("components", {}).get("schemas", {}):
             add_briefing_openapi(schema)
+        # Problem responses use their actual media type, without an extra JSON
+        # response model. Generate the referenced component directly from Pydantic.
+        schema["components"]["schemas"]["ProblemDetails"] = ProblemDetails.model_json_schema()
+        # FastAPI's OpenAPI serialization drops nulls inside response examples.
+        # Restore these meaningful missingness/pagination values after serialization.
+        schema["paths"]["/v1/observations"]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["examples"] = deepcopy(
+            {
+                "empty": EMPTY_COLLECTION_EXAMPLE,
+                "missing": MISSING_OBSERVATION_EXAMPLE,
+            }
+        )
+        self._first_party_schema = schema
         return schema
+
+    def openapi(self) -> dict[str, Any]:
+        """Canonical public HTTP schema; cache separately from first-party codegen."""
+        if self.openapi_schema is None:
+            self.openapi_schema = public_projection(self.first_party_openapi())
+        return self.openapi_schema
 
 
 def _score_settings(
@@ -238,7 +294,11 @@ def create_app(
     app = AtlasFastAPI(
         title=config.app_name,
         version=config.app_version,
-        description="Public API for Atlas data and reviewed knowledge-graph evidence chat.",
+        description=API_DESCRIPTION,
+        summary=API_SUMMARY,
+        contact={"name": "Caraway Labs", "url": "https://carawaylabs.com"},
+        openapi_tags=TAGS,
+        servers=[{"url": "https://api.carawaylabs.com", "description": "Production"}],
     )
     app.state.service = service
     app.state.public_settings = config
@@ -685,7 +745,19 @@ def create_app(
             },
         )
 
-    @app.get("/v1/atlas/metadata", response_model=AtlasMetadata, tags=["atlas"])
+    @app.get(
+        "/v1/atlas/metadata",
+        response_model=AtlasMetadata,
+        tags=["atlas"],
+        operation_id="metadata_v1_atlas_metadata_get",
+        summary="Get Atlas release metadata",
+        description=(
+            "Release metadata, source freshness and methodology; dataset_version selects an "
+            "existing release. Cached publicly for 300 seconds with ETag. ETag is "
+            "informational here; this route does not implement conditional 304."
+        ),
+        responses=LEGACY_ERRORS,
+    )
     def metadata(response: Response, dataset_version: str | None = None) -> AtlasMetadata:
         try:
             result = service.metadata(dataset_version)
@@ -703,6 +775,17 @@ def create_app(
             "identified by stable five-digit county FIPS. This resource never returns "
             "internal 2025 TIGER/Line analysis polygons used for raster aggregation."
         ),
+        operation_id="geometry_v1_atlas_geometry_get",
+        summary="Get county display geometry",
+        response_class=Response,
+        responses={
+            **LEGACY_ERRORS,
+            200: {
+                "description": "Display GeoJSON, EPSG:4326; immutable TTL 31536000; ETag.",
+                "content": {"application/geo+json": {"schema": {"type": "object"}}},
+            },
+            304: {"description": "Matching If-None-Match; empty body."},
+        },
     )
     def geometry(request: Request, dataset_version: str | None = None) -> Response:
         try:
@@ -718,7 +801,19 @@ def create_app(
             headers={"ETag": etag, "Cache-Control": "public, max-age=31536000, immutable"},
         )
 
-    @app.get("/v1/atlas/scores", response_model=ScoreCollection, tags=["atlas"])
+    @app.get(
+        "/v1/atlas/scores",
+        response_model=ScoreCollection,
+        tags=["atlas"],
+        operation_id="scores_v1_atlas_scores_get",
+        summary="Get county gap scores",
+        description=(
+            "Existing surveillance-gap scores and settings for an optional dataset_version. "
+            "Scores are not individual risk estimates or diagnoses. Public cache TTL 300 "
+            "seconds with informational ETag; no conditional 304."
+        ),
+        responses=LEGACY_ERRORS,
+    )
     def scores(
         response: Response,
         score_settings: Annotated[ScoreSettings, Depends(_score_settings)],
@@ -732,7 +827,20 @@ def create_app(
         except LookupError as exc:
             raise HTTPException(status_code=404, detail="Dataset release not found") from exc
 
-    @app.get("/v1/counties/{fips}", response_model=CountyDetail, tags=["counties"])
+    @app.get(
+        "/v1/counties/{fips}",
+        response_model=CountyDetail,
+        tags=["counties"],
+        operation_id="county_v1_counties__fips__get",
+        summary="Get county analytics and provenance",
+        description=(
+            "Five-digit county FIPS with leading zeros retained. Includes release/source "
+            "metadata and limitations. Optional dataset_version and score settings retain "
+            "existing meanings. Public cache TTL 300 seconds with informational ETag; no "
+            "conditional 304."
+        ),
+        responses=LEGACY_ERRORS,
+    )
     def county(
         response: Response,
         fips: Annotated[str, Path(pattern=r"^\d{5}$")],
@@ -754,15 +862,23 @@ def create_app(
         response_class=Response,
         tags=["counties"],
         responses={
-            200: {"content": {"application/pdf": {}}},
-            404: {"model": ProblemDetails},
-            413: {"model": ProblemDetails},
-            422: {"model": ProblemDetails},
-            503: {
-                "model": ProblemDetails,
-                "headers": {"Retry-After": {"schema": {"type": "string"}}},
+            **LEGACY_ERRORS,
+            200: {
+                "description": "PDF attachment.",
+                "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
             },
+            304: {"description": "Matching If-None-Match; empty body."},
+            413: problem_response(413, None, "The report exceeds configured resource limits."),
         },
+        operation_id="county_report_pdf_v1_counties__fips__report_pdf_get",
+        summary="Download a county report",
+        description=(
+            "PDF attachment using the immutable county-v1 registered template by default. "
+            "Optional dataset_version and score settings bind report inputs. "
+            "ETag/If-None-Match supports 304; public cache TTL 300 seconds with "
+            "revalidation. Unknown templates return 422; resource limits 413; renderer "
+            "failure/timeout 503."
+        ),
     )
     def county_report_pdf(
         request: Request,
@@ -837,15 +953,23 @@ def create_app(
         response_class=Response,
         tags=["states"],
         responses={
-            200: {"content": {"application/pdf": {}}},
-            404: {"model": ProblemDetails},
-            413: {"model": ProblemDetails},
-            422: {"model": ProblemDetails},
-            503: {
-                "model": ProblemDetails,
-                "headers": {"Retry-After": {"schema": {"type": "string"}}},
+            **LEGACY_ERRORS,
+            200: {
+                "description": "PDF attachment.",
+                "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
             },
+            304: {"description": "Matching If-None-Match; empty body."},
+            413: problem_response(413, None, "The report exceeds configured resource limits."),
         },
+        operation_id="state_report_pdf_v1_states__state__report_pdf_get",
+        summary="Download a state report",
+        description=(
+            "PDF attachment using the immutable state-v1 registered template by default. "
+            "State is a two-letter code. Optional dataset_version and score settings bind "
+            "report inputs. ETag/If-None-Match supports 304; public cache TTL 300 seconds "
+            "with revalidation. Unknown templates return 422; resource limits 413; renderer "
+            "failure/timeout 503."
+        ),
     )
     def state_report_pdf(
         request: Request,
@@ -913,7 +1037,25 @@ def create_app(
             },
         )
 
-    @app.get("/v1/atlas/ranking.csv", tags=["atlas"])
+    @app.get(
+        "/v1/atlas/ranking.csv",
+        tags=["atlas"],
+        operation_id="ranking_csv_v1_atlas_ranking_csv_get",
+        summary="Download filtered county rankings",
+        description=(
+            "Filtered CSV attachment for current county rankings. Existing state, text and "
+            "evidence filters and score settings apply; no pagination. This route does not "
+            "declare a public cache TTL."
+        ),
+        response_class=Response,
+        responses={
+            **LEGACY_ERRORS,
+            200: {
+                "description": "CSV attachment.",
+                "content": {"text/csv": {"schema": {"type": "string"}}},
+            },
+        },
+    )
     def ranking_csv(
         score_settings: Annotated[ScoreSettings, Depends(_score_settings)],
         state: Annotated[str, Query(pattern=r"^(ALL|[A-Z]{2})$")] = "ALL",

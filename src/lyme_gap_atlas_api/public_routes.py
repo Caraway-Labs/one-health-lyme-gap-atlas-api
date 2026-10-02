@@ -21,11 +21,18 @@ from .public_contract import (
     ResourceEnvelope,
     Source,
 )
+from .public_docs import (
+    COLLECTION_DESCRIPTION,
+    DETAIL_DESCRIPTION,
+    EMPTY_COLLECTION_EXAMPLE,
+    MISSING_OBSERVATION_EXAMPLE,
+    problem_response,
+)
 from .public_metadata import MetadataService
 from .public_observations import ObservationService
 from .public_provenance import ProvenanceService
 
-router = APIRouter(tags=["public-v1"])
+router = APIRouter()
 
 PROBLEMS: dict[int | str, dict[str, Any]] = {
     "4XX": {
@@ -73,6 +80,21 @@ PROBLEMS: dict[int | str, dict[str, Any]] = {
     },
 }
 
+for _status, _code in {
+    400: "INVALID_REQUEST",
+    404: "RESOURCE_NOT_FOUND",
+    429: "RATE_LIMITED",
+    413: "INVALID_REQUEST",
+    414: "INVALID_REQUEST",
+    503: None,
+}.items():
+    _documented = problem_response(_status, _code, str(PROBLEMS[_status]["description"]))
+    PROBLEMS[_status]["content"] = _documented["content"]
+    if "headers" in _documented:
+        PROBLEMS[_status]["headers"] = _documented["headers"]
+PROBLEMS[200] = {"description": "Successful current-release resource."}
+
+
 DETAIL_RESPONSES = {
     **PROBLEMS,
     304: {"description": "Not modified. ETag matches If-None-Match; empty response body."},
@@ -85,8 +107,19 @@ def pending() -> NoReturn:
 
 def collection_pagination(
     request: Request,
-    page_size: Annotated[int | None, Query(ge=1, le=500)] = None,
-    page_token: str | None = None,
+    page_size: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            le=500,
+            description="Items per page; defaults to 100, configured maximum at most 500.",
+            examples=[100],
+        ),
+    ] = None,
+    page_token: Annotated[
+        str | None,
+        Query(description="Opaque next_page_token; retain query filters and release."),
+    ] = None,
 ) -> tuple[int, str | None]:
     config: ApiSettings = request.app.state.public_settings
     size = page_size or config.public_page_size_default
@@ -113,6 +146,9 @@ def metadata_cache(response: Response) -> None:
     response_model=CollectionEnvelope[Indicator],
     responses=PROBLEMS,
     summary="Discover indicators",
+    operation_id="indicators_v1_indicators_get",
+    tags=["discovery"],
+    description=COLLECTION_DESCRIPTION,
 )
 def indicators(
     request: Request,
@@ -136,6 +172,10 @@ def indicators(
     "/v1/indicators/{indicator_id}",
     response_model=ResourceEnvelope[Indicator],
     responses=DETAIL_RESPONSES,
+    operation_id="indicator_v1_indicators__indicator_id__get",
+    tags=["discovery"],
+    summary="Get an indicator",
+    description=DETAIL_DESCRIPTION,
 )
 def indicator(
     indicator_id: str,
@@ -150,7 +190,15 @@ def indicator(
     raise HTTPException(status_code=404, detail="Indicator not found.")
 
 
-@router.get("/v1/measures", response_model=CollectionEnvelope[Measure], responses=PROBLEMS)
+@router.get(
+    "/v1/measures",
+    response_model=CollectionEnvelope[Measure],
+    responses=PROBLEMS,
+    operation_id="measures_v1_measures_get",
+    tags=["discovery"],
+    summary="Discover measures",
+    description=COLLECTION_DESCRIPTION,
+)
 def measures(
     request: Request,
     response: Response,
@@ -186,6 +234,10 @@ def measures(
     "/v1/measures/{measure_id}",
     response_model=ResourceEnvelope[Measure],
     responses=DETAIL_RESPONSES,
+    operation_id="measure_v1_measures__measure_id__get",
+    tags=["discovery"],
+    summary="Get a measure",
+    description=DETAIL_DESCRIPTION,
 )
 def measure(
     measure_id: str,
@@ -204,7 +256,15 @@ def provenance_service(request: Request) -> ProvenanceService:
     return cast(ProvenanceService, request.app.state.provenance_service)
 
 
-@router.get("/v1/sources", response_model=CollectionEnvelope[Source], responses=PROBLEMS)
+@router.get(
+    "/v1/sources",
+    response_model=CollectionEnvelope[Source],
+    responses=PROBLEMS,
+    operation_id="sources_v1_sources_get",
+    tags=["provenance"],
+    summary="Discover sources",
+    description=COLLECTION_DESCRIPTION,
+)
 def sources(
     request: Request,
     response: Response,
@@ -220,7 +280,13 @@ def sources(
 
 
 @router.get(
-    "/v1/sources/{source_id}", response_model=ResourceEnvelope[Source], responses=DETAIL_RESPONSES
+    "/v1/sources/{source_id}",
+    response_model=ResourceEnvelope[Source],
+    responses=DETAIL_RESPONSES,
+    operation_id="source_v1_sources__source_id__get",
+    tags=["provenance"],
+    summary="Get a source",
+    description=DETAIL_DESCRIPTION,
 )
 def source(
     source_id: str,
@@ -235,6 +301,10 @@ def source(
     "/v1/methodologies/{methodology_id}",
     response_model=ResourceEnvelope[Methodology],
     responses=DETAIL_RESPONSES,
+    operation_id="methodology_v1_methodologies__methodology_id__get",
+    tags=["provenance"],
+    summary="Get a methodology",
+    description=DETAIL_DESCRIPTION,
 )
 def methodology(
     methodology_id: str,
@@ -249,6 +319,13 @@ def methodology(
     "/v1/geographies/{geography_type}/{geography_id}",
     response_model=ResourceEnvelope[Geography],
     responses=PROBLEMS,
+    operation_id="geography_v1_geographies__geography_type___geography_id__get",
+    tags=["geographies"],
+    summary="Get geography identity (delivery pending)",
+    description=(
+        "Validated county/state FIPS identity; currently returns 503 "
+        "CANONICAL_DATA_UNAVAILABLE. No geometry is returned."
+    ),
 )
 def geography(geography_type: GeographyType, geography_id: str) -> NoReturn:
     from .public_contract import GeographyIdentity
@@ -262,15 +339,64 @@ def geography(geography_type: GeographyType, geography_id: str) -> NoReturn:
 
 def observation_query(
     request: Request,
-    measure_id: Annotated[str, Query(min_length=1)],
+    measure_id: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="Exact discovery measure ID.",
+            examples=["case_count_floor_2023"],
+        ),
+    ],
     geography_type: GeographyType,
-    geography_id: Annotated[list[str], Query(min_length=1, max_length=500)],
-    year: Annotated[int | None, Query(ge=1900, le=2100)] = None,
-    start_date: date | None = None,
-    end_date: date | None = None,
-    stratification: Annotated[list[str] | None, Query()] = None,
-    page_size: Annotated[int | None, Query(ge=1, le=500)] = None,
-    page_token: str | None = None,
+    geography_id: Annotated[
+        list[str],
+        Query(
+            min_length=1,
+            max_length=500,
+            description="Repeat for 1-500 county FIPS strings; preserve leading zeros.",
+            examples=[["08001"]],
+        ),
+    ],
+    year: Annotated[
+        int | None,
+        Query(
+            ge=1900,
+            le=2100,
+            description="Year or complete date range, not both; current published year is 2023.",
+            examples=[2023],
+        ),
+    ] = None,
+    start_date: Annotated[
+        date | None,
+        Query(
+            description="Inclusive period start; requires end_date and excludes year.",
+            examples=["2023-01-01"],
+        ),
+    ] = None,
+    end_date: Annotated[
+        date | None,
+        Query(
+            description="Inclusive period end; requires start_date and excludes year.",
+            examples=["2023-12-31"],
+        ),
+    ] = None,
+    stratification: Annotated[
+        list[str] | None,
+        Query(description="Current release has no strata; unsupported selections fail explicitly."),
+    ] = None,
+    page_size: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            le=500,
+            description="Items per page; defaults to 100, configured maximum at most 500.",
+            examples=[100],
+        ),
+    ] = None,
+    page_token: Annotated[
+        str | None,
+        Query(description="Opaque next_page_token; retain query filters and release."),
+    ] = None,
 ) -> ObservationQuery:
     config: ApiSettings = request.app.state.public_settings
     allowed = {
@@ -314,11 +440,27 @@ def observation_service(request: Request) -> ObservationService:
 @router.get(
     "/v1/observations",
     response_model=CollectionEnvelope[Observation],
-    responses=PROBLEMS,
+    responses={
+        **PROBLEMS,
+        200: {
+            "description": "Bounded current-release observations.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "empty": EMPTY_COLLECTION_EXAMPLE,
+                        "missing": MISSING_OBSERVATION_EXAMPLE,
+                    }
+                }
+            },
+        },
+    },
     description="Current published county observations only. Ordered by measure ID, county FIPS, "
     "period start, and observation ID. Opaque page tokens bind to filters and release. "
     "The current release contains only the 2023 annual period and has no supported strata. "
     "A measure and bounded county/time selection are required; no user sorting or aggregation.",
+    operation_id="observations_v1_observations_get",
+    tags=["observations"],
+    summary="Query county observations",
 )
 def observations(
     query: Annotated[ObservationQuery, Depends(observation_query)],

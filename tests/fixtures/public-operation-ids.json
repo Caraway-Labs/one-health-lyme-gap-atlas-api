@@ -1,0 +1,18 @@
+{
+  "/v1/indicators": "indicators_v1_indicators_get",
+  "/v1/indicators/{indicator_id}": "indicator_v1_indicators__indicator_id__get",
+  "/v1/measures": "measures_v1_measures_get",
+  "/v1/measures/{measure_id}": "measure_v1_measures__measure_id__get",
+  "/v1/sources": "sources_v1_sources_get",
+  "/v1/sources/{source_id}": "source_v1_sources__source_id__get",
+  "/v1/methodologies/{methodology_id}": "methodology_v1_methodologies__methodology_id__get",
+  "/v1/geographies/{geography_type}/{geography_id}": "geography_v1_geographies__geography_type___geography_id__get",
+  "/v1/observations": "observations_v1_observations_get",
+  "/v1/atlas/metadata": "metadata_v1_atlas_metadata_get",
+  "/v1/atlas/geometry": "geometry_v1_atlas_geometry_get",
+  "/v1/atlas/scores": "scores_v1_atlas_scores_get",
+  "/v1/counties/{fips}": "county_v1_counties__fips__get",
+  "/v1/counties/{fips}/report.pdf": "county_report_pdf_v1_counties__fips__report_pdf_get",
+  "/v1/states/{state}/report.pdf": "state_report_pdf_v1_states__state__report_pdf_get",
+  "/v1/atlas/ranking.csv": "ranking_csv_v1_atlas_ranking_csv_get"
+}
