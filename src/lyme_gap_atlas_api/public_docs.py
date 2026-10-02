@@ -30,9 +30,9 @@ resources return ETags and 304 on matching `If-None-Match`. See each operation
 for legacy cache and export behavior.
 
 ## Contract consumers
-Fumadocs consumes the external `public-openapi.json` at `/public/openapi.json`.
-The complete first-party `openapi.json`, `/docs`, and `/redoc` remain engineering
-surfaces for existing product clients. Existing operation IDs remain stable for
+Fumadocs, `/docs`, and `/redoc` consume the canonical public `openapi.json`
+at `/openapi.json`. Internal product operations are not part of this contract.
+Existing operation IDs remain stable for
 generated clients. Breaking public changes require an approved migration and
 deprecation plan; optional additive fields may appear within V1.
 Only separately approved ML outputs may be published. Internal conversational

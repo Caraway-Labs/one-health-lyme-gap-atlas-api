@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Reques
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, Response
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION
 from lyme_gap_atlas_shared.domain import ScoreSettings
@@ -132,8 +133,32 @@ logger = operational_logger(__name__)
 
 
 class AtlasFastAPI(FastAPI):
-    def openapi(self) -> dict[str, Any]:
-        schema = super().openapi()
+    _first_party_schema: dict[str, Any] | None = None
+
+    def first_party_openapi(self) -> dict[str, Any]:
+        """Complete codegen build artifact; never served by public docs or HTTP."""
+        if self._first_party_schema is not None:
+            return self._first_party_schema
+        schema = get_openapi(
+            title=self.title,
+            version=self.version,
+            openapi_version=self.openapi_version,
+            summary="Complete first-party Atlas product contract",
+            description=(
+                "Build artifact for existing first-party Web client and validator "
+                "generation. Not an external developer contract or HTTP surface. "
+                "Use the public openapi.json for external documentation."
+            ),
+            terms_of_service=self.terms_of_service,
+            contact=self.contact,
+            license_info=self.license_info,
+            routes=self.routes,
+            webhooks=self.webhooks.routes,
+            tags=self.openapi_tags,
+            servers=self.servers,
+            separate_input_output_schemas=self.separate_input_output_schemas,
+            external_docs=self.openapi_external_docs,
+        )
         if "BriefingArtifact" not in schema.get("components", {}).get("schemas", {}):
             add_briefing_openapi(schema)
         # Problem responses use their actual media type, without an extra JSON
@@ -149,10 +174,14 @@ class AtlasFastAPI(FastAPI):
                 "missing": MISSING_OBSERVATION_EXAMPLE,
             }
         )
+        self._first_party_schema = schema
         return schema
 
-    def public_openapi(self) -> dict[str, Any]:
-        return public_projection(self.openapi())
+    def openapi(self) -> dict[str, Any]:
+        """Canonical public HTTP schema; cache separately from first-party codegen."""
+        if self.openapi_schema is None:
+            self.openapi_schema = public_projection(self.first_party_openapi())
+        return self.openapi_schema
 
 
 def _score_settings(
@@ -265,14 +294,7 @@ def create_app(
     app = AtlasFastAPI(
         title=config.app_name,
         version=config.app_version,
-        description=(
-            "Complete first-party Atlas product contract for existing client generation. "
-            "External developer documentation must use /public/openapi.json.\n\n"
-            + API_DESCRIPTION.replace(
-                "product routes are excluded.",
-                "product routes are excluded from the external projection.",
-            )
-        ),
+        description=API_DESCRIPTION,
         summary=API_SUMMARY,
         contact={"name": "Caraway Labs", "url": "https://carawaylabs.com"},
         openapi_tags=TAGS,
@@ -442,10 +464,6 @@ def create_app(
                 detail="The governed Atlas data service is temporarily unavailable.",
             ),
         )
-
-    @app.get("/public/openapi.json", include_in_schema=False)
-    def external_openapi() -> dict[str, Any]:
-        return app.public_openapi()
 
     @app.get("/health/live", tags=["health"])
     def live() -> dict[str, str]:

@@ -1,14 +1,12 @@
 # Canonical public API V1 contract (API #52)
 
-The complete first-party `openapi.json` remains the HTTP schema consumed by existing
-Web client and validator generation. `/openapi.json`, `/docs`, and `/redoc` retain
-that complete product contract. The separate generated `public-openapi.json`,
-served at `/public/openapi.json`, is the external developer/Fumadocs contract.
-It includes only approved structured-data GET operations and their reachable
-schemas. Internal account, privacy, feedback, health, and conversational AI
-routes stay in the complete first-party contract and remain callable; they are
-excluded only from the external projection. No Web migration is required.
-Both exports come from `scripts/export_openapi.py` and are checked for CI drift.
+FastAPI's `openapi.json` is the canonical public HTTP schema; `/openapi.json`,
+`/docs`, and `/redoc` consume the same approved public projection. It includes
+only supported structured-data GET operations and their reachable schemas.
+Internal account, privacy, feedback, health, and conversational AI routes remain
+callable by the product but are excluded from public OpenAPI and documentation.
+The engineering exporter separately preserves complete first-party codegen
+contracts; this public documentation boundary does not retire internal routes.
 This document records policy
 and handoff boundaries that an HTTP schema cannot fully express. The canonical
 routes are additive to all current `/v1/atlas/*`, county, report, feedback,

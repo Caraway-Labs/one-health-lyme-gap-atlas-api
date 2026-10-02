@@ -403,7 +403,7 @@ def test_snapshot_item_count_bound_is_explicit_in_the_contract() -> None:
 
 
 def test_openapi_contains_versioned_contracts_without_subscriber_route_or_changed_paths() -> None:
-    schema = create_app(settings=ApiSettings()).openapi()
+    schema = create_app(settings=ApiSettings()).first_party_openapi()
     models = schema["components"]["schemas"]
     artifact = models["BriefingArtifact"]
     assert artifact["properties"]["contract_version"]["const"] == "1.0.0"
@@ -417,7 +417,7 @@ def test_openapi_contains_versioned_contracts_without_subscriber_route_or_change
     assert not any(
         "briefing" in path or "subscriber" in path or "digest" in path for path in schema["paths"]
     )
-    assert create_app(settings=ApiSettings()).openapi() == schema
+    assert create_app(settings=ApiSettings()).first_party_openapi() == schema
 
 
 def test_limitation_reordering_and_duplicates_replay_the_first_complete_artifact() -> None:

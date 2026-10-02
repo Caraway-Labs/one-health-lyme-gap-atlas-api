@@ -1,7 +1,7 @@
 # Public V1 API support and release gate
 
-Owner: Atlas API maintainers. This runbook covers the anonymous canonical `/v1` read API. The committed `public-openapi.json` is the contract; `tests/fixtures/public-v1-compatibility.json` is a selective compatibility floor captured from it, not a second schema. The complete
-`openapi.json` remains the first-party product/client contract; CI checks both exports.
+Owner: Atlas API maintainers. This runbook covers the anonymous canonical `/v1` read API. The committed `openapi.json` is the contract; `tests/fixtures/public-v1-compatibility.json` is a selective compatibility floor captured from it, not a second schema. CI also protects the separate first-party build artifact without exposing
+internal product operations in the public schema.
 
 ## #58 audit at `3524863565705c194e5bdf65ffad93af2e6aee0d`
 
@@ -19,7 +19,7 @@ The current production app is one instance and one worker. Its rate limiter and 
 
 ## Release gate
 
-1. Review the PR against `public-openapi.json` and the compatibility floor. New optional fields and enum values can be additive; removing a path, narrowing an enum, removing nullable support, or changing required fields needs a reviewed version/migration decision. Do not refresh the fixture merely to make a failing check pass.
+1. Review the PR against `openapi.json` and the compatibility floor. New optional fields and enum values can be additive; removing a path, narrowing an enum, removing nullable support, or changing required fields needs a reviewed version/migration decision. Do not refresh the fixture merely to make a failing check pass.
 2. Run the existing `quality` job: locked sync, Ruff, mypy, pytest, OpenAPI generation equality, Docker build, Typst regression, and secret scan. `test_public_compatibility_gate.py` and `test_public_performance.py` run with pytest. A PR quality run never deploys.
 3. Merge only after owner review of contract and public interpretation. A green push to `main` promotes only that exact current-main SHA. The deploy job confirms App Platform `ACTIVE` and its `source_commit_hash`; see `ci-and-production-deploy.md`.
 4. The deploy job runs one bounded public smoke after promotion. It checks discovery, observations, missing-value behavior, source/methodology release consistency, and typed unknown-measure rejection. For a deeper characterization, run `uv run python scripts/probe_public_api.py` manually; it samples three sequential requests per shape, including 400 county selectors and page size 500. The repeated-parameter URL cap makes a 500-selector GET exceed 8,192 bytes, so 400 is the practical large request fixture.
@@ -60,7 +60,7 @@ Maintain V1 additive compatibility by default. Before proposing removal, rename,
 2. Obtain an owner-reviewed ADR for a breaking public change, with a migration plan, version path, notice date, earliest retirement date, and rollback. The intended minimum notice is **90 calendar days** before retirement where operationally practical. Security emergencies require an explicit owner exception and immediate notice.
 3. Publish the notice in the API guide and release notes, including exact affected operations, replacement examples, and dates. Mark the affected OpenAPI operation/property `deprecated` while it remains served. Do not emit a sunset date or claim migration is complete until a date and consumer plan are approved.
 4. Preserve compatibility fixtures and tests for both old and replacement behavior during the notice window. Measure use where privacy-preserving telemetry permits; absence of observed traffic alone is insufficient proof of no consumer.
-5. After the notice window, confirm owner approval, consumer migration, live smoke, and rollback plan before retirement. Update `public-openapi.json`, the floor, docs, and tests in the reviewed change. V1 breaking semantic changes require a new version path.
+5. After the notice window, confirm owner approval, consumer migration, live smoke, and rollback plan before retirement. Update `openapi.json`, the floor, docs, and tests in the reviewed change. V1 breaking semantic changes require a new version path.
 
 The existing `Source.published_at` and `Source.atlas_acquired_at` properties are marked deprecated in OpenAPI. They remain nullable and supported; no retirement date is set.
 

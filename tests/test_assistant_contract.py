@@ -268,7 +268,7 @@ def test_answered_response_requires_valid_state_and_source() -> None:
 
 
 def test_committed_openapi_exposes_required_assistant_fields() -> None:
-    contract = json.loads(Path("openapi.json").read_text(encoding="utf-8"))
+    contract = json.loads(Path("first-party-openapi.json").read_text(encoding="utf-8"))
     response = contract["components"]["schemas"]["KnowledgeChatResponse"]
     assert {"evidence_state", "source_used", "assistant_policy_version"} <= set(
         response["required"]
