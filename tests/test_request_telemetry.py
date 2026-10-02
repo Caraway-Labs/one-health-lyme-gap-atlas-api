@@ -1,0 +1,148 @@
+"""Request correlation survives real FastAPI instrumentation without unsafe data."""
+
+import json
+import logging
+from concurrent.futures import ThreadPoolExecutor
+
+import pytest
+from fastapi.testclient import TestClient
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+from lyme_gap_atlas_api.app import create_app
+from lyme_gap_atlas_api.config import ApiSettings
+
+SECRET = "private-question-evidence-token-198.51.100.99"
+
+
+@pytest.fixture
+def instrumented(monkeypatch):
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    monkeypatch.setattr(trace, "get_tracer_provider", lambda: provider)
+    monkeypatch.setattr("lyme_gap_atlas_api.app.configure_logging", lambda: None)
+    api = create_app(settings=ApiSettings())
+
+    @api.get("/test-error")
+    def error():
+        raise RuntimeError(SECRET)
+
+    @api.get("/test-child")
+    def child():
+        with trace.get_tracer("test").start_as_current_span("dependency.test"):
+            return {"ok": True}
+
+    return TestClient(api, raise_server_exceptions=False), exporter
+
+
+@pytest.mark.parametrize("supplied", ["operator-123", "", "invalid value", "x" * 81])
+@pytest.mark.parametrize(
+    "path,status",
+    [
+        ("/health/live", 200),
+        ("/v1/geographies/county/01001", 503),
+        (f"/unknown/{SECRET}?q={SECRET}", 404),
+        ("/test-error", 500),
+    ],
+)
+def test_request_root_and_redaction(instrumented, caplog, supplied, path, status):
+    client, exporter = instrumented
+    caplog.set_level(logging.INFO)
+    response = client.get(
+        path, headers={"X-Request-ID": supplied, "Authorization": f"Bearer {SECRET}"}
+    )
+    assert response.status_code == status
+    correlation = response.headers["X-Request-ID"]
+    assert (correlation == supplied) == (supplied == "operator-123")
+    roots = [s for s in exporter.get_finished_spans() if s.kind == trace.SpanKind.SERVER]
+    assert len(roots) == 1
+    attrs = dict(roots[0].attributes)
+    assert attrs["request.id"] == correlation
+    assert attrs["http.status_code"] == status
+    assert attrs["atlas.request.status_class"] == f"{status // 100}xx"
+    assert attrs["http.route"] == (
+        "unmatched"
+        if status == 404
+        else "/v1/geographies/{geography_type}/{geography_id}"
+        if status == 503
+        else path
+    )
+    payload = json.dumps(
+        [
+            {
+                "name": s.name,
+                "attributes": dict(s.attributes),
+                "events": [str(e) for e in s.events],
+                "status": s.status.description,
+            }
+            for s in exporter.get_finished_spans()
+        ]
+    )
+    assert SECRET not in payload
+    assert "01001" not in payload
+    events = [
+        r.context
+        for r in caplog.records
+        if r.msg in {"api_request_completed", "api_request_failed"}
+    ]
+    assert events[-1]["request_id"] == correlation
+    assert events[-1]["path"] == attrs["http.route"]
+    assert events[-1]["outcome"] == attrs["atlas.request.outcome"]
+
+
+def test_w3c_context_preserved(instrumented):
+    client, exporter = instrumented
+    response = client.get(
+        "/health/live",
+        headers={
+            "traceparent": "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+        },
+    )
+    assert response.status_code == 200
+    root = next(s for s in exporter.get_finished_spans() if s.kind == trace.SpanKind.SERVER)
+    assert root.context.trace_id == int("0123456789abcdef0123456789abcdef", 16)
+    assert root.parent.span_id == int("0123456789abcdef", 16)
+
+
+def test_child_span_uses_canonical_request_parent(instrumented):
+    client, exporter = instrumented
+    assert client.get("/test-child").status_code == 200
+    spans = exporter.get_finished_spans()
+    root = next(s for s in spans if s.kind == trace.SpanKind.SERVER)
+    child = next(s for s in spans if s.name == "dependency.test")
+    assert child.parent.span_id == root.context.span_id
+    assert child.context.trace_id == root.context.trace_id
+
+
+def test_concurrent_context_isolation(instrumented):
+    client, exporter = instrumented
+    ids = [f"parallel-{i}" for i in range(12)]
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        responses = list(
+            pool.map(
+                lambda identity: client.get("/health/live", headers={"X-Request-ID": identity}),
+                ids,
+            )
+        )
+    assert [r.headers["X-Request-ID"] for r in responses] == ids
+    roots = [s for s in exporter.get_finished_spans() if s.kind == trace.SpanKind.SERVER]
+    assert {s.attributes["request.id"] for s in roots} == set(ids)
+    assert len({s.context.trace_id for s in roots}) == len(ids)
+
+
+def test_instrumentation_start_failure_is_optional(monkeypatch):
+    class BrokenProvider:
+        def get_tracer(self, *args, **kwargs):
+            return self
+
+        def start_span(self, *args, **kwargs):
+            raise RuntimeError(SECRET)
+
+    monkeypatch.setattr(trace, "get_tracer_provider", lambda: BrokenProvider())
+    client = TestClient(create_app(settings=ApiSettings()))
+    response = client.get("/health/live", headers={"X-Request-ID": "still-safe"})
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "still-safe"
