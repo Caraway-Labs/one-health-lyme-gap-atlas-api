@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import logging
 import time
 from collections.abc import Callable
 from typing import Any
@@ -11,7 +9,9 @@ from typing import Any
 from neo4j import READ_ACCESS, Driver, Query
 from neo4j.exceptions import Neo4jError
 
-logger = logging.getLogger(__name__)
+from .telemetry_logging import operational_logger
+
+logger = operational_logger(__name__)
 COUNTS_QUERY = """
 MATCH (p:Paper) WITH count(p) AS paper_nodes,count(DISTINCT p.pmid) AS unique_pmids
 CALL () {
@@ -86,7 +86,6 @@ def log_serving_graph_probe(driver: Driver, category: Callable[[BaseException], 
             if probe == "identity":
                 if len(rows) != 1 or not isinstance(rows[0].get("id"), str):
                     raise ValueError("invalid identity shape")
-                context["database_id_sha256"] = hashlib.sha256(rows[0]["id"].encode()).hexdigest()
                 context["expected_database_name"] = rows[0].get("name") == "neo4j"
             elif probe in {"counts", "vector"}:
                 expected = {

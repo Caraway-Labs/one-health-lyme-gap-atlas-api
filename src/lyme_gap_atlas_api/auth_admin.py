@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -12,8 +11,9 @@ import httpx
 
 from .config import ApiSettings
 from .dependency_telemetry import dependency_span
+from .telemetry_logging import operational_logger
 
-logger = logging.getLogger(__name__)
+logger = operational_logger(__name__)
 
 
 class AuthAdminError(RuntimeError):

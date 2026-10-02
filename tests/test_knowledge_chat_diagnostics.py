@@ -141,7 +141,7 @@ def test_broken_tracer_does_not_change_answer(monkeypatch: Any) -> None:
     assert result.status == "answered"
 
 
-def test_provider_request_id_is_distinct_from_response_id(caplog: Any) -> None:
+def test_provider_identifiers_are_not_logged(caplog: Any) -> None:
     class Responses:
         def create(self, **kwargs: Any) -> Any:
             return type("Response", (), {
@@ -160,6 +160,6 @@ def test_provider_request_id_is_distinct_from_response_id(caplog: Any) -> None:
     answerer = OpenAIAnswerer(Client())  # type: ignore[arg-type]
     answerer.answer(SECRET, EVIDENCE, "safety-id", timeout_seconds=5)
     event = [r.context for r in caplog.records if r.msg == "knowledge_chat_provider_response"][0]
-    assert event["provider_request_id"] == "req-provider-123"
-    assert event["provider_response_id"] == "resp-generation-456"
+    assert "provider_request_id" not in event
+    assert "provider_response_id" not in event
     assert SECRET not in caplog.text

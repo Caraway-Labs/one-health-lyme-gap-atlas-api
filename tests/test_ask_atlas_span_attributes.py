@@ -155,7 +155,9 @@ def test_close_failure_clears_success_and_preserves_exception(
     contexts = [r.context for r in caplog.records if r.msg == "knowledge_chat_total"]
     context = completion if use_completion else contexts[0]
     assert context["outcome"] == "unhandled_error"
-    assert context["evidence_state"] is None
+    # The completion dictionary retains None; the governed log schema omits
+    # unset enum fields rather than emitting an unbounded value.
+    assert context.get("evidence_state") is None
     assert context["service_duration_ms"] == 3000
     finished = spans.get_finished_spans()
     boundary = next(s for s in finished if s.name == "knowledge_chat.service")

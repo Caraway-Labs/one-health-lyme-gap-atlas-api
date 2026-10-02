@@ -3,10 +3,52 @@
 import re
 import uuid
 from contextlib import contextmanager, suppress
+from contextvars import ContextVar
 from typing import Any
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
+
+REQUEST_CORRELATION: ContextVar[str] = ContextVar("atlas_http_request_id", default="unavailable")
+
+ROUTES = frozenset(
+    {
+        "/docs",
+        "/docs/oauth2-redirect",
+        "/health/live",
+        "/health/ready",
+        "/openapi.json",
+        "/redoc",
+        "/v1/atlas/geometry",
+        "/v1/atlas/metadata",
+        "/v1/atlas/ranking.csv",
+        "/v1/atlas/scores",
+        "/v1/counties/{fips}",
+        "/v1/counties/{fips}/report.pdf",
+        "/v1/feedback",
+        "/v1/geographies/{geography_type}/{geography_id}",
+        "/v1/indicators",
+        "/v1/indicators/{id}",
+        "/v1/indicators/{indicator_id}",
+        "/v1/knowledge-graph/chat",
+        "/v1/me/privacy-requests",
+        "/v1/me/privacy-requests/{request_id}",
+        "/v1/me/privacy-requests/{request_id}/confirm",
+        "/v1/me/privacy-requests/{request_id}/export",
+        "/v1/me/profile",
+        "/v1/measures",
+        "/v1/measures/{id}",
+        "/v1/measures/{measure_id}",
+        "/v1/methodologies/{id}",
+        "/v1/methodologies/{methodology_id}",
+        "/v1/observations",
+        "/v1/sources",
+        "/v1/sources/{id}",
+        "/v1/sources/{source_id}",
+        "/v1/states/{state}/report.pdf",
+        "unmatched",
+    }
+)
 
 METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE"})
 OUTCOMES = frozenset({"success", "client_error", "server_error", "cancelled"})
@@ -27,6 +69,15 @@ def request_id(value: str) -> str:
     return value if re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", value) else str(uuid.uuid4())
 
 
+@contextmanager
+def request_correlation(value: str) -> Any:
+    token = REQUEST_CORRELATION.set(value)
+    try:
+        yield
+    finally:
+        REQUEST_CORRELATION.reset(token)
+
+
 def request_dimensions(
     method: str, route: str, status: int, failure: str = "none"
 ) -> dict[str, Any]:
@@ -34,7 +85,7 @@ def request_dimensions(
     status = status if 100 <= status <= 599 else 500
     return {
         "method": method if method in METHODS else "OTHER",
-        "path": route,
+        "path": route if route in ROUTES else "unmatched",
         "status_code": status,
         "status_class": f"{status // 100}xx",
         "outcome": "server_error"
@@ -57,7 +108,8 @@ def enrich_request(span: Any, correlation: str, dimensions: dict[str, Any]) -> N
         span.set_attribute("request.id", correlation)
         span.set_attribute("http.route", dimensions["path"])
         span.set_attribute("http.method", dimensions["method"])
-        span.set_attribute("http.status_code", dimensions["status_code"])
+        if "status_code" in dimensions:
+            span.set_attribute("http.status_code", dimensions["status_code"])
         for field in ("status_class", "outcome", "failure_class"):
             span.set_attribute(f"atlas.request.{field}", dimensions[field])
         span.set_attribute("atlas.telemetry.schema_version", "1")
@@ -88,15 +140,8 @@ class _PrivateSpan(trace.Span):
             self._span.update_name(name)
 
     def set_attribute(self, key: str, value: Any) -> None:
-        if key in {
-            "request.id",
-            "http.route",
-            "http.method",
-            "http.status_code",
-            "http.response.status_code",
-            "http.request.method",
-            "error.type",
-        } or key.startswith(("atlas.request.", "atlas.telemetry.")):
+        value = _request_attribute(key, value)
+        if value is not None:
             with suppress(Exception):
                 self._span.set_attribute(key, value)
 
@@ -127,9 +172,10 @@ class _PrivateTracer:
     def start_span(self, name: str, *args: Any, **kwargs: Any) -> Any:
         attributes = kwargs.pop("attributes", None) or {}
         safe = {
-            key: value
+            key: clean
             for key, value in attributes.items()
             if key in {"http.route", "http.method", "http.request.method"}
+            and (clean := _request_attribute(key, value)) is not None
         }
         kwargs["record_exception"] = False
         kwargs["set_status_on_exception"] = False
@@ -153,6 +199,33 @@ class PrivateInstrumentationProvider(trace.TracerProvider):
 
     def get_tracer(self, *args: Any, **kwargs: Any) -> Any:
         return _PrivateTracer(trace.get_tracer_provider().get_tracer(*args, **kwargs))
+
+
+def _request_attribute(key: str, value: Any) -> Any:
+    enums = {
+        "http.route": ROUTES,
+        "http.method": METHODS | {"OTHER"},
+        "http.request.method": METHODS | {"OTHER"},
+        "atlas.request.status_class": {f"{i}xx" for i in range(1, 6)} | {"unknown"},
+        "atlas.request.outcome": OUTCOMES,
+        "atlas.request.failure_class": FAILURES,
+        "atlas.telemetry.schema_version": {"1"},
+    }
+    if key in enums:
+        if isinstance(value, str) and value in enums[key]:
+            return value
+        return "unmatched" if key == "http.route" else "OTHER" if "method" in key else None
+    if key in {"http.status_code", "http.response.status_code"}:
+        return value if type(value) is int and 100 <= value <= 599 else None
+    if key == "request.id":
+        return (
+            value
+            if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", value)
+            else None
+        )
+    if key == "error.type":
+        return "http_error"  # Do not copy arbitrary semantic-convention exception/type payloads.
+    return None
 
 
 def server_request_hook(span: Any, scope: dict[str, Any]) -> None:
