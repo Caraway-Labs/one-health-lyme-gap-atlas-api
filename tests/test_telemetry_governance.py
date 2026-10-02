@@ -140,6 +140,53 @@ def test_uvicorn_stderr_hierarchy_cannot_emit_exception_chain(monkeypatch, dedic
     assert "Traceback" not in text
     assert "ValueError" not in text
 
+    # Exercise the locked Uvicorn runtime's actual exception wrapper, including
+    # FastAPI's exception-chain propagation and its normal HTTP 500 response.
+    import asyncio
+    from unittest.mock import Mock
+
+    import h11
+    from fastapi import FastAPI
+    from uvicorn.protocols.http.flow_control import FlowControl
+    from uvicorn.protocols.http.h11_impl import RequestResponseCycle
+
+    app = FastAPI()
+
+    @app.get("/failure")
+    async def failure():
+        try:
+            raise ValueError(SECRET)
+        except ValueError as original:
+            raise RuntimeError(SECRET) from original
+
+    async def run_cycle():
+        transport = Mock()
+        conn = h11.Connection(h11.SERVER)
+        conn.receive_data(b"GET /failure HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        conn.next_event()
+        conn.next_event()
+        cycle = RequestResponseCycle(
+            scope={"type": "http", "asgi": {"version": "3.0"},
+                   "http_version": "1.1", "method": "GET", "scheme": "http",
+                   "path": "/failure", "raw_path": b"/failure",
+                   "query_string": b"", "root_path": "", "headers": [],
+                   "server": ("localhost", 80), "client": ("localhost", 1)},
+            conn=conn, transport=transport, flow=FlowControl(transport),
+            logger=error, access_logger=access, access_log=False,
+            default_headers=[], message_event=asyncio.Event(), on_response=lambda: None,
+        )
+        await cycle.run_asgi(app)
+        wire = b"".join(call.args[0] for call in transport.write.call_args_list)
+        assert b"HTTP/1.1 500" in wire
+        assert b"Internal Server Error" in wire
+        assert SECRET.encode() not in wire
+        assert cycle.response_complete
+
+    asyncio.run(run_cycle())
+    assert output.getvalue().count("api_server_error") == 2
+    assert SECRET not in output.getvalue()
+    assert "Traceback" not in output.getvalue()
+
 
 def test_readiness_error_text_and_codes_not_logged(monkeypatch, caplog):
     class UnsafeError(RuntimeError):
