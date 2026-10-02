@@ -1,7 +1,9 @@
 # Canonical public API V1 contract (API #52)
 
 The FastAPI-generated `openapi.json` is the HTTP authority; `/openapi.json`, `/docs`,
-and `/redoc` render the same application contract. This document records policy
+and `/redoc` render the same public contract. Internal account, privacy, feedback,
+and conversational AI routes remain callable by the product but are excluded
+from public OpenAPI. This documentation boundary does not retire those routes. This document records policy
 and handoff boundaries that an HTTP schema cannot fully express. The canonical
 routes are additive to all current `/v1/atlas/*`, county, report, feedback,
 chat, and authenticated `/v1/me/*` routes. API #53 connects indicator and measure

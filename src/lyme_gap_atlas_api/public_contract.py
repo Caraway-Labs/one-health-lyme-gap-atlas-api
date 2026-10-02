@@ -25,8 +25,11 @@ class GeographyType(StrEnum):
 
 class GeographyIdentity(BaseModel):
     """Stable FIPS join identity, independent of display or analysis polygons."""
+
     geography_type: GeographyType
-    geography_id: str
+    geography_id: str = Field(
+        description="FIPS string with leading zeros: five digits for counties, two for states."
+    )
 
     @model_validator(mode="after")
     def validate_fips(self) -> "GeographyIdentity":
@@ -53,11 +56,27 @@ class StandardsMapping(BaseModel):
 class EvidenceReference(BaseModel):
     resource_type: str
     resource_id: str
-    source_id: str | None = None
-    provenance_ref: str | None = None
-    semantic_version: str | None = None
-    methodology_version: str | None = None
-    release_id: str | None = None
+    source_id: str | None = Field(
+        default=None,
+        description="Public source resource key; distinct from lineage_source_id and dataset_id.",
+    )
+    provenance_ref: str | None = Field(
+        default=None,
+        description="Structured observation provenance identity; not a literature citation.",
+    )
+    semantic_version: str | None = Field(
+        default=None,
+        description=(
+            "Governed semantic contract version, separate from HTTP V1 and application version."
+        ),
+    )
+    methodology_version: str | None = Field(
+        default=None,
+        description="Transformation version, distinct from methodology resource version.",
+    )
+    release_id: str | None = Field(
+        default=None, description="Governed release identity for reproducibility."
+    )
     uri: str | None = None
 
 
@@ -66,11 +85,20 @@ class Indicator(BaseModel):
     label: str
     definition: str | None
     measure_ids: list[str]
-    semantic_version: str
-    release_version: str | None = None
+    semantic_version: str = Field(
+        description=(
+            "Governed semantic contract version, separate from HTTP V1 and application version."
+        )
+    )
+    release_version: str | None = Field(
+        default=None, description="Governed current-release relationship version."
+    )
     domain: str | None = None
     category: str | None = None
-    limitations: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(
+        default_factory=list,
+        description="Governed interpretation limitations; preserve alongside values and versions.",
+    )
     standards_mappings: list[StandardsMapping] | None = None
 
 
@@ -79,11 +107,20 @@ class Measure(BaseModel):
     indicator_id: str
     label: str
     definition: str | None
-    semantic_version: str
-    release_version: str | None = None
+    semantic_version: str = Field(
+        description=(
+            "Governed semantic contract version, separate from HTTP V1 and application version."
+        )
+    )
+    release_version: str | None = Field(
+        default=None, description="Governed current-release relationship version."
+    )
     measure_type: str | None = None
     unit: str | None = None
-    denominator: str | None = None
+    denominator: str | None = Field(
+        default=None,
+        description="Governed denominator; null means it is not supplied and must not be inferred.",
+    )
     geography_types: list[GeographyType] | None = None
     temporal_grains: list[str] | None = None
     geography_semantics: str | None = None
@@ -91,42 +128,84 @@ class Measure(BaseModel):
     allowed_value_states: list[ValueState] | None = None
     allowed_strata: list[str] | None = None
     missingness_semantics: str | None = None
-    methodology_id: str | None = None
+    methodology_id: str | None = Field(
+        default=None, description="Exact governed methodology resource ID; null when not governed."
+    )
     methodology: str | None = None
     source_ids: list[str] | None = None
-    limitations: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(
+        default_factory=list,
+        description="Governed interpretation limitations; preserve alongside values and versions.",
+    )
     standards_mappings: list[StandardsMapping] | None = None
 
 
 class Observation(BaseModel):
-    observation_id: str
+    observation_id: str = Field(
+        description="Stable observation identity and compact provenance reference."
+    )
     measure_id: str
     geography: GeographyIdentity
-    period_start: date
-    period_end: date
+    period_start: date = Field(description="Inclusive start of the governed observation period.")
+    period_end: date = Field(description="Inclusive end of the governed observation period.")
     temporal_grain: str
-    value: float | str | None
-    value_state: ValueState
+    value: float | str | None = Field(
+        description="Read with value_state and unit; null never means zero."
+    )
+    value_state: ValueState = Field(
+        description=(
+            "OBSERVED is nonzero; ZERO is numeric zero; MISSING/SUPPRESSED/UNAVAILABLE "
+            "require null; NO_COUNTY_LINKED_RECORD retains the literal "
+            "no_county_linked_record, not evidence of absence."
+        )
+    )
     unit: str
-    denominator: str | None
+    denominator: str | None = Field(
+        description="Governed denominator; null means it is not supplied and must not be inferred."
+    )
     strata: dict[str, str] = Field(default_factory=dict)
-    source_id: str
+    source_id: str = Field(
+        description="Public source resource key; distinct from lineage_source_id and dataset_id."
+    )
     lineage_source_id: str | None = None
     dataset_id: str | None = None
-    methodology_id: str | None
+    methodology_id: str | None = Field(
+        description="Exact governed methodology resource ID; null when not governed."
+    )
     methodology: str | None = None
     release_methodology_version: str | None = None
-    methodology_version: str
-    semantic_version: str
-    release_id: str
-    provenance_ref: str
+    methodology_version: str = Field(
+        description="Transformation version, distinct from methodology resource version."
+    )
+    semantic_version: str = Field(
+        description=(
+            "Governed semantic contract version, separate from HTTP V1 and application version."
+        )
+    )
+    release_id: str = Field(description="Governed release identity for reproducibility.")
+    provenance_ref: str = Field(
+        description="Structured observation provenance identity; not a literature citation."
+    )
     source_label: str | None = None
     source_vintage: str | None = None
     source_url: str | None = None
-    source_published_at: datetime | None = None
-    atlas_acquired_at: datetime | None = None
-    atlas_processed_at: datetime | None = None
-    limitations: list[str]
+    source_published_at: datetime | None = Field(
+        default=None,
+        description="Publisher timestamp when governed; null is not inferred freshness.",
+    )
+    atlas_acquired_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Atlas acquisition time when governed; distinct from source publication and processing."
+        ),
+    )
+    atlas_processed_at: datetime | None = Field(
+        default=None,
+        description="Atlas processing time when governed; distinct from response time.",
+    )
+    limitations: list[str] = Field(
+        description="Governed interpretation limitations; preserve alongside values and versions."
+    )
     evidence: EvidenceReference
 
     @model_validator(mode="after")
@@ -163,6 +242,7 @@ class Observation(BaseModel):
 
 class Geography(BaseModel):
     """County/state identity metadata; geometry is a separate display resource."""
+
     geography: GeographyIdentity
     label: str
     parent: GeographyIdentity | None = None
@@ -170,36 +250,72 @@ class Geography(BaseModel):
 
 
 class Source(BaseModel):
-    source_id: str
+    source_id: str = Field(
+        description="Public source resource key; distinct from lineage_source_id and dataset_id."
+    )
     label: str
     publisher: str | None
     lineage_source_id: str
     dataset_id: str
-    semantic_version: str
-    release_version: str
+    semantic_version: str = Field(
+        description=(
+            "Governed semantic contract version, separate from HTTP V1 and application version."
+        )
+    )
+    release_version: str = Field(description="Governed current-release relationship version.")
     source_url: str | None = None
     source_vintage: str | None = None
     source_version: str | None = None
     published_at: datetime | None = Field(default=None, deprecated=True)
-    atlas_acquired_at: datetime | None = Field(default=None, deprecated=True)
-    upstream_updated_at: datetime | None = None
-    source_retrieved_at: datetime | None = None
-    limitations: list[str] = Field(default_factory=list)
+    atlas_acquired_at: datetime | None = Field(
+        default=None,
+        deprecated=True,
+        description=(
+            "Atlas acquisition time when governed; distinct from source publication and processing."
+        ),
+    )
+    upstream_updated_at: datetime | None = Field(
+        default=None, description="Governed publisher update time; null when unavailable."
+    )
+    source_retrieved_at: datetime | None = Field(
+        default=None, description="Governed source retrieval time; null when unavailable."
+    )
+    limitations: list[str] = Field(
+        default_factory=list,
+        description="Governed interpretation limitations; preserve alongside values and versions.",
+    )
 
 
 class Methodology(BaseModel):
-    methodology_id: str
+    methodology_id: str = Field(
+        description="Exact governed methodology resource ID; null when not governed."
+    )
     measure_id: str
     version: str
     description: str
-    limitations: list[str]
-    semantic_version: str
-    release_version: str
+    limitations: list[str] = Field(
+        description="Governed interpretation limitations; preserve alongside values and versions."
+    )
+    semantic_version: str = Field(
+        description=(
+            "Governed semantic contract version, separate from HTTP V1 and application version."
+        )
+    )
+    release_version: str = Field(description="Governed current-release relationship version.")
 
 
 class CollectionMeta(BaseModel):
-    next_page_token: str | None = None
-    response_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    next_page_token: str | None = Field(
+        default=None,
+        description=(
+            "Opaque query/release-bound continuation. Null means exhaustion; tokens may "
+            "expire on restart."
+        ),
+    )
+    response_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="UTC response construction time; not source freshness or observation time.",
+    )
 
 
 class CollectionLinks(BaseModel):
@@ -228,7 +344,11 @@ class PublicQueryError(ValueError):
 class ObservationQuery(BaseModel):
     measure_id: str = Field(min_length=1)
     geography_type: GeographyType
-    geography_id: list[str] = Field(min_length=1, max_length=500)
+    geography_id: list[str] = Field(
+        min_length=1,
+        max_length=500,
+        description="FIPS string with leading zeros: five digits for counties, two for states.",
+    )
     year: int | None = Field(default=None, ge=1900, le=2100)
     start_date: date | None = None
     end_date: date | None = None

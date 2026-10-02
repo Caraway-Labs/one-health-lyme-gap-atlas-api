@@ -249,6 +249,7 @@ class CountyDetail(CountyScoreSummary):
 
 
 class ProblemDetails(BaseModel):
+    """RFC 9457 error. Canonical public resources add stable code; legacy routes may omit it."""
     type: str
     title: str
     status: int
