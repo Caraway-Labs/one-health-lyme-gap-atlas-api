@@ -1110,8 +1110,6 @@ class KnowledgeChatService:
 
         for attempt in (1, 2):
             diagnostics = _DIAGNOSTICS.get()
-            if diagnostics is not None:
-                diagnostics["generation_attempts"] = attempt
             remaining = deadline - self._clock()
             # Reserve time for grounding, provenance, Snowflake persistence,
             # and serialization after the provider call. The production QA
@@ -1124,6 +1122,8 @@ class KnowledgeChatService:
             )
             try:
                 with _timed_stage(request_id, f"answer_generation_attempt_{attempt}"):
+                    if diagnostics is not None:
+                        diagnostics["generation_attempts"] = attempt
                     generated = self._answerer.answer(
                         contextual_question,
                         evidence,

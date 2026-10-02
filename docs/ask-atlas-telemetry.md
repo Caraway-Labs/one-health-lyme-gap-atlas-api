@@ -16,7 +16,7 @@ The service attaches only the following `atlas.ask_atlas.*` completion attribute
 | `outcome_class` | `answered`, `intentional_abstention`, `failure` |
 | `evidence_state` | Closed response evidence states or `unavailable` |
 | `validation_outcome` | Existing closed grounding rules, `passed`, `not_run`, `invalid_generated_shape` |
-| `generation_attempts` | Integer 0–2 |
+| `generation_attempts` | Integer 0–2; actual answerer generation entries after the deadline guard, never rejected/blocked attempt slots |
 | `retrieval_passage_count`, `retrieval_paper_count` | Integer 0–100, capped; 0 alone does not prove retrieval ran |
 | `provider` | Constant `openai` |
 | `configuration_version`, `retrieval_version` | Source-controlled constants |
