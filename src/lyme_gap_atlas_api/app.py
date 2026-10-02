@@ -115,7 +115,7 @@ from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
 from .telemetry import PrivateInstrumentationProvider, server_request_hook, server_response_hook
-from .telemetry_logging import operational_logger, protect_dependency_logs
+from .telemetry_logging import operational_logger, operational_request_id, protect_dependency_logs
 
 logger = operational_logger(__name__)
 
@@ -604,7 +604,7 @@ def create_app(
                 "privacy_request_confirm_failed",
                 extra={
                     "context": {
-                        "request_id": str(request_id),
+                        "request_id": operational_request_id(),
                         "failure_category": exc.category,
                     }
                 },
@@ -638,7 +638,7 @@ def create_app(
                 "privacy_request_status_failed",
                 extra={
                     "context": {
-                        "request_id": str(request_id),
+                        "request_id": operational_request_id(),
                         "failure_category": exc.category,
                     }
                 },
@@ -671,7 +671,7 @@ def create_app(
                 "privacy_export_download_failed",
                 extra={
                     "context": {
-                        "request_id": str(request_id),
+                        "request_id": operational_request_id(),
                         "failure_category": exc.category,
                     }
                 },

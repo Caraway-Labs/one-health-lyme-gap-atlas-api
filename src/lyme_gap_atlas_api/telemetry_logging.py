@@ -6,6 +6,8 @@ import re
 from contextlib import suppress
 from typing import Any
 
+from opentelemetry import trace
+
 from .telemetry import FAILURES, METHODS, OUTCOMES, ROUTES
 
 
@@ -24,6 +26,15 @@ class OperationalLogger(logging.LoggerAdapter):  # type: ignore[type-arg]
 
 def operational_logger(name: str) -> OperationalLogger:
     return OperationalLogger(logging.getLogger(name))
+
+
+def operational_request_id() -> str:
+    """HTTP correlation only; a privacy/workflow resource UUID is never a request ID."""
+    with suppress(Exception):
+        value = getattr(trace.get_current_span(), "attributes", {}).get("request.id")
+        if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", value):
+            return value
+    return "unavailable"
 
 
 class _DependencyLogFilter(logging.Filter):

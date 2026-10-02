@@ -25,7 +25,7 @@ from .models import (
     UserProfile,
 )
 from .profiles import ProfileStore, ProfileStoreError
-from .telemetry_logging import operational_logger
+from .telemetry_logging import operational_logger, operational_request_id
 
 logger = operational_logger(__name__)
 
@@ -411,7 +411,7 @@ class PrivacyRequestService:
                     "privacy_request_ledger_save_after_delete_failed",
                     extra={
                         "context": {
-                            "request_id": str(record.request_id),
+                            "request_id": operational_request_id(),
                             "action": record.action,
                             "failure_category": _redacted_error_class(exc),
                         }
@@ -436,7 +436,7 @@ class PrivacyRequestService:
                 "privacy_request_processor_failed",
                 extra={
                     "context": {
-                        "request_id": str(record.request_id),
+                        "request_id": operational_request_id(),
                         "action": record.action,
                         "processor": failed_processor,
                         "failure_category": record.error_class,

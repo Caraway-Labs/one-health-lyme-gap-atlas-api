@@ -123,3 +123,46 @@ def test_readiness_error_text_and_codes_not_logged(monkeypatch, caplog):
     event = next(r for r in caplog.records if r.msg == "atlas_readiness_check_failed")
     assert event.context == {"failure_class": "dependency_error"}
     assert SECRET not in caplog.text
+
+
+@pytest.mark.parametrize("suffix", ["", "/confirm", "/export"])
+def test_privacy_failure_correlates_http_request_not_resource(monkeypatch, caplog, suffix):
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from test_privacy_requests import _api
+
+    from lyme_gap_atlas_api.privacy_requests import (
+        MemoryPrivacyRequestStore,
+        PrivacyRequestStoreError,
+    )
+
+    class UnavailableStore(MemoryPrivacyRequestStore):
+        def get(self, request_id):
+            raise PrivacyRequestStoreError("get", "upstream_http", 503)
+
+    provider = TracerProvider()
+    monkeypatch.setattr(trace, "get_tracer_provider", lambda: provider)
+    monkeypatch.setattr("lyme_gap_atlas_api.app.configure_logging", lambda: None)
+    caplog.set_level(logging.INFO)
+    api, _, _, _ = _api(store=UnavailableStore())
+    resource_id = "33333333-3333-3333-3333-333333333333"
+    headers = {"Authorization": "Bearer test-token", "X-Request-ID": "http-correlation"}
+    path = f"/v1/me/privacy-requests/{resource_id}{suffix}"
+    response = (
+        api.post(path, headers=headers, json={"nonce": "n" * 32})
+        if suffix == "/confirm"
+        else (api.get(path, headers=headers))
+    )
+    assert response.status_code == 503
+    events = [
+        r.context
+        for r in caplog.records
+        if r.msg
+        in {
+            "privacy_request_status_failed",
+            "privacy_request_confirm_failed",
+            "privacy_export_download_failed",
+        }
+    ]
+    assert events[-1]["request_id"] == "http-correlation"
+    assert resource_id not in caplog.text
