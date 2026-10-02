@@ -167,6 +167,57 @@ def _safe_identifier(value: object) -> str | None:
     return None
 
 
+_ASK_OUTCOMES = frozenset({
+    "answered", "safety_refusal", "no_evidence", "capacity_limited", "embedding_failure",
+    "neo4j_timeout", "neo4j_query_failure", "retrieval_dependency_unavailable",
+    "retrieval_failure", "budget_failure", "deadline_exhausted", "generation_timeout",
+    "provider_rejection", "generation_transport_error", "malformed_generated_json",
+    "generation_error", "corrective_retry_exhausted", "grounding_validation_failed",
+    "provenance_failure", "persistence_failure", "invalid_conversation_capability",
+    "authorization_dependency_failure", "unhandled_error",
+})
+_PRODUCT_OUTCOMES = frozenset({"safety_refusal", "no_evidence", "capacity_limited"})
+
+
+def _completion_attributes(context: dict[str, Any]) -> None:
+    """Closed vocabulary and capped counts only; arbitrary diagnostics are never copied."""
+    outcome = context.get("outcome")
+    outcome = outcome if outcome in _ASK_OUTCOMES else "unhandled_error"
+    attributes: dict[str, str | int] = {
+        "outcome": outcome,
+        "outcome_class": (
+            "answered" if outcome == "answered" else
+            "intentional_abstention" if outcome in _PRODUCT_OUTCOMES else "failure"
+        ),
+        "provider": "openai",
+        "configuration_version": CONFIGURATION_VERSION,
+        "retrieval_version": _RETRIEVAL_VERSION,
+    }
+    validation = context.get("validation_outcome")
+    allowed_validation = _GROUNDING_REASONS | {"passed", "not_run", "invalid_generated_shape"}
+    attributes["validation_outcome"] = (
+        validation if isinstance(validation, str) and validation in allowed_validation
+        else "invalid_generated_shape"
+    )
+    evidence = context.get("evidence_state")
+    evidence_states = {
+        "single_study", "consistent", "limited", "mixed", "conflicting",
+        "insufficient_to_compare", "no_relevant_corpus_evidence", "evidence_unavailable",
+        "not_applicable",
+    }
+    attributes["evidence_state"] = evidence if evidence in evidence_states else "unavailable"
+    # Model is intentionally omitted: a format check alone is not a closed vocabulary.
+    for key, maximum in (("generation_attempts", 2), ("retrieval_passage_count", 100),
+                         ("retrieval_paper_count", 100)):
+        value = context.get(key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            attributes[key] = max(0, min(value, maximum))
+    with suppress(Exception):
+        span = trace.get_current_span()
+        for key, value in attributes.items():
+            span.set_attribute(f"atlas.ask_atlas.{key}", value)
+
+
 @contextmanager
 def _span(name: str, request_id: str, **attributes: str | int | bool | None) -> Iterator[None]:
     """Tracing is optional and exporter failures must not affect answers."""
@@ -184,7 +235,9 @@ def _span(name: str, request_id: str, **attributes: str | int | bool | None) -> 
             except Exception:
                 pass
         try:
-            yield
+            with trace.use_span(span, end_on_exit=False, record_exception=False,
+                                set_status_on_exception=False) if span is not None else ExitStack():
+                yield
         except Exception as exc:
             if span is not None:
                 with suppress(Exception):
@@ -885,6 +938,16 @@ class KnowledgeChatService:
         network_identifier: str,
         completion: dict[str, Any] | None = None,
     ) -> KnowledgeChatResponse:
+        with _span("service", request_id):
+            return self._chat_with_diagnostics(request, request_id, network_identifier, completion)
+
+    def _chat_with_diagnostics(
+        self,
+        request: KnowledgeChatRequest,
+        request_id: str,
+        network_identifier: str,
+        completion: dict[str, Any] | None = None,
+    ) -> KnowledgeChatResponse:
         started = self._clock()
         outcome = "unhandled_error"
         diagnostics: dict[str, Any] = {
@@ -903,11 +966,16 @@ class KnowledgeChatService:
                     request, request_id, network_identifier, started + self._deadline_seconds
                 )
             return result
-        except ValueError:
-            outcome = "invalid_conversation_capability"
-            raise
-        except AuthorizationDependencyFailure:
-            outcome = "authorization_dependency_failure"
+        except Exception as exc:
+            if result is None and isinstance(exc, ValueError):
+                outcome = "invalid_conversation_capability"
+            elif result is None and isinstance(exc, AuthorizationDependencyFailure):
+                outcome = "authorization_dependency_failure"
+            else:
+                outcome = "unhandled_error"
+            result = None
+            with suppress(Exception):
+                trace.get_current_span().set_status(trace.StatusCode.ERROR)
             raise
         finally:
             _DIAGNOSTICS.reset(context_token)
@@ -921,8 +989,9 @@ class KnowledgeChatService:
                 "model_id": _safe_identifier(getattr(self._answerer, "model_id", None)),
                 "configuration_version": CONFIGURATION_VERSION,
                 "retrieval_version": _RETRIEVAL_VERSION,
-                **diagnostics,
-            }
+              **diagnostics,
+          }
+            _completion_attributes(context)
             if completion is None:
                 emit_completion(logger, "knowledge_chat_total", context)
             else:
@@ -1046,8 +1115,6 @@ class KnowledgeChatService:
 
         for attempt in (1, 2):
             diagnostics = _DIAGNOSTICS.get()
-            if diagnostics is not None:
-                diagnostics["generation_attempts"] = attempt
             remaining = deadline - self._clock()
             # Reserve time for grounding, provenance, Snowflake persistence,
             # and serialization after the provider call. The production QA
@@ -1060,6 +1127,8 @@ class KnowledgeChatService:
             )
             try:
                 with _timed_stage(request_id, f"answer_generation_attempt_{attempt}"):
+                    if diagnostics is not None:
+                        diagnostics["generation_attempts"] = attempt
                     generated = self._answerer.answer(
                         contextual_question,
                         evidence,
