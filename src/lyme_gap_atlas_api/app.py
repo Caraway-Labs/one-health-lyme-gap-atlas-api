@@ -42,6 +42,8 @@ from .feedback import (
     SnowflakeFeedbackStore,
     feedback_process_topology_safe,
 )
+from .intelligence_feed import FeedRepository, FeedService, SnowflakeFeedRepository
+from .intelligence_feed import router as intelligence_router
 from .knowledge_chat import (
     EVIDENCE_UNAVAILABLE,
     KnowledgeChatService,
@@ -234,6 +236,7 @@ def create_app(
     metadata_repository: MetadataRepository | None = None,
     observation_repository: ObservationRepository | None = None,
     provenance_repository: ProvenanceRepository | None = None,
+    intelligence_repository: FeedRepository | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
@@ -312,6 +315,10 @@ def create_app(
         provenance_repository or SnowflakeProvenanceRepository(config)
     )
     app.include_router(public_router)
+    app.state.intelligence_feed_service = FeedService(
+        intelligence_repository or SnowflakeFeedRepository(config)
+    )
+    app.include_router(intelligence_router)
     accounts_configured = bool(
         config.supabase_url
         and config.supabase_secret_key

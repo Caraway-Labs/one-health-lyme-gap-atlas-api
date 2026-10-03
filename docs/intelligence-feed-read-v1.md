@@ -1,0 +1,15 @@
+# API172 intelligence feed read projection
+
+First-party routes `/v1/intelligence/items` and `/v1/intelligence/sources` read only the governed DATA `PRESENTATION.INTELLIGENCE_FEED_V`. They are excluded from the external public analytics OpenAPI allowlist. The complete first-party artifact contains stable operation IDs for downstream generated clients; no WEB changes are included.
+
+`INTELLIGENCE_FEED_READ_ENABLED` defaults false. Do not enable before intended API runtime-role readback, DATA publication acceptance and coordinated production release. Disabled or unavailable returns ProblemDetails 503, never a fabricated empty feed. Only exact DEV/PROD presentation databases are accepted. Bound parameters, explicit public columns, page/result limits, query timeout, rate/concurrency/query/body middleware and strict nested response validation protect reads. No private source registry, raw bytes, mailbox or credentials are exposed.
+
+Items retain all source/revision attribution and publisher versus fetch dates, including missingness and untrusted-content labels. Inclusive publication-date filters support archive reads; there is no metadata retention cutoff. Stable identity ordering does not rank relevance. Sources describe only identities represented by published items, not all registered/active sources. Health is explicitly unavailable until DATA publishes a governed health projection; fetch dates do not imply operational health or disease activity.
+
+Continuation tokens bind filters, offset and a state-change detector. Snowflake HASH_AGG is a noncryptographic 64-bit aggregate; pre/post checks and signed tokens detect ordinary changes but do not establish immutable snapshot isolation or cryptographic completeness. Restart pagination on detected change. Count ceilings bound returned data, not warehouse scan cost; the existing timeout applies. Live SQL and grants require intended-role verification.
+
+Source handoff: DATA PR576 selection SHA `91cf14df2da6986a89c892a91aaf0faee3652d7bf8fcf56bce214fe316d3010c`, eight approved/three deferred, daily cadence. PubMed broad search version v2 fixes Babesia/babesiosis and Ehrlichia/ehrlichiosis. Exact generated PubMed RSS remains unresolved; NIH normal transport returned403. No denial bypass or source activation.
+
+Matthew approved long-term normalized metadata/provenance subject to source permissions, recent UI default plus archive access, raw feed copies30days for debug/replay, and separate rights for excerpts/full article text. No blanket full-text copying approval. UI display choices belong to the frontend owner; this API imposes no UI window or deletion rule. DATA raw expiry/cache enforcement remains a live activation gate.
+
+Shared files with climate API PR171: config and the generated first-party OpenAPI artifact. Reconcile fresh main and regenerate the complete artifact before merge. API main deploys automatically after quality checks: parent production coordination is required. API172 stays open for actual publication, health contract, runtime proof and production acceptance.

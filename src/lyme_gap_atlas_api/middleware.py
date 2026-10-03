@@ -18,7 +18,10 @@ from .telemetry_logging import emit_completion, operational_logger
 
 logger = operational_logger(__name__)
 
-_PUBLIC_COLLECTIONS = {"/v1/indicators", "/v1/measures", "/v1/sources", "/v1/observations"}
+_PUBLIC_COLLECTIONS = {
+    "/v1/indicators", "/v1/measures", "/v1/sources", "/v1/observations",
+    "/v1/intelligence/items", "/v1/intelligence/sources",
+}
 _PUBLIC_DETAILS = ("/v1/indicators/", "/v1/measures/", "/v1/sources/", "/v1/methodologies/")
 
 
