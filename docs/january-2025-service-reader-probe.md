@@ -6,12 +6,14 @@ for Snowflake. It does not request an app specification, inspect deployment
 environment values, enter a console, export credentials or expose an endpoint.
 The service uses its existing configured connection; no role or grant changes.
 
-For the real app factory only, a daemon issues at most three SELECT statements:
+At actual ASGI lifespan startup, a daemon issues at most three SELECT statements:
 the effective primary identity, at most five release/measure metadata rows, and
 at most one observation release row. Statement timeout is at most five seconds.
 The existing connector's connection/retry policy remains in force. The probe is
 independent of the climate activation flag and cannot block process readiness.
-Fixture repositories and unconfigured app factories do not dispatch the probe.
+Module import, app construction and OpenAPI export do not dispatch the probe.
+Fixture repositories and unconfigured apps do not dispatch it, including at
+startup. Each service app dispatches at most once across repeated lifespan entry.
 
 The identity must match the already approved service principal, environment's
 reader role, configured suffixed database and warehouse before either view is
