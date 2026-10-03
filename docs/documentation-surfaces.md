@@ -54,3 +54,24 @@ URL smoke tests ensure JSON availability, both framework surfaces using only the
 canonical schema, the docs-home cross-link, unchanged production server semantics
 and no full-schema HTTP endpoint. No auth/token/SDK implementation or documentation
 platform migration is part of this surface contract.
+
+## Framework presentation and assets
+
+Swagger and retained ReDoc use FastAPI's standard HTML helpers, the existing
+Atlas title/description, and the approved Atlas favicon. The SVG is copied
+unchanged from Web commit `1287058fbc1bd7222a2c1628865ad694d719bb25`,
+`public/favicon.svg` (Git blob `ca747cb66b233fedec5ff0c84f97bb4631c05dbf`).
+It is included with package sources in the production image and served at
+`/docs/favicon.svg`; OpenAPI
+`info.x-logo` points to that production asset. This is documentation presentation,
+not a new API operation, and it is absent from both generated operation lists.
+
+Swagger retains its standard Try It Out controls for approved GETs and the
+existing production server URL. Filtering, deep links, request duration and
+shallow schema expansion use supported parameters. No CSS/JavaScript DOM
+overrides, framework forks, new credentials or CSP/middleware changes are used.
+The existing FastAPI helper CDN defaults remain: self-hosting would require
+ongoing upstream security/version maintenance, and this scope provides no
+measured reliability/security benefit that justifies that change. Browser smoke
+must check both renderers and a synthetic intercepted GET execution; it must not
+invoke paid providers or treat fixture success as live production-data proof.

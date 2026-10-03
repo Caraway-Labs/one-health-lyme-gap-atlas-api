@@ -3,7 +3,9 @@
 from typing import Any
 
 API_SUMMARY = "Governed Atlas analytics, metadata, and provenance"
-API_DESCRIPTION = """Read-only structured data from the One Health Lyme Gap Atlas.
+API_DESCRIPTION = """![Atlas](https://api.carawaylabs.com/docs/favicon.svg)
+
+Read-only structured data from the One Health Lyme Gap Atlas.
 Ordinary public reads are anonymous and require no API key.
 
 ## Interpretation and reproducibility
