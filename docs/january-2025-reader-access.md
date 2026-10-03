@@ -34,3 +34,8 @@ same-release metadata/decoded-observation counts. A human PAT inspection cannot
 substitute for that result. No approved remote service-command surface is exposed
 in this workspace, so this service-side execution remains an engineering handoff;
 it does not require Matthew to repeat January source or metadata acceptance.
+
+A bounded owner-visible INFORMATION_SCHEMA query-history check (last 24 hours,
+at most 1,000 visible rows, API user only, no query text) returned no matching
+rows. Its visibility is limited; this does not establish that the service has
+not queried Snowflake or authenticate its runtime identity.

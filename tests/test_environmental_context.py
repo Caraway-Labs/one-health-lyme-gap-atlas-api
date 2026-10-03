@@ -327,3 +327,144 @@ def test_environmental_query_binds_all_inputs_and_has_view_only_boundary(monkeyp
         0,
     )
     assert "01001" not in sql and "fixture-release" not in sql
+
+
+def test_reader_uses_configured_timeout_and_sanitizes_driver_failure(monkeypatch):
+    from lyme_gap_atlas_api import environmental_context as module
+
+    calls = []
+
+    class Session:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def cursor(self):
+            return self
+
+        def execute(self, sql, params, *, timeout):
+            calls.append((sql, params, timeout))
+
+        def fetchall(self):
+            return [(1,)]
+
+    settings = ApiSettings(environmental_context_enabled=True, public_query_timeout_seconds=7)
+    monkeypatch.setattr(module, "connect", lambda supplied: Session())
+    repository = EnvironmentalRepository(settings)
+    assert repository.measure_exists("nclimgrid_prcp_county_day", "release")
+    assert calls[0][1:] == (("nclimgrid_prcp_county_day", "release"), 7)
+    assert repository.metadata() == [(1,)]
+    assert "CURRENT_CLIMATE_MEASURE_METADATA_V" in calls[-1][0]
+
+    def denied(supplied):
+        raise RuntimeError("private-driver-detail")
+
+    monkeypatch.setattr(module, "connect", denied)
+    with pytest.raises(AtlasDataUnavailableError) as failure:
+        repository.metadata()
+    assert "private-driver-detail" not in str(failure.value)
+
+
+@pytest.mark.parametrize("limitations", ["invalid-json", "[]", '[{"text":""}]'])
+def test_bad_limitations_are_not_exposed(limitations):
+    row = dict(zip(FIELDS, fixture_row(), strict=True))
+    row["limitations"] = limitations
+    with pytest.raises(AtlasDataUnavailableError):
+        environmental_observation(tuple(row[k] for k in FIELDS))
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("unit", "wrong"), ("dataset_id", "wrong"), ("semantic_version", "wrong")],
+)
+def test_wrong_product_or_semantic_scope_is_rejected(field, value):
+    row = dict(zip(FIELDS, fixture_row(), strict=True))
+    row[field] = value
+    with pytest.raises(AtlasDataUnavailableError):
+        environmental_observation(tuple(row[k] for k in FIELDS))
+
+
+def test_empty_and_disabled_metadata_use_actual_repository_activation_boundary(monkeypatch):
+    from lyme_gap_atlas_api import public_metadata as module
+
+    rows = MetadataFixture("disabled").load_metadata()
+
+    class Session:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def cursor(self):
+            return self
+
+        def execute(self, sql, *, timeout):
+            self.rows = rows.indicators if "CURRENT_INDICATOR" in sql else rows.measures
+
+        def fetchall(self):
+            return self.rows
+
+    monkeypatch.setattr(module, "connect", lambda settings: Session())
+    climate_calls = []
+    monkeypatch.setattr(
+        EnvironmentalRepository, "metadata", lambda self: climate_calls.append(True) or []
+    )
+    disabled = module.SnowflakeMetadataRepository(ApiSettings())
+    assert len(module.MetadataService(disabled).discover()[1]) == 1
+    assert climate_calls == []
+    enabled = module.SnowflakeMetadataRepository(ApiSettings(environmental_context_enabled=True))
+    with pytest.raises(AtlasDataUnavailableError, match="Incomplete"):
+        module.MetadataService(enabled).discover()
+    assert climate_calls == [True]
+
+
+def test_public_snowflake_repository_routes_climate_through_environmental_reader(monkeypatch):
+    from lyme_gap_atlas_api.public_contract import GeographyType, ObservationQuery
+    from lyme_gap_atlas_api.public_observations import SnowflakeObservationRepository
+
+    calls = []
+    monkeypatch.setattr(
+        EnvironmentalRepository,
+        "_read",
+        lambda self, sql, params=(): calls.append((sql, params)) or [],
+    )
+    repository = SnowflakeObservationRepository(ApiSettings(environmental_context_enabled=True))
+    assert not repository.measure_exists("nclimgrid_prcp_county_day", "release")
+    query = ObservationQuery(
+        measure_id="nclimgrid_prcp_county_day",
+        geography_type=GeographyType.county,
+        geography_id=["01001"],
+        year=2025,
+        page_size=1,
+    )
+    assert repository.query(query, "release", 2) == []
+    assert "CURRENT_CLIMATE_MEASURE_METADATA_V" in calls[0][0]
+    assert "CURRENT_CLIMATE_COUNTY_DAY_OBSERVATIONS_V" in calls[1][0]
+    assert calls[1][1][-5:] == (date(2025, 1, 1), date(2025, 12, 31), "release", 2, 2)
+
+
+@pytest.mark.parametrize(
+    ("kind", "raw", "native"),
+    [
+        ("DECIMAL", "1.25", 1.25),
+        ("INTEGER", "1.25", None),
+        ("DECIMAL", '"Infinity"', None),
+        ("VARCHAR", '"1.25"', None),
+    ],
+)
+def test_numeric_transport_rejects_cast_helpers_and_wrong_storage_types(kind, raw, native):
+    row = dict(zip(FIELDS, fixture_row(), strict=True))
+    row.update(value=raw, value_stored_type=kind, value_native_double=native)
+    with pytest.raises(ValueError):
+        decode_numerics(row)
+
+
+def test_exact_decimal_integer_transport_and_incomplete_view_shape():
+    row = dict(zip(FIELDS, fixture_row(), strict=True))
+    row.update(value="12345678901234567890", value_stored_type="DECIMAL", value_native_double=None)
+    assert decode_numerics(row)["value"] == "12345678901234567890"
+    with pytest.raises(AtlasDataUnavailableError):
+        environmental_observation(fixture_row()[:-1])
