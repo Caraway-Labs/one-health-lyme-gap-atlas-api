@@ -74,5 +74,11 @@
   },
   "/v1/knowledge-graph/chat": {
     "post": "knowledge_graph_chat_v1_knowledge_graph_chat_post"
+  },
+  "/v1/intelligence/items": {
+    "get": "listIntelligenceItems"
+  },
+  "/v1/intelligence/sources": {
+    "get": "listIntelligenceSources"
   }
 }
