@@ -25,6 +25,7 @@ class ApiSettings(SnowflakeSettings):
     public_max_query_bytes: int = Field(default=8_192, ge=512, le=65_536)
     public_query_timeout_seconds: int = Field(default=15, ge=1, le=60)
     intelligence_feed_read_enabled: bool = False
+    environmental_context_enabled: bool = False
     pdf_render_timeout_seconds: float = Field(default=5, gt=0, le=60)
     pdf_max_pages: int = Field(default=50, ge=1, le=1_000)
     pdf_max_report_items: int = Field(default=5_000, ge=1, le=100_000)

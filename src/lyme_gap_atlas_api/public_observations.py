@@ -7,6 +7,7 @@ from typing import Any, Protocol
 
 from .config import ApiSettings
 from .dependency_telemetry import connect
+from .environmental_context import MEASURES, EnvironmentalRepository, environmental_observation
 from .public_contract import (
     CollectionEnvelope,
     CollectionLinks,
@@ -63,6 +64,8 @@ class SnowflakeObservationRepository:
             raise AtlasDataUnavailableError("Governed observations are unavailable") from exc
 
     def measure_exists(self, measure_id: str, release: str) -> bool:
+        if measure_id in MEASURES:
+            return EnvironmentalRepository(self.settings).measure_exists(measure_id, release)
         try:
             with connect(self.settings) as connection, connection.cursor() as cursor:
                 cursor.execute(
@@ -76,6 +79,8 @@ class SnowflakeObservationRepository:
             raise AtlasDataUnavailableError("Governed observations are unavailable") from exc
 
     def query(self, query: ObservationQuery, release: str, offset: int) -> list[tuple[Any, ...]]:
+        if query.measure_id in MEASURES:
+            return EnvironmentalRepository(self.settings).query(query, release, offset)
         fips = sorted(query.geography_id)
         placeholders = ", ".join(["%s"] * len(fips))
         start = date(query.year, 1, 1) if query.year is not None else query.start_date
@@ -127,7 +132,8 @@ class ObservationService:
         ).hexdigest()
         offset = self._offset(query.page_token, fingerprint, release)
         rows = self.repository.query(query, release, offset)
-        items = [self._observation(row) for row in rows[: query.page_size]]
+        mapper = environmental_observation if query.measure_id in MEASURES else self._observation
+        items = [mapper(row) for row in rows[: query.page_size]]
         token = None
         if len(rows) > query.page_size:
             token = self._token(fingerprint, release, offset + query.page_size)

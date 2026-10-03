@@ -1819,7 +1819,7 @@
           "observations"
         ],
         "summary": "Query county observations",
-        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. The current release contains only the 2023 annual period and has no supported strata. A measure and bounded county/time selection are required; no user sorting or aggregation.",
+        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. A measure and bounded county/time selection are required; no user sorting or aggregation.",
         "operationId": "observations_v1_observations_get",
         "parameters": [
           {
@@ -5391,6 +5391,159 @@
         ],
         "title": "CountyScoreSummary"
       },
+      "EnvironmentalContext": {
+        "properties": {
+          "coverage_status": {
+            "type": "string",
+            "enum": [
+              "COMPLETE",
+              "PARTIAL_COVERAGE",
+              "SOURCE_MISSING",
+              "OUT_OF_SOURCE_COVERAGE"
+            ],
+            "title": "Coverage Status"
+          },
+          "source_time_present": {
+            "type": "boolean",
+            "title": "Source Time Present"
+          },
+          "day_convention": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Day Convention",
+            "description": "Publisher labeled 24-hour period, not a midnight calendar day."
+          },
+          "expected_area_m2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Area M2"
+          },
+          "intersected_area_m2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intersected Area M2"
+          },
+          "source_supported_area_m2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Supported Area M2"
+          },
+          "valid_area_m2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Area M2"
+          },
+          "source_coverage_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Coverage Fraction",
+            "description": "Monthly source-supported/legal county area; separate from daily completeness."
+          },
+          "valid_fraction_of_supported_area": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Fraction Of Supported Area",
+            "description": "Daily valid/source-supported area; completeness threshold 0.95."
+          },
+          "upstream_date_modified": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upstream Date Modified",
+            "description": "Upstream modification metadata; never original publication or first availability."
+          },
+          "weight_version": {
+            "type": "string",
+            "title": "Weight Version"
+          },
+          "geometry_version": {
+            "type": "string",
+            "title": "Geometry Version",
+            "description": "Analysis geometry identity only; no polygons."
+          },
+          "metadata_revision_id": {
+            "type": "string",
+            "title": "Metadata Revision Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "coverage_status",
+          "source_time_present",
+          "day_convention",
+          "expected_area_m2",
+          "intersected_area_m2",
+          "source_supported_area_m2",
+          "valid_area_m2",
+          "source_coverage_fraction",
+          "valid_fraction_of_supported_area",
+          "upstream_date_modified",
+          "weight_version",
+          "geometry_version",
+          "metadata_revision_id"
+        ],
+        "title": "EnvironmentalContext",
+        "description": "Coverage independent of value state; numeric strings preserve exact DECIMAL."
+      },
       "EvidenceReference": {
         "properties": {
           "resource_type": {
@@ -7339,6 +7492,17 @@
           },
           "evidence": {
             "$ref": "#/components/schemas/EvidenceReference"
+          },
+          "environmental_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentalContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only for reviewed environmental context. DECIMAL quantities may use exact numeric strings; native DOUBLE remains a JSON number."
           }
         },
         "type": "object",

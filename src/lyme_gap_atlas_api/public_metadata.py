@@ -1,11 +1,13 @@
 """Governed current-release metadata discovery, independent of HTTP transport."""
 
+import json
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar
 
 from .config import ApiSettings
 from .dependency_telemetry import connect
-from .public_contract import Indicator, Measure, PublicQueryError
+from .environmental_context import MEASURES, EnvironmentalRepository, limitation_texts
+from .public_contract import GeographyType, Indicator, Measure, PublicQueryError
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
 
@@ -14,6 +16,8 @@ from .repository import AtlasDataUnavailableError, _sql_identifier
 class MetadataRows:
     indicators: list[tuple[Any, ...]]
     measures: list[tuple[Any, ...]]
+    # None means disabled; an enabled empty view is unavailable, not annual-only.
+    environmental_measures: list[tuple[Any, ...]] | None = None
 
 
 MetadataItem = TypeVar("MetadataItem", Indicator, Measure)
@@ -51,7 +55,12 @@ class SnowflakeMetadataRepository:
                     timeout=self.settings.public_query_timeout_seconds,
                 )
                 measures = cursor.fetchall()
-            return MetadataRows(indicators, measures)
+            environmental = (
+                EnvironmentalRepository(self.settings).metadata()
+                if self.settings.environmental_context_enabled
+                else None
+            )
+            return MetadataRows(indicators, measures, environmental)
         except Exception as exc:
             raise AtlasDataUnavailableError("Governed metadata is unavailable") from exc
 
@@ -133,7 +142,103 @@ class MetadataService:
             or any(item.indicator_id not in indicator_ids for item in measures)
         ):
             raise AtlasDataUnavailableError("Governed metadata release is inconsistent")
-        return indicators, measures
+        if rows.environmental_measures is not None:
+            current_release = measures[0].release_version
+            if (
+                any(len(row) != 14 for row in rows.environmental_measures)
+                or {row[1] for row in rows.environmental_measures} != MEASURES
+            ):
+                raise AtlasDataUnavailableError("Incomplete governed environmental metadata")
+            climate_indicators: dict[str, list[str]] = {}
+            for row in rows.environmental_measures:
+                (
+                    release,
+                    measure_id,
+                    indicator_id,
+                    version,
+                    revision,
+                    label,
+                    definition,
+                    unit,
+                    denominator,
+                    grain,
+                    temporal,
+                    states,
+                    method,
+                    limitations,
+                ) = row
+                try:
+                    states = json.loads(states) if isinstance(states, str) else states
+                except (ValueError, TypeError) as exc:
+                    raise AtlasDataUnavailableError("Invalid environmental value states") from exc
+                limitations = limitation_texts(limitations)
+                expected_indicator = (
+                    "climate_precipitation"
+                    if measure_id == "nclimgrid_prcp_county_day"
+                    else "climate_temperature"
+                )
+                expected_unit = (
+                    "mm" if measure_id == "nclimgrid_prcp_county_day" else "degree_Celsius"
+                )
+                if (
+                    release != current_release
+                    or measure_id not in MEASURES
+                    or version != "2.0.0"
+                    or not revision
+                    or indicator_id != expected_indicator
+                    or unit != expected_unit
+                    or method != "atlas-nclimgrid-county-day/2"
+                    or grain != "COUNTY"
+                    or temporal != "DAY"
+                    or not isinstance(limitations, list)
+                    or not limitations
+                    or not isinstance(states, list)
+                    or set(states) != {"OBSERVED", "ZERO", "MISSING", "UNAVAILABLE"}
+                ):
+                    raise AtlasDataUnavailableError("Unsupported governed environmental metadata")
+                climate_indicators.setdefault(indicator_id, []).append(measure_id)
+                measures.append(
+                    Measure(
+                        measure_id=measure_id,
+                        indicator_id=indicator_id,
+                        label=label,
+                        definition=definition,
+                        semantic_version=version,
+                        release_version=release,
+                        measure_type="DERIVED",
+                        unit=unit,
+                        denominator=denominator,
+                        geography_types=[GeographyType.county],
+                        temporal_grains=["DAY"],
+                        geography_semantics=grain,
+                        temporal_semantics=temporal,
+                        allowed_value_states=states,
+                        source_ids=["noaa_nclimgrid_daily_202501"],
+                        methodology=method,
+                        limitations=limitations,
+                    )
+                )
+            if len({r[1] for r in rows.environmental_measures}) != len(rows.environmental_measures):
+                raise AtlasDataUnavailableError("Duplicate governed environmental measure")
+            for indicator_id, ids in climate_indicators.items():
+                if indicator_id in indicator_ids:
+                    raise AtlasDataUnavailableError("Conflicting environmental indicator")
+                indicators.append(
+                    Indicator(
+                        indicator_id=indicator_id,
+                        label="Descriptive county weather",
+                        definition="Reviewed county weather context; no disease-risk "
+                        "interpretation.",
+                        measure_ids=sorted(ids),
+                        semantic_version="2.0.0",
+                        release_version=current_release,
+                        domain="climate",
+                        limitations=["January 2025 descriptive county weather only."],
+                    )
+                )
+        return sorted(indicators, key=lambda x: x.indicator_id), sorted(
+            measures, key=lambda x: x.measure_id
+        )
 
     @staticmethod
     def page(
