@@ -34,6 +34,7 @@ def semantic_diff(before: dict[str, Any], after: dict[str, Any], name: str) -> s
 
 def validate_contract(document: dict[str, Any], *, public: bool) -> None:
     # Reject remote refs before validation: this gate must never fetch infrastructure.
+    embedded_examples: list[tuple[dict[str, Any], Any]] = []
     def visit(value: Any) -> None:
         if isinstance(value, dict):
             if "$ref" in value:
@@ -57,13 +58,15 @@ def validate_contract(document: dict[str, Any], *, public: bool) -> None:
                 if "example" in value:
                     examples.append(value["example"])
                 for example in examples:
-                    OAS31Validator(wrapper).validate(example)
+                    embedded_examples.append((wrapper, example))
         elif isinstance(value, list):
             for item in value:
                 visit(item)
 
     visit(document)
     validate(document)
+    for wrapper, example in embedded_examples:
+        OAS31Validator(wrapper).validate(example)
     ids: set[str] = set()
     tags = {tag["name"] for tag in document.get("tags", [])}
     if public:
