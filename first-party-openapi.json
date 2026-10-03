@@ -8,7 +8,11 @@
       "name": "Caraway Labs",
       "url": "https://carawaylabs.com/"
     },
-    "version": "0.1.0"
+    "version": "0.1.0",
+    "x-logo": {
+      "url": "https://api.carawaylabs.com/docs/favicon.svg",
+      "altText": "Atlas"
+    }
   },
   "servers": [
     {

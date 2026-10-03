@@ -32,6 +32,7 @@ from .auth import (
 from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
 from .briefings import add_briefing_openapi
 from .config import ApiSettings, get_settings
+from .documentation import LOGO, install_documentation
 from .environmental_reader_probe import start_reader_probe
 from .feedback import (
     FEEDBACK_IDEMPOTENCY_MISMATCH_TYPE,
@@ -169,6 +170,7 @@ class AtlasFastAPI(FastAPI):
         # Problem responses use their actual media type, without an extra JSON
         # response model. Generate the referenced component directly from Pydantic.
         schema["components"]["schemas"]["ProblemDetails"] = ProblemDetails.model_json_schema()
+        schema["info"]["x-logo"] = deepcopy(LOGO)
         # FastAPI's OpenAPI serialization drops nulls inside response examples.
         # Restore these meaningful missingness/pagination values after serialization.
         schema["paths"]["/v1/observations"]["get"]["responses"]["200"]["content"][
@@ -312,6 +314,8 @@ def create_app(
         yield
 
     app = AtlasFastAPI(
+        docs_url=None,
+        redoc_url=None,
         lifespan=lifespan,
         title=config.app_name,
         version=config.app_version,
@@ -326,6 +330,7 @@ def create_app(
         },
     )
     app.state.service = service
+    install_documentation(app)
     app.state.public_settings = config
     app.state.metadata_service = MetadataService(
         metadata_repository or SnowflakeMetadataRepository(config)
