@@ -317,6 +317,10 @@ def create_app(
         contact={"name": "Caraway Labs", "url": "https://carawaylabs.com"},
         openapi_tags=TAGS,
         servers=[{"url": "https://api.carawaylabs.com", "description": "Production"}],
+        openapi_external_docs={
+            "description": "Atlas documentation and developer guides",
+            "url": "https://carawaylabs.com/docs",
+        },
     )
     app.state.service = service
     app.state.public_settings = config
