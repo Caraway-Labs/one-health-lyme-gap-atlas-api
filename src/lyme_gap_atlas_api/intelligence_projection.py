@@ -51,7 +51,7 @@ class PublisherMedia(BriefingModel):
             or value.port not in {None, 443}
             or not re.fullmatch(r"[a-zA-Z0-9.-]+", host)
             or host.lower() == "localhost"
-            or host.lower().endswith((".local", ".internal"))
+            or host.lower().endswith((".localhost", ".local", ".internal"))
             or host.endswith(".")
             or ".." in host
             or (

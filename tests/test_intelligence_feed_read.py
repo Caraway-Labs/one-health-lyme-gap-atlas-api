@@ -190,6 +190,8 @@ def test_v2_publisher_projection_without_raw_or_private_native_metadata() -> Non
         "https://127.0.0.1/private",
         "https://example.org/image?token=private-token",
         "https://localhost./x",
+        "https://foo.localhost/x",
+        "https://deep.foo.LOCALHOST/x",
         "https://127.1/x",
         "https://2130706433/x",
         "https://0x7f000001/x",
