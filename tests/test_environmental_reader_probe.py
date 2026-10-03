@@ -139,3 +139,29 @@ def test_dispatch_is_daemon_and_never_needs_activation_or_secret_reads(monkeypat
     module.start_reader_probe(configured)
     assert calls[0] == {"target": module.log_reader_probe, "args": (configured,), "daemon": True}
     assert calls[1] == "started"
+
+
+def test_invalid_identity_and_generic_failure_remain_private(monkeypatch):
+    session = Session(identity=(None, SECRET, SECRET, SECRET))
+    monkeypatch.setattr(module, "connect", lambda supplied: session)
+    assert module.probe_reader(settings())["identity_status"] == "invalid_identity"
+    assert len(session.calls) == 1
+
+    def denied(supplied):
+        raise RuntimeError(SECRET)
+
+    monkeypatch.setattr(module, "connect", denied)
+    report = module.probe_reader(settings())
+    assert report["connection_status"] == "dependency_unavailable"
+    assert SECRET not in str(report)
+
+
+def test_background_dispatch_failure_does_not_break_app_or_log_error(monkeypatch, caplog):
+    def denied(**kwargs):
+        raise RuntimeError(SECRET)
+
+    monkeypatch.setattr(module, "Thread", denied)
+    with caplog.at_level(logging.INFO):
+        module.start_reader_probe(settings())
+    assert caplog.records[-1].context == {"identity_status": "dispatch_unavailable"}
+    assert SECRET not in caplog.text and not caplog.records[-1].exc_info
