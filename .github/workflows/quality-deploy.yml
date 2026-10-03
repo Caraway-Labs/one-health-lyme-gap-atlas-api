@@ -29,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with: { enable-cache: true }
       - run: uv sync --extra dev --locked
@@ -66,8 +68,15 @@ jobs:
           name: atlas-api
           fail_ci_if_error: false
       - run: uv run python scripts/export_openapi.py
-      - run: git diff --exit-code -- openapi.json
-      - run: git diff --exit-code -- first-party-openapi.json
+      - name: Validate OpenAPI and produce semantic review artifacts
+        env:
+          OPENAPI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base_ref="$OPENAPI_BASE_SHA"
+          if [ -z "$base_ref" ] || [[ "$base_ref" =~ ^0+$ ]]; then
+            base_ref="$(git rev-parse HEAD^)"
+          fi
+          uv run python scripts/openapi_quality.py --base-ref "$base_ref"
       - run: docker build --tag lyme-atlas-api:quality .
       - name: Run report-template regression tests with the production Typst binary
         run: |
@@ -84,6 +93,13 @@ jobs:
           docker run --rm -v "$PWD:/repo"
           ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
           git /repo --redact --no-banner
+      - name: Publish validated OpenAPI contracts
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-openapi-${{ github.sha }}
+          path: build/openapi/
+          if-no-files-found: error
+          retention-days: 30
   deploy:
     # API_PRODUCTION_CONCURRENCY_GROUP=atlas-api-production
     # LATEST_MAIN_WINS=true

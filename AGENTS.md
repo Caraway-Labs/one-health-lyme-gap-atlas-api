@@ -54,7 +54,6 @@ uv run ruff check .
 uv run mypy
 uv run pytest -q
 uv run python scripts/export_openapi.py
-git diff --exit-code -- openapi.json
-git diff --exit-code -- first-party-openapi.json
+uv run python scripts/openapi_quality.py --base-ref origin/main
 docker build .
 ```
