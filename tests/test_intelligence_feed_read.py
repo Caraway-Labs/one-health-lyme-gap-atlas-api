@@ -189,6 +189,13 @@ def test_v2_publisher_projection_without_raw_or_private_native_metadata() -> Non
     for unsafe_url in (
         "https://127.0.0.1/private",
         "https://example.org/image?token=private-token",
+        "https://localhost./x",
+        "https://127.1/x",
+        "https://2130706433/x",
+        "https://0x7f000001/x",
+        "https://0177.0.0.1/x",
+        "https://example.org/image?X-Amz-Signature=private-signature",
+        "https://example.org/image?sig=private-signature",
     ):
         document["publisher_metadata"]["media"][0]["url"] = unsafe_url
         rejected = app.get("/v1/intelligence/items")

@@ -52,6 +52,17 @@ class PublisherMedia(BriefingModel):
             or not re.fullmatch(r"[a-zA-Z0-9.-]+", host)
             or host.lower() == "localhost"
             or host.lower().endswith((".local", ".internal"))
+            or host.endswith(".")
+            or ".." in host
+            or (
+                address is None
+                and (
+                    "." not in host
+                    or re.fullmatch(
+                        r"(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*", host.lower()
+                    )
+                )
+            )
             or (address is not None and not address.is_global)
             or any(char.isspace() or ord(char) < 32 for char in self.url)
             or any(
@@ -67,7 +78,11 @@ class PublisherMedia(BriefingModel):
                     "recipient",
                     "authorization",
                     "signature",
+                    "sig",
+                    "googleaccessid",
+                    "key-pair-id",
                 }
+                or key.lower().startswith(("x-amz-", "x-goog-"))
                 for key, _ in parse_qsl(value.query)
             )
         ):
