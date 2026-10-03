@@ -15,6 +15,10 @@ Do not replace that Web input with the public projection. No full-schema HTTP
 endpoint is provided; current checked-in Web inputs remain untouched.
 Start with the [public API guide](docs/public-api-guide.md) for tested requests,
 interpretation, pagination, errors, and reproducibility.
+The [OpenAPI quality gate](docs/openapi-quality.md) documents semantic review
+diffs and validated public/first-party CI artifacts for downstream consumers.
+The [documentation surface contract](docs/documentation-surfaces.md) defines
+machine, Swagger, retained ReDoc and Fumadocs purposes and the Web handoff.
 For operator signals, see the [API indicator contract](docs/api-operational-indicators.md)
 and [natural-traffic validation runbook](docs/production-observability-validation.md).
 Indicator and measure discovery (#53), bounded county observation queries

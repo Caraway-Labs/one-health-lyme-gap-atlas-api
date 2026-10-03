@@ -9257,5 +9257,9 @@
       "name": "states",
       "description": "Existing state PDF reports."
     }
-  ]
+  ],
+  "externalDocs": {
+    "description": "Atlas documentation and developer guides",
+    "url": "https://carawaylabs.com/docs"
+  }
 }

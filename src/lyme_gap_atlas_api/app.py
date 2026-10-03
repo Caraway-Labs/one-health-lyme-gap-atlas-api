@@ -4,6 +4,8 @@ import hashlib
 import json
 import re
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from copy import deepcopy
 from typing import Annotated, Any, Literal
 
@@ -30,6 +32,7 @@ from .auth import (
 from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
 from .briefings import add_briefing_openapi
 from .config import ApiSettings, get_settings
+from .environmental_reader_probe import start_reader_probe
 from .feedback import (
     FEEDBACK_IDEMPOTENCY_MISMATCH_TYPE,
     FEEDBACK_PERSISTENCE_DETAIL,
@@ -242,8 +245,7 @@ def create_app(
     configure_logging()
     protect_dependency_logs()
     configure_tracing("one-health-lyme-gap-atlas-api")
-    logger.info("atlas_runtime_configuration",
-                extra={"context": {"telemetry_schema_version": "1"}})
+    logger.info("atlas_runtime_configuration", extra={"context": {"telemetry_schema_version": "1"}})
     logger.info(
         "knowledge_chat_runtime_configuration",
         extra={
@@ -294,7 +296,23 @@ def create_app(
                 generation_timeout_seconds=config.kg_generation_timeout_seconds,
                 snowflake_settings=config,
             )
+    probe_started = False
+
+    @asynccontextmanager
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        nonlocal probe_started
+        if (
+            not probe_started
+            and repository is None
+            and metadata_repository is None
+            and observation_repository is None
+        ):
+            probe_started = True
+            start_reader_probe(config)
+        yield
+
     app = AtlasFastAPI(
+        lifespan=lifespan,
         title=config.app_name,
         version=config.app_version,
         description=API_DESCRIPTION,
@@ -302,6 +320,10 @@ def create_app(
         contact={"name": "Caraway Labs", "url": "https://carawaylabs.com"},
         openapi_tags=TAGS,
         servers=[{"url": "https://api.carawaylabs.com", "description": "Production"}],
+        openapi_external_docs={
+            "description": "Atlas documentation and developer guides",
+            "url": "https://carawaylabs.com/docs",
+        },
     )
     app.state.service = service
     app.state.public_settings = config
