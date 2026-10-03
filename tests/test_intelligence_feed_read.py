@@ -183,14 +183,17 @@ def test_sql_boundary_limits_and_state_checks(monkeypatch: pytest.MonkeyPatch, m
         "lyme_gap_atlas_api.intelligence_feed.connect", lambda settings: Connection()
     )
     repository = SnowflakeFeedRepository(
-        ApiSettings(presentation_database="ONE_HEALTH_LYME_GAP_ATLAS_PROD")
+        ApiSettings(snowflake_presentation_database="ONE_HEALTH_LYME_GAP_ATLAS_PROD")
     )
     if mode == "stable":
         marker, rows = repository.read("items", "source'bound", None, None, 0, 10)
         assert len(marker) == 64 and rows == []
         assert cursor.calls[1][1] == ("source'bound", 11, 0)
         assert all("source'bound" not in sql for sql, _, _ in cursor.calls)
-        assert all("PRESENTATION.INTELLIGENCE_FEED_V" in sql for sql, _, _ in cursor.calls)
+        assert all(
+            "PRESENTATION.INTELLIGENCE_FEED_V" in sql.replace(chr(34), "")
+            for sql, _, _ in cursor.calls
+        )
     elif mode == "too_broad":
         with pytest.raises(PublicQueryError):
             repository.read("items", None, None, None, 0, 10)
