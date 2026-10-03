@@ -220,6 +220,10 @@ class MetadataFixture:
             )
         if self.broken == "partial":
             climate.pop()
+        if self.broken == "empty":
+            climate = []
+        if self.broken == "disabled":
+            climate = None
         if self.broken == "release":
             climate[0] = ("other-release", *climate[0][1:])
         if self.broken == "states":
@@ -269,7 +273,7 @@ def test_metadata_discovery_uses_canonical_ids_and_preserves_annual_meaning():
     ]
 
 
-@pytest.mark.parametrize("broken", ["partial", "release", "states"])
+@pytest.mark.parametrize("broken", ["partial", "release", "states", "empty"])
 def test_incomplete_or_mixed_release_metadata_returns_sanitized_503(broken):
     api = TestClient(
         create_app(settings=ApiSettings(), metadata_repository=MetadataFixture(broken))
@@ -278,6 +282,15 @@ def test_incomplete_or_mixed_release_metadata_returns_sanitized_503(broken):
     assert response.status_code == 503
     assert response.headers["content-type"] == "application/problem+json"
     assert "malformed" not in response.text and "other-release" not in response.text
+
+
+def test_disabled_climate_metadata_preserves_annual_only_discovery():
+    api = TestClient(
+        create_app(settings=ApiSettings(), metadata_repository=MetadataFixture("disabled"))
+    )
+    response = api.get("/v1/measures")
+    assert response.status_code == 200
+    assert [m["measure_id"] for m in response.json()["data"]] == ["annual_measure"]
 
 
 def test_environmental_query_binds_all_inputs_and_has_view_only_boundary(monkeypatch):

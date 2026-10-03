@@ -1,7 +1,7 @@
 """Governed current-release metadata discovery, independent of HTTP transport."""
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar
 
 from .config import ApiSettings
@@ -16,7 +16,8 @@ from .repository import AtlasDataUnavailableError, _sql_identifier
 class MetadataRows:
     indicators: list[tuple[Any, ...]]
     measures: list[tuple[Any, ...]]
-    environmental_measures: list[tuple[Any, ...]] = field(default_factory=list)
+    # None means disabled; an enabled empty view is unavailable, not annual-only.
+    environmental_measures: list[tuple[Any, ...]] | None = None
 
 
 MetadataItem = TypeVar("MetadataItem", Indicator, Measure)
@@ -57,7 +58,7 @@ class SnowflakeMetadataRepository:
             environmental = (
                 EnvironmentalRepository(self.settings).metadata()
                 if self.settings.environmental_context_enabled
-                else []
+                else None
             )
             return MetadataRows(indicators, measures, environmental)
         except Exception as exc:
@@ -141,7 +142,7 @@ class MetadataService:
             or any(item.indicator_id not in indicator_ids for item in measures)
         ):
             raise AtlasDataUnavailableError("Governed metadata release is inconsistent")
-        if rows.environmental_measures:
+        if rows.environmental_measures is not None:
             current_release = measures[0].release_version
             if (
                 any(len(row) != 14 for row in rows.environmental_measures)
