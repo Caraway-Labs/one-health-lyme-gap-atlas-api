@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Literal
 
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from pydantic import AliasChoices, Field, SecretStr, field_validator
@@ -25,6 +25,7 @@ class ApiSettings(SnowflakeSettings):
     public_max_query_bytes: int = Field(default=8_192, ge=512, le=65_536)
     public_query_timeout_seconds: int = Field(default=15, ge=1, le=60)
     intelligence_feed_read_enabled: bool = False
+    intelligence_feed_projection_version: Literal["v1", "v2"] = "v1"
     environmental_context_enabled: bool = False
     pdf_render_timeout_seconds: float = Field(default=5, gt=0, le=60)
     pdf_max_pages: int = Field(default=50, ge=1, le=1_000)

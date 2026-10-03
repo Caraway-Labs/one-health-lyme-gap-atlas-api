@@ -5391,6 +5391,13 @@
         ],
         "title": "CountyScoreSummary"
       },
+      "DerivedMetadata": {
+        "properties": {},
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DerivedMetadata",
+        "description": "Empty until a separately authorized versioned enrichment contract exists."
+      },
       "EnvironmentalContext": {
         "properties": {
           "coverage_status": {
@@ -5636,7 +5643,15 @@
       "FeedEvidence": {
         "properties": {
           "item": {
-            "$ref": "#/components/schemas/IntelligenceItem"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntelligenceItem"
+              },
+              {
+                "$ref": "#/components/schemas/IntelligenceItemProjectionV2"
+              }
+            ],
+            "title": "Item"
           },
           "source": {
             "$ref": "#/components/schemas/BriefingSource"
@@ -5687,9 +5702,9 @@
           },
           "projection_version": {
             "type": "string",
-            "const": "intelligence-feed-read-v1",
+            "const": "intelligence-feed-read-v2",
             "title": "Projection Version",
-            "default": "intelligence-feed-read-v1"
+            "default": "intelligence-feed-read-v2"
           },
           "source_health_available": {
             "type": "boolean",
@@ -6549,6 +6564,213 @@
         ],
         "title": "IntelligenceItem",
         "type": "object"
+      },
+      "IntelligenceItemProjectionV2": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "2.0.0",
+            "title": "Contract Version"
+          },
+          "item_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Item Id"
+          },
+          "revision_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Revision Id"
+          },
+          "source_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,199}$",
+            "title": "Source Id"
+          },
+          "registry_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Registry Version"
+          },
+          "canonical_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "minLength": 1,
+                "pattern": "^[^<>\\x00-\\x1f]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?Z$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?Z$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "event_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?Z$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event At"
+          },
+          "excerpt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000,
+                "minLength": 1,
+                "pattern": "^[^<>\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excerpt"
+          },
+          "fetched_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?Z$",
+            "title": "Fetched At"
+          },
+          "field_states": {
+            "$ref": "#/components/schemas/IntelligenceFieldStates"
+          },
+          "geographies": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceTag"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Geographies"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceTag"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Topics"
+          },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "rss",
+              "atom"
+            ],
+            "title": "Transport"
+          },
+          "transport_identity_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Transport Identity Sha256"
+          },
+          "deduplication_key": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Deduplication Key"
+          },
+          "content_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Content Sha256"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ProjectionProvenance"
+          },
+          "limitations": {
+            "items": {
+              "type": "string",
+              "maxLength": 1000,
+              "minLength": 1,
+              "pattern": "^[^<>\\x00-\\x1f]*$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Limitations"
+          },
+          "content_is_untrusted": {
+            "type": "boolean",
+            "const": true,
+            "title": "Content Is Untrusted"
+          },
+          "publisher_metadata": {
+            "$ref": "#/components/schemas/PublisherMetadata"
+          },
+          "derived_metadata": {
+            "$ref": "#/components/schemas/DerivedMetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "item_id",
+          "revision_id",
+          "source_id",
+          "registry_version",
+          "canonical_url",
+          "title",
+          "published_at",
+          "updated_at",
+          "event_at",
+          "excerpt",
+          "fetched_at",
+          "field_states",
+          "geographies",
+          "topics",
+          "transport",
+          "transport_identity_sha256",
+          "deduplication_key",
+          "content_sha256",
+          "provenance",
+          "limitations",
+          "content_is_untrusted",
+          "publisher_metadata",
+          "derived_metadata"
+        ],
+        "title": "IntelligenceItemProjectionV2",
+        "description": "Canonical public fields; no native tree/raw dates/rights receipts or XML."
       },
       "IntelligenceProvenance": {
         "additionalProperties": false,
@@ -7837,6 +8059,205 @@
         ],
         "title": "ProblemDetails",
         "type": "object"
+      },
+      "ProjectionProvenance": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,199}$",
+            "title": "Run Id"
+          },
+          "artifact_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,199}$",
+            "title": "Artifact Id"
+          },
+          "artifact_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Artifact Sha256"
+          },
+          "parser_version": {
+            "type": "string",
+            "const": "rss-atom-native-v2",
+            "title": "Parser Version"
+          },
+          "fetch_version": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,199}$",
+            "title": "Fetch Version"
+          },
+          "normalization_version": {
+            "type": "string",
+            "const": "intelligence-identity-v2",
+            "title": "Normalization Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "artifact_id",
+          "artifact_sha256",
+          "parser_version",
+          "fetch_version",
+          "normalization_version"
+        ],
+        "title": "ProjectionProvenance"
+      },
+      "PublisherDateStates": {
+        "properties": {
+          "published_at": {
+            "type": "string",
+            "enum": [
+              "present",
+              "not_provided",
+              "withheld",
+              "invalid"
+            ],
+            "title": "Published At"
+          },
+          "updated_at": {
+            "type": "string",
+            "enum": [
+              "present",
+              "not_provided",
+              "withheld",
+              "invalid"
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "published_at",
+          "updated_at"
+        ],
+        "title": "PublisherDateStates"
+      },
+      "PublisherMedia": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "origin": {
+            "type": "string",
+            "const": "publisher",
+            "title": "Origin"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "origin"
+        ],
+        "title": "PublisherMedia"
+      },
+      "PublisherMetadata": {
+        "properties": {
+          "publisher": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "minLength": 1,
+                "pattern": "^[^<>\\x00-\\x1f]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publisher"
+          },
+          "source_family": {
+            "type": "string",
+            "enum": [
+              "cdc_mmwr",
+              "cdc_eid",
+              "cdc_other",
+              "nih_niaid",
+              "pubmed",
+              "state_local",
+              "other"
+            ],
+            "title": "Source Family"
+          },
+          "source_item_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096,
+                "pattern": "^[^<>\\x00-\\x1f]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Item Id"
+          },
+          "authors": {
+            "items": {
+              "type": "string",
+              "maxLength": 4096,
+              "pattern": "^[^<>\\x00-\\x1f]*$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Authors"
+          },
+          "categories": {
+            "items": {
+              "type": "string",
+              "maxLength": 4096,
+              "pattern": "^[^<>\\x00-\\x1f]*$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Categories"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[^<>\\x00-\\x1f]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/PublisherMedia"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Media"
+          },
+          "date_states": {
+            "$ref": "#/components/schemas/PublisherDateStates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "publisher",
+          "source_family",
+          "source_item_id",
+          "authors",
+          "categories",
+          "language",
+          "media",
+          "date_states"
+        ],
+        "title": "PublisherMetadata"
       },
       "ResourceEnvelope_Geography_": {
         "properties": {

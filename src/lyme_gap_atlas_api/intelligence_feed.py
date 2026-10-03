@@ -11,6 +11,7 @@ from pydantic import Field
 from .briefings import BriefingModel, BriefingSource, IntelligenceItem
 from .config import ApiSettings
 from .dependency_telemetry import connect
+from .intelligence_projection import IntelligenceItemProjectionV2
 from .public_contract import PublicQueryError
 from .public_routes import PROBLEMS
 from .public_tokens import decode, encode
@@ -41,11 +42,12 @@ ITEM_COLUMNS = (
     "content_is_untrusted",
 )
 VARIANTS = {"field_states", "geographies", "topics", "provenance", "limitations"}
+V2_COLUMNS = ITEM_COLUMNS + ("publisher_metadata", "derived_metadata")
 UNAVAILABLE = "Governed intelligence data is unavailable."
 
 
 class FeedEvidence(BriefingModel):
-    item: IntelligenceItem
+    item: IntelligenceItem | IntelligenceItemProjectionV2
     source: BriefingSource
 
 
@@ -56,7 +58,7 @@ class FeedSource(BriefingSource):
 
 class FeedMeta(BriefingModel):
     next_page_token: str | None = Field(description="Opaque filter/state-bound continuation.")
-    projection_version: Literal["intelligence-feed-read-v1"] = "intelligence-feed-read-v1"
+    projection_version: Literal["intelligence-feed-read-v2"] = "intelligence-feed-read-v2"
     source_health_available: Literal[False] = False
     limitations: tuple[str, ...] = (
         "Publication intelligence, not disease occurrence or a public-health alert.",
@@ -105,9 +107,14 @@ class SnowflakeFeedRepository:
             "ONE_HEALTH_LYME_GAP_ATLAS_PROD",
         } or kind not in {"items", "sources"}:
             raise AtlasDataUnavailableError(UNAVAILABLE)
+        view_name = (
+            "INTELLIGENCE_FEED_V2"
+            if self.settings.intelligence_feed_projection_version == "v2"
+            else "INTELLIGENCE_FEED_V"
+        )
         view = (
             f"{_sql_identifier(self.settings.presentation_database)}."
-            f"{_sql_identifier(self.settings.snowflake_presentation_schema)}.INTELLIGENCE_FEED_V"
+            f"{_sql_identifier(self.settings.snowflake_presentation_schema)}.{view_name}"
         )
         clauses, params = [], []
         if source_id is not None:
@@ -126,7 +133,12 @@ class SnowflakeFeedRepository:
             f"FETCHED_AT, CONTENT_SHA256, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION) "
             f"FROM {view}{where}"
         )
-        columns = ", ".join(name.upper() for name in ITEM_COLUMNS)
+        item_columns = (
+            V2_COLUMNS
+            if self.settings.intelligence_feed_projection_version == "v2"
+            else ITEM_COLUMNS
+        )
+        columns = ", ".join(name.upper() for name in item_columns)
         columns += ", ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
         if kind == "sources":
             columns = (
@@ -229,11 +241,20 @@ class FeedService:
                 return FeedSources(data=sources, meta=meta)
             evidence = []
             for row in rows[:size]:
-                document = dict(zip(ITEM_COLUMNS, row[:-2], strict=True))
-                for field in VARIANTS:
+                if len(row) == len(V2_COLUMNS) + 2:
+                    document = dict(zip(V2_COLUMNS, row[:-2], strict=True))
+                    fields = VARIANTS | {"publisher_metadata", "derived_metadata"}
+                else:
+                    document = dict(zip(ITEM_COLUMNS, row[:-2], strict=True))
+                    fields = VARIANTS
+                for field in fields:
                     if isinstance(document[field], str):
                         document[field] = json.loads(document[field])
-                item = IntelligenceItem.model_validate(document)
+                item = (
+                    IntelligenceItemProjectionV2.model_validate(document)
+                    if document["contract_version"] == "2.0.0"
+                    else IntelligenceItem.model_validate(document)
+                )
                 source = BriefingSource(
                     source_id=item.source_id,
                     registry_version=item.registry_version,

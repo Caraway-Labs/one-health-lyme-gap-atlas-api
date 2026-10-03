@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
-from lyme_gap_atlas_api.intelligence_feed import ITEM_COLUMNS, SnowflakeFeedRepository
+from lyme_gap_atlas_api.intelligence_feed import ITEM_COLUMNS, V2_COLUMNS, SnowflakeFeedRepository
 from lyme_gap_atlas_api.public_contract import PublicQueryError
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
 
@@ -139,6 +139,60 @@ def test_first_party_export_only_and_existing_external_paths_unchanged() -> None
 def test_legacy_database_rejected_before_connection() -> None:
     with pytest.raises(AtlasDataUnavailableError):
         SnowflakeFeedRepository(ApiSettings()).read("items", None, None, None, 0, 100)
+
+
+def test_v2_publisher_projection_without_raw_or_private_native_metadata() -> None:
+    repository = Repository()
+    document = repository.document
+    document.update(
+        contract_version="2.0.0",
+        publisher_metadata={
+            "publisher": "CDC",
+            "source_family": "cdc_eid",
+            "source_item_id": "publisher-guid-1",
+            "authors": ["Publisher Author"],
+            "categories": ["Tick borne research"],
+            "language": "en",
+            "media": [{"url": "https://www.cdc.gov/image.png", "origin": "publisher"}],
+            "date_states": {
+                key: document["field_states"][key] for key in ("published_at", "updated_at")
+            },
+        },
+        derived_metadata={},
+    )
+    document["provenance"].update(
+        parser_version="rss-atom-native-v2", normalization_version="intelligence-identity-v2"
+    )
+
+    class V2Repository(Repository):
+        def read(self, *args: Any) -> tuple[str, list[tuple[Any, ...]]]:
+            return "v2", [
+                tuple(document[name] for name in V2_COLUMNS) + ("CDC", "official_public_health")
+            ]
+
+    app = client(V2Repository())
+    response = app.get("/v1/intelligence/items")
+    assert response.status_code == 200
+    item = response.json()["data"][0]["item"]
+    assert item["contract_version"] == "2.0.0"
+    assert item["publisher_metadata"]["categories"] == ["Tick borne research"]
+    assert item["derived_metadata"] == {}
+    assert "native_metadata" not in item and "xml_base64" not in item
+    for private_field in ("native_metadata", "xml_base64", "raw_publisher_date", "mailbox"):
+        document["publisher_metadata"][private_field] = "private-source-value"
+        rejected = app.get("/v1/intelligence/items")
+        assert rejected.status_code == 503 and "private-source-value" not in rejected.text
+        del document["publisher_metadata"][private_field]
+    document["derived_metadata"] = {"urgency": "high"}
+    assert app.get("/v1/intelligence/items").status_code == 503
+    document["derived_metadata"] = {}
+    for unsafe_url in (
+        "https://127.0.0.1/private",
+        "https://example.org/image?token=private-token",
+    ):
+        document["publisher_metadata"]["media"][0]["url"] = unsafe_url
+        rejected = app.get("/v1/intelligence/items")
+        assert rejected.status_code == 503 and unsafe_url not in rejected.text
 
 
 @pytest.mark.parametrize("mode", ["stable", "changed", "too_broad", "driver_error"])
