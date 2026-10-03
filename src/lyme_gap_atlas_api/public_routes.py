@@ -6,6 +6,7 @@ from typing import Annotated, Any, NoReturn, cast
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from .config import ApiSettings
+from .environmental_context import MEASURES
 from .public_contract import (
     CollectionEnvelope,
     CollectionLinks,
@@ -429,7 +430,9 @@ def observation_query(
     )
     if query.geography_type != GeographyType.county:
         raise PublicQueryError("UNSUPPORTED_FILTER", "Only county geography is supported.")
-    query.validate_bounds(ceiling=config.public_query_result_ceiling, annual=True)
+    query.validate_bounds(
+        ceiling=config.public_query_result_ceiling, annual=query.measure_id not in MEASURES
+    )
     return query
 
 
@@ -456,7 +459,10 @@ def observation_service(request: Request) -> ObservationService:
     },
     description="Current published county observations only. Ordered by measure ID, county FIPS, "
     "period start, and observation ID. Opaque page tokens bind to filters and release. "
-    "The current release contains only the 2023 annual period and has no supported strata. "
+    "Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental "
+    'measures use labeled daily periods, carry environmental_context coverage, and have no '
+    'supported strata. '
+    "Environmental context is descriptive weather, with no causal, disease-risk or ML claim. "
     "A measure and bounded county/time selection are required; no user sorting or aggregation.",
     operation_id="observations_v1_observations_get",
     tags=["observations"],

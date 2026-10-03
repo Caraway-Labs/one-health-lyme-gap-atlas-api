@@ -2,7 +2,7 @@
 
 from datetime import UTC, date, datetime
 from enum import StrEnum
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -140,6 +140,35 @@ class Measure(BaseModel):
     standards_mappings: list[StandardsMapping] | None = None
 
 
+class EnvironmentalContext(BaseModel):
+    """Coverage independent of value state; numeric strings preserve exact DECIMAL."""
+
+    coverage_status: Literal[
+        "COMPLETE", "PARTIAL_COVERAGE", "SOURCE_MISSING", "OUT_OF_SOURCE_COVERAGE"
+    ]
+    source_time_present: bool
+    day_convention: str = Field(
+        min_length=1, description="Publisher labeled 24-hour period, not a midnight calendar day."
+    )
+    expected_area_m2: float | str | None
+    intersected_area_m2: float | str | None
+    source_supported_area_m2: float | str | None
+    valid_area_m2: float | str | None
+    source_coverage_fraction: float | str | None = Field(
+        description="Monthly source-supported/legal county area; separate from daily completeness."
+    )
+    valid_fraction_of_supported_area: float | str | None = Field(
+        description="Daily valid/source-supported area; completeness threshold 0.95."
+    )
+    upstream_date_modified: str | None = Field(
+        description="Upstream modification metadata; never original publication or first "
+        "availability."
+    )
+    weight_version: str
+    geometry_version: str = Field(description="Analysis geometry identity only; no polygons.")
+    metadata_revision_id: str
+
+
 class Observation(BaseModel):
     observation_id: str = Field(
         description="Stable observation identity and compact provenance reference."
@@ -207,6 +236,11 @@ class Observation(BaseModel):
         description="Governed interpretation limitations; preserve alongside values and versions."
     )
     evidence: EvidenceReference
+    environmental_context: EnvironmentalContext | None = Field(
+        default=None,
+        description="Present only for reviewed environmental context. DECIMAL quantities may use "
+        "exact numeric strings; native DOUBLE remains a JSON number.",
+    )
 
     @model_validator(mode="after")
     def validate_value_state(self) -> "Observation":
@@ -379,7 +413,7 @@ class ObservationQuery(BaseModel):
         # The current projection has at most one row per county and annual bucket.
         # Keep the day-level fallback for callers without a governed annual grain.
         if self.year is not None:
-            buckets = 1
+            buckets = 1 if annual else (date(self.year, 12, 31) - date(self.year, 1, 1)).days + 1
         elif annual:
             buckets = self.end_date.year - self.start_date.year + 1  # type: ignore[union-attr]
         else:
