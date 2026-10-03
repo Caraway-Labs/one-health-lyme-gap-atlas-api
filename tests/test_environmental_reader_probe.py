@@ -1,5 +1,6 @@
 """Service identity/read proof never exposes connection values or SDK errors."""
 
+import asyncio
 import logging
 
 import pytest
@@ -165,3 +166,32 @@ def test_background_dispatch_failure_does_not_break_app_or_log_error(monkeypatch
         module.start_reader_probe(settings())
     assert caplog.records[-1].context == {"identity_status": "dispatch_unavailable"}
     assert SECRET not in caplog.text and not caplog.records[-1].exc_info
+
+
+def test_app_construction_and_exports_are_inert_and_startup_dispatches_once(monkeypatch):
+    import importlib
+
+    from lyme_gap_atlas_api import app as app_module
+
+    calls = []
+    monkeypatch.setattr(module, "start_reader_probe", lambda config: calls.append(config))
+    # Reload executes the module-level factory with configured credentials.
+    monkeypatch.setattr(app_module, "get_settings", settings)
+    monkeypatch.setattr("lyme_gap_atlas_api.config.get_settings", settings)
+    app_module = importlib.reload(app_module)
+    assert calls == []
+    application = app_module.create_app(settings=settings())
+    application.openapi()
+    application.first_party_openapi()
+    assert calls == []
+
+    async def exercise():
+        async with application.router.lifespan_context(application):
+            assert len(calls) == 1
+        async with application.router.lifespan_context(application):
+            assert len(calls) == 1
+        fixture = app_module.create_app(repository=object(), settings=settings())
+        async with fixture.router.lifespan_context(fixture):
+            assert len(calls) == 1
+
+    asyncio.run(exercise())
