@@ -78,6 +78,11 @@ jobs:
           fi
           uv run python scripts/openapi_quality.py --base-ref "$base_ref"
       - run: docker build --tag lyme-atlas-api:quality .
+      - name: Verify documentation asset in production image
+        run: >-
+          docker run --rm --entrypoint python lyme-atlas-api:quality
+          -c "from lyme_gap_atlas_api.documentation import FAVICON;
+          assert FAVICON.read_bytes().startswith(b'<svg')"
       - name: Run report-template regression tests with the production Typst binary
         run: |
           set -euo pipefail

@@ -61,7 +61,8 @@ Swagger and retained ReDoc use FastAPI's standard HTML helpers, the existing
 Atlas title/description, and the approved Atlas favicon. The SVG is copied
 unchanged from Web commit `1287058fbc1bd7222a2c1628865ad694d719bb25`,
 `public/favicon.svg` (Git blob `ca747cb66b233fedec5ff0c84f97bb4631c05dbf`).
-It is packaged in the API wheel and served at `/docs/favicon.svg`; OpenAPI
+It is included with package sources in the production image and served at
+`/docs/favicon.svg`; OpenAPI
 `info.x-logo` points to that production asset. This is documentation presentation,
 not a new API operation, and it is absent from both generated operation lists.
 
