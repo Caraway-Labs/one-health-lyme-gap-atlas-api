@@ -30,6 +30,7 @@ from .auth import (
 from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
 from .briefings import add_briefing_openapi
 from .config import ApiSettings, get_settings
+from .environmental_reader_probe import start_reader_probe
 from .feedback import (
     FEEDBACK_IDEMPOTENCY_MISMATCH_TYPE,
     FEEDBACK_PERSISTENCE_DETAIL,
@@ -1254,6 +1255,8 @@ def create_app(
         client_response_hook=server_response_hook,
         exclude_spans=["receive"],
     )
+    if repository is None and metadata_repository is None and observation_repository is None:
+        start_reader_probe(config)
     return app
 
 
