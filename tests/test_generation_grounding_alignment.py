@@ -11,6 +11,7 @@ from lyme_gap_atlas_api.knowledge_chat import (
     Evidence,
     KnowledgeChatService,
     OpenAIAnswerer,
+    _quote_segments,
     _resolve_quote_refs,
     _shape_diagnostics,
     _validate_claim_text,
@@ -214,6 +215,21 @@ def test_model_quote_string_cannot_override_quote_reference() -> None:
     payload["claims"][0]["support_quote_refs"] = {"passage-1": 0}
     normalized = _resolve_quote_refs(payload, EVIDENCE)
     with pytest.raises(ValueError):
+        _validate_grounding(normalized, EVIDENCE)
+
+
+def test_blank_excerpt_has_no_quote_segments() -> None:
+    assert _quote_segments("   ") == []
+
+
+@pytest.mark.parametrize("claims,refs", [(None, None), ([], None), ([{}], "0")])
+def test_malformed_quote_reference_container_fails_closed(claims: Any, refs: Any) -> None:
+    payload = generated_claim()
+    payload["claims"] = claims
+    if claims:
+        payload["claims"][0]["support_quote_refs"] = refs
+    normalized = _resolve_quote_refs(payload, EVIDENCE)
+    with pytest.raises((TypeError, ValueError)):
         _validate_grounding(normalized, EVIDENCE)
 
 
