@@ -100,6 +100,27 @@ def test_first_and_corrective_attempts_share_quote_first_claim_rules() -> None:
     assert [call["timeout"] for call in client.responses.calls] == [16, 7]
 
 
+def test_generation_context_keeps_grounding_fields_without_duplicate_metadata() -> None:
+    client = Client()
+    answerer = OpenAIAnswerer(client)  # type: ignore[arg-type]
+    answerer.answer("question", EVIDENCE, "safety-id", timeout_seconds=16)
+    answerer.answer("question", EVIDENCE, "safety-id", timeout_seconds=7, correction=True)
+
+    expected = [
+        {
+            "passage_id": item.passage_id,
+            "excerpt": item.excerpt,
+            "pmid": item.pmid,
+            "title": item.title,
+        }
+        for item in EVIDENCE
+    ]
+    for call in client.responses.calls:
+        passages = json.loads(call["input"])["passages"]
+        assert len(passages) == len(EVIDENCE)
+        assert passages == expected
+
+
 def test_quote_first_candidate_answers_in_one_generation_call() -> None:
     client = Client()
     service = KnowledgeChatService(
