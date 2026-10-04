@@ -760,6 +760,10 @@ _CLAIM_GROUNDING_INSTRUCTIONS = (
     "a claim with empty passage_ids, pmids, or support_quotes; omit any finding or limitation "
     "that the supplied excerpts do not explicitly support. Do not add an uncited concluding "
     "claim or a placeholder claim to answer every part of the question. "
+    "Return at most three short claims, each citing at most two returned passages. Copy every "
+    "passage ID and PMID exactly from the supplied passage record; omit a claim if its IDs "
+    "cannot be copied exactly. If findings conflict, use claims to show both sides; use a "
+    "remaining claim for a material limitation only when directly supported. "
     "Only then write one short, atomic claim about a finding explicitly present in those quotes. "
     "Use a close extractive paraphrase: preserve the source's important scientific nouns, "
     "entities, verbs, relationships, and material species, geography, population, and outcome "
@@ -853,6 +857,14 @@ class OpenAIAnswerer:
                     "provider": "openai",
                     "configuration_version": CONFIGURATION_VERSION,
                     "outcome": "completed",
+                    "input_tokens": getattr(getattr(response, "usage", None), "input_tokens", None),
+                    "output_tokens": getattr(
+                        getattr(response, "usage", None), "output_tokens", None
+                    ),
+                    "reasoning_tokens": getattr(
+                        getattr(getattr(response, "usage", None), "output_tokens_details", None),
+                        "reasoning_tokens", None,
+                    ),
                 }
             },
         )

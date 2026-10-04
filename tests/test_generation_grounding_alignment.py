@@ -94,6 +94,10 @@ def test_first_and_corrective_attempts_share_quote_first_claim_rules() -> None:
         assert "Make each claim no broader than its cited quotes" in instructions
         assert "validated claims[].text are the user-visible answer units" in instructions
         assert "do not add separate broader findings" in instructions
+        assert "Return at most three short claims" in instructions
+        assert "each citing at most two returned passages" in instructions
+        assert "Copy every passage ID and PMID exactly" in instructions
+        assert "If findings conflict, use claims to show both sides" in instructions
     assert "previous candidate failed deterministic grounding" not in first
     assert "previous candidate failed deterministic grounding" in corrective
     assert client.retry_values == [0, 0]
