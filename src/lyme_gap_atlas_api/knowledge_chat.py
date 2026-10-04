@@ -751,13 +751,15 @@ class SnowflakeCorpusProvenanceStore:
 _CLAIM_GROUNDING_INSTRUCTIONS = (
     "Build every claim from its support quotes, not the other way around. "
     "For each claim, first select returned passage IDs and their matching PMIDs, then select "
-    "an exact verbatim excerpt substring as the support quote for every cited passage. "
-    "Set support_quotes to an object keyed by each cited passage ID, for example "
-    '{"passage-1": "verbatim words from that passage excerpt"}; use the exact IDs in '
-    "passage_ids as keys, with no other keys. "
+    "one or two adjacent numbered quote segments from each cited passage. Set support_quote_refs "
+    "to an object "
+    'keyed by each cited passage ID, for example {"passage-1": 0}; use the exact IDs in '
+    "passage_ids as keys, with no other keys. Use [0, 1] for two adjacent segments when "
+    "the second contains a material study qualifier. The server copies the selected text "
+    "into support_quotes and rejects invalid references. Do not write quote text yourself. "
     "Every claim, including a claim about a study limitation, must have at least one returned "
-    "passage ID, its matching PMID, and an exact support quote from that passage. Never add "
-    "a claim with empty passage_ids, pmids, or support_quotes; omit any finding or limitation "
+    "passage ID, its matching PMID, and a quote reference from that passage. Never add "
+    "a claim with empty passage_ids, pmids, or support_quote_refs; omit any finding or limitation "
     "that the supplied excerpts do not explicitly support. Do not add an uncited concluding "
     "claim or a placeholder claim to answer every part of the question. "
     "Return at most three short claims, each citing at most two returned passages. Copy every "
@@ -772,6 +774,57 @@ _CLAIM_GROUNDING_INSTRUCTIONS = (
     "numbers or causal language. The validated claims[].text are the user-visible answer units; "
     "keep answer consistent with those claims and do not add separate broader findings. "
 )
+
+
+def _quote_segments(excerpt: str) -> list[tuple[str, int, int]]:
+    """Keep every sentence-sized segment and its exact excerpt offsets."""
+    segments: list[tuple[str, int, int]] = []
+    offset = 0
+    for raw in re.split(r"(?<=[.!?])\s+", excerpt):
+        part = raw.strip()
+        if not part:
+            continue
+        start = excerpt.find(part, offset)
+        end = start + len(part)
+        segments.append((part, start, end))
+        offset = end
+    return segments
+
+
+def _resolve_quote_refs(candidate: dict[str, Any], evidence: list[Evidence]) -> dict[str, Any]:
+    """Resolve model-selected positions to literal quotes before the existing validator."""
+    by_id = {item.passage_id: item for item in evidence}
+    claims = candidate.get("claims")
+    if not isinstance(claims, list):
+        return candidate
+    for claim in claims:
+        if not isinstance(claim, dict) or "support_quote_refs" not in claim:
+            continue
+        refs = claim.pop("support_quote_refs")
+        if "support_quotes" in claim:
+            claim["support_quotes"] = {}
+            continue
+        if not isinstance(refs, dict):
+            claim["support_quotes"] = {}
+            continue
+        quotes: dict[str, str] = {}
+        for passage_id, index in refs.items():
+            item = by_id.get(passage_id)
+            segments = _quote_segments(item.excerpt) if item is not None else []
+            bounds = [index, index] if type(index) is int else index
+            if (
+                isinstance(bounds, list)
+                and len(bounds) == 2
+                and all(type(value) is int for value in bounds)
+                and 0 <= bounds[0] <= bounds[1] < len(segments)
+                and bounds[1] - bounds[0] <= 1
+                and item is not None
+            ):
+                quotes[passage_id] = item.excerpt[segments[bounds[0]][1]:segments[bounds[1]][2]]
+            else:
+                quotes[passage_id] = ""
+        claim["support_quotes"] = quotes
+    return candidate
 
 
 class OpenAIAnswerer:
@@ -800,7 +853,7 @@ class OpenAIAnswerer:
         passages = [
             {
                 "passage_id": item.passage_id,
-                "excerpt": item.excerpt,
+                "quote_segments": [segment[0] for segment in _quote_segments(item.excerpt)],
                 "pmid": item.pmid,
                 "title": item.title,
             }
@@ -831,7 +884,7 @@ class OpenAIAnswerer:
             instructions=(
                 "Answer only from supplied steward-approved PubMed/PMC full-text passages. "
                 "Return JSON with answer, evidence_state, and claims. Each claim has claim_id, "
-                "text, passage_ids, pmids, and support_quotes. "
+                "text, passage_ids, pmids, and support_quote_refs. "
                 f"{_CLAIM_GROUNDING_INSTRUCTIONS}"
                 "State must be one of single_study, consistent, limited, mixed, conflicting, "
                 "insufficient_to_compare. Do not infer consensus from paper count. Preserve "
@@ -869,7 +922,7 @@ class OpenAIAnswerer:
             },
         )
         with _span("generated_json_parsing", _REQUEST_ID.get()):
-            return cast(dict[str, Any], json.loads(response.output_text))
+            return _resolve_quote_refs(json.loads(response.output_text), evidence)
 
 
 def _unsafe_request(message: str) -> bool:

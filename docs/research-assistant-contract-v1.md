@@ -12,6 +12,8 @@ For generation, each retrieved passage supplies its ID, exact excerpt, PMID, and
 
 Generation instructions limit a candidate to three short claims and two returned passages per claim. They require exact copying of passage IDs and PMIDs, require both sides to remain visible when cited findings conflict, and allow a remaining claim for a directly supported material limitation. This bounds candidate length after a live six-claim response cited an unknown passage ID and exhausted the corrective-attempt window. The server's validation remains unchanged and still rejects unsupported IDs, PMIDs, quotes, or claims. Numeric provider token usage is logged when returned; prompts and model output are not logged.
 
+To avoid inaccurate model transcription of exact support quotes, the generation input divides each complete excerpt into numbered sentence-sized segments without truncation. The model selects one segment or two adjacent segments when the second holds a material qualifier. The server copies the exact original excerpt span into `support_quotes` before the existing grounding validator runs. Invalid numbers and conflicting model-supplied quote strings resolve to invalid quotes and fail closed. PMID, passage identity, claim support, and returned citation checks are unchanged. This is internal provider formatting, not a public response-shape change.
+
 ## Response fields
 
 `source_used` is `literature_evidence` for this service. It is a typed capability identity, designed for later additional Atlas data or mixed-source values under API #100. It does not advertise those capabilities now.
