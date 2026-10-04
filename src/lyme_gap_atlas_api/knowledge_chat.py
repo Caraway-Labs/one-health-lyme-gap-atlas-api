@@ -1059,9 +1059,6 @@ class KnowledgeChatService:
             except Exception:
                 return unavailable("persistence_failure")
         try:
-            with _timed_stage(request_id, "neo4j_readiness"):
-                if not self._retriever.ready():
-                    raise RuntimeError("Neo4j is unavailable")
             # Browser-local history supplies only prior user questions as retrieval
             # context. Prior assistant text is never admitted as evidence.
             prior_questions = [turn.content for turn in request.history if turn.role == "user"][-2:]
