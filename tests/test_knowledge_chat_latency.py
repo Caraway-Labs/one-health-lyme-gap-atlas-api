@@ -236,7 +236,6 @@ def test_request_scoped_timing_is_structured_and_private(caplog: Any) -> None:
     contexts = [record.context for record in caplog.records if record.msg == "knowledge_chat_stage"]
     assert {item["stage"] for item in contexts} >= {
         "safety_classification",
-        "neo4j_readiness",
         "budget_reservation",
         "answer_generation_attempt_1",
         "grounding_validation_attempt_1",
@@ -246,6 +245,23 @@ def test_request_scoped_timing_is_structured_and_private(caplog: Any) -> None:
     assert all(item["request_id"] == "req-1" and item["duration_ms"] >= 0 for item in contexts)
     assert "What did the study find?" not in caplog.text
     assert "12345678" not in caplog.text
+
+
+def test_request_uses_retrieval_without_redundant_connectivity_probe() -> None:
+    class IntermittentProbeRetriever(Retriever):
+        def ready(self) -> bool:
+            raise TimeoutError("transient connectivity probe timeout")
+
+    clock = Clock()
+    service = KnowledgeChatService(
+        IntermittentProbeRetriever(), Answerer([valid_payload()], clock),
+        Store(), "test-secret", clock=clock,
+    )
+    result = service.chat(
+        KnowledgeChatRequest(message="What did the study find?"), "req-probe", "network"
+    )
+    assert result.status == "answered"
+    assert result.citations[0].passage_ids == ["passage-1"]
 
 
 def test_retrieval_logs_embedding_and_fixed_neo4j_stages(caplog: Any) -> None:

@@ -9,7 +9,12 @@ import pytest
 from pydantic import ValidationError
 
 from lyme_gap_atlas_api.assistant_policy import AssistantPolicy, load_assistant_policy
-from lyme_gap_atlas_api.knowledge_chat import Evidence, KnowledgeChatService, _persisted_citations
+from lyme_gap_atlas_api.knowledge_chat import (
+    Evidence,
+    KnowledgeChatService,
+    Neo4jQueryFailure,
+    _persisted_citations,
+)
 from lyme_gap_atlas_api.models import KnowledgeChatRequest, KnowledgeChatResponse
 
 
@@ -24,6 +29,8 @@ class Retriever:
 
     def search(self, message: str, request_id: str) -> list[Evidence]:
         self.queries.append(message)
+        if not self.is_ready:
+            raise Neo4jQueryFailure("graph unavailable")
         return self.evidence
 
 
