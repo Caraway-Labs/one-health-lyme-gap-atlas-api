@@ -10,6 +10,8 @@ The first and corrective generation attempts share a quote-first claim contract:
 
 For generation, each retrieved passage supplies its ID, exact excerpt, PMID, and paper title. Extraction summaries and PubMed URLs are excluded from the model input to reduce duplicate context; the server retains the full retrieved records for literal quote validation and citation construction. All 20 retrieved passages remain eligible, and both generation attempts use the same fields. Request logs record only the model-input character count and passage count, not the text.
 
+Generation instructions limit a candidate to three short claims and two returned passages per claim. They require exact copying of passage IDs and PMIDs, require both sides to remain visible when cited findings conflict, and allow a remaining claim for a directly supported material limitation. This bounds candidate length after a live six-claim response cited an unknown passage ID and exhausted the corrective-attempt window. The server's validation remains unchanged and still rejects unsupported IDs, PMIDs, quotes, or claims. Numeric provider token usage is logged when returned; prompts and model output are not logged.
+
 ## Response fields
 
 `source_used` is `literature_evidence` for this service. It is a typed capability identity, designed for later additional Atlas data or mixed-source values under API #100. It does not advertise those capabilities now.
