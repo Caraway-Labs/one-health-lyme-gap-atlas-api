@@ -791,12 +791,33 @@ class OpenAIAnswerer:
         policy = load_assistant_policy()
         question_class = classify_question(message)
         strictness = policy.strictness_for(question_class)
-        passages = [item.__dict__ for item in evidence]
+        # The excerpt is the literal grounding source. URLs are resolved from
+        # validated Evidence after generation; summaries cannot support quotes.
+        passages = [
+            {
+                "passage_id": item.passage_id,
+                "excerpt": item.excerpt,
+                "pmid": item.pmid,
+                "title": item.title,
+            }
+            for item in evidence
+        ]
         correction_instruction = (
             "The previous candidate failed deterministic grounding. Regenerate carefully from "
             "only the supplied passages. Do not reuse the previous candidate."
             if correction
             else ""
+        )
+        provider_input = json.dumps(
+            {"question": message, "passages": passages, "response_format": "json"}
+        )
+        logger.info(
+            "knowledge_chat_provider_input_size",
+            extra={"context": {
+                "request_id": _REQUEST_ID.get(),
+                "passage_count": len(passages),
+                "input_characters": len(provider_input),
+            }},
         )
         response = self._client.with_options(max_retries=0).responses.create(
             model=self._model,
@@ -820,13 +841,7 @@ class OpenAIAnswerer:
                 f"Proactive follow-up suggestions: {policy.proactive_follow_up_suggestions}. "
                 f"{correction_instruction}"
             ),
-            input=json.dumps(
-                {
-                    "question": message,
-                    "passages": passages,
-                    "response_format": "json",
-                }
-            ),
+            input=provider_input,
             text={"format": {"type": "json_object"}},
             timeout=timeout_seconds,
         )

@@ -8,6 +8,8 @@ The existing service retrieves only through its fixed Neo4j template over the go
 
 The first and corrective generation attempts share a quote-first claim contract: select returned passages and exact support quotes, then write short, atomic `claims[].text` with terminology and scope close to those quotes. The server builds the user-visible answer from validated claim text; the generated `answer` field must be consistent with those claims and cannot introduce broader findings. A corrective attempt adds only the fact that the previous candidate failed grounding. The deterministic validation threshold and citation requirements are unchanged.
 
+For generation, each retrieved passage supplies its ID, exact excerpt, PMID, and paper title. Extraction summaries and PubMed URLs are excluded from the model input to reduce duplicate context; the server retains the full retrieved records for literal quote validation and citation construction. All 20 retrieved passages remain eligible, and both generation attempts use the same fields. Request logs record only the model-input character count and passage count, not the text.
+
 ## Response fields
 
 `source_used` is `literature_evidence` for this service. It is a typed capability identity, designed for later additional Atlas data or mixed-source values under API #100. It does not advertise those capabilities now.
