@@ -33,6 +33,9 @@ from lyme_gap_atlas_api.ask_atlas_orchestration import (
 DATA = EvalDataset.model_validate_json(
     (Path(__file__).parent / "fixtures/ask_atlas_eval_v1.json").read_text()
 )
+PM_REGRESSION = EvalDataset.model_validate_json(
+    (Path(__file__).parent / "fixtures/ask_atlas_eval_v2.json").read_text()
+)
 COMMIT = subprocess.check_output(
     ["git", "-c", "safe.directory=*", "rev-parse", "HEAD"],
     cwd=Path(__file__).resolve().parents[1], text=True,
@@ -110,6 +113,36 @@ def test_versioned_two_candidate_experiment_and_fail_closed_gate(monkeypatch) ->
         )
     assert failure.failures == ("value",)
     assert compare(DATA, [failure, *results[1:]], (BASE, SECOND))["promotion_gate"] is False
+
+
+def test_pm_selected_observation_failure_review_dry_run(monkeypatch) -> None:
+    """The selected outage is diagnosable and detected after v2 promotion."""
+    PM_REGRESSION.validate_identity()
+    provider = TracerProvider()
+    monkeypatch.setattr(trace, "get_tracer", lambda name: provider.get_tracer(name))
+    case = PM_REGRESSION.cases[0]
+    assert case.case_id == "pm_selected_observation_outage"
+    observed_calls = []
+    with trace.get_tracer(__name__).start_as_current_span("failure-review") as span:
+        failed_response = _run(case, SECOND, observed_calls)
+        failed = evaluate(
+            case, failed_response, candidate=SECOND,
+            dataset_version=PM_REGRESSION.dataset_version,
+            tool_invocations=observed_calls,
+        )
+        repaired_calls = []
+        passed = evaluate(
+            case, _run(case, BASE, repaired_calls), candidate=BASE,
+            dataset_version=PM_REGRESSION.dataset_version,
+            tool_invocations=repaired_calls,
+        )
+        assert failed.trace_id == f"{span.get_span_context().trace_id:032x}"
+    assert observed_calls == case.expected_invocations
+    assert failed_response.outcome == "SOURCE_UNAVAILABLE"
+    assert failed_response.actual_sources_used == ()
+    assert "outcome" in failed.failures
+    assert passed.passed
+    assert compare(PM_REGRESSION, [passed, failed], (BASE, SECOND))["promotion_gate"] is False
 
 
 def test_schema_rejects_duplicates_and_incomplete_comparison() -> None:

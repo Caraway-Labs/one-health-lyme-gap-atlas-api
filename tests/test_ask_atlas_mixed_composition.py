@@ -264,7 +264,7 @@ def test_literature_unavailable_http_is_typed_503() -> None:
     assert response.json()["actual_sources_used"] == []
 
 
-@pytest.mark.parametrize("failure", ["retrieval", "capacity"])
+@pytest.mark.parametrize("failure", ["retrieval", "capacity", "provider"])
 def test_real_literature_service_typed_failure_is_503_and_single_completion(
     failure: str, monkeypatch: Any
 ) -> None:
@@ -287,7 +287,8 @@ def test_real_literature_service_typed_failure_is_503_and_single_completion(
     clock = Clock()
     service = KnowledgeChatService(
         FailingRetriever() if failure == "retrieval" else Retriever(),
-        Answerer([valid_payload()], clock),
+        Answerer([OSError("fixture transport failure") if failure == "provider"
+                  else valid_payload()], clock),
         NoCapacity() if failure == "capacity" else None,
         "fixture-secret", deadline_seconds=24, clock=clock,
     )
@@ -302,11 +303,21 @@ def test_real_literature_service_typed_failure_is_503_and_single_completion(
     assert response.status_code == 503
     assert response.headers["Retry-After"] == "30"
     assert response.json()["outcome"] == "SOURCE_UNAVAILABLE"
-    assert response.json()["literature"]["status"] == (
-        "evidence_unavailable" if failure == "retrieval" else "capacity_limited"
-    )
+    if failure != "capacity":
+        assert response.json()["literature"]["status"] == "evidence_unavailable"
+    else:
+        assert response.json()["literature"] is None
+        assert response.json()["actual_sources_used"] == []
     assert len(completions) == 1
     assert completions[0]["outcome"] == "source_unavailable"
+    assert completions[0]["operational_outcome"] == (
+        "dependency_failure" if failure == "retrieval" else
+        "provider_failure" if failure == "provider" else "budget_exhaustion"
+    )
+    assert completions[0]["service_outcome"] == (
+        "retrieval_dependency_unavailable" if failure == "retrieval" else
+        "generation_transport_error" if failure == "provider" else "capacity_limited"
+    )
     assert completions[0]["path"] == "/v1/assistant/mixed"
 
 
@@ -358,6 +369,7 @@ def test_real_grounded_literature_http_emits_one_accurate_completion(monkeypatch
     assert response.json()["actual_sources_used"] == ["literature_evidence"]
     assert len(completions) == 1
     assert completions[0]["outcome"] == "answered"
+    assert completions[0]["operational_outcome"] == "answered"
     assert completions[0]["path"] == "/v1/assistant/mixed"
 
 

@@ -1,0 +1,53 @@
+{
+  "dataset_version": "ask-atlas-eval-v2",
+  "cases": [
+    {
+      "case_id": "pm_selected_observation_outage",
+      "mode": "Structured",
+      "question": "What is the 2023 Lyme case count for county 08001?",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08001"
+        ],
+        "year": 2023
+      },
+      "expected_outcome": "ANSWERED",
+      "expected_sources": [
+        "structured_atlas"
+      ],
+      "expected_tools": [
+        "get_observations"
+      ],
+      "expected_value_state": "ZERO",
+      "expected_value": 0,
+      "expected_release": "fixture-release-1",
+      "expected_structured_claims": [
+        "County 08001, 2023-01-01 to 2023-12-31, case_count_floor_2023 is 0.0 cases (ZERO); source fixture-source, methodology version fixture-transform-v1, release fixture-release-1."
+      ],
+      "expected_invocations": [
+        {
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08001"
+          ],
+          "year": 2023,
+          "tool": "get_observations"
+        }
+      ],
+      "expected_tool_source_ids": [
+        "fixture-source"
+      ],
+      "expected_structured_ref_ids": [
+        "fixture-zero"
+      ],
+      "expected_freshness_ids": [
+        "fixture-zero"
+      ],
+      "expected_freshness_states": [
+        "unknown"
+      ]
+    }
+  ]
+}

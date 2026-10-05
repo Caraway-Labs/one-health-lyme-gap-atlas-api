@@ -37,6 +37,22 @@ class LiteraturePort(Protocol):
     ) -> KnowledgeChatResponse: ...
 
 
+def _budget_exhausted(mode: SourceMode) -> Composition:
+    with trace.get_tracer(__name__).start_as_current_span(
+        "atlas.ask_atlas.mixed.composition", record_exception=False,
+        set_status_on_exception=False,
+    ) as span:
+        span.set_attribute("atlas.ask_atlas.outcome", "SOURCE_UNAVAILABLE")
+        span.set_attribute("atlas.ask_atlas.operational_outcome", "budget_exhaustion")
+        span.set_attribute("atlas.ask_atlas.source_count", 0)
+        return Composition(
+            requested_source_mode=mode, outcome="SOURCE_UNAVAILABLE",
+            actual_sources_used=(), cross_source_state=None,
+            structured=None, literature=None,
+            limitations=("The request budget is exhausted; retry later.",),
+        )
+
+
 class MixedAssistant:
     def __init__(
         self,
@@ -69,6 +85,10 @@ class MixedAssistant:
                 "atlas.ask_atlas.literature_requested", route.literature_question is not None
             )
             if route.refusal or not route.sources_requested:
+                span.set_attribute(
+                    "atlas.ask_atlas.outcome",
+                    "SAFETY_REFUSAL" if route.refusal else "NEEDS_CLARIFICATION",
+                )
                 return Composition(
                     requested_source_mode=mode,
                     outcome="SAFETY_REFUSAL" if route.refusal else "NEEDS_CLARIFICATION",
@@ -119,6 +139,14 @@ class MixedAssistant:
                         )
                 except Exception:
                     literature_result = None
+        # A refused budget must not turn an incomplete Both request into an
+        # apparently complete one-source answer. Discard any earlier branch.
+        if literature_result is not None and literature_result.status == "capacity_limited":
+            return _budget_exhausted(mode)
+        if completion is not None and completion.get("outcome") in {
+            "budget_failure", "budget_exhausted", "deadline_exhausted"
+        }:
+            return _budget_exhausted(mode)
         with tracer.start_as_current_span(
             "atlas.ask_atlas.mixed.grounding", record_exception=False,
             set_status_on_exception=False,
