@@ -1,0 +1,9 @@
+{
+  "dataset_version": "ask-atlas-eval-v1",
+  "cases": [
+    {"case_id":"structured_zero","mode":"Structured","question":"What is the 2023 Lyme case count for county 08001?","context":{"measure_id":"case_count_floor_2023","geography_ids":["08001"],"year":2023},"expected_outcome":"ANSWERED","expected_sources":["structured_atlas"],"expected_tools":["get_observations"],"expected_value_state":"ZERO","expected_value":0,"expected_release":"fixture-release-1"},
+    {"case_id":"structured_missing","mode":"Structured","question":"What is the 2023 Lyme case count for county 08013?","context":{"measure_id":"case_count_floor_2023","geography_ids":["08013"],"year":2023},"expected_outcome":"INSUFFICIENT_EVIDENCE","expected_sources":[],"expected_tools":["get_observations"],"expected_value_state":"MISSING","expected_release":null},
+    {"case_id":"structured_unsupported","mode":"Structured","question":"Predict Lyme risk for county 08001 in 2023","context":{"measure_id":"case_count_floor_2023","geography_ids":["08001"],"year":2023},"expected_outcome":"UNSUPPORTED_REQUEST","expected_sources":[],"expected_tools":[]},
+    {"case_id":"both_two_sources","mode":"Both","question":"What is the 2023 Lyme case count for county 08001?","context":{"measure_id":"case_count_floor_2023","geography_ids":["08001"],"year":2023},"expected_outcome":"INSUFFICIENT_EVIDENCE","expected_sources":["structured_atlas","literature_evidence"],"expected_tools":["get_observations"],"expected_value_state":"ZERO","expected_value":0,"expected_cross_source_state":"insufficient_to_compare","expected_release":"fixture-release-1","expected_citation_ids":["pmid:12345"]}
+  ]
+}
