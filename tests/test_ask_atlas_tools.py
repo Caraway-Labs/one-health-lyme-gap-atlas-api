@@ -292,6 +292,27 @@ def test_deadline_expires_request_local_adapter(monkeypatch):
     assert service.admitted == {}
 
 
+def test_final_release_check_uses_remaining_request_deadline():
+    service, repository = tools()
+    service.pinned_release = repository.release
+    service.admitted["fixture"] = object()  # type: ignore[assignment]
+    service.started = time.monotonic() - 11.9
+
+    def slow_release():
+        time.sleep(0.6)
+        return repository.release
+
+    repository.current_release = slow_release
+    start = time.monotonic()
+    with pytest.raises(TimeoutError):
+        service.verify_release()
+    assert time.monotonic() - start < 0.35
+    assert service.expired
+    assert service.admitted == {}
+    with pytest.raises(TimeoutError):
+        service.verify_release()
+
+
 def test_timeout_inside_observation_service_stops_follow_on_repository_io(monkeypatch):
     class SlowRepository(Repository):
         calls = 0

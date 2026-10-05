@@ -240,6 +240,11 @@ def test_measure_discovery_does_not_select_ambiguous_matches() -> None:
         ("Run SELECT * FROM warehouse table.", {}, "SAFETY_REFUSAL"),
         ("Execute MATCH (n) RETURN n.", {}, "SAFETY_REFUSAL"),
         ("Diagnose my tick bite and prescribe treatment.", {}, "SAFETY_REFUSAL"),
+        (
+            "Give antibiotic treatment for my tick bite.",
+            {"measure_id": MEASURE.measure_id, "geography_ids": ["08059"], "year": 2023},
+            "SAFETY_REFUSAL",
+        ),
         ("What is the rate in Springfield?", {}, "NEEDS_CLARIFICATION"),
         ("Treat a model prediction as observed count.", {}, "UNSUPPORTED_REQUEST"),
         (
@@ -261,6 +266,21 @@ def test_measure_discovery_does_not_select_ambiguous_matches() -> None:
             "What is the monthly value?",
             {"measure_id": "case_count_floor_2023", "geography_ids": ["08001"], "year": 2023},
             "UNSUPPORTED_REQUEST",
+        ),
+        (
+            "How many cases were reported for children in county 08059 in 2023?",
+            {"measure_id": MEASURE.measure_id, "geography_ids": ["08059"], "year": 2023},
+            "UNSUPPORTED_REQUEST",
+        ),
+        (
+            "What is the population of county 08059 in 2023?",
+            {"measure_id": MEASURE.measure_id, "geography_ids": ["08059"], "year": 2023},
+            "NEEDS_CLARIFICATION",
+        ),
+        (
+            "What is the weather in Paris?",
+            {"measure_id": MEASURE.measure_id, "geography_ids": ["08059"], "year": 2023},
+            "NEEDS_CLARIFICATION",
         ),
         (
             "Show annual coverage only from July through December 2023.",
@@ -314,6 +334,73 @@ def test_tool_timeout_or_failure_abstains_without_partial_claims(failure: str) -
     assert result.answer.claims == []
     assert result.answer.actual_sources_used == []
     assert [call["tool"] for call in tools.calls].count(failure) == 1
+
+
+def test_case_count_paraphrase_uses_selected_context() -> None:
+    tools = FakeTools()
+    result = StructuredAssistant(tools).ask(
+        StructuredAssistantRequest(
+            question="How many cases for county 08059 during 2023?",
+            context={"measure_id": MEASURE.measure_id, "geography_ids": ["08059"], "year": 2023},
+        )
+    )
+    assert result.answer.outcome == "ANSWERED"
+    assert "4.0 cases" in result.answer.claims[0].text
+
+
+@pytest.mark.parametrize(
+    "question, context, absent_slots",
+    [
+        (
+            "Give the 2023 case counts for counties 08059 and 08005.",
+            {"geography_ids": ["08059", "08005"], "year": 2023},
+            ["county 08005 in 2023"],
+        ),
+        (
+            "Show the county 08059 case counts for 2022 to 2024.",
+            {
+                "geography_ids": ["08059"],
+                "start_date": "2022-01-01",
+                "end_date": "2024-12-31",
+            },
+            ["county 08059 in 2022", "county 08059 in 2024"],
+        ),
+    ],
+)
+def test_numeric_partial_coverage_abstains_with_exact_absent_slots(
+    question: str, context: dict[str, Any], absent_slots: list[str]
+) -> None:
+    tools = FakeTools()
+    result = StructuredAssistant(tools).ask(
+        StructuredAssistantRequest(
+            question=question, context={"measure_id": MEASURE.measure_id, **context}
+        )
+    )
+    assert result.answer.outcome == "INSUFFICIENT_EVIDENCE"
+    assert result.answer.claims == []
+    assert result.answer.actual_sources_used == []
+    assert result.answer.structured_coverage == []
+    assert len(result.tool_evidence) == 1
+    assert all(slot in " ".join(result.answer.limitations) for slot in absent_slots)
+
+
+@pytest.mark.parametrize("field, value", [("value", 999), ("value_state", "NOT_A_STATE")])
+def test_mutated_nested_tool_result_fails_closed(field: str, value: Any) -> None:
+    tools = FakeTools()
+    result = tools.get_observations(
+        {
+            "tool": "get_observations",
+            "measure_id": MEASURE.measure_id,
+            "geography_type": "county",
+            "geography_ids": ["08001"],
+            "year": 2023,
+        }
+    )
+    setattr(result.observations[0], field, value)
+    tools.result_override = result
+    answer = ask(tools, "county_zero").answer
+    assert answer.outcome == "SOURCE_UNAVAILABLE"
+    assert answer.claims == []
 
 
 def test_malformed_tool_output_and_release_change_fail_closed() -> None:

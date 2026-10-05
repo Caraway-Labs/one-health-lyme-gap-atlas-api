@@ -28,16 +28,34 @@ ANSWER_VERSION = "ask-atlas-v1"
 _UNSAFE = re.compile(
     r"\b(select\s+.+\s+from|insert\s+into|delete\s+from|update\s+.+\s+set|"
     r"match\s*\(|cypher|sql|warehouse|repository|diagnos\w*|prescri\w*|"
-    r"treat(?:ment)?\s+(?:me|my|this patient)|dose|medication)\b",
+    r"treat(?:ment)?\s+(?:me|my|this patient)|antibiotic\w*|"
+    r"tick bite|medical advice|therap\w*|dose|medication)\b",
     re.IGNORECASE,
 )
 _UNSUPPORTED = re.compile(
     r"\b(predict\w*|forecast\w*|caus\w*|risk|monthly|strat\w*|"
-    r"by age|by sex|aggregate|sum the counties|official determination)\b",
+    r"by age|by sex|child(?:ren)?|pediatric\w*|aggregate|sum the counties|"
+    r"official determination)\b",
     re.IGNORECASE,
 )
 _FIPS = re.compile(r"(?<!\d)\d{5}(?!\d)")
 _YEAR = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
+_MEASURE_REFERENT = re.compile(
+    r"\b(case|cases|count|counts|value|values|observation|observations|"
+    r"measure|row|rows|coverage|evidence|source|provenance|freshness|"
+    r"current|stale)\b",
+    re.IGNORECASE,
+)
+_FOREIGN_MEASURE = re.compile(
+    r"\b(population|weather|temperature|precipitation|rainfall|income|"
+    r"hospitalization|mortality)\b",
+    re.IGNORECASE,
+)
+_CONTEXT_PLACE = re.compile(
+    r"\b(?:this|selected|the|same|cited|governed)\s+"
+    r"(?:county|counties|observation|row|measure)\b",
+    re.IGNORECASE,
+)
 
 
 class StrictModel(BaseModel):
@@ -552,6 +570,18 @@ class StructuredAssistant:
                 "NEEDS_CLARIFICATION",
                 limitations=["Select two counties and one common annual period."],
             )
+        # Context selects a slot; it cannot silently replace the subject or place
+        # of the user's question. Unrecognized wording needs explicit clarification.
+        if _FOREIGN_MEASURE.search(question) or not _MEASURE_REFERENT.search(question):
+            return finish(
+                "NEEDS_CLARIFICATION",
+                limitations=["Confirm the requested governed measure in the question."],
+            )
+        if not mentioned_fips and not _CONTEXT_PLACE.search(question):
+            return finish(
+                "NEEDS_CLARIFICATION",
+                limitations=["Confirm the selected county FIPS in the question."],
+            )
         query: dict[str, Any] = {
             "measure_id": context.measure_id,
             "geography_type": context.geography_type,
@@ -581,6 +611,18 @@ class StructuredAssistant:
                 "UNSUPPORTED_REQUEST",
                 limitations=["The cited observation is no longer in the current release."],
             )
+        if intent in {"observation", "comparison"}:
+            absent = [row for row in result.coverage if row.state == "absent"]
+            if absent:
+                return finish(
+                    "INSUFFICIENT_EVIDENCE",
+                    limitations=[
+                        "No governed observation exists for "
+                        f"county {row.geography.geography_id} in {row.period_start.year}; "
+                        "the numeric request cannot be answered for every selected slot."
+                        for row in absent
+                    ],
+                )
         metadata: ToolResult | None = None
         if intent == "provenance":
             ids = [obs.observation_id for obs in result.observations]
@@ -756,7 +798,15 @@ class StructuredAssistant:
         else:
             raise ValueError("unregistered tool")
         try:
-            result = ToolResult.model_validate(method(bounded))
+            returned = method(bounded)
+            # Pydantic trusts an existing model instance, including mutable nested
+            # objects. Cross the tool boundary through a fresh wire representation.
+            payload = (
+                returned.model_dump(mode="json", warnings="error")
+                if isinstance(returned, ToolResult)
+                else returned
+            )
+            result = ToolResult.model_validate(payload)
         except Exception:
             return ToolResult(tool=tool, status="error", error_code="SOURCE_UNAVAILABLE")  # type: ignore[arg-type]
         return result
