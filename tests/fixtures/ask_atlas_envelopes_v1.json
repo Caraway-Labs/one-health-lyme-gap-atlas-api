@@ -50,7 +50,10 @@
           "period_start": "2023-01-01",
           "period_end": "2023-12-31",
           "state": "present",
-          "observation_id": "fixture-zero"
+          "observation_id": "fixture-zero",
+          "measure_id": "case_count_floor_2023",
+          "release_id": "fixture-release-1",
+          "coverage_id": "coverage:fixture-release-1:case_count_floor_2023:county:08001:2023"
         },
         {
           "geography": {
@@ -60,7 +63,10 @@
           "period_start": "2023-01-01",
           "period_end": "2023-12-31",
           "state": "absent",
-          "observation_id": null
+          "observation_id": null,
+          "measure_id": "case_count_floor_2023",
+          "release_id": "fixture-release-1",
+          "coverage_id": "coverage:fixture-release-1:case_count_floor_2023:county:08005:2023"
         }
       ],
       "metadata": [],
@@ -137,7 +143,11 @@
               "release_id": "fixture-release-1"
             }
           ],
-          "literature_citation_ids": []
+          "literature_citation_ids": [],
+          "claim_id": "atlas:zero",
+          "measure_ids": [],
+          "coverage_ids": [],
+          "role": "finding"
         }
       ],
       "structured_evidence_refs": [
@@ -173,7 +183,10 @@
           "source_timestamp": null,
           "compared_at": null
         }
-      ]
+      ],
+      "structured_measures": [],
+      "structured_coverage": [],
+      "literature_evidence_state": null
     },
     {
       "kind": "answer",
@@ -197,7 +210,10 @@
         "release_id": null,
         "literature_retrieval_configuration_version": null
       },
-      "freshness": []
+      "freshness": [],
+      "structured_measures": [],
+      "structured_coverage": [],
+      "literature_evidence_state": null
     },
     {
       "kind": "answer",
@@ -222,14 +238,22 @@
               "release_id": "fixture-release-1"
             }
           ],
-          "literature_citation_ids": []
+          "literature_citation_ids": [],
+          "claim_id": "atlas:zero",
+          "measure_ids": [],
+          "coverage_ids": [],
+          "role": "finding"
         },
         {
           "text": "Fixture literature differs.",
           "structured_refs": [],
           "literature_citation_ids": [
             "fixture-lit-1"
-          ]
+          ],
+          "claim_id": "fixture-claim-1",
+          "measure_ids": [],
+          "coverage_ids": [],
+          "role": "finding"
         }
       ],
       "structured_evidence_refs": [
@@ -278,7 +302,286 @@
           "source_timestamp": null,
           "compared_at": null
         }
-      ]
+      ],
+      "structured_measures": [],
+      "structured_coverage": [],
+      "literature_evidence_state": "single_study"
+    },
+    {
+      "kind": "answer",
+      "contract_version": "ask-atlas-v1",
+      "requested_source_mode": "Structured",
+      "actual_sources_used": [
+        "structured_atlas"
+      ],
+      "outcome": "ANSWERED",
+      "claims": [
+        {
+          "claim_id": "atlas:coverage",
+          "text": "No governed row for county 08005 in 2023.",
+          "structured_refs": [],
+          "measure_ids": [],
+          "coverage_ids": [
+            "coverage:fixture-release-1:case_count_floor_2023:county:08005:2023"
+          ],
+          "literature_citation_ids": [],
+          "role": "finding"
+        }
+      ],
+      "structured_evidence_refs": [],
+      "literature_citations": [],
+      "cross_source_state": null,
+      "limitations": [],
+      "replay": {
+        "provider_id": null,
+        "model_id": null,
+        "prompt_version": null,
+        "tool_contract_version": "ask-atlas-v1",
+        "routing_policy_version": "fixture-routing-v1",
+        "configuration_version": null,
+        "assistant_policy_version": null,
+        "release_id": "fixture-release-1",
+        "literature_retrieval_configuration_version": null
+      },
+      "freshness": [],
+      "structured_measures": [],
+      "structured_coverage": [
+        {
+          "geography": {
+            "geography_type": "county",
+            "geography_id": "08005"
+          },
+          "period_start": "2023-01-01",
+          "period_end": "2023-12-31",
+          "state": "absent",
+          "observation_id": null,
+          "measure_id": "case_count_floor_2023",
+          "release_id": "fixture-release-1",
+          "coverage_id": "coverage:fixture-release-1:case_count_floor_2023:county:08005:2023"
+        }
+      ],
+      "literature_evidence_state": null
+    },
+    {
+      "kind": "answer",
+      "contract_version": "ask-atlas-v1",
+      "requested_source_mode": "Structured",
+      "actual_sources_used": [
+        "structured_atlas"
+      ],
+      "outcome": "ANSWERED",
+      "claims": [
+        {
+          "claim_id": "atlas:measure",
+          "text": "The governed measure is the 2023 case count floor.",
+          "structured_refs": [],
+          "measure_ids": [
+            "case_count_floor_2023"
+          ],
+          "coverage_ids": [],
+          "literature_citation_ids": [],
+          "role": "finding"
+        }
+      ],
+      "structured_evidence_refs": [],
+      "literature_citations": [],
+      "cross_source_state": null,
+      "limitations": [],
+      "replay": {
+        "provider_id": null,
+        "model_id": null,
+        "prompt_version": null,
+        "tool_contract_version": "ask-atlas-v1",
+        "routing_policy_version": "fixture-routing-v1",
+        "configuration_version": null,
+        "assistant_policy_version": null,
+        "release_id": "fixture-release-1",
+        "literature_retrieval_configuration_version": null
+      },
+      "freshness": [],
+      "structured_measures": [
+        {
+          "measure_id": "case_count_floor_2023",
+          "indicator_id": "lyme_cases",
+          "label": "2023 Lyme case count floor",
+          "definition": "Fixture case count floor",
+          "semantic_version": "fixture-semantic-1",
+          "release_version": "fixture-release-1",
+          "geography_types": [
+            "county"
+          ],
+          "temporal_grains": [
+            "annual"
+          ],
+          "unit": "cases"
+        }
+      ],
+      "structured_coverage": [],
+      "literature_evidence_state": null
+    },
+    {
+      "kind": "answer",
+      "contract_version": "ask-atlas-v1",
+      "requested_source_mode": "Literature",
+      "actual_sources_used": [
+        "literature_evidence"
+      ],
+      "outcome": "ANSWERED",
+      "claims": [
+        {
+          "claim_id": "fixture-claim-1",
+          "text": "Fixture passage supports this scoped claim.",
+          "structured_refs": [],
+          "measure_ids": [],
+          "coverage_ids": [],
+          "literature_citation_ids": [
+            "fixture-lit-1"
+          ],
+          "role": "finding"
+        }
+      ],
+      "structured_evidence_refs": [],
+      "literature_citations": [
+        {
+          "citation_id": "fixture-lit-1",
+          "pmid": "12345678",
+          "title": "Fixture paper",
+          "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+          "claim_ids": [
+            "fixture-claim-1"
+          ],
+          "passage_ids": [
+            "fixture-passage-1"
+          ]
+        }
+      ],
+      "cross_source_state": null,
+      "limitations": [],
+      "replay": {
+        "provider_id": null,
+        "model_id": null,
+        "prompt_version": null,
+        "tool_contract_version": "ask-atlas-v1",
+        "routing_policy_version": "fixture-routing-v1",
+        "configuration_version": null,
+        "assistant_policy_version": null,
+        "release_id": null,
+        "literature_retrieval_configuration_version": "kg-v1.0.0"
+      },
+      "freshness": [],
+      "structured_measures": [],
+      "structured_coverage": [],
+      "literature_evidence_state": "single_study"
+    },
+    {
+      "kind": "answer",
+      "contract_version": "ask-atlas-v1",
+      "requested_source_mode": "Both",
+      "actual_sources_used": [
+        "structured_atlas",
+        "literature_evidence"
+      ],
+      "outcome": "INSUFFICIENT_EVIDENCE",
+      "claims": [
+        {
+          "claim_id": "fixture-claim-1",
+          "text": "These differently scoped findings cannot be compared.",
+          "structured_refs": [
+            {
+              "resource_type": "observation",
+              "resource_id": "fixture-zero",
+              "source_id": "fixture-source",
+              "provenance_ref": "fixture-prov-zero",
+              "semantic_version": "fixture-semantic-1",
+              "methodology_version": "fixture-transform-v1",
+              "release_id": "fixture-release-1"
+            }
+          ],
+          "measure_ids": [],
+          "coverage_ids": [],
+          "literature_citation_ids": [
+            "fixture-lit-1"
+          ],
+          "role": "comparison_limitation"
+        }
+      ],
+      "structured_evidence_refs": [
+        {
+          "resource_type": "observation",
+          "resource_id": "fixture-zero",
+          "source_id": "fixture-source",
+          "provenance_ref": "fixture-prov-zero",
+          "semantic_version": "fixture-semantic-1",
+          "methodology_version": "fixture-transform-v1",
+          "release_id": "fixture-release-1"
+        }
+      ],
+      "literature_citations": [
+        {
+          "citation_id": "fixture-lit-1",
+          "pmid": "12345678",
+          "title": "Fixture paper",
+          "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+          "claim_ids": [
+            "fixture-claim-1"
+          ],
+          "passage_ids": [
+            "fixture-passage-1"
+          ]
+        }
+      ],
+      "cross_source_state": "insufficient_to_compare",
+      "limitations": [
+        "Different outcomes prevent comparison."
+      ],
+      "replay": {
+        "provider_id": null,
+        "model_id": null,
+        "prompt_version": null,
+        "tool_contract_version": "ask-atlas-v1",
+        "routing_policy_version": "fixture-routing-v1",
+        "configuration_version": null,
+        "assistant_policy_version": null,
+        "release_id": "fixture-release-1",
+        "literature_retrieval_configuration_version": "kg-v1.0.0"
+      },
+      "freshness": [
+        {
+          "observation_id": "fixture-zero",
+          "state": "unknown",
+          "policy_id": null,
+          "source_timestamp": null,
+          "compared_at": null
+        }
+      ],
+      "structured_measures": [],
+      "structured_coverage": [],
+      "literature_evidence_state": "single_study"
+    },
+    {
+      "kind": "tool_result",
+      "tool": "get_observations",
+      "status": "ok",
+      "release_id": "fixture-release-1",
+      "measures": [],
+      "observations": [],
+      "coverage": [
+        {
+          "geography": {
+            "geography_type": "county",
+            "geography_id": "08005"
+          },
+          "period_start": "2023-01-01",
+          "period_end": "2023-12-31",
+          "state": "absent",
+          "observation_id": null,
+          "measure_id": "case_count_floor_2023",
+          "release_id": "fixture-release-1",
+          "coverage_id": "coverage:fixture-release-1:case_count_floor_2023:county:08005:2023"
+        }
+      ],
+      "metadata": [],
+      "error_code": null
     }
   ],
   "invalid": [
@@ -304,7 +607,11 @@
               "release_id": "fixture-release-1"
             }
           ],
-          "literature_citation_ids": []
+          "literature_citation_ids": [],
+          "claim_id": "atlas:zero",
+          "measure_ids": [],
+          "coverage_ids": [],
+          "role": "finding"
         }
       ],
       "structured_evidence_refs": [
@@ -340,7 +647,10 @@
           "source_timestamp": null,
           "compared_at": null
         }
-      ]
+      ],
+      "structured_measures": [],
+      "structured_coverage": [],
+      "literature_evidence_state": null
     },
     {
       "kind": "tool_result",
@@ -358,7 +668,10 @@
           "period_start": "invalid",
           "period_end": "2023-12-31",
           "state": "present",
-          "observation_id": "fixture-zero"
+          "observation_id": "fixture-zero",
+          "measure_id": "case_count_floor_2023",
+          "release_id": "fixture-release-1",
+          "coverage_id": "coverage:fixture-release-1:case_count_floor_2023:county:08001:2023"
         }
       ],
       "metadata": [],
@@ -386,7 +699,11 @@
               "release_id": "fixture-release-1"
             }
           ],
-          "literature_citation_ids": []
+          "literature_citation_ids": [],
+          "claim_id": "atlas:zero",
+          "measure_ids": [],
+          "coverage_ids": [],
+          "role": "finding"
         }
       ],
       "structured_evidence_refs": [
@@ -411,7 +728,10 @@
           "source_timestamp": null,
           "compared_at": null
         }
-      ]
+      ],
+      "structured_measures": [],
+      "structured_coverage": [],
+      "literature_evidence_state": null
     }
   ]
 }

@@ -1,6 +1,7 @@
 """Executable specification assertions, without implementing API #18 tools."""
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -46,12 +47,20 @@ def validate_observation_call(call: dict[str, Any]) -> None:
         end_date=call.get("end_date"),
     )
     query.validate_bounds(ceiling=200, annual=True)
+    if query.start_date is not None and query.end_date is not None and (
+        (query.start_date.month, query.start_date.day) != (1, 1)
+        or (query.end_date.month, query.end_date.day) != (12, 31)
+    ):
+        raise PublicQueryError("UNSUPPORTED_FILTER", "Annual ranges require whole years")
 
 
 def assert_safety_case(case: dict[str, Any]) -> None:
     if case["context"].get("safety_class"):
         assert case["outcome"] == "SAFETY_REFUSAL"
         assert case["calls"] == case["sources"] == case["claim_refs"] == []
+        assert not any(case[key] for key in (
+            "claim_measure_ids", "claim_coverage_ids", "claim_literature_ids"
+        ))
 
 
 def test_fixture_canonical_evidence_and_concrete_case_invariants() -> None:
@@ -91,6 +100,14 @@ def test_fixture_canonical_evidence_and_concrete_case_invariants() -> None:
                     validate_observation_call(call)
         admitted = [observations[key] for key in case["observation_keys"]]
         assert set(case["claim_refs"]) <= {item.observation_id for item in admitted}
+        assert set(case["claim_measure_ids"]) <= {evidence["measure"]["measure_id"]}
+        if case["claim_coverage_ids"]:
+            assert case.get("absent_geography_ids")
+            expected = {
+                f"coverage:fixture-release-1:case_count_floor_2023:county:{fips}:2023"
+                for fips in case["absent_geography_ids"]
+            }
+            assert set(case["claim_coverage_ids"]) <= expected
         assert_safety_case(case)
         if case["outcome"] in {"SAFETY_REFUSAL", "NEEDS_CLARIFICATION"}:
             assert not case["calls"] and not case["sources"]
@@ -101,13 +118,22 @@ def test_fixture_canonical_evidence_and_concrete_case_invariants() -> None:
         if case["mode"] == "Structured":
             assert "literature_evidence" not in case["sources"]
         if case["sources"]:
-            assert case["claim_refs"] or case["context"].get("literature_citation_id")
+            assert any(case[key] for key in (
+                "claim_refs", "claim_measure_ids", "claim_coverage_ids", "claim_literature_ids"
+            ))
         if case["cross_source_state"] is not None:
             assert case["mode"] == "Both"
             assert set(case["sources"]) == {"structured_atlas", "literature_evidence"}
         if case["id"] == "gap_absent":
             assert set(case["absent_geography_ids"]) == {"08005"}
             assert all(item.geography.geography_id != "08005" for item in admitted)
+            assert case["claim_refs"] == []
+        if case["id"] == "all_absent":
+            assert not admitted and case["claim_coverage_ids"]
+        if case["id"] == "measure_discovery":
+            assert case["claim_measure_ids"] == [evidence["measure"]["measure_id"]]
+        if case["id"] == "partial_annual_range":
+            assert not case["calls"] and case["outcome"] == "UNSUPPORTED_REQUEST"
         if case["id"] == "provenance":
             assert [call["tool"] for call in case["calls"]] == [
                 "get_observations", "get_evidence_metadata"
@@ -171,6 +197,89 @@ def test_typed_input_rejects_adversarial_calls_and_canonical_invalid_bounds() ->
     calls.validate(too_broad)
     with pytest.raises(PublicQueryError, match="Narrow"):
         validate_observation_call(too_broad)
+    partial = {**base, "start_date": "2023-07-01", "end_date": "2023-12-31"}
+    partial.pop("year")
+    calls.validate(partial)
+    with pytest.raises(PublicQueryError, match="whole years"):
+        validate_observation_call(partial)
+    whole = {**partial, "start_date": "2023-01-01"}
+    validate_observation_call(whole)
+    assert date.fromisoformat(whole["start_date"]) <= date.fromisoformat(whole["end_date"])
+
+
+def assert_answer_relationships(answer: dict[str, Any]) -> None:
+    claims = answer["claims"]
+    assert len({claim["claim_id"] for claim in claims}) == len(claims)
+    observation_refs = answer["structured_evidence_refs"]
+    measure_ids = {measure["measure_id"] for measure in answer["structured_measures"]}
+    coverage_ids = {slot["coverage_id"] for slot in answer["structured_coverage"]}
+    citations = {c["citation_id"]: c for c in answer["literature_citations"]}
+    for measure in answer["structured_measures"]:
+        canonical = Measure.model_validate(measure)
+        assert canonical.release_version == answer["replay"]["release_id"]
+    for slot in answer["structured_coverage"]:
+        assert slot["release_id"] == answer["replay"]["release_id"]
+        assert slot["measure_id"]
+        assert (slot["state"] == "absent") == (slot["observation_id"] is None)
+    structured_cited = False
+    literature_cited = False
+    for claim in claims:
+        cited_structured = bool(
+            claim["structured_refs"] or claim["measure_ids"] or claim["coverage_ids"]
+        )
+        cited_literature = bool(claim["literature_citation_ids"])
+        assert cited_structured or cited_literature
+        assert all(ref in observation_refs for ref in claim["structured_refs"])
+        assert set(claim["measure_ids"]) <= measure_ids
+        assert set(claim["coverage_ids"]) <= coverage_ids
+        assert set(claim["literature_citation_ids"]) <= citations.keys()
+        for citation_id in claim["literature_citation_ids"]:
+            assert claim["claim_id"] in citations[citation_id]["claim_ids"]
+        if cited_literature:
+            assert not claim["claim_id"].startswith("atlas:")
+        else:
+            assert claim["claim_id"].startswith("atlas:")
+        structured_cited |= cited_structured
+        literature_cited |= cited_literature
+    for citation in citations.values():
+        KnowledgeCitation.model_validate(citation)
+        assert citation["claim_ids"]
+        for claim_id in citation["claim_ids"]:
+            assert any(
+                claim["claim_id"] == claim_id
+                and citation["citation_id"] in claim["literature_citation_ids"]
+                for claim in claims
+            )
+    assert ("structured_atlas" in answer["actual_sources_used"]) == structured_cited
+    assert ("literature_evidence" in answer["actual_sources_used"]) == literature_cited
+    literature_ran = answer["replay"]["literature_retrieval_configuration_version"] is not None
+    assert (answer["literature_evidence_state"] is not None) == literature_ran
+    if literature_cited:
+        assert literature_ran
+    freshness_ids = [item["observation_id"] for item in answer["freshness"]]
+    assert len(freshness_ids) == len(set(freshness_ids))
+    assert set(freshness_ids) == {ref["resource_id"] for ref in observation_refs}
+    for item in answer["freshness"]:
+        if item["state"] == "unknown":
+            assert item["policy_id"] is None
+        else:
+            assert all(item[key] is not None for key in (
+                "policy_id", "source_timestamp", "compared_at"
+            ))
+    if answer["outcome"] == "INSUFFICIENT_EVIDENCE" and (
+        answer["cross_source_state"] == "insufficient_to_compare"
+    ):
+        assert claims and all(claim["role"] == "comparison_limitation" for claim in claims)
+        assert set(answer["actual_sources_used"]) == {
+            "structured_atlas", "literature_evidence"
+        }
+    elif answer["outcome"] != "ANSWERED":
+        assert not claims and not answer["actual_sources_used"]
+    else:
+        assert claims and all(claim["role"] == "finding" for claim in claims)
+    if answer["cross_source_state"] is not None:
+        assert answer["requested_source_mode"] == "Both"
+        assert structured_cited and literature_cited
 
 
 def test_positive_and_negative_result_answer_envelopes() -> None:
@@ -202,6 +311,14 @@ def test_positive_and_negative_result_answer_envelopes() -> None:
             }) == len(example["coverage"])
             for slot in example["coverage"]:
                 assert (slot["state"] == "absent") == (slot["observation_id"] is None)
+                assert slot["release_id"] == example["release_id"]
+                year = date.fromisoformat(slot["period_start"]).year
+                expected_id = (
+                    f"coverage:{slot['release_id']}:{slot['measure_id']}:"
+                    f"{slot['geography']['geography_type']}:"
+                    f"{slot['geography']['geography_id']}:{year}"
+                )
+                assert slot["coverage_id"] == expected_id
             for item in example["metadata"]:
                 source = Source.model_validate(item["source"])
                 assert source.release_version == example["release_id"]
@@ -209,27 +326,54 @@ def test_positive_and_negative_result_answer_envelopes() -> None:
                     method = Methodology.model_validate(item["methodology"])
                     assert method.release_version == example["release_id"]
         else:
-            assert example["actual_sources_used"] or example["outcome"] != "ANSWERED"
-            if example["outcome"] != "ANSWERED":
-                assert not example["claims"] or (
-                    example["cross_source_state"] == "insufficient_to_compare"
-                )
-            for claim in example["claims"]:
-                assert claim["structured_refs"] or claim["literature_citation_ids"]
-                assert all(
-                    ref in example["structured_evidence_refs"] for ref in claim["structured_refs"]
-                )
-            for citation in example["literature_citations"]:
-                KnowledgeCitation.model_validate(citation)
-            if example["cross_source_state"] is not None:
-                assert example["requested_source_mode"] == "Both"
-                assert set(example["actual_sources_used"]) == {
-                    "structured_atlas", "literature_evidence"
-                }
-                assert all(
-                    any(c["citation_id"] == citation_id for c in example["literature_citations"])
-                    for citation_id in claim["literature_citation_ids"]
-                )
+            assert_answer_relationships(example)
     assert evidence["literature"]["support_quote"]
+    assert any(
+        item["kind"] == "tool_result" and item["status"] == "ok"
+        and item["coverage"] and not item["observations"]
+        and all(slot["state"] == "absent" for slot in item["coverage"])
+        for item in examples["valid"]
+    )
     for example in examples["invalid"]:
         assert not results.is_valid(example)
+
+
+def test_adversarial_answer_identity_and_freshness_mutations() -> None:
+    examples = read_json(FIXTURES / "ask_atlas_envelopes_v1.json")["valid"]
+    mixed = next(item for item in examples if item.get("cross_source_state") == "discordant")
+    broken_citation = json.loads(json.dumps(mixed))
+    broken_citation["claims"][0]["literature_citation_ids"] = ["not-admitted"]
+    with pytest.raises(AssertionError):
+        assert_answer_relationships(broken_citation)
+    missing_freshness = json.loads(json.dumps(mixed))
+    missing_freshness["freshness"] = []
+    with pytest.raises(AssertionError):
+        assert_answer_relationships(missing_freshness)
+    broken_claim_id = json.loads(json.dumps(mixed))
+    broken_claim_id["claims"][1]["claim_id"] = "unknown-literature-claim"
+    with pytest.raises(AssertionError):
+        assert_answer_relationships(broken_claim_id)
+    absent = next(item for item in examples if item.get("structured_coverage"))
+    wrong_coverage = json.loads(json.dumps(absent))
+    wrong_coverage["claims"][0]["coverage_ids"] = ["another-county"]
+    with pytest.raises(AssertionError):
+        assert_answer_relationships(wrong_coverage)
+    discovery = next(item for item in examples if item.get("structured_measures"))
+    wrong_measure = json.loads(json.dumps(discovery))
+    wrong_measure["claims"][0]["measure_ids"] = ["unknown-measure"]
+    with pytest.raises(AssertionError):
+        assert_answer_relationships(wrong_measure)
+    literature_only = next(
+        item for item in examples if item.get("requested_source_mode") == "Literature"
+    )
+    wrong_literature = json.loads(json.dumps(literature_only))
+    wrong_literature["literature_citations"][0]["claim_ids"] = ["not-a-claim"]
+    with pytest.raises(AssertionError):
+        assert_answer_relationships(wrong_literature)
+    incomparable = next(
+        item for item in examples if item.get("cross_source_state") == "insufficient_to_compare"
+    )
+    false_finding = json.loads(json.dumps(incomparable))
+    false_finding["claims"][0]["role"] = "finding"
+    with pytest.raises(AssertionError):
+        assert_answer_relationships(false_finding)

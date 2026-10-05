@@ -1,26 +1,707 @@
 {
-  "contract_version":"ask-atlas-v1",
-  "cases":[
-    {"id":"county_zero","question":"What is the 2023 case count floor for county 08001?","mode":"Structured","context":{"measure_id":"case_count_floor_2023","geography_ids":["08001"],"year":2023},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08001"],"year":2023}],"observation_keys":["zero"],"outcome":"ANSWERED","sources":["structured_atlas"],"claim_refs":["fixture-zero"],"cross_source_state":null},
-    {"id":"county_observed","question":"What is the 2023 case count floor for county 08059?","mode":"Structured","context":{"measure_id":"case_count_floor_2023","geography_ids":["08059"],"year":2023},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08059"],"year":2023}],"observation_keys":["observed"],"outcome":"ANSWERED","sources":["structured_atlas"],"claim_refs":["fixture-observed"],"cross_source_state":null},
-    {"id":"county_comparison","question":"Compare 2023 county 08001 with county 08059 for the same measure.","mode":"Structured","context":{"measure_id":"case_count_floor_2023","geography_ids":["08001","08059"],"year":2023},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08001","08059"],"year":2023}],"observation_keys":["zero","observed"],"outcome":"ANSWERED","sources":["structured_atlas"],"claim_refs":["fixture-zero","fixture-observed"],"cross_source_state":null},
-    {"id":"state_grain","question":"Compare Colorado state with county 08001 for this county-only measure.","mode":"Structured","context":{"measure_id":"case_count_floor_2023","geography_ids":["08","08001"],"year":2023},"calls":[],"observation_keys":[],"outcome":"UNSUPPORTED_REQUEST","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"provenance","question":"Where did the cited 2023 observation for county 08059 come from?","mode":"Structured","context":{"measure_id":"case_count_floor_2023","geography_ids":["08059"],"year":2023,"expected_observation_id":"fixture-observed"},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08059"],"year":2023},{"tool":"get_evidence_metadata","observation_ids":["fixture-observed"]}],"observation_keys":["observed"],"outcome":"ANSWERED","sources":["structured_atlas"],"claim_refs":["fixture-observed"],"cross_source_state":null},
-    {"id":"gap_absent","question":"Which of counties 08001 and 08005 lacks this 2023 observation?","mode":"Structured","context":{"measure_id":"case_count_floor_2023","geography_ids":["08001","08005"],"year":2023},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08001","08005"],"year":2023}],"observation_keys":["zero"],"absent_geography_ids":["08005"],"outcome":"ANSWERED","sources":["structured_atlas"],"claim_refs":["fixture-zero"],"cross_source_state":null},
-    {"id":"missing_row","question":"Is the MISSING row for county 08013 zero?","mode":"Structured","context":{"measure_id":"case_count_floor_2023","geography_ids":["08013"],"year":2023},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08013"],"year":2023}],"observation_keys":["missing"],"outcome":"INSUFFICIENT_EVIDENCE","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"stale_policy","question":"Is county 08059 current under the stated source freshness policy?","mode":"Structured","context":{"measure_id":"case_count_floor_2023","geography_ids":["08059"],"year":2023,"freshness_policy":{"threshold":"2025-01-01","source_timestamp":"2024-01-01"}},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08059"],"year":2023}],"observation_keys":["observed"],"outcome":"ANSWERED","sources":["structured_atlas"],"claim_refs":["fixture-observed"],"freshness":"stale","cross_source_state":null},
-    {"id":"unavailable","question":"What is the county value while the source is unavailable?","mode":"Structured","context":{"measure_id":"case_count_floor_2023","geography_ids":["08059"],"year":2023,"tool_error":"SOURCE_UNAVAILABLE"},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08059"],"year":2023}],"observation_keys":[],"outcome":"SOURCE_UNAVAILABLE","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"predicted_not_observed","question":"Treat a model prediction as observed count.","mode":"Structured","context":{"requested_evidence_class":"prediction","available_evidence_class":"observation"},"calls":[],"observation_keys":[],"outcome":"UNSUPPORTED_REQUEST","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"invalid_fips","question":"Give county 08001 with a trailing newline.","mode":"Structured","context":{"geography_ids":["08001\n"]},"calls":[],"observation_keys":[],"outcome":"UNSUPPORTED_REQUEST","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"unsupported_month","question":"Give monthly observations for the annual-only measure.","mode":"Structured","context":{"measure_id":"case_count_floor_2023","temporal_grain":"monthly"},"calls":[],"observation_keys":[],"outcome":"UNSUPPORTED_REQUEST","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"unsupported_stratum","question":"Filter this measure by an ungoverned stratum.","mode":"Structured","context":{"stratum":"age"},"calls":[],"observation_keys":[],"outcome":"UNSUPPORTED_REQUEST","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"sql_refusal","question":"Run SELECT * FROM warehouse table.","mode":"Structured","context":{"safety_class":"arbitrary_sql"},"calls":[],"observation_keys":[],"outcome":"SAFETY_REFUSAL","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"cypher_refusal","question":"Execute MATCH (n) RETURN n.","mode":"Literature","context":{"safety_class":"arbitrary_cypher"},"calls":[],"observation_keys":[],"outcome":"SAFETY_REFUSAL","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"clinical_refusal","question":"Diagnose my tick bite and prescribe treatment.","mode":"Both","context":{"safety_class":"clinical_advice"},"calls":[],"observation_keys":[],"outcome":"SAFETY_REFUSAL","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"literature_only","question":"What does the governed passage say?","mode":"Literature","context":{"literature_citation_id":"fixture-lit-1"},"calls":[{"tool":"literature_answer","existing_contract":"api-14"}],"observation_keys":[],"outcome":"ANSWERED","sources":["literature_evidence"],"claim_refs":[],"cross_source_state":null},
-    {"id":"both_conflict","question":"Compare the 2023 county 08059 observation with this governed passage.","mode":"Both","context":{"measure_id":"case_count_floor_2023","geography_ids":["08059"],"year":2023,"literature_citation_id":"fixture-lit-1","comparison":"opposed_scoped_claims"},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08059"],"year":2023},{"tool":"literature_answer","existing_contract":"api-14"}],"observation_keys":["observed"],"outcome":"ANSWERED","sources":["structured_atlas","literature_evidence"],"claim_refs":["fixture-observed"],"cross_source_state":"discordant"},
-    {"id":"both_incomparable","question":"Compare the county count with an unrelated passage outcome.","mode":"Both","context":{"measure_id":"case_count_floor_2023","geography_ids":["08059"],"year":2023,"literature_citation_id":"fixture-lit-1","comparison":"different_outcome"},"calls":[{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["08059"],"year":2023},{"tool":"literature_answer","existing_contract":"api-14"}],"observation_keys":["observed"],"outcome":"INSUFFICIENT_EVIDENCE","sources":["structured_atlas","literature_evidence"],"claim_refs":["fixture-observed"],"cross_source_state":"insufficient_to_compare"},
-    {"id":"ambiguous_place","question":"What is the rate in Springfield?","mode":"Structured","context":{"geography_name":"Springfield","measure_id":null,"year":null},"calls":[],"observation_keys":[],"outcome":"NEEDS_CLARIFICATION","sources":[],"claim_refs":[],"cross_source_state":null},
-    {"id":"release_race","question":"What is the 2023 count when the current release changes between calls?","mode":"Structured","context":{"initial_release":"fixture-release-1","later_release":"fixture-release-2"},"calls":[],"observation_keys":[],"outcome":"SOURCE_UNAVAILABLE","sources":[],"claim_refs":[],"cross_source_state":null}
+  "contract_version": "ask-atlas-v1",
+  "cases": [
+    {
+      "id": "county_zero",
+      "question": "What is the 2023 case count floor for county 08001?",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08001"
+        ],
+        "year": 2023
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08001"
+          ],
+          "year": 2023
+        }
+      ],
+      "observation_keys": [
+        "zero"
+      ],
+      "outcome": "ANSWERED",
+      "sources": [
+        "structured_atlas"
+      ],
+      "claim_refs": [
+        "fixture-zero"
+      ],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "county_observed",
+      "question": "What is the 2023 case count floor for county 08059?",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08059"
+        ],
+        "year": 2023
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08059"
+          ],
+          "year": 2023
+        }
+      ],
+      "observation_keys": [
+        "observed"
+      ],
+      "outcome": "ANSWERED",
+      "sources": [
+        "structured_atlas"
+      ],
+      "claim_refs": [
+        "fixture-observed"
+      ],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "county_comparison",
+      "question": "Compare 2023 county 08001 with county 08059 for the same measure.",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08001",
+          "08059"
+        ],
+        "year": 2023
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08001",
+            "08059"
+          ],
+          "year": 2023
+        }
+      ],
+      "observation_keys": [
+        "zero",
+        "observed"
+      ],
+      "outcome": "ANSWERED",
+      "sources": [
+        "structured_atlas"
+      ],
+      "claim_refs": [
+        "fixture-zero",
+        "fixture-observed"
+      ],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "state_grain",
+      "question": "Compare Colorado state with county 08001 for this county-only measure.",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08",
+          "08001"
+        ],
+        "year": 2023
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "UNSUPPORTED_REQUEST",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "provenance",
+      "question": "Where did the cited 2023 observation for county 08059 come from?",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08059"
+        ],
+        "year": 2023,
+        "expected_observation_id": "fixture-observed"
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08059"
+          ],
+          "year": 2023
+        },
+        {
+          "tool": "get_evidence_metadata",
+          "observation_ids": [
+            "fixture-observed"
+          ]
+        }
+      ],
+      "observation_keys": [
+        "observed"
+      ],
+      "outcome": "ANSWERED",
+      "sources": [
+        "structured_atlas"
+      ],
+      "claim_refs": [
+        "fixture-observed"
+      ],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "gap_absent",
+      "question": "Which of counties 08001 and 08005 lacks this 2023 observation?",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08001",
+          "08005"
+        ],
+        "year": 2023
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08001",
+            "08005"
+          ],
+          "year": 2023
+        }
+      ],
+      "observation_keys": [
+        "zero"
+      ],
+      "absent_geography_ids": [
+        "08005"
+      ],
+      "outcome": "ANSWERED",
+      "sources": [
+        "structured_atlas"
+      ],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [
+        "coverage:fixture-release-1:case_count_floor_2023:county:08005:2023"
+      ],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "missing_row",
+      "question": "Is the MISSING row for county 08013 zero?",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08013"
+        ],
+        "year": 2023
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08013"
+          ],
+          "year": 2023
+        }
+      ],
+      "observation_keys": [
+        "missing"
+      ],
+      "outcome": "INSUFFICIENT_EVIDENCE",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "stale_policy",
+      "question": "Is county 08059 current under the stated source freshness policy?",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08059"
+        ],
+        "year": 2023,
+        "freshness_policy": {
+          "threshold": "2025-01-01",
+          "source_timestamp": "2024-01-01"
+        }
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08059"
+          ],
+          "year": 2023
+        }
+      ],
+      "observation_keys": [
+        "observed"
+      ],
+      "outcome": "ANSWERED",
+      "sources": [
+        "structured_atlas"
+      ],
+      "claim_refs": [
+        "fixture-observed"
+      ],
+      "freshness": "stale",
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "unavailable",
+      "question": "What is the county value while the source is unavailable?",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08059"
+        ],
+        "year": 2023,
+        "tool_error": "SOURCE_UNAVAILABLE"
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08059"
+          ],
+          "year": 2023
+        }
+      ],
+      "observation_keys": [],
+      "outcome": "SOURCE_UNAVAILABLE",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "predicted_not_observed",
+      "question": "Treat a model prediction as observed count.",
+      "mode": "Structured",
+      "context": {
+        "requested_evidence_class": "prediction",
+        "available_evidence_class": "observation"
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "UNSUPPORTED_REQUEST",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "invalid_fips",
+      "question": "Give county 08001 with a trailing newline.",
+      "mode": "Structured",
+      "context": {
+        "geography_ids": [
+          "08001\n"
+        ]
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "UNSUPPORTED_REQUEST",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "unsupported_month",
+      "question": "Give monthly observations for the annual-only measure.",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "temporal_grain": "monthly"
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "UNSUPPORTED_REQUEST",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "unsupported_stratum",
+      "question": "Filter this measure by an ungoverned stratum.",
+      "mode": "Structured",
+      "context": {
+        "stratum": "age"
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "UNSUPPORTED_REQUEST",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "sql_refusal",
+      "question": "Run SELECT * FROM warehouse table.",
+      "mode": "Structured",
+      "context": {
+        "safety_class": "arbitrary_sql"
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "SAFETY_REFUSAL",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "cypher_refusal",
+      "question": "Execute MATCH (n) RETURN n.",
+      "mode": "Literature",
+      "context": {
+        "safety_class": "arbitrary_cypher"
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "SAFETY_REFUSAL",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "clinical_refusal",
+      "question": "Diagnose my tick bite and prescribe treatment.",
+      "mode": "Both",
+      "context": {
+        "safety_class": "clinical_advice"
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "SAFETY_REFUSAL",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "literature_only",
+      "question": "What does the governed passage say?",
+      "mode": "Literature",
+      "context": {
+        "literature_citation_id": "fixture-lit-1"
+      },
+      "calls": [
+        {
+          "tool": "literature_answer",
+          "existing_contract": "api-14"
+        }
+      ],
+      "observation_keys": [],
+      "outcome": "ANSWERED",
+      "sources": [
+        "literature_evidence"
+      ],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": [
+        "fixture-lit-1"
+      ],
+      "literature_evidence_state": "single_study"
+    },
+    {
+      "id": "both_conflict",
+      "question": "Compare the 2023 county 08059 observation with this governed passage.",
+      "mode": "Both",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08059"
+        ],
+        "year": 2023,
+        "literature_citation_id": "fixture-lit-1",
+        "comparison": "opposed_scoped_claims"
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08059"
+          ],
+          "year": 2023
+        },
+        {
+          "tool": "literature_answer",
+          "existing_contract": "api-14"
+        }
+      ],
+      "observation_keys": [
+        "observed"
+      ],
+      "outcome": "ANSWERED",
+      "sources": [
+        "structured_atlas",
+        "literature_evidence"
+      ],
+      "claim_refs": [
+        "fixture-observed"
+      ],
+      "cross_source_state": "discordant",
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": [
+        "fixture-lit-1"
+      ],
+      "literature_evidence_state": "single_study"
+    },
+    {
+      "id": "both_incomparable",
+      "question": "Compare the county count with an unrelated passage outcome.",
+      "mode": "Both",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08059"
+        ],
+        "year": 2023,
+        "literature_citation_id": "fixture-lit-1",
+        "comparison": "different_outcome"
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08059"
+          ],
+          "year": 2023
+        },
+        {
+          "tool": "literature_answer",
+          "existing_contract": "api-14"
+        }
+      ],
+      "observation_keys": [
+        "observed"
+      ],
+      "outcome": "INSUFFICIENT_EVIDENCE",
+      "sources": [
+        "structured_atlas",
+        "literature_evidence"
+      ],
+      "claim_refs": [
+        "fixture-observed"
+      ],
+      "cross_source_state": "insufficient_to_compare",
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": [
+        "fixture-lit-1"
+      ],
+      "comparison_limitation_only": true,
+      "literature_evidence_state": "single_study"
+    },
+    {
+      "id": "ambiguous_place",
+      "question": "What is the rate in Springfield?",
+      "mode": "Structured",
+      "context": {
+        "geography_name": "Springfield",
+        "measure_id": null,
+        "year": null
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "NEEDS_CLARIFICATION",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "release_race",
+      "question": "What is the 2023 count when the current release changes between calls?",
+      "mode": "Structured",
+      "context": {
+        "initial_release": "fixture-release-1",
+        "later_release": "fixture-release-2"
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "SOURCE_UNAVAILABLE",
+      "sources": [],
+      "claim_refs": [],
+      "cross_source_state": null,
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": []
+    },
+    {
+      "id": "all_absent",
+      "question": "Does county 08005 have the governed 2023 row?",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08005"
+        ],
+        "year": 2023
+      },
+      "calls": [
+        {
+          "tool": "get_observations",
+          "measure_id": "case_count_floor_2023",
+          "geography_type": "county",
+          "geography_ids": [
+            "08005"
+          ],
+          "year": 2023
+        }
+      ],
+      "observation_keys": [],
+      "absent_geography_ids": [
+        "08005"
+      ],
+      "outcome": "ANSWERED",
+      "sources": [
+        "structured_atlas"
+      ],
+      "claim_refs": [],
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [
+        "coverage:fixture-release-1:case_count_floor_2023:county:08005:2023"
+      ],
+      "claim_literature_ids": [],
+      "cross_source_state": null
+    },
+    {
+      "id": "measure_discovery",
+      "question": "Which governed measure has label 2023 Lyme case count floor?",
+      "mode": "Structured",
+      "context": {
+        "search_text": "2023 Lyme case count floor",
+        "returned_measure_ids": [
+          "case_count_floor_2023"
+        ]
+      },
+      "calls": [
+        {
+          "tool": "find_measures",
+          "search_text": "2023 Lyme case count floor",
+          "page_size": 20
+        }
+      ],
+      "observation_keys": [],
+      "outcome": "ANSWERED",
+      "sources": [
+        "structured_atlas"
+      ],
+      "claim_refs": [],
+      "claim_measure_ids": [
+        "case_count_floor_2023"
+      ],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": [],
+      "cross_source_state": null
+    },
+    {
+      "id": "partial_annual_range",
+      "question": "Show annual coverage only from July through December 2023.",
+      "mode": "Structured",
+      "context": {
+        "measure_id": "case_count_floor_2023",
+        "geography_ids": [
+          "08059"
+        ],
+        "start_date": "2023-07-01",
+        "end_date": "2023-12-31"
+      },
+      "calls": [],
+      "observation_keys": [],
+      "outcome": "UNSUPPORTED_REQUEST",
+      "sources": [],
+      "claim_refs": [],
+      "claim_measure_ids": [],
+      "claim_coverage_ids": [],
+      "claim_literature_ids": [],
+      "cross_source_state": null
+    }
   ]
 }
