@@ -294,6 +294,10 @@ class StructuredTools:
         self._check_active()
         indicators, measures = self.metadata_service.discover(checkpoint=self._check_active)
         self._check_active()
+        if any(item.release_version != release for item in indicators) or any(
+            item.release_version != release for item in measures
+        ):
+            raise PublicQueryError("RELEASE_CHANGED", "Metadata release changed.")
         if args.indicator_id is not None:
             if args.indicator_id not in {item.indicator_id for item in indicators}:
                 raise PublicQueryError("RESOURCE_NOT_FOUND", "Unknown indicator.")
@@ -321,8 +325,6 @@ class StructuredTools:
             raise PublicQueryError("RESOURCE_NOT_FOUND", "No governed measure matches.")
         if len(matches) > args.page_size or len(matches) > 20:
             raise PublicQueryError("QUERY_TOO_BROAD", "Narrow measure selection.")
-        if any(m.release_version != release for m in matches):
-            raise PublicQueryError("RELEASE_CHANGED", "Metadata release changed.")
         return ToolResult(tool="find_measures", status="ok", release_id=release, measures=matches)
 
     @staticmethod
@@ -359,12 +361,15 @@ class StructuredTools:
         query = self._observation_query(args)
         release = self._release()
         self._check_active()
-        _, measures = self.metadata_service.discover(checkpoint=self._check_active)
+        indicators, measures = self.metadata_service.discover(checkpoint=self._check_active)
+        self._check_active()
+        if any(item.release_version != release for item in indicators) or any(
+            item.release_version != release for item in measures
+        ):
+            raise PublicQueryError("RELEASE_CHANGED", "Metadata release changed.")
         measure = next((m for m in measures if m.measure_id == args.measure_id), None)
         if measure is None:
             raise PublicQueryError("RESOURCE_NOT_FOUND", "Unknown measure.")
-        if measure.release_version != release:
-            raise PublicQueryError("RELEASE_CHANGED", "Metadata release changed.")
         if (
             args.geography_type != GeographyType.county
             or (

@@ -608,3 +608,76 @@ def test_release_change_during_measure_lookup_failure_is_preserved():
     result = service.get_observations(query(geography_ids=["01005"]))
     assert result.error_code == "RELEASE_CHANGED"
     assert result.observations == [] and result.coverage == []
+
+
+@pytest.mark.parametrize("tool", ["find_measures", "get_observations"])
+@pytest.mark.parametrize("scenario", ["missing", "over_limit"])
+@pytest.mark.parametrize("catalogue_release", ["release-1", "release-2"])
+def test_catalogue_release_precedes_selection_early_exits(tool, scenario, catalogue_release):
+    class CatalogueRows:
+        def load_metadata(self, *, checkpoint=None):
+            identifiers = (
+                ["unrelated"]
+                if scenario == "missing"
+                else ["case_count_floor_2023", *[f"case_measure_{i}" for i in range(20)]]
+            )
+            return MetadataRows(
+                indicators=[("human", "Human", None, None, None, None, "1.0.0", catalogue_release)],
+                measures=[
+                    (
+                        identifier,
+                        "human",
+                        "Case count floor",
+                        None,
+                        "NUMBER",
+                        "cases",
+                        None,
+                        "COUNTY_FIPS_5",
+                        "2023",
+                        None,
+                        None,
+                        None,
+                        "unknown",
+                        "method",
+                        None,
+                        "1.0.0",
+                        catalogue_release,
+                    )
+                    for identifier in identifiers
+                ],
+            )
+
+    class OversizedRepository(Repository):
+        query_calls = 0
+
+        def query(self, query, release, offset):
+            self.query_calls += 1
+            return [row("01005", "12", "OBSERVED")] * 201
+
+    repository = OversizedRepository()
+    service = StructuredTools(
+        MetadataService(CatalogueRows()), ObservationService(repository), Provenance()
+    )
+    if tool == "find_measures":
+        result = service.find_measures(
+            {
+                "tool": tool,
+                "search_text": "missing" if scenario == "missing" else "case",
+                "page_size": 20,
+            }
+        )
+    else:
+        result = service.get_observations(query(geography_ids=["01005"]))
+    expected = (
+        "RELEASE_CHANGED"
+        if catalogue_release == "release-2"
+        else "RESOURCE_NOT_FOUND"
+        if scenario == "missing"
+        else "QUERY_TOO_BROAD"
+    )
+    assert result.error_code == expected
+    assert result.release_id is None
+    assert not result.measures and not result.observations and not result.coverage
+    assert repository.query_calls == int(
+        catalogue_release == "release-1" and tool == "get_observations" and scenario == "over_limit"
+    )
