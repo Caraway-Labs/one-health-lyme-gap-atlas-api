@@ -419,6 +419,18 @@ def test_discovery_paraphrase_matches_selector() -> None:
     assert [call["tool"] for call in tools.calls] == ["find_measures"]
 
 
+def test_discovery_indicator_id_matches_case_paraphrase() -> None:
+    tools = FakeTools()
+    result = StructuredAssistant(tools).ask(
+        StructuredAssistantRequest(
+            question="Which governed measure is the Lyme case count floor?",
+            context={"indicator_id": "lyme_cases"},
+        )
+    )
+    assert result.answer.outcome == "ANSWERED"
+    assert [call["tool"] for call in tools.calls] == ["find_measures"]
+
+
 def test_real_adapter_rejects_disease_substitution_before_governed_lookup() -> None:
     adapter, _ = real_tools()
     result = StructuredAssistant(adapter).ask(

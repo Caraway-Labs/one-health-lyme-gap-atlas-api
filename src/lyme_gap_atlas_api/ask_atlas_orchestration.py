@@ -222,8 +222,14 @@ def _admitted_question(question: str, allowed_numbers: set[str], intent: str) ->
 
 def _selector_matches_question(question: str, selector: str) -> bool:
     """A discovery selector must describe the same subject as the question."""
-    query_tokens = {token.casefold() for token in _QUESTION_TOKEN.findall(question)}
-    selector_tokens = {token.casefold() for token in _QUESTION_TOKEN.findall(selector)}
+    def normalized_tokens(value: str) -> set[str]:
+        return {
+            {"cases": "case", "counts": "count"}.get(token.casefold(), token.casefold())
+            for token in _QUESTION_TOKEN.findall(value)
+        }
+
+    query_tokens = normalized_tokens(question)
+    selector_tokens = normalized_tokens(selector)
     return selector_tokens <= query_tokens or bool(
         re.search(r"\b(?:this|selected)\s+measure\b", question, re.IGNORECASE)
     )
