@@ -21,6 +21,8 @@ The [documentation surface contract](docs/documentation-surfaces.md) defines
 machine, Swagger, retained ReDoc and Fumadocs purposes and the Web handoff.
 For operator signals, see the [API indicator contract](docs/api-operational-indicators.md)
 and [natural-traffic validation runbook](docs/production-observability-validation.md).
+Ask Atlas request bounds, diagnosis, rollback and manual regression promotion are
+documented in the [Ask Atlas operating runbook](docs/ask-atlas-operations.md).
 Indicator and measure discovery (#53), bounded county observation queries
 (#54), and source/methodology metadata (#55) read governed current-release views.
 Geography retains its documented 503 until its owning story is delivered.

@@ -6,8 +6,11 @@ import json
 import logging
 from typing import Any
 
+import pytest
+
 from lyme_gap_atlas_api.knowledge_chat import (
     Evidence,
+    GenerationBudgetExceeded,
     KnowledgeChatService,
     Neo4jRetriever,
     OpenAIAnswerer,
@@ -360,10 +363,12 @@ def test_answer_specific_openai_client_has_no_sdk_retries() -> None:
         def __init__(self) -> None:
             self.timeout = 0.0
             self.instructions = ""
+            self.max_output_tokens = 0
 
         def create(self, **kwargs: Any) -> Any:
             self.timeout = kwargs["timeout"]
             self.instructions = kwargs["instructions"]
+            self.max_output_tokens = kwargs["max_output_tokens"]
             return type("Response", (), {"output_text": json.dumps(valid_payload())})()
 
     class Client:
@@ -381,4 +386,57 @@ def test_answer_specific_openai_client_has_no_sdk_retries() -> None:
     assert result["evidence_state"] == "single_study"
     assert client.max_retries == 0
     assert client.responses.timeout == 7
+    assert client.responses.max_output_tokens == 2048
     assert "previous candidate failed deterministic grounding" in client.responses.instructions
+
+
+def test_oversized_provider_input_never_calls_provider() -> None:
+    class NeverCall:
+        def with_options(self, **kwargs: Any) -> Any:
+            raise AssertionError("provider call crossed input guard")
+
+    huge = [
+        Evidence("passage-1", "x" * 33_000, "Governed full-text passage", "12345678",
+                 "Paper 12345678", "https://pubmed.ncbi.nlm.nih.gov/12345678/")
+    ]
+    with pytest.raises(GenerationBudgetExceeded):
+        OpenAIAnswerer(NeverCall()).answer(  # type: ignore[arg-type]
+            "question", huge, "safety-id", timeout_seconds=7,
+        )
+
+
+def test_provider_output_ceiling_never_admits_incomplete_answer() -> None:
+    class Incomplete:
+        responses: Any
+
+        def __init__(self) -> None:
+            self.responses = self
+
+        def with_options(self, **kwargs: Any) -> Any:
+            return self
+
+        def create(self, **kwargs: Any) -> Any:
+            assert kwargs["max_output_tokens"] == 2048
+            return type("Reply", (), {"status": "incomplete", "output_text": "{}"})()
+
+    with pytest.raises(GenerationBudgetExceeded):
+        OpenAIAnswerer(Incomplete()).answer(  # type: ignore[arg-type]
+            "question", EVIDENCE, "safety-id", timeout_seconds=7,
+        )
+
+
+def test_generation_budget_exhaustion_fails_closed_through_service() -> None:
+    clock = Clock()
+    completion: dict[str, Any] = {}
+    service = KnowledgeChatService(
+        Retriever(), Answerer([GenerationBudgetExceeded()], clock), None,
+        "fixture-secret", deadline_seconds=24, clock=clock,
+    )
+    response = service.chat(
+        KnowledgeChatRequest(message="What did the study find?"),
+        "budget-fixture", "fixture-client", completion,
+    )
+    assert response.status == "evidence_unavailable"
+    assert response.claims == []
+    assert completion["outcome"] == "budget_exhausted"
+    assert completion["generation_attempts"] == 1

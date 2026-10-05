@@ -1263,7 +1263,11 @@ def create_app(
             request.app.state.observation_service,
             request.app.state.provenance_service,
         )
-        return StructuredAssistant(tools).ask(payload)
+        diagnostics: dict[str, Any] = {}
+        result = StructuredAssistant(tools).ask(payload, diagnostics)
+        diagnostics["outcome"] = result.answer.outcome.casefold()
+        request.state.knowledge_chat_diagnostics = diagnostics
+        return result
 
     @app.post(
         "/v1/assistant/mixed",
@@ -1309,7 +1313,9 @@ def create_app(
             client,
             request.state.knowledge_chat_diagnostics,
         )
-        request.state.knowledge_chat_diagnostics["outcome"] = result.outcome.casefold()
+        diagnostics = request.state.knowledge_chat_diagnostics
+        diagnostics["service_outcome"] = diagnostics.get("outcome")
+        diagnostics["outcome"] = result.outcome.casefold()
         if result.outcome == "SOURCE_UNAVAILABLE":
             response.status_code = 503
             response.headers["Retry-After"] = "30"

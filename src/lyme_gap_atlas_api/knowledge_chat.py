@@ -170,7 +170,8 @@ def _safe_identifier(value: object) -> str | None:
 _ASK_OUTCOMES = frozenset({
     "answered", "safety_refusal", "no_evidence", "capacity_limited", "embedding_failure",
     "neo4j_timeout", "neo4j_query_failure", "retrieval_dependency_unavailable",
-    "retrieval_failure", "budget_failure", "deadline_exhausted", "generation_timeout",
+    "retrieval_failure", "budget_failure", "budget_exhausted", "deadline_exhausted",
+    "generation_timeout",
     "provider_rejection", "generation_transport_error", "malformed_generated_json",
     "generation_error", "corrective_retry_exhausted", "grounding_validation_failed",
     "provenance_failure", "persistence_failure", "invalid_conversation_capability",
@@ -827,6 +828,10 @@ def _resolve_quote_refs(candidate: dict[str, Any], evidence: list[Evidence]) -> 
     return candidate
 
 
+class GenerationBudgetExceeded(Exception):
+    """The local request bound was reached before a grounded answer existed."""
+
+
 class OpenAIAnswerer:
     def __init__(self, client: OpenAI, model: str = "gpt-5.6-luna") -> None:
         self._client = client
@@ -868,6 +873,10 @@ class OpenAIAnswerer:
         provider_input = json.dumps(
             {"question": message, "passages": passages, "response_format": "json"}
         )
+        # Bound both sides of each provider call. Character count is a conservative
+        # input guard, not a claim about tokenizer usage or dollar cost.
+        if len(provider_input) > 32_000:
+            raise GenerationBudgetExceeded
         logger.info(
             "knowledge_chat_provider_input_size",
             extra={"context": {
@@ -878,6 +887,7 @@ class OpenAIAnswerer:
         )
         response = self._client.with_options(max_retries=0).responses.create(
             model=self._model,
+            max_output_tokens=2048,
             store=False,
             reasoning={"effort": "low"},
             safety_identifier=safety_id,
@@ -921,6 +931,11 @@ class OpenAIAnswerer:
                 }
             },
         )
+        provider_status = getattr(response, "status", None)
+        if provider_status == "incomplete":
+            raise GenerationBudgetExceeded
+        if provider_status not in (None, "completed"):
+            raise ValueError("provider response not complete")
         with _span("generated_json_parsing", _REQUEST_ID.get()):
             return _resolve_quote_refs(json.loads(response.output_text), evidence)
 
@@ -1215,6 +1230,8 @@ class KnowledgeChatService:
                     )
             except (APITimeoutError, TimeoutError):
                 return unavailable("generation_timeout")
+            except GenerationBudgetExceeded:
+                return unavailable("budget_exhausted")
             except APIStatusError as exc:
                 logger.warning("knowledge_chat_provider_failure", extra={"context": {
                     "request_id": request_id,

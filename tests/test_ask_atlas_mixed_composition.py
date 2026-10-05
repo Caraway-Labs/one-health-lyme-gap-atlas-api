@@ -1,5 +1,6 @@
 """Composition retains branch provenance and refuses unsupported comparisons."""
 
+from contextlib import contextmanager
 from typing import Any
 
 import pytest
@@ -22,7 +23,7 @@ from lyme_gap_atlas_api.ask_atlas_orchestration import (
     StructuredAssistantRequest,
 )
 from lyme_gap_atlas_api.config import ApiSettings
-from lyme_gap_atlas_api.knowledge_chat import KnowledgeChatService
+from lyme_gap_atlas_api.knowledge_chat import Evidence, KnowledgeChatService, OpenAIAnswerer
 from lyme_gap_atlas_api.models import KnowledgeChatResponse
 from lyme_gap_atlas_api.telemetry_logging import completion_context
 
@@ -264,7 +265,168 @@ def test_literature_unavailable_http_is_typed_503() -> None:
     assert response.json()["actual_sources_used"] == []
 
 
-@pytest.mark.parametrize("failure", ["retrieval", "capacity"])
+@pytest.mark.parametrize("mode", ["Both", "Literature"])
+def test_internal_literature_exception_is_classified_even_with_grounded_fallback(
+    mode: str, monkeypatch: Any,
+) -> None:
+    completions: list[dict[str, Any]] = []
+
+    def capture(logger: Any, event: str, context: dict[str, Any]) -> None:
+        if event == "knowledge_chat_total":
+            completions.append(completion_context(event, context))
+
+    @contextmanager
+    def failing_teardown(settings: Any):
+        yield
+        raise RuntimeError("private teardown detail")
+
+    monkeypatch.setattr(middleware_module, "emit_completion", capture)
+    monkeypatch.setattr(knowledge_chat_module, "_request_snowflake_session", failing_teardown)
+    monkeypatch.setattr(application, "StructuredTools", lambda *args: FakeTools())
+    clock = Clock()
+    service = KnowledgeChatService(
+        Retriever(), Answerer([valid_payload()], clock), None,
+        "fixture-secret", deadline_seconds=24, clock=clock,
+    )
+    app = application.create_app(
+        settings=ApiSettings(knowledge_chat_enabled=True), knowledge_chat_service=service,
+    )
+    structured_question = "What is the 2023 Lyme case count for county 08001? "
+    response = TestClient(app).post(
+        "/v1/assistant/mixed", headers={"X-Request-ID": "internal-fixture"},
+        json={
+            "question": (structured_question if mode == "Both" else "") +
+            "What does the governed literature say about Lyme disease?",
+            "source_mode": mode,
+            "context": {
+                "measure_id": "case_count_floor_2023", "geography_ids": ["08001"],
+                "year": 2023,
+            },
+        },
+    )
+    assert response.status_code == (200 if mode == "Both" else 503)
+    assert response.json()["outcome"] == ("ANSWERED" if mode == "Both" else "SOURCE_UNAVAILABLE")
+    assert response.json()["actual_sources_used"] == (
+        ["structured_atlas"] if mode == "Both" else []
+    )
+    assert response.json()["literature"] is None
+    assert len(completions) == 1
+    assert completions[0]["request_id"] == "internal-fixture"
+    assert completions[0]["outcome"] == response.json()["outcome"].casefold()
+    assert completions[0]["service_outcome"] == "unhandled_error"
+    assert completions[0]["operational_outcome"] == "internal_failure"
+    assert "private teardown detail" not in str(completions)
+
+
+@pytest.mark.parametrize("kind", ["input", "output", "deadline"])
+@pytest.mark.parametrize("with_completion", [False, True])
+def test_real_both_budget_exhaustion_discards_partial_with_optional_diagnostics(
+    kind: str, with_completion: bool,
+) -> None:
+    clock = Clock()
+
+    class BudgetRetriever(Retriever):
+        def search(self, message: str, request_id: str) -> list[Evidence]:
+            if kind == "deadline":
+                clock.now = 25
+            if kind == "input":
+                return [Evidence(
+                    "passage-1", "x" * 33_000, "Governed full-text passage",
+                    "12345678", "Paper 12345678",
+                    "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+                )]
+            return super().search(message, request_id)
+
+    class Client:
+        responses: Any
+
+        def __init__(self) -> None:
+            self.responses = self
+
+        def with_options(self, **kwargs: Any) -> Any:
+            return self
+
+        def create(self, **kwargs: Any) -> Any:
+            assert kind == "output", "provider was called past the input/deadline guard"
+            assert kwargs["max_output_tokens"] == 2048
+            return type("Reply", (), {"status": "incomplete", "output_text": "{}"})()
+
+    service = KnowledgeChatService(
+        BudgetRetriever(), OpenAIAnswerer(Client()), None, "fixture-secret",
+        deadline_seconds=24, clock=clock,
+    )
+    completion: dict[str, Any] | None = {} if with_completion else None
+    result = MixedAssistant(StructuredAssistant(FakeTools()), service).ask(
+        "What is the 2023 Lyme case count for county 08001? "
+        "What does the governed literature say about Lyme disease?",
+        "Both",
+        StructuredAssistantRequest(
+            question="What is the 2023 Lyme case count for county 08001?",
+            context={"measure_id": "case_count_floor_2023", "geography_ids": ["08001"],
+                     "year": 2023},
+        ).context,
+        "budget-fixture", "fixture-client", completion,
+    )
+    assert result.outcome == "SOURCE_UNAVAILABLE"
+    assert result.actual_sources_used == ()
+    assert result.structured is None and result.literature is None
+    assert completion is None or completion["outcome"] == (
+        "deadline_exhausted" if kind == "deadline" else "budget_exhausted"
+    )
+
+
+def test_nonbudget_literature_dependency_failure_keeps_grounded_structured_branch() -> None:
+    class FailingRetriever(Retriever):
+        def search(self, message: str, request_id: str) -> Any:
+            raise RuntimeError("private dependency detail")
+
+    clock = Clock()
+    service = KnowledgeChatService(
+        FailingRetriever(), Answerer([valid_payload()], clock), None,
+        "fixture-secret", deadline_seconds=24, clock=clock,
+    )
+    result = MixedAssistant(StructuredAssistant(FakeTools()), service).ask(
+        "What is the 2023 Lyme case count for county 08001? "
+        "What does the governed literature say about Lyme disease?",
+        "Both",
+        StructuredAssistantRequest(
+            question="What is the 2023 Lyme case count for county 08001?",
+            context={"measure_id": "case_count_floor_2023", "geography_ids": ["08001"],
+                     "year": 2023},
+        ).context,
+        "dependency-fixture", "fixture-client",
+    )
+    assert result.outcome == "ANSWERED"
+    assert result.actual_sources_used == ("structured_atlas",)
+    assert result.structured is not None and result.structured.answer.claims
+
+
+def test_intentionally_disabled_literature_route_is_dependency_unavailable(
+    monkeypatch: Any,
+) -> None:
+    completions: list[dict[str, Any]] = []
+
+    def capture(logger: Any, event: str, context: dict[str, Any]) -> None:
+        if event == "knowledge_chat_total":
+            completions.append(completion_context(event, context))
+
+    monkeypatch.setattr(middleware_module, "emit_completion", capture)
+    app = application.create_app(settings=ApiSettings(knowledge_chat_enabled=False))
+    response = TestClient(app).post(
+        "/v1/assistant/mixed", headers={"X-Request-ID": "disabled-fixture"},
+        json={
+            "question": "What does the governed literature say about Lyme disease?",
+            "source_mode": "Literature",
+        },
+    )
+    assert response.status_code == 503
+    assert response.json()["outcome"] == "SOURCE_UNAVAILABLE"
+    assert len(completions) == 1
+    assert "service_outcome" not in completions[0]
+    assert completions[0]["operational_outcome"] == "dependency_failure"
+
+
+@pytest.mark.parametrize("failure", ["retrieval", "capacity", "provider"])
 def test_real_literature_service_typed_failure_is_503_and_single_completion(
     failure: str, monkeypatch: Any
 ) -> None:
@@ -287,7 +449,8 @@ def test_real_literature_service_typed_failure_is_503_and_single_completion(
     clock = Clock()
     service = KnowledgeChatService(
         FailingRetriever() if failure == "retrieval" else Retriever(),
-        Answerer([valid_payload()], clock),
+        Answerer([OSError("fixture transport failure") if failure == "provider"
+                  else valid_payload()], clock),
         NoCapacity() if failure == "capacity" else None,
         "fixture-secret", deadline_seconds=24, clock=clock,
     )
@@ -302,11 +465,21 @@ def test_real_literature_service_typed_failure_is_503_and_single_completion(
     assert response.status_code == 503
     assert response.headers["Retry-After"] == "30"
     assert response.json()["outcome"] == "SOURCE_UNAVAILABLE"
-    assert response.json()["literature"]["status"] == (
-        "evidence_unavailable" if failure == "retrieval" else "capacity_limited"
-    )
+    if failure != "capacity":
+        assert response.json()["literature"]["status"] == "evidence_unavailable"
+    else:
+        assert response.json()["literature"] is None
+        assert response.json()["actual_sources_used"] == []
     assert len(completions) == 1
     assert completions[0]["outcome"] == "source_unavailable"
+    assert completions[0]["operational_outcome"] == (
+        "dependency_failure" if failure == "retrieval" else
+        "provider_failure" if failure == "provider" else "budget_exhaustion"
+    )
+    assert completions[0]["service_outcome"] == (
+        "retrieval_dependency_unavailable" if failure == "retrieval" else
+        "generation_transport_error" if failure == "provider" else "capacity_limited"
+    )
     assert completions[0]["path"] == "/v1/assistant/mixed"
 
 
@@ -358,6 +531,7 @@ def test_real_grounded_literature_http_emits_one_accurate_completion(monkeypatch
     assert response.json()["actual_sources_used"] == ["literature_evidence"]
     assert len(completions) == 1
     assert completions[0]["outcome"] == "answered"
+    assert completions[0]["operational_outcome"] == "answered"
     assert completions[0]["path"] == "/v1/assistant/mixed"
 
 

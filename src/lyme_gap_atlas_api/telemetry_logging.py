@@ -109,6 +109,7 @@ ASK_OUTCOMES = frozenset(
         "retrieval_dependency_unavailable",
         "retrieval_failure",
         "budget_failure",
+        "budget_exhausted",
         "deadline_exhausted",
         "generation_timeout",
         "provider_rejection",
@@ -133,6 +134,59 @@ ASK_OUTCOMES = frozenset(
         "query_too_broad",
     }
 )
+OPERATIONAL_OUTCOMES = frozenset({
+    "answered", "abstained", "validation_failure", "dependency_failure",
+    "provider_failure", "budget_exhaustion", "internal_failure",
+})
+
+
+STRUCTURED_CAUSES = frozenset({
+    "tool_timeout", "tool_validation_failure", "tool_dependency_failure",
+    "tool_internal_failure", "route_unavailable",
+})
+
+
+def assistant_operational_outcome(
+    outcome: str, cause: str | None = None, structured_cause: str | None = None
+) -> str:
+    """Classify only closed, non-content service and routing results."""
+    # A grounded Structured fallback may keep the product response answered,
+    # while the Literature service has failed. Classify the observed cause first.
+    if cause in {"unhandled_error", "response_serialization_failure"}:
+        return "internal_failure"
+    if cause in {"capacity_limited", "budget_failure", "budget_exhausted",
+                 "deadline_exhausted", "rate_limited"}:
+        return "budget_exhaustion"
+    if cause in {"provider_rejection", "generation_transport_error",
+                 "generation_timeout", "generation_error", "embedding_failure"}:
+        return "provider_failure"
+    if cause in {"corrective_retry_exhausted", "grounding_validation_failed",
+                 "malformed_generated_json"}:
+        return "validation_failure"
+    if cause in {"neo4j_timeout", "neo4j_query_failure", "retrieval_dependency_unavailable",
+                 "retrieval_failure", "provenance_failure", "persistence_failure",
+                 "authorization_dependency_failure", "route_unavailable"}:
+        return "dependency_failure"
+    if structured_cause == "tool_internal_failure":
+        return "internal_failure"
+    if structured_cause == "tool_validation_failure":
+        return "validation_failure"
+    if structured_cause in {"tool_timeout", "tool_dependency_failure", "route_unavailable"}:
+        return "dependency_failure"
+    if outcome == "answered":
+        return "answered"
+    if outcome in {"insufficient_evidence", "no_evidence", "needs_clarification",
+                   "safety_refusal", "unsupported_request", "query_too_broad"}:
+        return "abstained"
+    if outcome == "request_validation_failure":
+        return "validation_failure"
+    if outcome == "rate_limited":
+        return "budget_exhaustion"
+    if outcome == "route_unavailable":
+        return "dependency_failure"
+    if outcome == "source_unavailable":
+        return "dependency_failure"
+    return "internal_failure"
 STAGES = frozenset(
     {
         "safety_classification",
@@ -211,6 +265,9 @@ def completion_context(event: str, context: dict[str, Any]) -> dict[str, Any]:
         "provider": {"openai"},
         "configuration_version": {"kg-v1.0.0"},
         "retrieval_version": {"hybrid-fulltext-vector-v1"},
+        "operational_outcome": OPERATIONAL_OUTCOMES,
+        "service_outcome": ASK_OUTCOMES,
+        "structured_cause": STRUCTURED_CAUSES,
     }
     for key, allowed in enums.items():
         value = context.get(key)

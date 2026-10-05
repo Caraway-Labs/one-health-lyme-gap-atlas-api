@@ -14,7 +14,7 @@ from starlette.responses import StreamingResponse
 
 from .telemetry import enrich_request, request_correlation, request_dimensions
 from .telemetry import request_id as normalize_request_id
-from .telemetry_logging import emit_completion, operational_logger
+from .telemetry_logging import assistant_operational_outcome, emit_completion, operational_logger
 
 logger = operational_logger(__name__)
 
@@ -183,7 +183,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request.state.request_id = request_id
         started_at = time.perf_counter()
         chat_route = request.url.path in {
-            "/v1/knowledge-graph/chat", "/v1/assistant/mixed"
+            "/v1/knowledge-graph/chat", "/v1/assistant/mixed",
+            "/v1/assistant/structured",
         }
         failure_type: str | None = None
         try:
@@ -237,6 +238,10 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                     429: "rate_limited",
                     503: "route_unavailable",
                 }.get(response.status_code, "unhandled_error")
+            operational = assistant_operational_outcome(
+                outcome, diagnostics.get("service_outcome") or diagnostics.get("outcome"),
+                diagnostics.get("structured_cause"),
+            )
             emit_completion(logger, "knowledge_chat_total", {
                 **diagnostics,
                 **dimensions,
@@ -244,6 +249,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 "http_status": response.status_code,
                 "duration_ms": round((time.perf_counter() - started_at) * 1000),
                 "outcome": outcome,
+                "operational_outcome": operational,
                 "failure_type": failure_type,
             })
             return response
@@ -309,30 +315,50 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 class KnowledgeChatLimitMiddleware(BaseHTTPMiddleware):
-    """Single-instance v1 limiter: ten requests/ten minutes and three concurrent/IP."""
+    """Single-instance assistant limiter with route-scoped budgets."""
 
     def __init__(self, app: object) -> None:
         super().__init__(app)  # type: ignore[arg-type]
         self.requests: dict[str, deque[float]] = defaultdict(deque)
         self.concurrent: dict[str, int] = defaultdict(int)
+        self.literature_requests: deque[float] = deque()
+        self.literature_concurrent = 0
         self.lock = asyncio.Lock()
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if request.url.path not in {"/v1/knowledge-graph/chat", "/v1/assistant/mixed"}:
+        path = request.url.path
+        if path not in {"/v1/knowledge-graph/chat", "/v1/assistant/mixed",
+                        "/v1/assistant/structured"}:
             return await call_next(request)
         client = request.headers.get("do-connecting-ip") or (
             request.client.host if request.client else "unknown"
         )
-        key = hashlib.sha256(client.encode()).hexdigest()
+        # The two routes capable of paid literature calls share one bucket.
+        scope = "structured" if path == "/v1/assistant/structured" else "literature"
+        key = hashlib.sha256(f"{scope}:{client}".encode()).hexdigest()
+        limit = 30 if path == "/v1/assistant/structured" else 10
         now = time.monotonic()
+        paid = scope == "literature"
         async with self.lock:
+            if len(self.requests) > 10_000:
+                self.requests = defaultdict(
+                    deque,
+                    {k: values for k, values in self.requests.items()
+                     if values and now - values[-1] < 600},
+                )
             window = self.requests[key]
             while window and now - window[0] > 600:
                 window.popleft()
-            if len(window) >= 10 or self.concurrent[key] >= 3:
-                retry_after = "600" if len(window) >= 10 else "1"
+            while self.literature_requests and now - self.literature_requests[0] > 600:
+                self.literature_requests.popleft()
+            rate_full = len(window) >= limit or (paid and len(self.literature_requests) >= 60)
+            busy = self.concurrent.get(key, 0) >= 3 or (
+                paid and self.literature_concurrent >= 6
+            )
+            if rate_full or busy:
+                retry_after = "600" if rate_full else "1"
                 problem = {
                     "type": "https://carawaylabs.com/problems/knowledge-chat-rate-limit",
                     "title": "Too many requests",
@@ -349,11 +375,18 @@ class KnowledgeChatLimitMiddleware(BaseHTTPMiddleware):
                 )
             window.append(now)
             self.concurrent[key] += 1
+            if paid:
+                self.literature_requests.append(now)
+                self.literature_concurrent += 1
         try:
             return await call_next(request)
         finally:
             async with self.lock:
                 self.concurrent[key] -= 1
+                if self.concurrent[key] == 0:
+                    del self.concurrent[key]
+                if paid:
+                    self.literature_concurrent -= 1
 
 
 class PrivacyRequestLimitMiddleware(BaseHTTPMiddleware):
