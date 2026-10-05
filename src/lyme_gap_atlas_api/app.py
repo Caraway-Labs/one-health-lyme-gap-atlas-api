@@ -1297,6 +1297,7 @@ def create_app(
         client = request.headers.get("do-connecting-ip") or (
             request.client.host if request.client else "unknown"
         )
+        request.state.knowledge_chat_diagnostics = {}
         result = MixedAssistant(
             StructuredAssistant(tools),
             knowledge_chat_service if config.knowledge_chat_enabled else None,
@@ -1306,7 +1307,9 @@ def create_app(
             payload.context,
             request.state.request_id,
             client,
+            request.state.knowledge_chat_diagnostics,
         )
+        request.state.knowledge_chat_diagnostics["outcome"] = result.outcome.casefold()
         if result.outcome == "SOURCE_UNAVAILABLE":
             response.status_code = 503
             response.headers["Retry-After"] = "30"

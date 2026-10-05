@@ -11,6 +11,7 @@ from typing import Literal
 
 from .ask_atlas_orchestration import _UNSAFE, _intent
 from .ask_atlas_question_forms import match_question_form
+from .knowledge_chat import _unsafe_request
 
 SourceMode = Literal["Literature", "Structured", "Both"]
 
@@ -21,6 +22,20 @@ _MIXED = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 _ATLAS_SCOPE = re.compile(r"\b(?:Atlas|county\s+\d{5}|governed measure|observation)\b", re.I)
+_STRUCTURED_NEED = re.compile(
+    r"\b(?:case counts?|cases? (?:for|in|by)|counties|county|observations?|"
+    r"governed measures?|Atlas|compare .+ counts?)\b", re.I,
+)
+_LITERATURE_FORM = re.compile(
+    r"(?:What does the governed literature say about Lyme (?:disease|surveillance)|"
+    r"What do published studies say about .+ Lyme disease|"
+    r"What does the literature report about Lyme .+)\?", re.I,
+)
+_ARBITRARY_QUERY = re.compile(
+    r"\b(?:select\s+.+\s+from|insert\s+into|delete\s+from|"
+    r"update\s+.+\s+set|match\s*\(|cypher|sql|warehouse|"
+    r"database credentials|repository)\b", re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -43,9 +58,11 @@ class SourceRoute:
 def route_question(question: str, mode: SourceMode) -> SourceRoute:
     """An override never widens; Both uses only recognized source needs."""
     question = question.strip()
-    if _UNSAFE.search(question):
+    if _unsafe_request(question) or _ARBITRARY_QUERY.search(question):
         return SourceRoute(mode, None, None, refusal=True)
     if mode == "Structured":
+        if _UNSAFE.search(question):
+            return SourceRoute(mode, None, None, refusal=True)
         return SourceRoute(mode, question, None)
     if mode == "Literature":
         return SourceRoute(mode, None, question)
@@ -53,15 +70,21 @@ def route_question(question: str, mode: SourceMode) -> SourceRoute:
     match = _MIXED.fullmatch(question)
     if match is not None:
         structured = match.group("structured") + "?"
+        if _UNSAFE.search(structured):
+            return SourceRoute(mode, None, None, refusal=True)
         if _recognized_structured(structured):
             return SourceRoute(mode, structured, match.group("literature"))
         # Do not send an ambiguous Atlas observation to literature alone.
         return SourceRoute(mode, None, None)
     if _recognized_structured(question):
+        if _UNSAFE.search(question):
+            return SourceRoute(mode, None, None, refusal=True)
         return SourceRoute(mode, question, None)
-    if _ATLAS_SCOPE.search(question):
+    if _ATLAS_SCOPE.search(question) or _STRUCTURED_NEED.search(question):
         return SourceRoute(mode, None, None)
-    return SourceRoute(mode, None, question)
+    if _LITERATURE_FORM.fullmatch(question):
+        return SourceRoute(mode, None, question)
+    return SourceRoute(mode, None, None)
 
 
 def _recognized_structured(question: str) -> bool:

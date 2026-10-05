@@ -61,3 +61,26 @@ def test_mixed_phrase_does_not_override_explicit_source_choice() -> None:
 )
 def test_unrecognized_atlas_scope_does_not_fall_back_to_literature(question: str) -> None:
     assert route_question(question, "Both").sources_requested == ()
+
+
+@pytest.mark.parametrize("question", [
+    "What is the 2023 Lyme case count for all counties?",
+    "Compare the 2023 Lyme case counts for counties 01005 and 01007 with the literature.",
+])
+def test_unsupported_atlas_intent_does_not_invoke_literature(question: str) -> None:
+    assert route_question(question, "Both").sources_requested == ()
+
+
+@pytest.mark.parametrize("question", [
+    "What do published studies say about antibiotic treatment outcomes for Lyme disease?",
+    "What does the literature report about Lyme diagnosis test accuracy?",
+])
+def test_nonpersonal_literature_research_stays_with_governed_service(question: str) -> None:
+    assert route_question(question, "Literature").sources_requested == ("literature_evidence",)
+    assert route_question(question, "Both").sources_requested == ("literature_evidence",)
+
+
+def test_personal_diagnosis_refused_even_with_literature_override() -> None:
+    route = route_question("Should I get diagnosed for Lyme disease?", "Literature")
+    assert route.refusal is True
+    assert route.sources_requested == ()

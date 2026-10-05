@@ -182,9 +182,11 @@ def compose_results(
             "NEEDS_CLARIFICATION", "UNSUPPORTED_REQUEST", "QUERY_TOO_BROAD", "SAFETY_REFUSAL"
         }:
             outcome = structured.answer.outcome
-        elif (structured_requested and structured is None) or (
-            literature_requested and literature is None
-        ):
+        elif (structured_requested and (
+            structured is None or structured.answer.outcome == "SOURCE_UNAVAILABLE"
+        )) or (literature_requested and (
+            literature is None or literature.status in {"evidence_unavailable", "capacity_limited"}
+        )):
             outcome = "SOURCE_UNAVAILABLE"
         else:
             outcome = "INSUFFICIENT_EVIDENCE"

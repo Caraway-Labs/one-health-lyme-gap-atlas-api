@@ -126,6 +126,11 @@ ASK_OUTCOMES = frozenset(
         "request_validation_failure",
         "rate_limited",
         "route_unavailable",
+        "source_unavailable",
+        "insufficient_evidence",
+        "needs_clarification",
+        "unsupported_request",
+        "query_too_broad",
     }
 )
 STAGES = frozenset(

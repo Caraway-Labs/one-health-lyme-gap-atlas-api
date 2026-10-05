@@ -16,8 +16,11 @@ SQL/Cypher or create another retrieval/index path.
 - `source_mode` chooses Literature, Structured, or Both. With Both, a fully
   consumed reviewed Structured question routes to Structured, a Literature
   question routes to Literature, and a reviewed two-sentence form routes to
-  both. Unsafe text refuses before either branch runs. Unrecognized mixed
-  wording asks for clarification.
+  both. Unsupported Atlas count or county wording asks for clarification
+  before a literature call. Explicit Literature research questions use the
+  existing governed literature safety policy, including its personalized
+  medical refusal; Structured wording retains the stricter Structured guard.
+  Arbitrary database requests refuse before either branch runs.
 - Each admitted branch retains its complete native claims, citation IDs,
   passage IDs, canonical observation references, release, and replay/config
   identifiers. The response's `actual_sources_used` lists only branches with
@@ -31,7 +34,10 @@ SQL/Cypher or create another retrieval/index path.
 - If no branch can answer because its source is unavailable, the endpoint
   returns the typed `SOURCE_UNAVAILABLE` envelope with HTTP 503 and
   `Retry-After: 30`. When another branch has a grounded answer, that answer
-  remains HTTP 200 with an explicit limitation for the failed branch.
+  remains HTTP 200 with an explicit limitation for the failed branch. A typed
+  literature retrieval failure or capacity limit and a typed Structured
+  `SOURCE_UNAVAILABLE` are source failures; genuine no-evidence remains an
+  evidence limitation.
 - A cross-source limitation is separate from the two original branch claim
   sets. No citation ID or claim ID is rewritten to create a synthetic mixed
   claim. The current endpoint therefore does not supply a flat synthesized

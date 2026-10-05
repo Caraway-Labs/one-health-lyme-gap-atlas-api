@@ -1,6 +1,6 @@
 """Single bounded in-process entry point over #19 and #14 services."""
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from opentelemetry import trace
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,6 +12,7 @@ from .ask_atlas_orchestration import (
     StructuredAssistantResponse,
     StructuredContext,
 )
+from .knowledge_chat import KnowledgeChatService
 from .models import KnowledgeChatRequest, KnowledgeChatResponse
 
 
@@ -52,6 +53,7 @@ class MixedAssistant:
         context: StructuredContext,
         request_id: str,
         network_identifier: str,
+        completion: dict[str, Any] | None = None,
     ) -> Composition:
         route = route_question(question, mode)
         tracer = trace.get_tracer(__name__)
@@ -106,11 +108,15 @@ class MixedAssistant:
                 set_status_on_exception=False,
             ):
                 try:
-                    literature_result = self.literature.chat(
-                        KnowledgeChatRequest(message=route.literature_question),
-                        request_id,
-                        network_identifier,
-                    )
+                    request = KnowledgeChatRequest(message=route.literature_question)
+                    if isinstance(self.literature, KnowledgeChatService):
+                        literature_result = self.literature.chat(
+                            request, request_id, network_identifier, completion
+                        )
+                    else:
+                        literature_result = self.literature.chat(
+                            request, request_id, network_identifier
+                        )
                 except Exception:
                     literature_result = None
         with tracer.start_as_current_span(

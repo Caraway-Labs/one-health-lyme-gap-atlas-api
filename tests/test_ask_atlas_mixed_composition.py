@@ -7,9 +7,11 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from test_ask_atlas_orchestration import FakeTools
 from test_ask_atlas_tools import tools as real_tools
-from test_knowledge_chat_latency import Answerer, Clock, Retriever, valid_payload
+from test_knowledge_chat_latency import Answerer, Clock, Retriever, Store, valid_payload
 
 from lyme_gap_atlas_api import app as application
+from lyme_gap_atlas_api import knowledge_chat as knowledge_chat_module
+from lyme_gap_atlas_api import middleware as middleware_module
 from lyme_gap_atlas_api.ask_atlas_mixed_composition import (
     MixedAssistantResponse,
     compose_results,
@@ -22,6 +24,7 @@ from lyme_gap_atlas_api.ask_atlas_orchestration import (
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.knowledge_chat import KnowledgeChatService
 from lyme_gap_atlas_api.models import KnowledgeChatResponse
+from lyme_gap_atlas_api.telemetry_logging import completion_context
 
 
 def _structured():  # type: ignore[no-untyped-def]
@@ -259,6 +262,126 @@ def test_literature_unavailable_http_is_typed_503() -> None:
     assert response.headers["Retry-After"] == "30"
     assert response.json()["outcome"] == "SOURCE_UNAVAILABLE"
     assert response.json()["actual_sources_used"] == []
+
+
+@pytest.mark.parametrize("failure", ["retrieval", "capacity"])
+def test_real_literature_service_typed_failure_is_503_and_single_completion(
+    failure: str, monkeypatch: Any
+) -> None:
+    completions: list[dict[str, Any]] = []
+
+    def capture(logger: Any, event: str, context: dict[str, Any]) -> None:
+        if event == "knowledge_chat_total":
+            completions.append(completion_context(event, context))
+
+    monkeypatch.setattr(knowledge_chat_module, "emit_completion", capture)
+    monkeypatch.setattr(middleware_module, "emit_completion", capture)
+    class FailingRetriever(Retriever):
+        def search(self, message: str, request_id: str) -> Any:
+            raise RuntimeError("fixture dependency unavailable")
+
+    class NoCapacity(Store):
+        def reserve(self, request_id: str) -> bool:
+            return False
+
+    clock = Clock()
+    service = KnowledgeChatService(
+        FailingRetriever() if failure == "retrieval" else Retriever(),
+        Answerer([valid_payload()], clock),
+        NoCapacity() if failure == "capacity" else None,
+        "fixture-secret", deadline_seconds=24, clock=clock,
+    )
+    app = application.create_app(
+        settings=ApiSettings(knowledge_chat_enabled=True), knowledge_chat_service=service,
+    )
+    response = TestClient(app).post(
+        "/v1/assistant/mixed",
+        json={"question": "What does the governed literature say about Lyme disease?",
+              "source_mode": "Literature"},
+    )
+    assert response.status_code == 503
+    assert response.headers["Retry-After"] == "30"
+    assert response.json()["outcome"] == "SOURCE_UNAVAILABLE"
+    assert response.json()["literature"]["status"] == (
+        "evidence_unavailable" if failure == "retrieval" else "capacity_limited"
+    )
+    assert len(completions) == 1
+    assert completions[0]["outcome"] == "source_unavailable"
+    assert completions[0]["path"] == "/v1/assistant/mixed"
+
+
+def test_real_structured_service_typed_outage_is_source_unavailable() -> None:
+    tools = FakeTools()
+    tools.fail_on = "get_observations"
+    structured = StructuredAssistant(tools).ask(StructuredAssistantRequest(
+        question="What is the 2023 Lyme case count for county 08001?",
+        context={"measure_id": "case_count_floor_2023", "geography_ids": ["08001"],
+                 "year": 2023},
+    ))
+    assert structured.answer.outcome == "SOURCE_UNAVAILABLE"
+    result = compose_results("Structured", structured=structured, structured_requested=True)
+    assert result.outcome == "SOURCE_UNAVAILABLE"
+    assert result.actual_sources_used == ()
+    partial = compose_results(
+        "Both", structured=structured, literature=_literature(),
+        structured_requested=True, literature_requested=True,
+    )
+    assert partial.outcome == "ANSWERED"
+    assert partial.actual_sources_used == ("literature_evidence",)
+    assert partial.structured is not None
+    assert partial.structured.answer.outcome == "SOURCE_UNAVAILABLE"
+
+
+def test_real_grounded_literature_http_emits_one_accurate_completion(monkeypatch: Any) -> None:
+    completions: list[dict[str, Any]] = []
+
+    def capture(logger: Any, event: str, context: dict[str, Any]) -> None:
+        if event == "knowledge_chat_total":
+            completions.append(completion_context(event, context))
+
+    monkeypatch.setattr(knowledge_chat_module, "emit_completion", capture)
+    monkeypatch.setattr(middleware_module, "emit_completion", capture)
+    clock = Clock()
+    service = KnowledgeChatService(
+        Retriever(), Answerer([valid_payload()], clock), None, "fixture-secret",
+        deadline_seconds=24, clock=clock,
+    )
+    app = application.create_app(
+        settings=ApiSettings(knowledge_chat_enabled=True), knowledge_chat_service=service,
+    )
+    response = TestClient(app).post(
+        "/v1/assistant/mixed",
+        json={"question": "What does the governed literature say about Lyme disease?",
+              "source_mode": "Literature"},
+    )
+    assert response.status_code == 200
+    assert response.json()["actual_sources_used"] == ["literature_evidence"]
+    assert len(completions) == 1
+    assert completions[0]["outcome"] == "answered"
+    assert completions[0]["path"] == "/v1/assistant/mixed"
+
+
+@pytest.mark.parametrize("question", [
+    "What do published studies say about antibiotic treatment outcomes for Lyme disease?",
+    "What does the literature report about Lyme diagnosis test accuracy?",
+])
+def test_nonpersonal_research_reaches_real_literature_service(question: str) -> None:
+    class EmptyRetriever(Retriever):
+        def search(self, message: str, request_id: str) -> Any:
+            return []
+
+    clock = Clock()
+    service = KnowledgeChatService(
+        EmptyRetriever(), Answerer([], clock), None, "fixture-secret",
+        deadline_seconds=24, clock=clock,
+    )
+    result = MixedAssistant(None, service).ask(
+        question, "Literature", StructuredAssistantRequest(question="Question").context,
+        "fixture-request", "fixture-client",
+    )
+    assert result.outcome == "INSUFFICIENT_EVIDENCE"
+    assert result.literature is not None
+    assert result.literature.status == "no_evidence"
 
 
 def test_mixed_route_shares_bounded_chat_rate_limit() -> None:
