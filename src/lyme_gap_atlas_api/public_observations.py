@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import date
 from typing import Any, Protocol
 
@@ -113,14 +114,19 @@ class ObservationService:
     def __init__(self, repository: ObservationRepository) -> None:
         self.repository = repository
 
-    def search(self, query: ObservationQuery) -> CollectionEnvelope[Observation]:
+    def search(
+        self, query: ObservationQuery, *, checkpoint: Callable[[], None] | None = None
+    ) -> CollectionEnvelope[Observation]:
+        check = checkpoint or (lambda: None)
         if query.geography_type != GeographyType.county:
             raise PublicQueryError("UNSUPPORTED_FILTER", "Only county geography is supported.")
         if query.stratification:
             raise PublicQueryError(
                 "UNSUPPORTED_STRATIFICATION", "This release has no governed strata."
             )
+        check()
         release = self.repository.current_release()
+        check()
         if not self.repository.measure_exists(query.measure_id, release):
             raise PublicQueryError(
                 "RESOURCE_NOT_FOUND", "Measure has no published county observations."
@@ -131,7 +137,9 @@ class ObservationService:
             ).encode()
         ).hexdigest()
         offset = self._offset(query.page_token, fingerprint, release)
+        check()
         rows = self.repository.query(query, release, offset)
+        check()
         mapper = environmental_observation if query.measure_id in MEASURES else self._observation
         items = [mapper(row) for row in rows[: query.page_size]]
         token = None

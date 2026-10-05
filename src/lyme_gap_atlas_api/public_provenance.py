@@ -1,5 +1,6 @@
 """Current-release public source and methodology resources (Data #515)."""
 
+from collections.abc import Callable
 from typing import Any, Protocol, cast
 
 from .config import ApiSettings
@@ -145,16 +146,26 @@ class ProvenanceService:
             next_token = encode({"release": release, "offset": offset + size})
         return page, next_token
 
-    def source(self, source_id: str) -> Source:
+    def source(self, source_id: str, *, checkpoint: Callable[[], None] | None = None) -> Source:
+        check = checkpoint or (lambda: None)
+        check()
         release = self.repository.current_release()
+        check()
         row = self.repository.source(source_id, release)
+        check()
         if row is None:
             raise PublicQueryError("RESOURCE_NOT_FOUND", "Source not found.")
         return self._source(row)
 
-    def methodology(self, methodology_id: str) -> Methodology:
+    def methodology(
+        self, methodology_id: str, *, checkpoint: Callable[[], None] | None = None
+    ) -> Methodology:
+        check = checkpoint or (lambda: None)
+        check()
         release = self.repository.current_release()
+        check()
         row = self.repository.methodology(methodology_id, release)
+        check()
         if row is None:
             raise PublicQueryError("RESOURCE_NOT_FOUND", "Methodology not found.")
         return self._methodology(row)

@@ -735,6 +735,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "jsonschema" },
     { name = "neo4j" },
     { name = "one-health-lyme-gap-atlas-knowledge-graph" },
     { name = "one-health-lyme-gap-atlas-shared", extra = ["observability", "snowflake"] },
@@ -758,6 +759,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "httpx", specifier = ">=0.28,<1" },
+    { name = "jsonschema", specifier = ">=4.23,<5" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14,<2" },
     { name = "neo4j", specifier = ">=6,<7" },
     { name = "one-health-lyme-gap-atlas-knowledge-graph", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph.git?rev=kg-v1.0.0" },

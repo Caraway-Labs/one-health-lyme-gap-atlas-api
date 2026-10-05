@@ -3,6 +3,7 @@
 import hashlib
 import json
 import math
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -132,12 +133,24 @@ class EnvironmentalRepository:
         schema = _sql_identifier(self.settings.snowflake_presentation_schema)
         return f"{database}.{schema}"
 
-    def _read(self, sql: str, params: tuple[Any, ...] = ()) -> list[tuple[Any, ...]]:
+    def _read(
+        self,
+        sql: str,
+        params: tuple[Any, ...] = (),
+        *,
+        checkpoint: Callable[[], None] | None = None,
+    ) -> list[tuple[Any, ...]]:
         if not self.settings.environmental_context_enabled:
             raise AtlasDataUnavailableError("Environmental context has not been enabled")
         try:
+            if checkpoint is not None:
+                checkpoint()
             with connect(self.settings) as connection, connection.cursor() as cursor:
+                if checkpoint is not None:
+                    checkpoint()
                 cursor.execute(sql, params, timeout=self.settings.public_query_timeout_seconds)
+                if checkpoint is not None:
+                    checkpoint()
                 return cursor.fetchall()
         except Exception as exc:
             raise AtlasDataUnavailableError(
@@ -153,14 +166,15 @@ class EnvironmentalRepository:
             )
         )
 
-    def metadata(self) -> list[tuple[Any, ...]]:
+    def metadata(self, *, checkpoint: Callable[[], None] | None = None) -> list[tuple[Any, ...]]:
         return self._read(
             "SELECT "
             "release_id,measure_id,indicator_id,semantic_version,metadata_revision_id,label,"
             "definition,"
             "unit,denominator,geography_grain,temporal_resolution,allowed_value_states,"
             "methodology_version,limitations "
-            f"FROM {self.schema}.CURRENT_CLIMATE_MEASURE_METADATA_V ORDER BY measure_id"
+            f"FROM {self.schema}.CURRENT_CLIMATE_MEASURE_METADATA_V ORDER BY measure_id",
+            checkpoint=checkpoint,
         )
 
     def query(self, query: ObservationQuery, release: str, offset: int) -> list[tuple[Any, ...]]:
