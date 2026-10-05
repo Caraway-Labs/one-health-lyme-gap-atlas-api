@@ -22,6 +22,8 @@ from openai import OpenAI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .ask_atlas_mixed_composition import MixedAssistantResponse
+from .ask_atlas_mixed_service import MixedAssistant, MixedAssistantRequest
 from .ask_atlas_orchestration import (
     StructuredAssistant,
     StructuredAssistantRequest,
@@ -1262,6 +1264,56 @@ def create_app(
             request.app.state.provenance_service,
         )
         return StructuredAssistant(tools).ask(payload)
+
+    @app.post(
+        "/v1/assistant/mixed",
+        response_model=MixedAssistantResponse,
+        operation_id="askAtlasMixed",
+        summary="Ask Atlas across governed evidence classes",
+        description=(
+            "Internal additive mixed-evidence branch bundle. The Structured branch uses "
+            "bounded Atlas tools; the Literature branch uses the existing governed "
+            "Research Assistant. Branch claims and citations retain their original "
+            "identities. Cross-source comparison remains insufficient when material "
+            "scope cannot be verified. No arbitrary query is accepted."
+        ),
+        tags=["assistant"],
+        responses={
+            429: {"model": ProblemDetails},
+            503: {
+                "model": MixedAssistantResponse,
+                "headers": {"Retry-After": {"schema": {"type": "string"}}},
+            },
+        },
+    )
+    def ask_atlas_mixed(
+        request: Request, payload: MixedAssistantRequest, response: Response
+    ) -> MixedAssistantResponse:
+        tools = StructuredTools(
+            request.app.state.metadata_service,
+            request.app.state.observation_service,
+            request.app.state.provenance_service,
+        )
+        client = request.headers.get("do-connecting-ip") or (
+            request.client.host if request.client else "unknown"
+        )
+        request.state.knowledge_chat_diagnostics = {}
+        result = MixedAssistant(
+            StructuredAssistant(tools),
+            knowledge_chat_service if config.knowledge_chat_enabled else None,
+        ).ask(
+            payload.question,
+            payload.source_mode,
+            payload.context,
+            request.state.request_id,
+            client,
+            request.state.knowledge_chat_diagnostics,
+        )
+        request.state.knowledge_chat_diagnostics["outcome"] = result.outcome.casefold()
+        if result.outcome == "SOURCE_UNAVAILABLE":
+            response.status_code = 503
+            response.headers["Retry-After"] = "30"
+        return MixedAssistantResponse.from_composition(result)
 
     @app.post(
         "/v1/knowledge-graph/chat",
