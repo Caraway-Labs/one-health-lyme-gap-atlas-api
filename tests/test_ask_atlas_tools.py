@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
 
+import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 from test_public_observations import row
 
@@ -15,6 +16,7 @@ from lyme_gap_atlas_api.ask_atlas_tools import (
     StructuredTools,
     _coverage_id,
 )
+from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.public_contract import (
     Indicator,
     Measure,
@@ -22,7 +24,11 @@ from lyme_gap_atlas_api.public_contract import (
     ObservationQuery,
     Source,
 )
-from lyme_gap_atlas_api.public_metadata import MetadataRows, MetadataService
+from lyme_gap_atlas_api.public_metadata import (
+    MetadataRows,
+    MetadataService,
+    SnowflakeMetadataRepository,
+)
 from lyme_gap_atlas_api.public_observations import ObservationService
 
 
@@ -51,7 +57,7 @@ class Repository:
 
 
 class Metadata:
-    def discover(self):
+    def discover(self, *, checkpoint=None):
         return (
             [
                 Indicator(
@@ -273,7 +279,7 @@ def test_deadline_expires_request_local_adapter(monkeypatch):
         return original()
 
     repository.current_release = slow_release
-    monkeypatch.setitem(ask_atlas_tools.TOOL_DEADLINES, "get_observations", 0.01)
+    monkeypatch.setitem(ask_atlas_tools.TOOL_DEADLINES, "get_observations", 0.1)
     start = time.monotonic()
     result = service.get_observations(query(geography_ids=["01001"]))
     assert result.error_code == "SOURCE_UNAVAILABLE"
@@ -312,6 +318,59 @@ def test_timeout_inside_observation_service_stops_follow_on_repository_io(monkey
     assert service.admitted == {}
 
 
+@pytest.mark.parametrize("slow_query", [1, 2])
+def test_metadata_expiry_stops_second_query_and_environmental_io(monkeypatch, slow_query):
+    statements = []
+    environmental = []
+
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def execute(self, statement, *args, **kwargs):
+            statements.append(statement)
+            if len(statements) == slow_query:
+                time.sleep(0.3)
+
+        def fetchall(self):
+            return []
+
+    class Connection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def cursor(self):
+            return Cursor()
+
+    monkeypatch.setattr(
+        "lyme_gap_atlas_api.public_metadata.connect", lambda _settings: Connection()
+    )
+    monkeypatch.setattr(
+        "lyme_gap_atlas_api.public_metadata.EnvironmentalRepository.metadata",
+        lambda *args, **kwargs: environmental.append("called"),
+    )
+    settings = ApiSettings(environmental_context_enabled=True)
+    service = StructuredTools(
+        MetadataService(SnowflakeMetadataRepository(settings)),
+        ObservationService(Repository()),
+        Provenance(),
+    )
+    monkeypatch.setitem(ask_atlas_tools.TOOL_DEADLINES, "find_measures", 0.1)
+    result = service.find_measures(
+        {"tool": "find_measures", "search_text": "case", "page_size": 20}
+    )
+    assert result.error_code == "SOURCE_UNAVAILABLE"
+    time.sleep(0.35)
+    assert len(statements) == slow_query
+    assert environmental == []
+
+
 def test_trace_uses_bounded_noncontent_dimensions(monkeypatch):
     attributes = {}
 
@@ -338,7 +397,7 @@ def test_trace_uses_bounded_noncontent_dimensions(monkeypatch):
 
 def test_real_metadata_service_governed_county_shape():
     class CanonicalRows:
-        def load_metadata(self):
+        def load_metadata(self, *, checkpoint=None):
             return MetadataRows(
                 indicators=[("human", "Human", None, None, None, None, "1.0.0", "release-1")],
                 measures=[
@@ -418,7 +477,7 @@ def test_accepted_golden_structured_calls_use_normative_schema():
             return rows[offset:][: query.page_size + 1]
 
     class GoldenMetadata:
-        def discover(self):
+        def discover(self, *, checkpoint=None):
             return (
                 [
                     Indicator(
@@ -487,7 +546,7 @@ def test_accepted_golden_structured_calls_use_normative_schema():
 
 def test_malformed_backend_maps_unavailable_and_invalid_fips_never_reads():
     class BrokenMetadata:
-        def discover(self):
+        def discover(self, *, checkpoint=None):
             from pydantic import ValidationError
 
             raise ValidationError.from_exception_data(
@@ -516,3 +575,36 @@ def test_release_race_preserves_code_with_rows_and_without_rows():
         result = service.get_observations(query(geography_ids=["01005"], year=year))
         assert result.error_code == "RELEASE_CHANGED"
         assert result.observations == [] and result.coverage == []
+
+
+def test_known_measure_year_rejected_before_observation_io():
+    class YearMetadata(Metadata):
+        def discover(self, *, checkpoint=None):
+            indicators, measures = super().discover(checkpoint=checkpoint)
+            measures[0].temporal_semantics = "2023"
+            return indicators, measures
+
+    class NoObservationIO(Repository):
+        def measure_exists(self, measure_id, release):
+            raise AssertionError("measure lookup started")
+
+        def query(self, query, release, offset):
+            raise AssertionError("observation query started")
+
+    service = StructuredTools(YearMetadata(), ObservationService(NoObservationIO()), Provenance())
+    result = service.get_observations(query(geography_ids=["01005"], year=2022))
+    assert result.error_code == "UNSUPPORTED_FILTER"
+
+
+def test_release_change_during_measure_lookup_failure_is_preserved():
+    class RacingLookupRepository(Repository):
+        def measure_exists(self, measure_id, release):
+            self.release = "release-2"
+            return False
+
+    service = StructuredTools(
+        Metadata(), ObservationService(RacingLookupRepository()), Provenance()
+    )
+    result = service.get_observations(query(geography_ids=["01005"]))
+    assert result.error_code == "RELEASE_CHANGED"
+    assert result.observations == [] and result.coverage == []

@@ -292,7 +292,7 @@ class StructuredTools:
         args = FindMeasuresInput.model_validate(input)
         release = self._release()
         self._check_active()
-        indicators, measures = self.metadata_service.discover()
+        indicators, measures = self.metadata_service.discover(checkpoint=self._check_active)
         self._check_active()
         if args.indicator_id is not None:
             if args.indicator_id not in {item.indicator_id for item in indicators}:
@@ -359,7 +359,7 @@ class StructuredTools:
         query = self._observation_query(args)
         release = self._release()
         self._check_active()
-        _, measures = self.metadata_service.discover()
+        _, measures = self.metadata_service.discover(checkpoint=self._check_active)
         measure = next((m for m in measures if m.measure_id == args.measure_id), None)
         if measure is None:
             raise PublicQueryError("RESOURCE_NOT_FOUND", "Unknown measure.")
@@ -400,11 +400,6 @@ class StructuredTools:
             raise PublicQueryError(
                 "UNSUPPORTED_FILTER", "Unsupported governed geography or period."
             )
-        self._check_active()
-        envelope = self.observation_service.search(query, checkpoint=self._check_active)
-        self._release()
-        if envelope.meta.next_page_token is not None:
-            raise PublicQueryError("QUERY_TOO_BROAD", "Result exceeds tool ceiling.")
         if args.year is not None:
             years = [args.year]
         elif args.start_date is not None and args.end_date is not None:
@@ -417,6 +412,15 @@ class StructuredTools:
             and any(year != int(measure.temporal_semantics) for year in years)
         ):
             raise PublicQueryError("UNSUPPORTED_FILTER", "Requested year is outside measure scope.")
+        self._check_active()
+        try:
+            envelope = self.observation_service.search(query, checkpoint=self._check_active)
+        except Exception:
+            self._release()
+            raise
+        self._release()
+        if envelope.meta.next_page_token is not None:
+            raise PublicQueryError("QUERY_TOO_BROAD", "Result exceeds tool ceiling.")
         slots: dict[tuple[str, int], Observation | None] = {
             (geo, year): None for geo in args.geography_ids for year in years
         }

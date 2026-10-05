@@ -1,6 +1,7 @@
 """Governed current-release metadata discovery, independent of HTTP transport."""
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar
 
@@ -24,27 +25,32 @@ MetadataItem = TypeVar("MetadataItem", Indicator, Measure)
 
 
 class MetadataRepository(Protocol):
-    def load_metadata(self) -> MetadataRows: ...
+    def load_metadata(self, *, checkpoint: Callable[[], None] | None = None) -> MetadataRows: ...
 
 
 class SnowflakeMetadataRepository:
     def __init__(self, settings: ApiSettings) -> None:
         self.settings = settings
 
-    def load_metadata(self) -> MetadataRows:
+    def load_metadata(self, *, checkpoint: Callable[[], None] | None = None) -> MetadataRows:
+        check = checkpoint or (lambda: None)
         schema = (
             f"{_sql_identifier(self.settings.presentation_database)}."
             f"{_sql_identifier(self.settings.snowflake_presentation_schema)}"
         )
         try:
+            check()
             with connect(self.settings) as connection, connection.cursor() as cursor:
+                check()
                 cursor.execute(
                     "SELECT INDICATOR_ID, LABEL, DESCRIPTION, LIMITATION, DOMAIN, CATEGORY, "
                     "SEMANTIC_CONTRACT_VERSION, RELEASE_VERSION "
                     f"FROM {schema}.CURRENT_INDICATOR_METADATA_V ORDER BY INDICATOR_ID",
                     timeout=self.settings.public_query_timeout_seconds,
                 )
+                check()
                 indicators = cursor.fetchall()
+                check()
                 cursor.execute(
                     "SELECT MEASURE_ID, INDICATOR_ID, LABEL, DESCRIPTION, MEASURE_TYPE, "
                     "UNIT, DENOMINATOR, GEOGRAPHY_TYPE, TEMPORAL_GRAIN, "
@@ -54,12 +60,18 @@ class SnowflakeMetadataRepository:
                     f"FROM {schema}.CURRENT_MEASURE_METADATA_V ORDER BY MEASURE_ID",
                     timeout=self.settings.public_query_timeout_seconds,
                 )
+                check()
                 measures = cursor.fetchall()
-            environmental = (
-                EnvironmentalRepository(self.settings).metadata()
-                if self.settings.environmental_context_enabled
-                else None
-            )
+            check()
+            if self.settings.environmental_context_enabled:
+                environmental_repository = EnvironmentalRepository(self.settings)
+                environmental = (
+                    environmental_repository.metadata()
+                    if checkpoint is None
+                    else environmental_repository.metadata(checkpoint=checkpoint)
+                )
+            else:
+                environmental = None
             return MetadataRows(indicators, measures, environmental)
         except Exception as exc:
             raise AtlasDataUnavailableError("Governed metadata is unavailable") from exc
@@ -69,8 +81,15 @@ class MetadataService:
     def __init__(self, repository: MetadataRepository) -> None:
         self.repository = repository
 
-    def discover(self) -> tuple[list[Indicator], list[Measure]]:
-        rows = self.repository.load_metadata()
+    def discover(
+        self, *, checkpoint: Callable[[], None] | None = None
+    ) -> tuple[list[Indicator], list[Measure]]:
+        if checkpoint is None:
+            rows = self.repository.load_metadata()
+        else:
+            checkpoint()
+            rows = self.repository.load_metadata(checkpoint=checkpoint)
+            checkpoint()
         if not rows.indicators or not rows.measures:
             raise AtlasDataUnavailableError("No current governed metadata release")
         relationships: dict[tuple[str, str], list[str]] = {}
