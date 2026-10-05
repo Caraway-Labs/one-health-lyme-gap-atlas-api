@@ -22,6 +22,12 @@ from openai import OpenAI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .ask_atlas_orchestration import (
+    StructuredAssistant,
+    StructuredAssistantRequest,
+    StructuredAssistantResponse,
+)
+from .ask_atlas_tools import StructuredTools
 from .assistant_policy import load_assistant_policy
 from .auth import (
     AuthenticatedUser,
@@ -1234,6 +1240,28 @@ def create_app(
             },
         )
         return result
+
+    @app.post(
+        "/v1/assistant/structured",
+        response_model=StructuredAssistantResponse,
+        operation_id="askAtlasStructured",
+        summary="Ask Atlas over governed structured evidence",
+        description=(
+            "Internal Structured-mode Assistant boundary. Answers include cited claims and "
+            "the bounded typed tool evidence used to form them. Literature and Both are "
+            "reserved for their governed capability; no arbitrary query is accepted."
+        ),
+        tags=["assistant"],
+    )
+    def ask_atlas_structured(
+        request: Request, payload: StructuredAssistantRequest
+    ) -> StructuredAssistantResponse:
+        tools = StructuredTools(
+            request.app.state.metadata_service,
+            request.app.state.observation_service,
+            request.app.state.provenance_service,
+        )
+        return StructuredAssistant(tools).ask(payload)
 
     @app.post(
         "/v1/knowledge-graph/chat",

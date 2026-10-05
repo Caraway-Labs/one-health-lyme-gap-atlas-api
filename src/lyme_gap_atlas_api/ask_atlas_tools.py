@@ -288,6 +288,12 @@ class StructuredTools:
     def get_evidence_metadata(self, raw: dict[str, Any]) -> ToolResult:
         return self._execute("get_evidence_metadata", GetEvidenceMetadataInput, raw)
 
+    def verify_release(self) -> str:
+        """Check the pinned release immediately before an answer admits evidence."""
+        if self.expired:
+            raise TimeoutError
+        return self._release()
+
     def _find(self, input: StrictInput) -> ToolResult:
         args = FindMeasuresInput.model_validate(input)
         release = self._release()

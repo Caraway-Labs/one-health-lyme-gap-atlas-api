@@ -75,6 +75,9 @@
   "/v1/knowledge-graph/chat": {
     "post": "knowledge_graph_chat_v1_knowledge_graph_chat_post"
   },
+  "/v1/assistant/structured": {
+    "post": "askAtlasStructured"
+  },
   "/v1/intelligence/items": {
     "get": "listIntelligenceItems"
   },

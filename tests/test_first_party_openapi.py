@@ -24,7 +24,7 @@ def test_existing_internal_operations_and_schemas_remain_in_first_party_export()
             for path, operations in contract["paths"].items()
         }
         assert actual_ids == IDS
-        assert sum(len(operations) for operations in actual_ids.values()) == 28
+        assert sum(len(operations) for operations in actual_ids.values()) == 29
         for path, operations in FLOOR["paths"].items():
             assert contract["paths"][path] == operations, path
         for name, model in FLOOR["schemas"].items():
@@ -44,6 +44,8 @@ def test_independent_caches_and_docs_never_change_route_visibility() -> None:
         assert public is not complete
         assert "/v1/knowledge-graph/chat" not in public["paths"]
         assert "/v1/knowledge-graph/chat" in complete["paths"]
+        assert "/v1/assistant/structured" not in public["paths"]
+        assert "/v1/assistant/structured" in complete["paths"]
         assert flags == [getattr(route, "include_in_schema", None) for route in app.routes]
         client = TestClient(app)
         for path in ("/docs", "/redoc"):
