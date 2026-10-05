@@ -1,0 +1,588 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-api/docs/ask-atlas-results-v1.schema.json",
+  "title": "Ask Atlas v1 service result and answer envelopes",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/tool_result"
+    },
+    {
+      "$ref": "#/$defs/answer"
+    }
+  ],
+  "$defs": {
+    "source_mode": {
+      "enum": [
+        "Literature",
+        "Structured",
+        "Both"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "ANSWERED",
+        "NEEDS_CLARIFICATION",
+        "INSUFFICIENT_EVIDENCE",
+        "SOURCE_UNAVAILABLE",
+        "UNSUPPORTED_REQUEST",
+        "SAFETY_REFUSAL",
+        "QUERY_TOO_BROAD"
+      ]
+    },
+    "error_code": {
+      "enum": [
+        "INVALID_REQUEST",
+        "RESOURCE_NOT_FOUND",
+        "UNSUPPORTED_FILTER",
+        "UNSUPPORTED_STRATIFICATION",
+        "QUERY_TOO_BROAD",
+        "SOURCE_UNAVAILABLE",
+        "RELEASE_CHANGED"
+      ]
+    },
+    "geography": {
+      "type": "object",
+      "required": [
+        "geography_type",
+        "geography_id"
+      ],
+      "properties": {
+        "geography_type": {
+          "enum": [
+            "county",
+            "state"
+          ]
+        },
+        "geography_id": {
+          "type": "string"
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "required": [
+        "resource_type",
+        "resource_id"
+      ],
+      "properties": {
+        "resource_type": {
+          "const": "observation"
+        },
+        "resource_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provenance_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "semantic_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "methodology_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "release_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uri": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "literature_citation": {
+      "type": "object",
+      "required": [
+        "citation_id",
+        "pmid",
+        "title",
+        "pubmed_url",
+        "claim_ids",
+        "passage_ids"
+      ],
+      "properties": {
+        "citation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pmid": {
+          "type": "string",
+          "pattern": "^[0-9]{1,10}$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "pubmed_url": {
+          "type": "string"
+        },
+        "claim_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "passage_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "geography",
+        "period_start",
+        "period_end",
+        "state",
+        "observation_id",
+        "coverage_id",
+        "measure_id",
+        "release_id"
+      ],
+      "properties": {
+        "geography": {
+          "$ref": "#/$defs/geography"
+        },
+        "period_start": {
+          "type": "string",
+          "format": "date"
+        },
+        "period_end": {
+          "type": "string",
+          "format": "date"
+        },
+        "state": {
+          "enum": [
+            "present",
+            "absent"
+          ]
+        },
+        "observation_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "coverage_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "measure_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "release_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_id",
+        "state",
+        "policy_id",
+        "source_timestamp",
+        "compared_at"
+      ],
+      "properties": {
+        "observation_id": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "stale",
+            "unknown"
+          ]
+        },
+        "policy_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_timestamp": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "compared_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "metadata_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_id",
+        "source",
+        "methodology"
+      ],
+      "properties": {
+        "observation_id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "object"
+        },
+        "methodology": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "tool_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "tool",
+        "status",
+        "release_id",
+        "measures",
+        "observations",
+        "coverage",
+        "metadata",
+        "error_code"
+      ],
+      "properties": {
+        "kind": {
+          "const": "tool_result"
+        },
+        "tool": {
+          "enum": [
+            "find_measures",
+            "get_observations",
+            "get_evidence_metadata"
+          ]
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "error"
+          ]
+        },
+        "release_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "measures": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object"
+          }
+        },
+        "observations": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object"
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/$defs/coverage"
+          }
+        },
+        "metadata": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/metadata_item"
+          }
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/error_code"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "structured_refs",
+        "literature_citation_ids",
+        "claim_id",
+        "measure_ids",
+        "coverage_ids",
+        "role"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "structured_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reference"
+          }
+        },
+        "literature_citation_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "claim_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "measure_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "coverage_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "role": {
+          "enum": [
+            "finding",
+            "comparison_limitation"
+          ]
+        }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id",
+        "model_id",
+        "prompt_version",
+        "tool_contract_version",
+        "routing_policy_version",
+        "configuration_version",
+        "assistant_policy_version",
+        "release_id",
+        "literature_retrieval_configuration_version"
+      ],
+      "properties": {
+        "provider_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tool_contract_version": {
+          "const": "ask-atlas-v1"
+        },
+        "routing_policy_version": {
+          "type": "string"
+        },
+        "configuration_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assistant_policy_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "release_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "literature_retrieval_configuration_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "answer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "contract_version",
+        "requested_source_mode",
+        "actual_sources_used",
+        "outcome",
+        "claims",
+        "structured_evidence_refs",
+        "literature_citations",
+        "cross_source_state",
+        "freshness",
+        "limitations",
+        "replay",
+        "structured_measures",
+        "structured_coverage",
+        "literature_evidence_state"
+      ],
+      "properties": {
+        "kind": {
+          "const": "answer"
+        },
+        "contract_version": {
+          "const": "ask-atlas-v1"
+        },
+        "requested_source_mode": {
+          "$ref": "#/$defs/source_mode"
+        },
+        "actual_sources_used": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 2,
+          "items": {
+            "enum": [
+              "structured_atlas",
+              "literature_evidence"
+            ]
+          }
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome"
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/claim"
+          }
+        },
+        "structured_evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reference"
+          }
+        },
+        "literature_citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/literature_citation"
+          }
+        },
+        "cross_source_state": {
+          "enum": [
+            "aligned",
+            "partially_aligned",
+            "discordant",
+            "insufficient_to_compare",
+            null
+          ]
+        },
+        "freshness": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/freshness"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "replay": {
+          "$ref": "#/$defs/replay"
+        },
+        "structured_measures": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object"
+          }
+        },
+        "structured_coverage": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/$defs/coverage"
+          }
+        },
+        "literature_evidence_state": {
+          "enum": [
+            "single_study",
+            "consistent",
+            "limited",
+            "mixed",
+            "conflicting",
+            "insufficient_to_compare",
+            "no_relevant_corpus_evidence",
+            "evidence_unavailable",
+            "not_applicable",
+            null
+          ]
+        }
+      }
+    }
+  }
+}
