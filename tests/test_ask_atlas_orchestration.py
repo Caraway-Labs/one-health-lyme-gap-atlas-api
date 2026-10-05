@@ -359,6 +359,7 @@ def test_case_count_paraphrase_uses_selected_context() -> None:
         "Give patient care recommendations based on this 2023 case count for county 08059.",
         "What is the case count for county 08059 in Paris in 2023?",
         "What is the Lyme case count and coverage for county 08059 in 2023?",
+        "What is the case count by source for county 08059 in 2023?",
     ],
 )
 def test_unrecognized_subject_qualification_or_purpose_cannot_borrow_context(
