@@ -40,15 +40,166 @@ _UNSUPPORTED = re.compile(
 )
 _FIPS = re.compile(r"(?<!\d)\d{5}(?!\d)")
 _YEAR = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
-_MEASURE_REFERENT = re.compile(
-    r"\b(case|cases|count|counts|value|values|observation|observations|"
-    r"measure|row|rows|coverage|evidence|source|provenance|freshness|"
-    r"current|stale)\b",
-    re.IGNORECASE,
+# This is an intentionally small grammar, not a natural-language classifier. A
+# question with unknown nouns or qualifiers must not inherit the selected context.
+_QUESTION_WORDS = frozenset(
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "based",
+        "be",
+        "between",
+        "by",
+        "come",
+        "does",
+        "did",
+        "do",
+        "during",
+        "find",
+        "for",
+        "from",
+        "give",
+        "has",
+        "have",
+        "how",
+        "i",
+        "in",
+        "is",
+        "it",
+        "many",
+        "of",
+        "on",
+        "only",
+        "or",
+        "reported",
+        "show",
+        "the",
+        "these",
+        "those",
+        "to",
+        "under",
+        "was",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "while",
+        "with",
+        "you",
+        "this",
+        "that",
+    ]
 )
-_FOREIGN_MEASURE = re.compile(
-    r"\b(population|weather|temperature|precipitation|rainfall|income|"
-    r"hospitalization|mortality)\b",
+_COMMON_SCOPE = frozenset(["annual", "counties", "county", "lyme", "selected", "year"])
+_INTENT_SCOPE = {
+    "discovery": frozenset(
+        ["case", "cases", "count", "counts", "floor", "governed", "label", "measure", "this"]
+    ),
+    "observation": frozenset(
+        [
+            "case",
+            "cases",
+            "count",
+            "counts",
+            "floor",
+            "governed",
+            "missing",
+            "observation",
+            "observations",
+            "row",
+            "rows",
+            "this",
+            "value",
+            "values",
+            "zero",
+        ]
+    ),
+    "comparison": frozenset(
+        [
+            "case",
+            "cases",
+            "compare",
+            "count",
+            "counts",
+            "floor",
+            "governed",
+            "measure",
+            "same",
+            "this",
+            "value",
+            "values",
+        ]
+    ),
+    "gap": frozenset(
+        [
+            "coverage",
+            "governed",
+            "lack",
+            "lacks",
+            "observation",
+            "observations",
+            "row",
+            "rows",
+            "this",
+        ]
+    ),
+    "provenance": frozenset(
+        [
+            "case",
+            "cases",
+            "cited",
+            "count",
+            "counts",
+            "evidence",
+            "floor",
+            "governed",
+            "method",
+            "methodology",
+            "observation",
+            "observations",
+            "period",
+            "provenance",
+            "row",
+            "rows",
+            "source",
+            "this",
+            "unavailable",
+            "value",
+            "values",
+        ]
+    ),
+    "freshness": frozenset(
+        [
+            "case",
+            "cases",
+            "count",
+            "counts",
+            "current",
+            "floor",
+            "fresh",
+            "freshness",
+            "governed",
+            "observation",
+            "observations",
+            "policy",
+            "source",
+            "stale",
+            "stated",
+            "this",
+        ]
+    ),
+}
+_QUESTION_TOKEN = re.compile(r"[A-Za-z]+|\d+")
+_CASE_SUBJECT = re.compile(r"\b(?:lyme|cases?)\b", re.IGNORECASE)
+_CONTEXT_SUBJECT = re.compile(
+    r"\b(?:(?:this|selected|same|cited|governed)\s+(?:\d{4}\s+)?"
+    r"(?:measure|observation|row|value|count|coverage)|"
+    r"the\s+county\s+value|missing\s+row|source\s+freshness\s+policy)\b",
     re.IGNORECASE,
 )
 _CONTEXT_PLACE = re.compile(
@@ -56,6 +207,26 @@ _CONTEXT_PLACE = re.compile(
     r"(?:county|counties|observation|row|measure)\b",
     re.IGNORECASE,
 )
+
+
+def _admitted_question(question: str, allowed_numbers: set[str], intent: str) -> bool:
+    """Admit only known grammar words and a governed subject/context reference."""
+    tokens = [token.casefold() for token in _QUESTION_TOKEN.findall(question)]
+    allowed_words = _QUESTION_WORDS | _COMMON_SCOPE | _INTENT_SCOPE[intent]
+    if not tokens or any(
+        token not in allowed_words and token not in allowed_numbers for token in tokens
+    ):
+        return False
+    return bool(_CASE_SUBJECT.search(question) or _CONTEXT_SUBJECT.search(question))
+
+
+def _selector_matches_question(question: str, selector: str) -> bool:
+    """A discovery selector must describe the same subject as the question."""
+    query_tokens = {token.casefold() for token in _QUESTION_TOKEN.findall(question)}
+    selector_tokens = {token.casefold() for token in _QUESTION_TOKEN.findall(selector)}
+    return selector_tokens <= query_tokens or bool(
+        re.search(r"\b(?:this|selected)\s+measure\b", question, re.IGNORECASE)
+    )
 
 
 class StrictModel(BaseModel):
@@ -471,6 +642,17 @@ class StructuredAssistant:
                     "NEEDS_CLARIFICATION",
                     limitations=["Specify a governed indicator ID or measure search text."],
                 )
+            selector_text = context.indicator_id or context.search_text or ""
+            selector_numbers = {
+                token for token in _QUESTION_TOKEN.findall(selector_text) if token.isdigit()
+            }
+            if not _admitted_question(
+                question, selector_numbers, intent
+            ) or not _selector_matches_question(question, selector_text):
+                return finish(
+                    "NEEDS_CLARIFICATION",
+                    limitations=["Confirm the governed measure subject and selector."],
+                )
             result = self._call("find_measures", selector)
             evidence.append(result)
             if result.status == "error":
@@ -571,8 +753,10 @@ class StructuredAssistant:
                 limitations=["Select two counties and one common annual period."],
             )
         # Context selects a slot; it cannot silently replace the subject or place
-        # of the user's question. Unrecognized wording needs explicit clarification.
-        if _FOREIGN_MEASURE.search(question) or not _MEASURE_REFERENT.search(question):
+        # of the user's question. The bounded grammar fails closed on unknown
+        # disease, measure, demographic, rate, or clinical qualifiers.
+        allowed_numbers = set(context.geography_ids) | {str(year) for year in requested_years}
+        if not _admitted_question(question, allowed_numbers, intent):
             return finish(
                 "NEEDS_CLARIFICATION",
                 limitations=["Confirm the requested governed measure in the question."],

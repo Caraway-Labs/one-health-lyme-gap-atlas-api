@@ -16,7 +16,13 @@ the question must identify a supported measure subject and either the selected
 county FIPS or an explicit reference to the selected county. Conflicting measure
 subjects and county FIPS do not borrow an answer from the supplied context.
 The deterministic router intentionally asks for clarification when wording cannot
-be reconciled to the selected governed scope.
+be reconciled to the selected governed scope. It admits only a small, explicit
+vocabulary for each supported question class. Unknown subjects or qualifiers,
+including disease substitutions, demographic strata, rates, clinical purposes,
+and named places outside the selected FIPS, stop before dispatch. Measure
+discovery also requires its search/indicator selector to match the question or
+an explicit reference to the selected measure. New phrasing requires a reviewed
+grammar change rather than a guess from selected context.
 Unsupported filters, predictions, causal or official public-health claims,
 clinical advice, SQL, Cypher, and repository access cannot trigger a tool call.
 No model or user-selected tool name reaches dispatch.
