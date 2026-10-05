@@ -28,6 +28,7 @@ from .public_contract import (
     Observation,
     ValueState,
 )
+from .repository import AtlasDataUnavailableError
 from .telemetry_logging import STRUCTURED_CAUSES
 
 ROUTING_VERSION = "ask-atlas-structured-routing-v1"
@@ -891,6 +892,9 @@ class StructuredAssistant:
             return self.tools.verify_release() == release
         except TimeoutError:
             diagnostics["structured_cause"] = "tool_timeout"
+            return False
+        except AtlasDataUnavailableError:
+            diagnostics["structured_cause"] = "tool_dependency_failure"
             return False
         except Exception:
             diagnostics["structured_cause"] = "tool_internal_failure"

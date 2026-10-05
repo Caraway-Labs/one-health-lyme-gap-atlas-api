@@ -21,6 +21,7 @@ from lyme_gap_atlas_api.ask_atlas_orchestration import (
 )
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.middleware import KnowledgeChatLimitMiddleware
+from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
 from lyme_gap_atlas_api.telemetry_logging import (
     assistant_operational_outcome,
     completion_context,
@@ -212,6 +213,43 @@ def test_structured_http_classifies_actual_tool_boundary_failure(
     assert response.json()["tool_evidence"][0]["error_code"] == (
         None if failure == "malformed" else "SOURCE_UNAVAILABLE"
     )
+    assert len(completions) == 1
+    assert completions[0]["structured_cause"] == cause
+    assert completions[0]["operational_outcome"] == operational
+    assert "private" not in str(completions)
+
+
+@pytest.mark.parametrize(("failure", "cause", "operational"), [
+    (AtlasDataUnavailableError, "tool_dependency_failure", "dependency_failure"),
+    (RuntimeError, "tool_internal_failure", "internal_failure"),
+])
+def test_structured_http_classifies_release_verification_failure(
+    failure, cause: str, operational: str, monkeypatch,
+) -> None:
+    completions: list[dict[str, Any]] = []
+
+    def capture(logger, event, context):
+        if event == "knowledge_chat_total":
+            completions.append(completion_context(event, context))
+
+    class ReleaseFailureTools(FakeTools):
+        def verify_release(self) -> str:
+            raise failure("private release detail")
+
+    monkeypatch.setattr(application, "StructuredTools", lambda *args: ReleaseFailureTools())
+    monkeypatch.setattr(middleware_module, "emit_completion", capture)
+    app = application.create_app(settings=ApiSettings(knowledge_chat_enabled=False))
+    response = TestClient(app).post(
+        "/v1/assistant/structured", headers={"X-Request-ID": "release-fixture"},
+        json={
+            "question": "What is the 2023 Lyme case count for county 08001?",
+            "context": {"measure_id": "case_count_floor_2023",
+                        "geography_ids": ["08001"], "year": 2023},
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["answer"]["outcome"] == "SOURCE_UNAVAILABLE"
+    assert response.json()["answer"]["claims"] == []
     assert len(completions) == 1
     assert completions[0]["structured_cause"] == cause
     assert completions[0]["operational_outcome"] == operational
