@@ -6,6 +6,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from datetime import date
+from pathlib import Path
+from threading import Event, Lock
 from typing import Any, Literal
 
 from jsonschema import Draft202012Validator, FormatChecker  # type: ignore[import-untyped]
@@ -29,6 +31,7 @@ from .repository import AtlasDataUnavailableError
 
 CONTRACT_VERSION = "ask-atlas-tools-v1"
 TOOL_DEADLINES = {"find_measures": 3.0, "get_observations": 8.0, "get_evidence_metadata": 3.0}
+TOOL_SCHEMA = json.loads(Path(__file__).with_name("ask-atlas-tools-v1.schema.json").read_text())
 
 
 class StrictInput(BaseModel):
@@ -37,7 +40,7 @@ class StrictInput(BaseModel):
 
 
 class FindMeasuresInput(StrictInput):
-    contract_version: Literal["ask-atlas-tools-v1"]
+    tool: Literal["find_measures"]
     indicator_id: str | None = Field(default=None, min_length=1, max_length=120)
     search_text: str | None = Field(default=None, min_length=1, max_length=120)
     page_size: int = Field(default=20, ge=1, le=20)
@@ -50,7 +53,7 @@ class FindMeasuresInput(StrictInput):
 
 
 class GetObservationsInput(StrictInput):
-    contract_version: Literal["ask-atlas-tools-v1"]
+    tool: Literal["get_observations"]
     measure_id: str = Field(min_length=1, max_length=120)
     geography_type: GeographyType
     geography_ids: list[str] = Field(min_length=1, max_length=20)
@@ -60,7 +63,7 @@ class GetObservationsInput(StrictInput):
 
 
 class GetEvidenceMetadataInput(StrictInput):
-    contract_version: Literal["ask-atlas-tools-v1"]
+    tool: Literal["get_evidence_metadata"]
     observation_ids: list[str] = Field(min_length=1, max_length=20)
 
 
@@ -126,9 +129,28 @@ class StructuredTools:
         self.admitted: dict[str, Observation] = {}
         self.started = time.monotonic()
         self.expired = False
+        self.cancelled = Event()
+        self.state_lock = Lock()
+        self.call_deadline = float("inf")
+
+    def _check_active(self) -> None:
+        if (
+            self.cancelled.is_set()
+            or time.monotonic() >= self.call_deadline
+            or time.monotonic() - self.started >= 12
+        ):
+            raise TimeoutError
+
+    def _expire(self) -> None:
+        with self.state_lock:
+            self.expired = True
+            self.cancelled.set()
+            self.admitted.clear()
 
     def _release(self) -> str:
+        self._check_active()
         release = self.observation_service.repository.current_release()
+        self._check_active()
         if self.pinned_release is not None and release != self.pinned_release:
             raise PublicQueryError(
                 "RELEASE_CHANGED", "The governed release changed; retry the request."
@@ -143,6 +165,7 @@ class StructuredTools:
         raw: dict[str, Any],
     ) -> ToolResult:
         start = time.monotonic()
+        dispatched = False
         tracer = trace.get_tracer(__name__)
         with tracer.start_as_current_span(
             "atlas.ask_atlas.tool", record_exception=False, set_status_on_exception=False
@@ -168,22 +191,40 @@ class StructuredTools:
                     and candidate > bounded_field[1]
                 ):
                     raise PublicQueryError("QUERY_TOO_BROAD", "Tool input exceeds its ceiling.")
-                # JSON Schema and FormatChecker run before canonical ObservationQuery construction.
-                schema = model.model_json_schema()
+                # The reviewed API17 schema is the wire contract, not a parallel generated schema.
                 errors = list(
-                    Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(raw)
+                    Draft202012Validator(TOOL_SCHEMA, format_checker=FormatChecker()).iter_errors(
+                        raw
+                    )
                 )
                 if errors:
                     raise PublicQueryError("INVALID_REQUEST", "Invalid tool input.")
                 args = model.model_validate(raw)
+                if tool == "get_observations":
+                    self._observation_query(GetObservationsInput.model_validate(args))
+                elif tool == "find_measures" and not (
+                    FindMeasuresInput.model_validate(args).indicator_id
+                    or _normalized(FindMeasuresInput.model_validate(args).search_text or "")
+                ):
+                    raise PublicQueryError("INVALID_REQUEST", "Search text must contain a term.")
+                elif tool == "get_evidence_metadata":
+                    ids = GetEvidenceMetadataInput.model_validate(args).observation_ids
+                    if len(set(ids)) != len(ids):
+                        raise PublicQueryError("INVALID_REQUEST", "Duplicate observation ID.")
+                    if any(identifier not in self.admitted for identifier in ids):
+                        raise PublicQueryError(
+                            "RESOURCE_NOT_FOUND", "Observation was not admitted."
+                        )
                 remaining = min(
                     TOOL_DEADLINES[tool] - (time.monotonic() - start),
                     12 - (time.monotonic() - self.started),
                 )
                 if remaining <= 0:
                     raise TimeoutError
+                self.call_deadline = time.monotonic() + remaining
                 executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="atlas-tool")
                 try:
+                    dispatched = True
                     future = executor.submit(copy_context().run, self._dispatch, tool, args)
                     result = future.result(timeout=remaining)
                 finally:
@@ -202,10 +243,13 @@ class StructuredTools:
                 )
                 return result
             except (ValidationError, ValueError, TypeError) as exc:
-                code = exc.code if isinstance(exc, PublicQueryError) else "INVALID_REQUEST"
+                if isinstance(exc, PublicQueryError):
+                    code = exc.code
+                else:
+                    code = "SOURCE_UNAVAILABLE" if dispatched else "INVALID_REQUEST"
             except TimeoutError:
                 code = "SOURCE_UNAVAILABLE"
-                self.expired = True
+                self._expire()
             except AtlasDataUnavailableError:
                 code = "SOURCE_UNAVAILABLE"
             except Exception:
@@ -220,6 +264,7 @@ class StructuredTools:
         tool: Literal["find_measures", "get_observations", "get_evidence_metadata"],
         args: StrictInput,
     ) -> ToolResult:
+        self._check_active()
         if tool == "find_measures":
             result = self._find(args)
         elif tool == "get_observations":
@@ -227,6 +272,11 @@ class StructuredTools:
         else:
             result = self._metadata(args)
         self._release()
+        self._check_active()
+        if tool == "get_observations":
+            with self.state_lock:
+                self._check_active()
+                self.admitted = {o.observation_id: o for o in result.observations}
         return result
 
     def find_measures(self, raw: dict[str, Any]) -> ToolResult:
@@ -241,7 +291,9 @@ class StructuredTools:
     def _find(self, input: StrictInput) -> ToolResult:
         args = FindMeasuresInput.model_validate(input)
         release = self._release()
+        self._check_active()
         indicators, measures = self.metadata_service.discover()
+        self._check_active()
         if args.indicator_id is not None:
             if args.indicator_id not in {item.indicator_id for item in indicators}:
                 raise PublicQueryError("RESOURCE_NOT_FOUND", "Unknown indicator.")
@@ -273,9 +325,8 @@ class StructuredTools:
             raise PublicQueryError("RELEASE_CHANGED", "Metadata release changed.")
         return ToolResult(tool="find_measures", status="ok", release_id=release, measures=matches)
 
-    def _observations(self, input: StrictInput) -> ToolResult:
-        args = GetObservationsInput.model_validate(input)
-        release = self._release()
+    @staticmethod
+    def _observation_query(args: GetObservationsInput) -> ObservationQuery:
         query = ObservationQuery(
             measure_id=args.measure_id,
             geography_type=args.geography_type,
@@ -286,6 +337,8 @@ class StructuredTools:
             page_size=200,
         )
         query.validate_bounds(ceiling=200, annual=True)
+        if args.geography_type != GeographyType.county:
+            raise PublicQueryError("UNSUPPORTED_FILTER", "Only county geography is supported.")
         if (
             args.year is None
             and args.start_date is not None
@@ -299,6 +352,13 @@ class StructuredTools:
             != (1, 1, 12, 31)
         ):
             raise PublicQueryError("UNSUPPORTED_FILTER", "Only whole annual periods are supported.")
+        return query
+
+    def _observations(self, input: StrictInput) -> ToolResult:
+        args = GetObservationsInput.model_validate(input)
+        query = self._observation_query(args)
+        release = self._release()
+        self._check_active()
         _, measures = self.metadata_service.discover()
         measure = next((m for m in measures if m.measure_id == args.measure_id), None)
         if measure is None:
@@ -311,14 +371,26 @@ class StructuredTools:
                 measure.geography_types is not None
                 and args.geography_type not in measure.geography_types
             )
-            or (measure.geography_types is None and measure.geography_semantics != "COUNTY")
+            or (
+                measure.geography_types is None
+                and measure.geography_semantics not in {"COUNTY", "COUNTY_FIPS_5"}
+            )
             or (
                 measure.temporal_grains is not None
                 and not any(_annual(grain) for grain in measure.temporal_grains)
             )
             or (
                 measure.temporal_grains is None
-                and (measure.temporal_semantics is None or not _annual(measure.temporal_semantics))
+                and (
+                    measure.temporal_semantics is None
+                    or not (
+                        _annual(measure.temporal_semantics)
+                        or (
+                            measure.temporal_semantics.isdigit()
+                            and len(measure.temporal_semantics) == 4
+                        )
+                    )
+                )
             )
             or (
                 measure.measure_type is not None
@@ -328,7 +400,9 @@ class StructuredTools:
             raise PublicQueryError(
                 "UNSUPPORTED_FILTER", "Unsupported governed geography or period."
             )
-        envelope = self.observation_service.search(query)
+        self._check_active()
+        envelope = self.observation_service.search(query, checkpoint=self._check_active)
+        self._release()
         if envelope.meta.next_page_token is not None:
             raise PublicQueryError("QUERY_TOO_BROAD", "Result exceeds tool ceiling.")
         if args.year is not None:
@@ -337,6 +411,12 @@ class StructuredTools:
             years = list(range(args.start_date.year, args.end_date.year + 1))
         else:
             raise PublicQueryError("INVALID_REQUEST", "Complete period required.")
+        if (
+            measure.temporal_semantics is not None
+            and measure.temporal_semantics.isdigit()
+            and any(year != int(measure.temporal_semantics) for year in years)
+        ):
+            raise PublicQueryError("UNSUPPORTED_FILTER", "Requested year is outside measure scope.")
         slots: dict[tuple[str, int], Observation | None] = {
             (geo, year): None for geo in args.geography_ids for year in years
         }
@@ -380,7 +460,6 @@ class StructuredTools:
             )
             for (geo, year), obs in slots.items()
         ]
-        self.admitted = {o.observation_id: o for o in envelope.data}
         return ToolResult(
             tool="get_observations",
             status="ok",
@@ -398,16 +477,24 @@ class StructuredTools:
             raise PublicQueryError("RESOURCE_NOT_FOUND", "Observation was not admitted.")
         items = []
         for identifier in args.observation_ids:
+            self._check_active()
             observation = self.admitted[identifier]
             if observation.release_id != release:
                 raise PublicQueryError("RELEASE_CHANGED", "Observation release changed.")
             try:
-                source = self.provenance_service.source(observation.source_id)
+                self._check_active()
+                source = self.provenance_service.source(
+                    observation.source_id, checkpoint=self._check_active
+                )
+                self._check_active()
                 method = (
-                    self.provenance_service.methodology(observation.methodology_id)
+                    self.provenance_service.methodology(
+                        observation.methodology_id, checkpoint=self._check_active
+                    )
                     if observation.methodology_id
                     else None
                 )
+                self._check_active()
             except PublicQueryError as exc:
                 if exc.code == "RESOURCE_NOT_FOUND":
                     raise AtlasDataUnavailableError("Governed provenance is unresolved") from exc

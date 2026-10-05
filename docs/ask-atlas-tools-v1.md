@@ -5,11 +5,13 @@ and `get_evidence_metadata` calls specified by
 [`ask-atlas-contract-v1.md`](ask-atlas-contract-v1.md). It does not expose a new HTTP
 route. `literature_answer` remains the existing Research Assistant service.
 
-Inputs are the versioned Pydantic models in `ask_atlas_tools.py` with
-`contract_version: "ask-atlas-tools-v1"`. Unknown fields, including SQL, Cypher,
+Inputs follow the versioned `ask-atlas-tools-v1.schema.json` contract and use a
+required `tool` discriminator. Unknown fields, including SQL, Cypher,
 repository names, physical relations, free-form source IDs, filters, sort keys,
 and page tokens, are rejected. Outputs use the canonical nested public models
 and the `tool_result` envelope in `ask-atlas-results-v1.schema.json`.
+The package carries a byte-identical copy of the accepted input schema because
+the production image copies `src` without `docs`; a contract test checks drift.
 
 | Tool | Reused service | Bound |
 | --- | --- | --- |
@@ -20,7 +22,7 @@ and the `tool_result` envelope in `ask-atlas-results-v1.schema.json`.
 Example input:
 
 ```json
-{"contract_version":"ask-atlas-tools-v1","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["01001"],"year":2023}
+{"tool":"get_observations","measure_id":"case_count_floor_2023","geography_type":"county","geography_ids":["01001"],"year":2023}
 ```
 
 Every requested county/year slot has a `present` or `absent` coverage row.
@@ -39,6 +41,7 @@ prompt, FIPS, observation, or citation text is recorded on that span.
 
 The service returns `SOURCE_UNAVAILABLE` when a 3/8/3-second tool deadline or
 12-second cumulative deadline expires. The request-local adapter then expires
-and cannot admit a later result. Underlying synchronous repository I/O retains
-its own configured timeout and may finish after the tool has returned; it is
-read-only and its result is discarded.
+and cannot admit a later result. Application-service checkpoints stop new
+repository calls after expiry. An already-running synchronous read retains its
+configured timeout and may finish after the tool has returned; its result is
+discarded.
