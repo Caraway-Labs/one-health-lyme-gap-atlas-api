@@ -36,6 +36,10 @@ _ARBITRARY_QUERY = re.compile(
     r"update\s+.+\s+set|match\s*\(|cypher|sql|warehouse|"
     r"database credentials|repository)\b", re.I,
 )
+_PERSONAL_SUBJECT = re.compile(r"\b(?:i|my child)\b", re.I)
+_TREATMENT_OBJECT = re.compile(r"\b(?:antibiotic\w*|medication\w*|treat(?:ment)?)\b", re.I)
+_TREATMENT_ACTION = re.compile(r"\b(?:take|use|start|stop|receive|get)\b", re.I)
+_ADVICE_REQUEST = re.compile(r"\b(?:should|which|what|need|can|could)\b", re.I)
 
 
 @dataclass(frozen=True)
@@ -58,7 +62,16 @@ class SourceRoute:
 def route_question(question: str, mode: SourceMode) -> SourceRoute:
     """An override never widens; Both uses only recognized source needs."""
     question = question.strip()
-    if _unsafe_request(question) or _ARBITRARY_QUERY.search(question):
+    if (
+        _unsafe_request(question)
+        or _ARBITRARY_QUERY.search(question)
+        or (
+            _PERSONAL_SUBJECT.search(question)
+            and _TREATMENT_OBJECT.search(question)
+            and _TREATMENT_ACTION.search(question)
+            and _ADVICE_REQUEST.search(question)
+        )
+    ):
         return SourceRoute(mode, None, None, refusal=True)
     if mode == "Structured":
         if _UNSAFE.search(question):

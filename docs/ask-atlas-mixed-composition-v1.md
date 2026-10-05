@@ -18,8 +18,10 @@ SQL/Cypher or create another retrieval/index path.
   question routes to Literature, and a reviewed two-sentence form routes to
   both. Unsupported Atlas count or county wording asks for clarification
   before a literature call. Explicit Literature research questions use the
-  existing governed literature safety policy, including its personalized
-  medical refusal; Structured wording retains the stricter Structured guard.
+  existing governed literature safety policy, with an entry guard for
+  personalized medication advice; Structured wording retains the stricter
+  Structured guard. Nonpersonal published treatment and diagnostic research
+  remains eligible for the literature service.
   Arbitrary database requests refuse before either branch runs.
 - Each admitted branch retains its complete native claims, citation IDs,
   passage IDs, canonical observation references, release, and replay/config

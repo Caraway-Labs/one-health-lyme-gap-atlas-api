@@ -367,12 +367,16 @@ def test_real_grounded_literature_http_emits_one_accurate_completion(monkeypatch
 ])
 def test_nonpersonal_research_reaches_real_literature_service(question: str) -> None:
     class EmptyRetriever(Retriever):
+        calls = 0
+
         def search(self, message: str, request_id: str) -> Any:
+            self.calls += 1
             return []
 
     clock = Clock()
+    retriever = EmptyRetriever()
     service = KnowledgeChatService(
-        EmptyRetriever(), Answerer([], clock), None, "fixture-secret",
+        retriever, Answerer([], clock), None, "fixture-secret",
         deadline_seconds=24, clock=clock,
     )
     result = MixedAssistant(None, service).ask(
@@ -382,6 +386,38 @@ def test_nonpersonal_research_reaches_real_literature_service(question: str) -> 
     assert result.outcome == "INSUFFICIENT_EVIDENCE"
     assert result.literature is not None
     assert result.literature.status == "no_evidence"
+    assert retriever.calls == 1
+
+
+@pytest.mark.parametrize(("question", "mode"), [
+    ("Which antibiotic should I take for Lyme disease?", "Literature"),
+    ("Should I take antibiotics for Lyme disease?", "Literature"),
+    ("What medication should I take for Lyme disease?", "Literature"),
+    ("What does the literature report about Lyme medication I should take?", "Both"),
+])
+def test_personal_medication_advice_never_reaches_real_literature_service(
+    question: str, mode: str
+) -> None:
+    class TrackingRetriever(Retriever):
+        calls = 0
+
+        def search(self, message: str, request_id: str) -> Any:
+            self.calls += 1
+            return []
+
+    retriever = TrackingRetriever()
+    clock = Clock()
+    service = KnowledgeChatService(
+        retriever, Answerer([], clock), None, "fixture-secret",
+        deadline_seconds=24, clock=clock,
+    )
+    result = MixedAssistant(None, service).ask(
+        question, mode, StructuredAssistantRequest(question="Question").context,
+        "fixture-request", "fixture-client",
+    )
+    assert result.outcome == "SAFETY_REFUSAL"
+    assert result.actual_sources_used == ()
+    assert retriever.calls == 0
 
 
 def test_mixed_route_shares_bounded_chat_rate_limit() -> None:
