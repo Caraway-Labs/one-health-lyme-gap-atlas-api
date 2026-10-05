@@ -78,6 +78,9 @@
   "/v1/assistant/structured": {
     "post": "askAtlasStructured"
   },
+  "/v1/assistant/mixed": {
+    "post": "askAtlasMixed"
+  },
   "/v1/intelligence/items": {
     "get": "listIntelligenceItems"
   },

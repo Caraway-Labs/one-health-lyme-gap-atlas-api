@@ -182,7 +182,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request_id = getattr(request.state, "request_id", None) or normalize_request_id(supplied_id)
         request.state.request_id = request_id
         started_at = time.perf_counter()
-        chat_route = request.url.path == "/v1/knowledge-graph/chat"
+        chat_route = request.url.path in {
+            "/v1/knowledge-graph/chat", "/v1/assistant/mixed"
+        }
         failure_type: str | None = None
         try:
             with request_correlation(request_id):
@@ -318,7 +320,7 @@ class KnowledgeChatLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if request.url.path != "/v1/knowledge-graph/chat":
+        if request.url.path not in {"/v1/knowledge-graph/chat", "/v1/assistant/mixed"}:
             return await call_next(request)
         client = request.headers.get("do-connecting-ip") or (
             request.client.host if request.client else "unknown"

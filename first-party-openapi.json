@@ -4833,6 +4833,75 @@
         }
       }
     },
+    "/v1/assistant/mixed": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Ask Atlas across governed evidence classes",
+        "description": "Internal additive mixed-evidence branch bundle. The Structured branch uses bounded Atlas tools; the Literature branch uses the existing governed Research Assistant. Branch claims and citations retain their original identities. Cross-source comparison remains insufficient when material scope cannot be verified. No arbitrary query is accepted.",
+        "operationId": "askAtlasMixed",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MixedAssistantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MixedAssistantResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MixedAssistantResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/knowledge-graph/chat": {
       "post": {
         "tags": [
@@ -7845,6 +7914,130 @@
           "release_version"
         ],
         "title": "Methodology"
+      },
+      "MixedAssistantRequest": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Question"
+          },
+          "source_mode": {
+            "type": "string",
+            "enum": [
+              "Literature",
+              "Structured",
+              "Both"
+            ],
+            "title": "Source Mode",
+            "default": "Both"
+          },
+          "context": {
+            "$ref": "#/components/schemas/StructuredContext"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "MixedAssistantRequest"
+      },
+      "MixedAssistantResponse": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "ask-atlas-mixed-v1",
+            "title": "Contract Version",
+            "default": "ask-atlas-mixed-v1"
+          },
+          "requested_source_mode": {
+            "type": "string",
+            "enum": [
+              "Literature",
+              "Structured",
+              "Both"
+            ],
+            "title": "Requested Source Mode"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "ANSWERED",
+              "INSUFFICIENT_EVIDENCE",
+              "SOURCE_UNAVAILABLE",
+              "SAFETY_REFUSAL",
+              "NEEDS_CLARIFICATION",
+              "UNSUPPORTED_REQUEST",
+              "QUERY_TOO_BROAD"
+            ],
+            "title": "Outcome"
+          },
+          "actual_sources_used": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "structured_atlas",
+                "literature_evidence"
+              ]
+            },
+            "type": "array",
+            "title": "Actual Sources Used"
+          },
+          "cross_source_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "insufficient_to_compare"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cross Source State"
+          },
+          "structured": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StructuredAssistantResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "literature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KnowledgeChatResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requested_source_mode",
+          "outcome",
+          "actual_sources_used",
+          "cross_source_state",
+          "structured",
+          "literature",
+          "limitations"
+        ],
+        "title": "MixedAssistantResponse",
+        "description": "Additive branch bundle; existing #17/#19 flat answers remain unchanged."
       },
       "Observation": {
         "properties": {
