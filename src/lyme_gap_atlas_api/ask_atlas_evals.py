@@ -37,6 +37,11 @@ class EvalCase(BaseModel):
     expected_literature_pmids: list[str] = Field(default_factory=list)
     expected_passage_ids: list[str] = Field(default_factory=list)
     expected_invocations: list[dict[str, Any]] = Field(default_factory=list)
+    expected_structured_ref_ids: list[str] = Field(default_factory=list)
+    expected_tool_source_ids: list[str] = Field(default_factory=list)
+    expected_freshness_ids: list[str] = Field(default_factory=list)
+    expected_freshness_states: list[str] = Field(default_factory=list)
+    expected_literature_evidence_state: str | None = None
     fixture_tool_failure: Literal["get_observations"] | None = None
     fixture_literature_state: Literal["answered", "conflicting"] = "answered"
 
@@ -146,6 +151,23 @@ def evaluate(
         failures.append("structured_evidence")
     if structured:
         answer = structured.answer
+        admitted_refs = [ref.resource_id for ref in answer.structured_evidence_refs]
+        if admitted_refs != case.expected_structured_ref_ids:
+            failures.append("admitted_provenance")
+        claim_refs = [
+            ref.resource_id for claim in answer.claims for ref in claim.structured_refs
+        ]
+        if claim_refs != case.expected_structured_ref_ids:
+            failures.append("claim_provenance")
+        tool_sources = [
+            obs.source_id for tool in structured.tool_evidence for obs in tool.observations
+        ]
+        if tool_sources != case.expected_tool_source_ids:
+            failures.append("tool_source_provenance")
+        if [item.observation_id for item in answer.freshness] != case.expected_freshness_ids:
+            failures.append("freshness_provenance")
+        if [item.state for item in answer.freshness] != case.expected_freshness_states:
+            failures.append("freshness_state")
         if [claim.text for claim in answer.claims] != case.expected_structured_claims:
             failures.append("structured_claim_grounding")
         if case.expected_release and answer.replay.release_id != case.expected_release:
@@ -172,6 +194,11 @@ def evaluate(
         if answer.claims and not answer.replay.release_id:
             failures.append("missing_release")
     if literature:
+        expected_evidence_state = case.expected_literature_evidence_state or (
+            "single_study" if case.expected_citation_ids else None
+        )
+        if literature.evidence_state != expected_evidence_state:
+            failures.append("literature_evidence_state")
         citation_ids = [citation.citation_id for citation in literature.citations]
         if sorted(citation_ids) != sorted(case.expected_citation_ids):
             failures.append("citation_identity")

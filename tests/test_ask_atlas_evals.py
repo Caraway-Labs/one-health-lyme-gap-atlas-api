@@ -4,6 +4,7 @@ import json
 import subprocess
 from contextlib import suppress
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -275,6 +276,46 @@ def test_flat_structured_boundary_and_missing_release() -> None:
         tool_invocations=tools.calls,
     )
     assert "missing_release" in failed.failures
+
+
+@pytest.mark.parametrize(("mutation", "expected_failure"), [
+    ("claim_ref", "claim_provenance"),
+    ("admitted_refs", "admitted_provenance"),
+    ("tool_source", "tool_source_provenance"),
+    ("missing_freshness", "freshness_provenance"),
+    ("invented_current", "freshness_state"),
+])
+def test_provenance_mutations_fail_even_when_claim_text_is_unchanged(
+    mutation, expected_failure
+) -> None:
+    case = DATA.cases[0]
+    response = _run(case)
+    assert response.structured is not None
+    answer = response.structured.answer
+    if mutation == "claim_ref":
+        answer.claims[0].structured_refs[0].resource_id = "invented-observation"
+    elif mutation == "admitted_refs":
+        answer.structured_evidence_refs = []
+    elif mutation == "tool_source":
+        response.structured.tool_evidence[0].observations[0].source_id = "invented-source"
+    elif mutation == "missing_freshness":
+        answer.freshness = []
+    elif mutation == "invented_current":
+        answer.freshness[0].state = "current"
+        answer.freshness[0].policy_id = "invented-policy"
+        answer.freshness[0].source_timestamp = datetime(2023, 1, 1, tzinfo=UTC)
+        answer.freshness[0].compared_at = datetime(2026, 10, 5, tzinfo=UTC)
+    result = evaluate(case, response, candidate=BASE, dataset_version=DATA.dataset_version)
+    assert expected_failure in result.failures
+
+
+def test_conflicting_literature_state_cannot_be_silently_reclassified() -> None:
+    case = next(c for c in DATA.cases if c.case_id == "both_conflicting_literature")
+    response = _run(case)
+    assert response.literature is not None
+    response.literature.evidence_state = "single_study"
+    result = evaluate(case, response, candidate=BASE, dataset_version=DATA.dataset_version)
+    assert "literature_evidence_state" in result.failures
 
 
 def test_exporter_and_eval_backend_outage_cannot_affect_request(monkeypatch) -> None:

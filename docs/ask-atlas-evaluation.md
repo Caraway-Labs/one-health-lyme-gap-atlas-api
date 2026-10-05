@@ -15,8 +15,10 @@ The comparison demonstrates regression detection, **not** model superiority.
 `compare` requires a complete result set and blocks promotion on any failure.
 
 The hard gates cover tool selection, value state and numeric zero, release
-provenance, source routing, independent expected claim text, PMID, passage and
-citation identity, abstention, unsupported requests, and conservative
+provenance, admitted and claim-level evidence references, tool source identity,
+freshness identity/state, source routing, independent expected claim text,
+literature evidence state, PMID, passage and citation identity, abstention,
+unsupported requests, and conservative
 `insufficient_to_compare` behavior. The existing response validators provide
 additional claim/citation and provenance enforcement. An
 LLM judge cannot override hard failures. Subjective answer utility requires
