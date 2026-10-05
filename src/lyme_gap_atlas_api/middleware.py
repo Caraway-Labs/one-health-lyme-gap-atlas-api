@@ -239,7 +239,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                     503: "route_unavailable",
                 }.get(response.status_code, "unhandled_error")
             operational = assistant_operational_outcome(
-                outcome, diagnostics.get("service_outcome") or diagnostics.get("outcome")
+                outcome, diagnostics.get("service_outcome") or diagnostics.get("outcome"),
+                diagnostics.get("structured_cause"),
             )
             emit_completion(logger, "knowledge_chat_total", {
                 **diagnostics,

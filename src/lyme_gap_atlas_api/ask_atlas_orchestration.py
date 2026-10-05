@@ -28,6 +28,7 @@ from .public_contract import (
     Observation,
     ValueState,
 )
+from .telemetry_logging import STRUCTURED_CAUSES
 
 ROUTING_VERSION = "ask-atlas-structured-routing-v1"
 ANSWER_VERSION = "ask-atlas-v1"
@@ -383,19 +384,28 @@ class StructuredAssistant:
     def __init__(self, tools: StructuredToolPort) -> None:
         self.tools = tools
 
-    def ask(self, request: StructuredAssistantRequest) -> StructuredAssistantResponse:
+    def ask(
+        self, request: StructuredAssistantRequest,
+        diagnostics: dict[str, Any] | None = None,
+    ) -> StructuredAssistantResponse:
+        diagnostics = diagnostics if diagnostics is not None else {}
+        diagnostics.pop("structured_cause", None)
         tracer = trace.get_tracer(__name__)
         with tracer.start_as_current_span(
             "atlas.ask_atlas.structured", record_exception=False, set_status_on_exception=False
         ) as span:
-            response = self._ask(request)
+            response = self._ask(request, diagnostics)
             span.set_attribute("atlas.ask_atlas.source_mode", request.source_mode)
             span.set_attribute("atlas.ask_atlas.outcome", response.answer.outcome)
             span.set_attribute("atlas.ask_atlas.tool_count", len(response.tool_evidence))
             span.set_attribute("atlas.ask_atlas.claim_count", len(response.answer.claims))
+            if (cause := diagnostics.get("structured_cause")) in STRUCTURED_CAUSES:
+                span.set_attribute("atlas.ask_atlas.structured_cause", cause)
             return response
 
-    def _ask(self, request: StructuredAssistantRequest) -> StructuredAssistantResponse:
+    def _ask(
+        self, request: StructuredAssistantRequest, diagnostics: dict[str, Any]
+    ) -> StructuredAssistantResponse:
         evidence: list[ToolResult] = []
         context = request.context
 
@@ -410,6 +420,8 @@ class StructuredAssistant:
             limitations: list[str] | None = None,
             release: str | None = None,
         ) -> StructuredAssistantResponse:
+            if outcome == "SOURCE_UNAVAILABLE":
+                diagnostics.setdefault("structured_cause", "tool_validation_failure")
             admitted = claims or []
             answer = Answer(
                 requested_source_mode=request.source_mode,
@@ -435,6 +447,7 @@ class StructuredAssistant:
                 limitations=["This request is outside bounded Atlas evidence access."],
             )
         if request.source_mode != "Structured":
+            diagnostics["structured_cause"] = "route_unavailable"
             return finish(
                 "SOURCE_UNAVAILABLE",
                 limitations=["This source mode is not enabled on the structured endpoint."],
@@ -476,12 +489,12 @@ class StructuredAssistant:
                         "The requested period does not match the governed case-count measure."
                     ],
                 )
-            result = self._call("find_measures", selector)
+            result = self._call("find_measures", selector, diagnostics)
             evidence.append(result)
             if result.status == "error":
                 return finish(_error_outcome(result.error_code))
             if not self._valid(result, "find_measures") or not self._same_release(
-                result.release_id
+                result.release_id, diagnostics
             ):
                 return finish(
                     "SOURCE_UNAVAILABLE",
@@ -623,14 +636,14 @@ class StructuredAssistant:
         else:
             query["start_date"] = context.start_date.isoformat() if context.start_date else None
             query["end_date"] = context.end_date.isoformat() if context.end_date else None
-        result = self._call("get_observations", query)
+        result = self._call("get_observations", query, diagnostics)
         evidence.append(result)
         if result.status == "error":
             return finish(_error_outcome(result.error_code))
         if (
             not self._valid(result, "get_observations")
             or not self._valid_observation_scope(result, query, requested_years)
-            or not self._same_release(result.release_id)
+            or not self._same_release(result.release_id, diagnostics)
         ):
             return finish(
                 "SOURCE_UNAVAILABLE", limitations=["Governed observations could not be validated."]
@@ -673,7 +686,7 @@ class StructuredAssistant:
                 return finish("INSUFFICIENT_EVIDENCE")
             if len(ids) > 20:
                 return finish("QUERY_TOO_BROAD")
-            metadata = self._call("get_evidence_metadata", {"observation_ids": ids})
+            metadata = self._call("get_evidence_metadata", {"observation_ids": ids}, diagnostics)
             evidence.append(metadata)
             if metadata.status == "error":
                 return finish(_error_outcome(metadata.error_code))
@@ -700,7 +713,7 @@ class StructuredAssistant:
                     "SOURCE_UNAVAILABLE",
                     limitations=["Governed source metadata could not be validated."],
                 )
-        if not self._same_release(result.release_id):
+        if not self._same_release(result.release_id, diagnostics):
             return finish(
                 "SOURCE_UNAVAILABLE",
                 limitations=["The governed release changed during the answer."],
@@ -828,7 +841,10 @@ class StructuredAssistant:
             release=result.release_id,
         )
 
-    def _call(self, tool: str, raw: dict[str, Any]) -> ToolResult:
+    def _call(
+        self, tool: str, raw: dict[str, Any], diagnostics: dict[str, Any] | None = None
+    ) -> ToolResult:
+        diagnostics = diagnostics if diagnostics is not None else {}
         bounded = dict(raw)
         bounded["tool"] = tool
         # This explicit dispatch is the entire registered #18 tool inventory.
@@ -850,16 +866,34 @@ class StructuredAssistant:
                 else returned
             )
             result = ToolResult.model_validate(payload)
-        except Exception:
+        except TimeoutError:
+            diagnostics["structured_cause"] = "tool_timeout"
             return ToolResult(tool=tool, status="error", error_code="SOURCE_UNAVAILABLE")  # type: ignore[arg-type]
+        except (ValidationError, ValueError, TypeError):
+            diagnostics["structured_cause"] = "tool_validation_failure"
+            return ToolResult(tool=tool, status="error", error_code="SOURCE_UNAVAILABLE")  # type: ignore[arg-type]
+        except Exception:
+            diagnostics["structured_cause"] = "tool_internal_failure"
+            return ToolResult(tool=tool, status="error", error_code="SOURCE_UNAVAILABLE")  # type: ignore[arg-type]
+        if result.status == "error" and result.error_code == "SOURCE_UNAVAILABLE":
+            adapter_cause = getattr(self.tools, "last_cause", None)
+            diagnostics["structured_cause"] = (
+                adapter_cause
+                if adapter_cause in STRUCTURED_CAUSES
+                else "tool_dependency_failure"
+            )
         return result
 
-    def _same_release(self, release: str | None) -> bool:
+    def _same_release(self, release: str | None, diagnostics: dict[str, Any]) -> bool:
         if not release:
             return False
         try:
             return self.tools.verify_release() == release
+        except TimeoutError:
+            diagnostics["structured_cause"] = "tool_timeout"
+            return False
         except Exception:
+            diagnostics["structured_cause"] = "tool_internal_failure"
             return False
 
     @staticmethod

@@ -1263,8 +1263,10 @@ def create_app(
             request.app.state.observation_service,
             request.app.state.provenance_service,
         )
-        result = StructuredAssistant(tools).ask(payload)
-        request.state.knowledge_chat_diagnostics = {"outcome": result.answer.outcome.casefold()}
+        diagnostics: dict[str, Any] = {}
+        result = StructuredAssistant(tools).ask(payload, diagnostics)
+        diagnostics["outcome"] = result.answer.outcome.casefold()
+        request.state.knowledge_chat_diagnostics = diagnostics
         return result
 
     @app.post(

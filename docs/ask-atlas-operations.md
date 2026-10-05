@@ -22,6 +22,17 @@ closed literature cause when available. The public answer outcome remains the
 existing contract. HTTP request validation and rate denials are classified at
 middleware even when the service did not run. Missing `service_outcome` means
 there was no observed literature service cause; do not infer one.
+`structured_cause` is a separate closed category for a governed tool timeout,
+malformed result, dependency failure, or unexpected tool exception. It never
+contains an exception message or evidence payload. The public Structured
+response keeps its safe `SOURCE_UNAVAILABLE` envelope; the internal cause
+distinguishes validation, dependency and internal failures for review.
+For a mixed request, the public `ANSWERED` outcome can retain a grounded
+Structured fallback when Literature fails. The operational class follows the
+recorded Literature failure, including `internal_failure` for an unexpected
+service exception, so the partial success does not hide the failed stage.
+An intentionally disabled Literature route has no service cause and is
+classified as dependency unavailable rather than an internal exception.
 
 `duration_ms` is the HTTP middleware boundary; `service_duration_ms` is the
 literature service including connection teardown. Stage latencies are nested
@@ -115,6 +126,10 @@ and no admitted source. The selected case was added as
 `bounded-v1` candidate passes it; `observation-outage-v1` fails the `outcome`
 gate, so comparison blocks promotion. This is fixture evidence, not a claim
 that a production incident, paid model, or Phoenix exporter was exercised.
+The same fail-closed budget decision is exercised through the real Both service
+with input, output and deadline exhaustion, with and without a caller-supplied
+diagnostics dictionary. Non-budget dependency failure retains a valid
+Structured-only fallback and reports the literature failure separately.
 
 Keep prompts, evidence passages, answers, credentials, bearer capabilities,
 network identifiers, unrestricted exception text and provider payloads out of

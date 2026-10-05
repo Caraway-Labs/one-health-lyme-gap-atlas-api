@@ -140,8 +140,20 @@ OPERATIONAL_OUTCOMES = frozenset({
 })
 
 
-def assistant_operational_outcome(outcome: str, cause: str | None = None) -> str:
+STRUCTURED_CAUSES = frozenset({
+    "tool_timeout", "tool_validation_failure", "tool_dependency_failure",
+    "tool_internal_failure", "route_unavailable",
+})
+
+
+def assistant_operational_outcome(
+    outcome: str, cause: str | None = None, structured_cause: str | None = None
+) -> str:
     """Classify only closed, non-content service and routing results."""
+    # A grounded Structured fallback may keep the product response answered,
+    # while the Literature service has failed. Classify the observed cause first.
+    if cause in {"unhandled_error", "response_serialization_failure"}:
+        return "internal_failure"
     if cause in {"capacity_limited", "budget_failure", "budget_exhausted",
                  "deadline_exhausted", "rate_limited"}:
         return "budget_exhaustion"
@@ -155,6 +167,12 @@ def assistant_operational_outcome(outcome: str, cause: str | None = None) -> str
                  "retrieval_failure", "provenance_failure", "persistence_failure",
                  "authorization_dependency_failure", "route_unavailable"}:
         return "dependency_failure"
+    if structured_cause == "tool_internal_failure":
+        return "internal_failure"
+    if structured_cause == "tool_validation_failure":
+        return "validation_failure"
+    if structured_cause in {"tool_timeout", "tool_dependency_failure", "route_unavailable"}:
+        return "dependency_failure"
     if outcome == "answered":
         return "answered"
     if outcome in {"insufficient_evidence", "no_evidence", "needs_clarification",
@@ -164,6 +182,8 @@ def assistant_operational_outcome(outcome: str, cause: str | None = None) -> str
         return "validation_failure"
     if outcome == "rate_limited":
         return "budget_exhaustion"
+    if outcome == "route_unavailable":
+        return "dependency_failure"
     if outcome == "source_unavailable":
         return "dependency_failure"
     return "internal_failure"
@@ -247,6 +267,7 @@ def completion_context(event: str, context: dict[str, Any]) -> dict[str, Any]:
         "retrieval_version": {"hybrid-fulltext-vector-v1"},
         "operational_outcome": OPERATIONAL_OUTCOMES,
         "service_outcome": ASK_OUTCOMES,
+        "structured_cause": STRUCTURED_CAUSES,
     }
     for key, allowed in enums.items():
         value = context.get(key)

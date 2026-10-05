@@ -132,6 +132,7 @@ class StructuredTools:
         self.cancelled = Event()
         self.state_lock = Lock()
         self.call_deadline = float("inf")
+        self.last_cause: str | None = None
 
     def _check_active(self) -> None:
         if (
@@ -166,6 +167,7 @@ class StructuredTools:
     ) -> ToolResult:
         start = time.monotonic()
         dispatched = False
+        self.last_cause = None
         tracer = trace.get_tracer(__name__)
         with tracer.start_as_current_span(
             "atlas.ask_atlas.tool", record_exception=False, set_status_on_exception=False
@@ -245,15 +247,22 @@ class StructuredTools:
             except (ValidationError, ValueError, TypeError) as exc:
                 if isinstance(exc, PublicQueryError):
                     code = exc.code
+                    if dispatched or code == "RELEASE_CHANGED":
+                        self.last_cause = "tool_validation_failure"
                 else:
                     code = "SOURCE_UNAVAILABLE" if dispatched else "INVALID_REQUEST"
+                    if dispatched:
+                        self.last_cause = "tool_validation_failure"
             except TimeoutError:
                 code = "SOURCE_UNAVAILABLE"
+                self.last_cause = "tool_timeout"
                 self._expire()
             except AtlasDataUnavailableError:
                 code = "SOURCE_UNAVAILABLE"
+                self.last_cause = "tool_dependency_failure"
             except Exception:
                 code = "SOURCE_UNAVAILABLE"
+                self.last_cause = "tool_internal_failure"
             span.set_attribute("atlas.tool.outcome", "error")
             span.set_attribute("atlas.tool.error_code", code)
             self.admitted.clear()

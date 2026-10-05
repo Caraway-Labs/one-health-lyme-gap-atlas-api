@@ -266,6 +266,7 @@ def test_dependency_failure_and_metadata_admission_are_all_or_nothing():
     repository.current_release = lambda: (_ for _ in ()).throw(TimeoutError())
     failed = service.get_observations(query(geography_ids=["01001"]))
     assert failed.error_code == "SOURCE_UNAVAILABLE" and failed.observations == []
+    assert service.last_cause == "tool_timeout"
 
 
 def test_deadline_expires_request_local_adapter(monkeypatch):
@@ -578,9 +579,25 @@ def test_malformed_backend_maps_unavailable_and_invalid_fips_never_reads():
     service = StructuredTools(BrokenMetadata(), ObservationService(repository), Provenance())
     bad = service.find_measures({"tool": "find_measures", "search_text": "case", "page_size": 20})
     assert bad.error_code == "SOURCE_UNAVAILABLE"
+    assert service.last_cause == "tool_validation_failure"
     repository.current_release = lambda: (_ for _ in ()).throw(AssertionError("I/O occurred"))
     malformed = service.get_observations(query(geography_ids=["bad"]))
     assert malformed.error_code == "INVALID_REQUEST"
+    assert service.last_cause is None
+
+
+def test_adapter_keeps_bounded_dependency_and_internal_failure_categories():
+    from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
+
+    for error, expected in (
+        (AtlasDataUnavailableError("private dependency detail"), "tool_dependency_failure"),
+        (RuntimeError("private internal detail"), "tool_internal_failure"),
+    ):
+        service, repository = tools()
+        repository.current_release = lambda error=error: (_ for _ in ()).throw(error)
+        result = service.get_observations(query(geography_ids=["01001"]))
+        assert result.error_code == "SOURCE_UNAVAILABLE"
+        assert service.last_cause == expected
 
 
 def test_release_race_preserves_code_with_rows_and_without_rows():
