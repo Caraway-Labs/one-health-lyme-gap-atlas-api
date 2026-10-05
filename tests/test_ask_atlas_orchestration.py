@@ -22,8 +22,17 @@ from lyme_gap_atlas_api.ask_atlas_orchestration import (
     StructuredAssistantRequest,
     StructuredAssistantResponse,
 )
-from lyme_gap_atlas_api.ask_atlas_question_forms import CASE_COUNT_MEASURE_ID
-from lyme_gap_atlas_api.ask_atlas_tools import Coverage, MetadataItem, ToolResult, _coverage_id
+from lyme_gap_atlas_api.ask_atlas_question_forms import (
+    CASE_COUNT_INDICATOR_ID,
+    CASE_COUNT_MEASURE_ID,
+)
+from lyme_gap_atlas_api.ask_atlas_tools import (
+    TOOL_SCHEMA,
+    Coverage,
+    MetadataItem,
+    ToolResult,
+    _coverage_id,
+)
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.public_contract import (
     GeographyIdentity,
@@ -31,6 +40,7 @@ from lyme_gap_atlas_api.public_contract import (
     Measure,
     Methodology,
 )
+from lyme_gap_atlas_api.public_metadata import MetadataRows, MetadataService
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = json.loads((ROOT / "tests/fixtures/ask_atlas_evidence_v1.json").read_text())
@@ -42,6 +52,7 @@ CASES = {
 }
 SCHEMA = json.loads((ROOT / "docs/ask-atlas-results-v1.schema.json").read_text())
 MEASURE = Measure.model_validate(FIXTURE["measure"])
+CANONICAL_MEASURE = MEASURE.model_copy(update={"indicator_id": CASE_COUNT_INDICATOR_ID})
 OBSERVATIONS = {
     value["geography"]["geography_id"]: value for value in FIXTURE["observations"].values()
 }
@@ -66,7 +77,7 @@ class FakeTools:
             tool="find_measures",
             status="ok",
             release_id=self.release,
-            measures=[MEASURE],
+            measures=[CANONICAL_MEASURE],
         )
 
     def get_observations(self, raw: dict[str, Any]) -> ToolResult:
@@ -139,6 +150,70 @@ class FakeTools:
 
     def verify_release(self) -> str:
         return "changed-release" if self.release_changed else self.release
+
+
+class CanonicalMetadataRepository:
+    def load_metadata(self, *, checkpoint: Any = None) -> MetadataRows:
+        if checkpoint is not None:
+            checkpoint()
+        return MetadataRows(
+            indicators=[
+                (
+                    CASE_COUNT_INDICATOR_ID,
+                    "Human disease burden",
+                    None,
+                    None,
+                    "human",
+                    "disease_burden",
+                    "1.0.0",
+                    "release-1",
+                )
+            ],
+            measures=[
+                (
+                    CASE_COUNT_MEASURE_ID,
+                    CASE_COUNT_INDICATOR_ID,
+                    "Case count floor",
+                    None,
+                    "NUMBER",
+                    "cases",
+                    None,
+                    "COUNTY_FIPS_5",
+                    "2023",
+                    None,
+                    None,
+                    None,
+                    "unknown",
+                    "method",
+                    None,
+                    "1.0.0",
+                    "release-1",
+                )
+            ],
+        )
+
+
+class RecordingTools:
+    def __init__(self, delegate: Any) -> None:
+        self.delegate = delegate
+        self.calls: list[dict[str, Any]] = []
+
+    def _run(self, name: str, raw: dict[str, Any]) -> ToolResult:
+        Draft202012Validator(TOOL_SCHEMA, format_checker=FormatChecker()).validate(raw)
+        self.calls.append(raw)
+        return getattr(self.delegate, name)(raw)
+
+    def find_measures(self, raw: dict[str, Any]) -> ToolResult:
+        return self._run("find_measures", raw)
+
+    def get_observations(self, raw: dict[str, Any]) -> ToolResult:
+        return self._run("get_observations", raw)
+
+    def get_evidence_metadata(self, raw: dict[str, Any]) -> ToolResult:
+        return self._run("get_evidence_metadata", raw)
+
+    def verify_release(self) -> str:
+        return self.delegate.verify_release()
 
 
 def ask(tools: FakeTools, case_id: str) -> Any:
@@ -436,11 +511,108 @@ def test_discovery_indicator_id_matches_case_paraphrase() -> None:
     result = StructuredAssistant(tools).ask(
         StructuredAssistantRequest(
             question="Which governed measure is the Lyme case count floor?",
-            context={"indicator_id": "lyme_cases"},
+            context={"indicator_id": CASE_COUNT_INDICATOR_ID},
         )
     )
     assert result.answer.outcome == "ANSWERED"
     assert [call["tool"] for call in tools.calls] == ["find_measures"]
+
+
+@pytest.mark.parametrize(
+    "selector",
+    [{"search_text": "case count floor"}, {"indicator_id": CASE_COUNT_INDICATOR_ID}],
+)
+def test_actual_metadata_service_discovery_uses_normative_bounded_arguments(
+    selector: dict[str, str],
+) -> None:
+    adapter, _ = real_tools()
+    adapter.metadata_service = MetadataService(CanonicalMetadataRepository())
+    recorded = RecordingTools(adapter)
+    result = StructuredAssistant(recorded).ask(
+        StructuredAssistantRequest(
+            question="Which governed measure is the Lyme case count floor?",
+            context=selector,
+        )
+    )
+    assert result.answer.outcome == "ANSWERED"
+    assert result.answer.structured_measures[0].indicator_id == CASE_COUNT_INDICATOR_ID
+    assert result.answer.structured_measures[0].unit == "cases"
+    assert recorded.calls == [{"tool": "find_measures", **selector, "page_size": 20}]
+
+
+@pytest.mark.parametrize(
+    "question, context, outcome, tools_used",
+    [
+        (
+            "What is the 2023 case count floor for county 01003?",
+            {"measure_id": CASE_COUNT_MEASURE_ID, "geography_ids": ["01003"], "year": 2023},
+            "ANSWERED",
+            ["get_observations"],
+        ),
+        (
+            "Compare 2023 county 01003 with county 01005 for the same measure.",
+            {
+                "measure_id": CASE_COUNT_MEASURE_ID,
+                "geography_ids": ["01003", "01005"],
+                "year": 2023,
+            },
+            "ANSWERED",
+            ["get_observations"],
+        ),
+        (
+            "Which of counties 01003 and 01007 lacks this 2023 observation?",
+            {
+                "measure_id": CASE_COUNT_MEASURE_ID,
+                "geography_ids": ["01003", "01007"],
+                "year": 2023,
+            },
+            "ANSWERED",
+            ["get_observations"],
+        ),
+        (
+            "Where did the cited 2023 observation for county 01005 come from?",
+            {"measure_id": CASE_COUNT_MEASURE_ID, "geography_ids": ["01005"], "year": 2023},
+            "ANSWERED",
+            ["get_observations", "get_evidence_metadata"],
+        ),
+        (
+            "Is county 01005 current under the stated source freshness policy?",
+            {"measure_id": CASE_COUNT_MEASURE_ID, "geography_ids": ["01005"], "year": 2023},
+            "INSUFFICIENT_EVIDENCE",
+            ["get_observations"],
+        ),
+        (
+            "Is the MISSING row for county 01001 zero?",
+            {"measure_id": CASE_COUNT_MEASURE_ID, "geography_ids": ["01001"], "year": 2023},
+            "INSUFFICIENT_EVIDENCE",
+            ["get_observations"],
+        ),
+        (
+            "Give the 2023 case counts for counties 01005 and 01007.",
+            {
+                "measure_id": CASE_COUNT_MEASURE_ID,
+                "geography_ids": ["01005", "01007"],
+                "year": 2023,
+            },
+            "INSUFFICIENT_EVIDENCE",
+            ["get_observations"],
+        ),
+    ],
+)
+def test_actual_adapter_validates_every_intent_tool_argument(
+    question: str,
+    context: dict[str, Any],
+    outcome: str,
+    tools_used: list[str],
+) -> None:
+    adapter, _ = real_tools()
+    adapter.metadata_service = MetadataService(CanonicalMetadataRepository())
+    recorded = RecordingTools(adapter)
+    result = StructuredAssistant(recorded).ask(
+        StructuredAssistantRequest(question=question, context=context)
+    )
+    assert result.answer.outcome == outcome
+    assert [call["tool"] for call in recorded.calls] == tools_used
 
 
 def test_real_adapter_rejects_disease_substitution_before_governed_lookup() -> None:

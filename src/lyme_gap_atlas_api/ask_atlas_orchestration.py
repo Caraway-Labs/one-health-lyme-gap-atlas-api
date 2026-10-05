@@ -13,6 +13,7 @@ from opentelemetry import trace
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from .ask_atlas_question_forms import (
+    CASE_COUNT_INDICATOR_ID,
     CASE_COUNT_MEASURE_ID,
     match_question_form,
     selector_matches_question,
@@ -460,6 +461,7 @@ class StructuredAssistant:
                     "NEEDS_CLARIFICATION",
                     limitations=["Specify a governed indicator ID or measure search text."],
                 )
+            selector["page_size"] = 20
             selector_text = context.indicator_id or context.search_text or ""
             form = match_question_form(question, intent)
             if form is None or not selector_matches_question(question, selector_text):
@@ -492,7 +494,7 @@ class StructuredAssistant:
                 )
             if any(
                 m.measure_id != CASE_COUNT_MEASURE_ID
-                or m.indicator_id != "lyme_cases"
+                or m.indicator_id != CASE_COUNT_INDICATOR_ID
                 or m.unit != "cases"
                 for m in result.measures
             ):

@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass
 
 CASE_COUNT_MEASURE_ID = "case_count_floor_2023"
+CASE_COUNT_INDICATOR_ID = "human_disease_burden"
 _COUNT = r"(?P<case_subject>(?:Lyme )?case counts?(?: floor)?)"
 _COUNT_PLURAL = r"(?P<case_subject>(?:Lyme )?case counts)"
 
@@ -105,6 +106,8 @@ def match_question_form(question: str, intent: str) -> QuestionForm | None:
 
 def selector_matches_question(question: str, selector: str) -> bool:
     """The governed discovery selector may not switch the named subject."""
+    if selector == CASE_COUNT_INDICATOR_ID:
+        return match_question_form(question, "discovery") is not None
     if re.fullmatch(r"[A-Za-z0-9_ ]+", selector, re.ASCII) is None:
         return False
 

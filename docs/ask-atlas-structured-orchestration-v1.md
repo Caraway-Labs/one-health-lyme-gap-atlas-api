@@ -22,7 +22,9 @@ including disease substitutions, demographic strata, rates, clinical purposes,
 and named places outside the selected FIPS, stop before dispatch. Measure
 discovery also requires its search/indicator selector to match the question.
 Explicit Lyme case-count forms bind to the governed `case_count_floor_2023`
-measure and `cases` unit; unrelated selected measures cannot answer them.
+measure, `human_disease_burden` indicator, and `cases` unit; unrelated selected
+measures cannot answer them. Discovery supplies the #18 required bounded
+`page_size` and checks the returned canonical measure identity.
 Every stated county and annual period must equal the selected scope. New
 phrasing requires a reviewed form rather than a guess from selected context.
 Unsupported filters, predictions, causal or official public-health claims,
