@@ -22,6 +22,7 @@ from lyme_gap_atlas_api.ask_atlas_orchestration import (
     StructuredAssistantRequest,
     StructuredAssistantResponse,
 )
+from lyme_gap_atlas_api.ask_atlas_question_forms import CASE_COUNT_MEASURE_ID
 from lyme_gap_atlas_api.ask_atlas_tools import Coverage, MetadataItem, ToolResult, _coverage_id
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.public_contract import (
@@ -336,6 +337,15 @@ def test_tool_timeout_or_failure_abstains_without_partial_claims(failure: str) -
     assert [call["tool"] for call in tools.calls].count(failure) == 1
 
 
+def test_golden_source_unavailable_form_reaches_bounded_failure() -> None:
+    tools = FakeTools()
+    tools.fail_on = "get_observations"
+    result = ask(tools, "unavailable")
+    assert result.answer.outcome == "SOURCE_UNAVAILABLE"
+    assert result.answer.claims == []
+    assert [call["tool"] for call in tools.calls] == ["get_observations"]
+
+
 def test_case_count_paraphrase_uses_selected_context() -> None:
     tools = FakeTools()
     result = StructuredAssistant(tools).ask(
@@ -396,6 +406,7 @@ def test_unrecognized_subject_qualification_or_purpose_cannot_borrow_context(
             "Which governed Lyme case count measure has source details?",
             "2023 Lyme case count floor",
         ),
+        ("Which governed measure has label 2023 Lyme case count floor?", "\u5973\u6027"),
     ],
 )
 def test_discovery_question_must_match_bounded_selector(question: str, selector: str) -> None:
@@ -447,6 +458,99 @@ def test_real_adapter_rejects_disease_substitution_before_governed_lookup() -> N
     assert result.answer.outcome == "NEEDS_CLARIFICATION"
     assert result.answer.claims == []
     assert result.tool_evidence == []
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Show only zero case counts for counties 01003 and 01005 in 2023.",
+        "What is the case count for 女性 in county 01005 in 2023?",
+    ],
+)
+def test_real_adapter_rejects_unconsumed_qualifiers(question: str) -> None:
+    adapter, _ = real_tools()
+    result = StructuredAssistant(adapter).ask(
+        StructuredAssistantRequest(
+            question=question,
+            context={
+                "measure_id": CASE_COUNT_MEASURE_ID,
+                "geography_ids": ["01003", "01005"] if question.startswith("Show") else ["01005"],
+                "year": 2023,
+            },
+        )
+    )
+    assert result.answer.outcome == "NEEDS_CLARIFICATION"
+    assert result.answer.claims == []
+    assert result.tool_evidence == []
+
+
+def test_real_adapter_admits_supported_observed_case_count() -> None:
+    adapter, _ = real_tools()
+    result = StructuredAssistant(adapter).ask(
+        StructuredAssistantRequest(
+            question="What is the 2023 Lyme case count for county 01005?",
+            context={"measure_id": CASE_COUNT_MEASURE_ID, "geography_ids": ["01005"], "year": 2023},
+        )
+    )
+    assert result.answer.outcome == "ANSWERED"
+    assert result.tool_evidence[0].observations[0].value == 12
+    assert result.answer.claims[0].structured_refs
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Does county 08059 have the governed row in 2023 only?",
+        "Does county 08059 have the governed 2023 row?",
+    ],
+)
+def test_gap_question_cannot_silently_expand_its_year(question: str) -> None:
+    tools = FakeTools()
+    result = StructuredAssistant(tools).ask(
+        StructuredAssistantRequest(
+            question=question,
+            context={
+                "measure_id": CASE_COUNT_MEASURE_ID,
+                "geography_ids": ["08059"],
+                "start_date": "2022-01-01",
+                "end_date": "2024-12-31",
+            },
+        )
+    )
+    assert result.answer.outcome in {"NEEDS_CLARIFICATION", "UNSUPPORTED_REQUEST"}
+    assert result.answer.claims == []
+    assert tools.calls == []
+
+
+def test_explicit_case_subject_cannot_borrow_population_measure() -> None:
+    adapter, _ = real_tools()
+    result = StructuredAssistant(adapter).ask(
+        StructuredAssistantRequest(
+            question="What is the 2023 Lyme case count for county 01005?",
+            context={"measure_id": "population_2023", "geography_ids": ["01005"], "year": 2023},
+        )
+    )
+    assert result.answer.outcome == "NEEDS_CLARIFICATION"
+    assert result.answer.claims == []
+    assert result.tool_evidence == []
+
+
+def test_case_count_unit_mismatch_abstains_after_typed_tool() -> None:
+    tools = FakeTools()
+    result = tools.get_observations(
+        {
+            "tool": "get_observations",
+            "measure_id": CASE_COUNT_MEASURE_ID,
+            "geography_type": "county",
+            "geography_ids": ["08059"],
+            "year": 2023,
+        }
+    )
+    result.observations[0].unit = "people"
+    tools.result_override = result
+    answer = ask(tools, "county_observed").answer
+    assert answer.outcome == "SOURCE_UNAVAILABLE"
+    assert answer.claims == []
 
 
 @pytest.mark.parametrize(

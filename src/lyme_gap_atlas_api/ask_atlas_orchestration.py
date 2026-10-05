@@ -12,6 +12,11 @@ from typing import Any, Literal, Protocol
 from opentelemetry import trace
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from .ask_atlas_question_forms import (
+    CASE_COUNT_MEASURE_ID,
+    match_question_form,
+    selector_matches_question,
+)
 from .ask_atlas_tools import Coverage, MetadataItem, ToolResult
 from .assistant_policy import load_assistant_policy
 from .public_contract import (
@@ -40,197 +45,6 @@ _UNSUPPORTED = re.compile(
 )
 _FIPS = re.compile(r"(?<!\d)\d{5}(?!\d)")
 _YEAR = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
-# This is an intentionally small grammar, not a natural-language classifier. A
-# question with unknown nouns or qualifiers must not inherit the selected context.
-_QUESTION_WORDS = frozenset(
-    [
-        "a",
-        "an",
-        "and",
-        "are",
-        "as",
-        "at",
-        "be",
-        "between",
-        "come",
-        "does",
-        "did",
-        "do",
-        "during",
-        "find",
-        "for",
-        "from",
-        "give",
-        "has",
-        "have",
-        "how",
-        "i",
-        "in",
-        "is",
-        "it",
-        "many",
-        "of",
-        "on",
-        "only",
-        "or",
-        "reported",
-        "show",
-        "the",
-        "these",
-        "those",
-        "to",
-        "under",
-        "was",
-        "were",
-        "what",
-        "when",
-        "where",
-        "which",
-        "while",
-        "with",
-        "you",
-        "this",
-        "that",
-    ]
-)
-_COMMON_SCOPE = frozenset(["annual", "counties", "county", "lyme", "selected", "year"])
-_INTENT_SCOPE = {
-    "discovery": frozenset(
-        ["case", "cases", "count", "counts", "floor", "governed", "label", "measure", "this"]
-    ),
-    "observation": frozenset(
-        [
-            "case",
-            "cases",
-            "count",
-            "counts",
-            "floor",
-            "governed",
-            "missing",
-            "observation",
-            "observations",
-            "row",
-            "rows",
-            "this",
-            "value",
-            "values",
-            "zero",
-        ]
-    ),
-    "comparison": frozenset(
-        [
-            "case",
-            "cases",
-            "compare",
-            "count",
-            "counts",
-            "floor",
-            "governed",
-            "measure",
-            "same",
-            "this",
-            "value",
-            "values",
-        ]
-    ),
-    "gap": frozenset(
-        [
-            "coverage",
-            "governed",
-            "lack",
-            "lacks",
-            "observation",
-            "observations",
-            "row",
-            "rows",
-            "this",
-        ]
-    ),
-    "provenance": frozenset(
-        [
-            "case",
-            "cases",
-            "cited",
-            "count",
-            "counts",
-            "evidence",
-            "floor",
-            "governed",
-            "method",
-            "methodology",
-            "observation",
-            "observations",
-            "period",
-            "provenance",
-            "row",
-            "rows",
-            "source",
-            "this",
-            "unavailable",
-            "value",
-            "values",
-        ]
-    ),
-    "freshness": frozenset(
-        [
-            "case",
-            "cases",
-            "count",
-            "counts",
-            "current",
-            "floor",
-            "fresh",
-            "freshness",
-            "governed",
-            "observation",
-            "observations",
-            "policy",
-            "source",
-            "stale",
-            "stated",
-            "this",
-        ]
-    ),
-}
-_QUESTION_TOKEN = re.compile(r"[A-Za-z]+|\d+")
-_CASE_SUBJECT = re.compile(r"\b(?:lyme|cases?)\b", re.IGNORECASE)
-_CONTEXT_SUBJECT = re.compile(
-    r"\b(?:(?:this|selected|same|cited|governed)\s+(?:\d{4}\s+)?"
-    r"(?:measure|observation|row|value|count|coverage)|"
-    r"the\s+county\s+value|missing\s+row|source\s+freshness\s+policy)\b",
-    re.IGNORECASE,
-)
-_CONTEXT_PLACE = re.compile(
-    r"\b(?:this|selected|the|same|cited|governed)\s+"
-    r"(?:county|counties|observation|row|measure)\b",
-    re.IGNORECASE,
-)
-
-
-def _admitted_question(question: str, allowed_numbers: set[str], intent: str) -> bool:
-    """Admit only known grammar words and a governed subject/context reference."""
-    tokens = [token.casefold() for token in _QUESTION_TOKEN.findall(question)]
-    allowed_words = _QUESTION_WORDS | _COMMON_SCOPE | _INTENT_SCOPE[intent]
-    if not tokens or any(
-        token not in allowed_words and token not in allowed_numbers for token in tokens
-    ):
-        return False
-    return bool(_CASE_SUBJECT.search(question) or _CONTEXT_SUBJECT.search(question))
-
-
-def _selector_matches_question(question: str, selector: str) -> bool:
-    """A discovery selector must describe the same subject as the question."""
-    def normalized_tokens(value: str) -> set[str]:
-        return {
-            {"cases": "case", "counts": "count"}.get(token.casefold(), token.casefold())
-            for token in _QUESTION_TOKEN.findall(value)
-        }
-
-    query_tokens = normalized_tokens(question)
-    selector_tokens = normalized_tokens(selector)
-    return selector_tokens <= query_tokens or bool(
-        re.search(r"\b(?:this|selected)\s+measure\b", question, re.IGNORECASE)
-    )
 
 
 class StrictModel(BaseModel):
@@ -647,15 +461,18 @@ class StructuredAssistant:
                     limitations=["Specify a governed indicator ID or measure search text."],
                 )
             selector_text = context.indicator_id or context.search_text or ""
-            selector_numbers = {
-                token for token in _QUESTION_TOKEN.findall(selector_text) if token.isdigit()
-            }
-            if not _admitted_question(
-                question, selector_numbers, intent
-            ) or not _selector_matches_question(question, selector_text):
+            form = match_question_form(question, intent)
+            if form is None or not selector_matches_question(question, selector_text):
                 return finish(
                     "NEEDS_CLARIFICATION",
                     limitations=["Confirm the governed measure subject and selector."],
+                )
+            if form.years is not None and form.years != {2023}:
+                return finish(
+                    "NEEDS_CLARIFICATION",
+                    limitations=[
+                        "The requested period does not match the governed case-count measure."
+                    ],
                 )
             result = self._call("find_measures", selector)
             evidence.append(result)
@@ -672,6 +489,16 @@ class StructuredAssistant:
                 return finish(
                     "NEEDS_CLARIFICATION",
                     limitations=["Select one of the governed matching measures."],
+                )
+            if any(
+                m.measure_id != CASE_COUNT_MEASURE_ID
+                or m.indicator_id != "lyme_cases"
+                or m.unit != "cases"
+                for m in result.measures
+            ):
+                return finish(
+                    "SOURCE_UNAVAILABLE",
+                    limitations=["The governed measure does not match the requested subject."],
                 )
             measure_claims = [
                 Claim(
@@ -756,19 +583,33 @@ class StructuredAssistant:
                 "NEEDS_CLARIFICATION",
                 limitations=["Select two counties and one common annual period."],
             )
-        # Context selects a slot; it cannot silently replace the subject or place
-        # of the user's question. The bounded grammar fails closed on unknown
-        # disease, measure, demographic, rate, or clinical qualifiers.
-        allowed_numbers = set(context.geography_ids) | {str(year) for year in requested_years}
-        if not _admitted_question(question, allowed_numbers, intent):
+        form = match_question_form(question, intent)
+        if form is None:
             return finish(
                 "NEEDS_CLARIFICATION",
-                limitations=["Confirm the requested governed measure in the question."],
+                limitations=["Use a supported question form without ungoverned qualifiers."],
             )
-        if not mentioned_fips and not _CONTEXT_PLACE.search(question):
+        if form.geographies and form.geographies != set(context.geography_ids):
+            return finish(
+                "UNSUPPORTED_REQUEST",
+                limitations=["Question and requested county scope differ."],
+            )
+        if form.years is not None and form.years != requested_years:
+            return finish(
+                "UNSUPPORTED_REQUEST",
+                limitations=["Question and requested period differ."],
+            )
+        if form.years is None and (len(context.geography_ids) != 1 or len(requested_years) != 1):
             return finish(
                 "NEEDS_CLARIFICATION",
-                limitations=["Confirm the selected county FIPS in the question."],
+                limitations=["Select one county and annual period."],
+            )
+        if form.explicit_case_subject and context.measure_id != CASE_COUNT_MEASURE_ID:
+            return finish(
+                "NEEDS_CLARIFICATION",
+                limitations=[
+                    "The selected governed measure does not match the case-count question."
+                ],
             )
         query: dict[str, Any] = {
             "measure_id": context.measure_id,
@@ -791,6 +632,18 @@ class StructuredAssistant:
         ):
             return finish(
                 "SOURCE_UNAVAILABLE", limitations=["Governed observations could not be validated."]
+            )
+        if form.explicit_case_subject and any(obs.unit != "cases" for obs in result.observations):
+            return finish(
+                "SOURCE_UNAVAILABLE",
+                limitations=["The governed observation unit does not match the requested subject."],
+            )
+        if form.required_state and any(
+            obs.value_state.value != form.required_state for obs in result.observations
+        ):
+            return finish(
+                "UNSUPPORTED_REQUEST",
+                limitations=["The governed row state differs from the stated question."],
             )
         if context.expected_observation_id and context.expected_observation_id not in {
             obs.observation_id for obs in result.observations

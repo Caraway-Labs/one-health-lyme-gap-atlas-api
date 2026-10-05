@@ -12,17 +12,19 @@ The router recognizes only the #17 Structured question classes: measure
 discovery, observation lookup, county comparison, bounded coverage gaps,
 provenance, and freshness. It requires explicit governed measure and county/year
 context before reading observations. Ambiguous requests ask for clarification;
-the question must identify a supported measure subject and either the selected
-county FIPS or an explicit reference to the selected county. Conflicting measure
+the question must identify a supported measure subject and the selected county
+FIPS, except for an explicit single-county context reference. Conflicting measure
 subjects and county FIPS do not borrow an answer from the supplied context.
 The deterministic router intentionally asks for clarification when wording cannot
-be reconciled to the selected governed scope. It admits only a small, explicit
-vocabulary for each supported question class. Unknown subjects or qualifiers,
+be reconciled to the selected governed scope. It admits only finite, reviewed
+question forms that consume the full input. Unknown subjects or qualifiers,
 including disease substitutions, demographic strata, rates, clinical purposes,
 and named places outside the selected FIPS, stop before dispatch. Measure
-discovery also requires its search/indicator selector to match the question or
-an explicit reference to the selected measure. New phrasing requires a reviewed
-grammar change rather than a guess from selected context.
+discovery also requires its search/indicator selector to match the question.
+Explicit Lyme case-count forms bind to the governed `case_count_floor_2023`
+measure and `cases` unit; unrelated selected measures cannot answer them.
+Every stated county and annual period must equal the selected scope. New
+phrasing requires a reviewed form rather than a guess from selected context.
 Unsupported filters, predictions, causal or official public-health claims,
 clinical advice, SQL, Cypher, and repository access cannot trigger a tool call.
 No model or user-selected tool name reaches dispatch.
