@@ -288,6 +288,28 @@ class StructuredTools:
     def get_evidence_metadata(self, raw: dict[str, Any]) -> ToolResult:
         return self._execute("get_evidence_metadata", GetEvidenceMetadataInput, raw)
 
+    def verify_release(self) -> str:
+        """Check the pinned release immediately before an answer admits evidence."""
+        if self.expired:
+            raise TimeoutError
+        remaining = 12 - (time.monotonic() - self.started)
+        if remaining <= 0:
+            self._expire()
+            raise TimeoutError
+        self.call_deadline = time.monotonic() + remaining
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="atlas-release")
+        try:
+            future = executor.submit(copy_context().run, self._release)
+            release = future.result(timeout=remaining)
+            if time.monotonic() - self.started >= 12:
+                raise TimeoutError
+            return release
+        except Exception:
+            self._expire()
+            raise
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
     def _find(self, input: StrictInput) -> ToolResult:
         args = FindMeasuresInput.model_validate(input)
         release = self._release()
