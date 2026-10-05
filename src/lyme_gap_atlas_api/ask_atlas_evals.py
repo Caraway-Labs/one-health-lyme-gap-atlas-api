@@ -5,6 +5,7 @@ Only case identifiers, versions, aggregate measurements and trace IDs leave the
 request boundary. Evidence and answer text are inspected in memory only.
 """
 
+import re
 from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any, Literal
@@ -26,12 +27,18 @@ class EvalCase(BaseModel):
     expected_outcome: str
     expected_sources: list[str]
     expected_tools: list[str] = Field(default_factory=list)
-    expected_parameters: dict[str, Any] = Field(default_factory=dict)
     expected_value_state: str | None = None
     expected_value: float | None = None
     expected_cross_source_state: str | None = None
     expected_release: str | None = None
     expected_citation_ids: list[str] = Field(default_factory=list)
+    expected_structured_claims: list[str] = Field(default_factory=list)
+    expected_literature_claims: list[str] = Field(default_factory=list)
+    expected_literature_pmids: list[str] = Field(default_factory=list)
+    expected_passage_ids: list[str] = Field(default_factory=list)
+    expected_invocations: list[dict[str, Any]] = Field(default_factory=list)
+    fixture_tool_failure: Literal["get_observations"] | None = None
+    fixture_literature_state: Literal["answered", "conflicting"] = "answered"
 
 
 class EvalDataset(BaseModel):
@@ -59,6 +66,17 @@ class Candidate:
     literature_corpus: str
     literature_index: str
     retrieval_version: str
+    tool_failure_mode: Literal["none", "observation_unavailable"] = "none"
+
+    def __post_init__(self) -> None:
+        if not re.fullmatch(r"[0-9a-f]{40}", self.code_commit):
+            raise ValueError("candidate requires a full code commit SHA")
+        if not all((
+            self.name, self.config_version, self.provider, self.model,
+            self.prompt_version, self.tool_schema_version, self.structured_release,
+            self.literature_corpus, self.literature_index, self.retrieval_version,
+        )):
+            raise ValueError("candidate versions must be explicit")
 
 
 @dataclass(frozen=True)
@@ -94,6 +112,7 @@ def evaluate(
     candidate: Candidate,
     dataset_version: str,
     measurements: Measurements | None = None,
+    tool_invocations: list[dict[str, Any]] | None = None,
 ) -> EvalResult:
     """Fail closed on objective claims; no LLM judge can override these gates."""
     failures: list[str] = []
@@ -116,6 +135,10 @@ def evaluate(
         failures.append("source_routing")
     if cross_state != case.expected_cross_source_state:
         failures.append("cross_source_state")
+    if tool_invocations is not None and tool_invocations != case.expected_invocations:
+        failures.append("tool_parameters")
+    elif tool_invocations is None and case.expected_invocations:
+        failures.append("tool_invocations_missing")
     tools = [item.tool for item in structured.tool_evidence] if structured else []
     if tools != case.expected_tools:
         failures.append("tool_selection")
@@ -123,6 +146,8 @@ def evaluate(
         failures.append("structured_evidence")
     if structured:
         answer = structured.answer
+        if [claim.text for claim in answer.claims] != case.expected_structured_claims:
+            failures.append("structured_claim_grounding")
         if case.expected_release and answer.replay.release_id != case.expected_release:
             failures.append("release_provenance")
         for tool in structured.tool_evidence:
@@ -139,14 +164,6 @@ def evaluate(
                 failures.append("value_state")
             elif observations[0].value != case.expected_value:
                 failures.append("value")
-        if case.expected_parameters:
-            observations = [
-                obs for tool in structured.tool_evidence for obs in tool.observations
-            ]
-            for key, expected in case.expected_parameters.items():
-                if not observations or getattr(observations[0], key, None) != expected:
-                    failures.append("tool_parameters")
-                    break
         for claim in answer.claims:
             if not (claim.structured_refs or claim.measure_ids or claim.coverage_ids):
                 failures.append("unsupported_structured_claim")
@@ -158,6 +175,16 @@ def evaluate(
         citation_ids = [citation.citation_id for citation in literature.citations]
         if sorted(citation_ids) != sorted(case.expected_citation_ids):
             failures.append("citation_identity")
+        if sorted(citation.pmid for citation in literature.citations) != sorted(
+            case.expected_literature_pmids
+        ):
+            failures.append("citation_provenance")
+        if sorted(
+            passage for citation in literature.citations for passage in citation.passage_ids
+        ) != sorted(case.expected_passage_ids):
+            failures.append("passage_provenance")
+        if [claim.text for claim in literature.claims] != case.expected_literature_claims:
+            failures.append("literature_claim_grounding")
         for literature_claim in literature.claims:
             if (
                 not literature_claim.citation_ids
@@ -198,6 +225,8 @@ def compare(
 ) -> dict[str, Any]:
     """The same fixed cases must run for both configurations before promotion."""
     dataset.validate_identity()
+    if candidates[0] == candidates[1] or candidates[0].name == candidates[1].name:
+        raise ValueError("candidate identities must be distinct")
     expected = {case.case_id for case in dataset.cases}
     summary: dict[str, Any] = {"dataset_version": dataset.dataset_version, "candidates": {}}
     for candidate in candidates:
@@ -206,6 +235,8 @@ def compare(
             raise ValueError("candidate did not run the complete fixed dataset")
         if any(item.dataset_version != dataset.dataset_version for item in own):
             raise ValueError("eval dataset version mismatch")
+        if any(item.trace_id is None for item in own):
+            raise ValueError("experiment result has no service trace correlation")
         summary["candidates"][candidate.name] = {
             "config_version": candidate.config_version,
             "passed": sum(item.passed for item in own),
