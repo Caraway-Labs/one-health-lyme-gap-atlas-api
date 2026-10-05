@@ -318,6 +318,43 @@ def test_conflicting_literature_state_cannot_be_silently_reclassified() -> None:
     assert "literature_evidence_state" in result.failures
 
 
+@pytest.mark.parametrize("mutation", [
+    "ref_source", "ref_provenance", "ref_semantic", "ref_methodology",
+    "ref_release", "observation_geography", "lost_limitations",
+])
+def test_canonical_relationship_mutations_fail_at_eval_boundary(mutation) -> None:
+    case = DATA.cases[0]
+    response = _run(case)
+    assert response.structured is not None
+    structured = response.structured
+    ref = structured.answer.claims[0].structured_refs[0]
+    if mutation == "ref_source":
+        ref.source_id = "invented-source"
+    elif mutation == "ref_provenance":
+        ref.provenance_ref = "invented-provenance"
+    elif mutation == "ref_semantic":
+        ref.semantic_version = "invented-semantic"
+    elif mutation == "ref_methodology":
+        ref.methodology_version = "invented-methodology"
+    elif mutation == "ref_release":
+        ref.release_id = "invented-release"
+    elif mutation == "observation_geography":
+        structured.tool_evidence[0].observations[0].geography.geography_id = "08059"
+    elif mutation == "lost_limitations":
+        structured.answer.limitations = []
+    result = evaluate(case, response, candidate=BASE, dataset_version=DATA.dataset_version)
+    assert "canonical_structured_validation" in result.failures
+
+
+def test_literature_citation_relationship_fails_canonical_validation() -> None:
+    case = next(c for c in DATA.cases if c.case_id == "both_two_sources")
+    response = _run(case)
+    assert response.literature is not None
+    response.literature.citations[0].claim_ids = ["not-the-admitted-claim"]
+    result = evaluate(case, response, candidate=BASE, dataset_version=DATA.dataset_version)
+    assert "canonical_literature_validation" in result.failures
+
+
 def test_exporter_and_eval_backend_outage_cannot_affect_request(monkeypatch) -> None:
     class FailingExporter(SpanExporter):
         def __init__(self) -> None:

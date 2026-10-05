@@ -13,7 +13,11 @@ from typing import Any, Literal
 from opentelemetry import trace
 from pydantic import BaseModel, ConfigDict, Field
 
-from .ask_atlas_mixed_composition import Composition
+from .ask_atlas_mixed_composition import (
+    Composition,
+    _validated_literature,
+    _validated_structured,
+)
 from .ask_atlas_orchestration import StructuredAssistantResponse
 
 
@@ -150,6 +154,8 @@ def evaluate(
     if case.expected_tools and not structured:
         failures.append("structured_evidence")
     if structured:
+        if _validated_structured(structured) is None:
+            failures.append("canonical_structured_validation")
         answer = structured.answer
         admitted_refs = [ref.resource_id for ref in answer.structured_evidence_refs]
         if admitted_refs != case.expected_structured_ref_ids:
@@ -194,6 +200,8 @@ def evaluate(
         if answer.claims and not answer.replay.release_id:
             failures.append("missing_release")
     if literature:
+        if _validated_literature(literature) is None:
+            failures.append("canonical_literature_validation")
         expected_evidence_state = case.expected_literature_evidence_state or (
             "single_study" if case.expected_citation_ids else None
         )

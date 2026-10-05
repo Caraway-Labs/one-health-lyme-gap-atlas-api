@@ -20,7 +20,8 @@ freshness identity/state, source routing, independent expected claim text,
 literature evidence state, PMID, passage and citation identity, abstention,
 unsupported requests, and conservative
 `insufficient_to_compare` behavior. The existing response validators provide
-additional claim/citation and provenance enforcement. An
+additional claim/citation and provenance enforcement; the evaluator revalidates
+both branch bundles before scoring to catch post-construction mutations. An
 LLM judge cannot override hard failures. Subjective answer utility requires
 bounded human review and is not claimed by these fixture checks.
 
