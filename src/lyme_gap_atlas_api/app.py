@@ -144,6 +144,12 @@ from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtl
 from .service import AtlasService
 from .telemetry import PrivateInstrumentationProvider, server_request_hook, server_response_hook
 from .telemetry_logging import operational_logger, operational_request_id, protect_dependency_logs
+from .tier1_priority import (
+    SnowflakeTier1PriorityRepository,
+    Tier1CountyPriority,
+    Tier1PriorityRepository,
+    Tier1PriorityService,
+)
 
 logger = operational_logger(__name__)
 
@@ -252,6 +258,7 @@ def create_app(
     observation_repository: ObservationRepository | None = None,
     provenance_repository: ProvenanceRepository | None = None,
     intelligence_repository: FeedRepository | None = None,
+    tier1_priority_repository: Tier1PriorityRepository | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
@@ -280,6 +287,9 @@ def create_app(
             },
         )
     service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
+    tier1_priority = Tier1PriorityService(
+        tier1_priority_repository or SnowflakeTier1PriorityRepository(config)
+    )
     reports = report_service or ReportService(service)
     renderer = pdf_renderer or TypstRenderer(RenderLimits.from_settings(config))
     pdf_cache = PdfReportCache(
@@ -955,6 +965,32 @@ def create_app(
             raise HTTPException(
                 status_code=404, detail="County or dataset release not found"
             ) from exc
+
+    @app.get(
+        "/v1/counties/{fips}/tier1-surveillance-priority",
+        response_model=Tier1CountyPriority,
+        tags=["counties"],
+        operation_id="county_tier1_surveillance_priority_get",
+        summary="Get persisted Tier 1 model-assisted surveillance review priority",
+        description=(
+            "Returns the approved persisted county result from the current Tier 1 batch. "
+            "This is surveillance review priority, not Lyme disease risk, predicted "
+            "incidence, probability, clinical risk, or diagnosis. LOW is a scored tier; "
+            "evidence sufficiency is separate. Percentile is relative to the scored batch "
+            "and population. A county without a persisted result returns 404; an "
+            "unavailable current view or malformed result returns 503. Public cache TTL "
+            "60 seconds; generated_at_utc is the model batch time, not request time."
+        ),
+        responses=LEGACY_ERRORS,
+    )
+    def county_tier1_priority(
+        response: Response, fips: Annotated[str, Path(pattern=r"^\d{5}$")]
+    ) -> Tier1CountyPriority:
+        result = tier1_priority.county(fips)
+        if result is None:
+            raise HTTPException(status_code=404, detail="No current Tier 1 county result")
+        response.headers["Cache-Control"] = "public, max-age=60"
+        return result
 
     @app.get(
         "/v1/counties/{fips}/report.pdf",

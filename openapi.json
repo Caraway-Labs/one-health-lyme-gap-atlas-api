@@ -1144,6 +1144,148 @@
         }
       }
     },
+    "/v1/counties/{fips}/tier1-surveillance-priority": {
+      "get": {
+        "tags": [
+          "counties"
+        ],
+        "summary": "Get persisted Tier 1 model-assisted surveillance review priority",
+        "description": "Returns the approved persisted county result from the current Tier 1 batch. This is surveillance review priority, not Lyme disease risk, predicted incidence, probability, clinical risk, or diagnosis. LOW is a scored tier; evidence sufficiency is separate. Percentile is relative to the scored batch and population. A county without a persisted result returns 404; an unavailable current view or malformed result returns 503. Public cache TTL 60 seconds; generated_at_utc is the model batch time, not request time.",
+        "operationId": "county_tier1_surveillance_priority_get",
+        "parameters": [
+          {
+            "name": "fips",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{5}$",
+              "title": "Fips"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tier1CountyPriority"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "County or dataset release not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-404",
+                      "title": "Request failed",
+                      "status": 404,
+                      "detail": "County or dataset release not found.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more request values are invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-422",
+                      "title": "Request failed",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-429",
+                      "title": "Request failed",
+                      "status": 429,
+                      "detail": "Rate limit exceeded.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Atlas data service is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-503",
+                      "title": "Request failed",
+                      "status": 503,
+                      "detail": "Atlas data service is unavailable.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/geographies/{geography_type}/{geography_id}": {
       "get": {
         "tags": [
@@ -4346,6 +4488,162 @@
           "release"
         ],
         "title": "CountyDetail"
+      },
+      "Tier1CountyPriority": {
+        "properties": {
+          "county_fips": {
+            "type": "string",
+            "pattern": "^\\d{5}$",
+            "title": "County Fips"
+          },
+          "priority_tier": {
+            "type": "string",
+            "enum": [
+              "HIGH",
+              "MEDIUM",
+              "LOW"
+            ],
+            "title": "Priority Tier"
+          },
+          "priority_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority Percentile",
+            "description": "Relative to this scored batch and population; not a probability."
+          },
+          "raw_model_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Model Score",
+            "description": "Model-native technical output, not disease risk."
+          },
+          "evidence_sufficiency": {
+            "type": "string",
+            "enum": [
+              "SUFFICIENT",
+              "INSUFFICIENT",
+              "NOT_ESTIMABLE"
+            ],
+            "title": "Evidence Sufficiency"
+          },
+          "model_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Model Version"
+          },
+          "release_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Release Id",
+            "description": "Governed source release for this batch."
+          },
+          "source_commit": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Source Commit",
+            "description": "ML source commit for reproducibility."
+          },
+          "prediction_batch_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prediction Batch Version"
+          },
+          "tier_policy_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Tier Policy Version"
+          },
+          "generated_at_utc": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At Utc"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/PriorityReason"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Reasons"
+          },
+          "limitation_ref": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Limitation Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "county_fips",
+          "priority_tier",
+          "priority_percentile",
+          "raw_model_score",
+          "evidence_sufficiency",
+          "model_version",
+          "release_id",
+          "source_commit",
+          "prediction_batch_version",
+          "tier_policy_version",
+          "generated_at_utc",
+          "reasons",
+          "limitation_ref"
+        ],
+        "title": "Tier1CountyPriority",
+        "description": "Model-assisted surveillance review priority; never disease or clinical risk.",
+        "examples": [
+          {
+            "county_fips": "09110",
+            "evidence_sufficiency": "SUFFICIENT",
+            "generated_at_utc": "2026-10-06T05:34:52Z",
+            "limitation_ref": "docs/contracts/tier1-persisted-output-v1.md",
+            "model_version": "tier1-statistical-reference-v1",
+            "prediction_batch_version": "tier1-review-priority-744b2933bae43718",
+            "priority_percentile": 98.56824689786828,
+            "priority_tier": "HIGH",
+            "raw_model_score": 2.0739835966635036,
+            "reasons": [
+              {
+                "code": "PATHOGEN_PRESENT",
+                "text": "Publisher reports pathogen Present."
+              }
+            ],
+            "release_id": "governed-2026-09-17-unknown-coverage",
+            "source_commit": "c6bb8a0f48ede70f332513c1b5843f35988949f1",
+            "tier_policy_version": "tier1-review-percentile-v1"
+          }
+        ]
+      },
+      "PriorityReason": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Code"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "PriorityReason"
       },
       "GeographyType": {
         "type": "string",

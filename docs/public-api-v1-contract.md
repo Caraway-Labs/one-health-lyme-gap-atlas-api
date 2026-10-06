@@ -1,5 +1,27 @@
 # Canonical public API V1 contract (API #52)
 
+## Tier 1 county surveillance review priority (API #10)
+
+`GET /v1/counties/{fips}/tier1-surveillance-priority` returns the persisted
+current-batch result from `PRESENTATION.CURRENT_TIER1_COUNTY_REVIEW_V`. It is a
+separate county subresource so existing county responses remain compatible.
+The response preserves county FIPS, tier, within-batch percentile, raw model
+score, evidence sufficiency, model and batch versions, source release/commit,
+tier policy, generation time, up to three persisted reason code/text pairs, and
+limitation reference.
+The API does not calculate or substitute any of those values. LOW is a scored
+tier; INSUFFICIENT and NOT_ESTIMABLE are evidence states, and neither is a
+synonym for LOW or for missing output. The percentile is relative to its scored
+batch/population; the raw score is model-native. Neither represents disease
+risk, predicted incidence, probability, clinical risk, or diagnosis.
+
+An absent county result returns 404. An empty or inaccessible current view,
+query failure, duplicate county, or malformed persisted value returns 503.
+The endpoint has public cache TTL 60 seconds; `generated_at_utc` is the batch
+generation timestamp, not request time. Production availability depends on
+Data #627's separately reviewed PROD projection/grant and API #197's deployed
+runtime proof. The Web client must regenerate from committed `openapi.json`.
+
 ## State county Review (API #93)
 
 `GET /v1/states/{state}/review` is a read-only, anonymous state result over the

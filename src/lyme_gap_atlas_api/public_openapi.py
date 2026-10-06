@@ -21,6 +21,7 @@ PUBLIC_PATHS = frozenset(
         "/v1/atlas/scores",
         "/v1/atlas/ranking.csv",
         "/v1/counties/{fips}",
+        "/v1/counties/{fips}/tier1-surveillance-priority",
         "/v1/counties/{fips}/report.pdf",
         "/v1/states/{state}/report.pdf",
         "/v1/states/{state}/review",
