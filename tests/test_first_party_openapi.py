@@ -24,7 +24,7 @@ def test_existing_internal_operations_and_schemas_remain_in_first_party_export()
             for path, operations in contract["paths"].items()
         }
         assert actual_ids == IDS
-        assert sum(len(operations) for operations in actual_ids.values()) == 30
+        assert sum(len(operations) for operations in actual_ids.values()) == 31
         for path, operations in FLOOR["paths"].items():
             assert contract["paths"][path] == operations, path
         for name, model in FLOOR["schemas"].items():

@@ -26,6 +26,10 @@ documented in the [Ask Atlas operating runbook](docs/ask-atlas-operations.md).
 Indicator and measure discovery (#53), bounded county observation queries
 (#54), and source/methodology metadata (#55) read governed current-release views.
 Geography retains its documented 503 until its owning story is delivered.
+`GET /v1/states/{state}/review` returns the versioned county Review result,
+separate data gaps, and coverage from the current governed release. Method
+`atlas-county-review@1.0.0` has no enabled candidate rules while source-native
+lineage and restricted-source derived-use approval remain pending.
 The [county geography contract](docs/county-geography-contract.md) distinguishes
 stable FIPS identity, existing SVI display geometry, and internal TIGER analysis geometry.
 

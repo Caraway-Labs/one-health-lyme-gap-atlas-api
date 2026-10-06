@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -40,6 +41,7 @@ from .auth import (
 from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
 from .briefings import add_briefing_openapi
 from .config import ApiSettings, get_settings
+from .county_review import CountyEvidence, StateReview, aggregate_state, load_config
 from .documentation import LOGO, install_documentation
 from .environmental_reader_probe import start_reader_probe
 from .feedback import (
@@ -786,6 +788,61 @@ def create_app(
                 "Content-Disposition": 'attachment; filename="atlas-user-data-export.json"',
             },
         )
+
+    review_config, review_hash = load_config()
+
+    @app.get(
+        "/v1/states/{state}/review",
+        response_model=StateReview,
+        tags=["states"],
+        summary="Review a state's county evidence",
+        description=(
+            "Versioned county Review result. Current rules are disabled. "
+            "Lineage gaps are separate. Public cache TTL is 60 seconds."
+        ),
+        responses=LEGACY_ERRORS,
+    )
+    def state_review(
+        state: Annotated[str, Path(pattern=r"^[A-Z]{2}$")],
+        response: Response,
+        observation_context: Annotated[str | None, Query(max_length=80)] = None,
+        dataset_version: str | None = None,
+    ) -> StateReview:
+        started = time.perf_counter()
+        snapshot = service.snapshot()
+        if dataset_version is not None and dataset_version != snapshot.metadata.release_id:
+            raise HTTPException(status_code=404, detail="Dataset release not found")
+        if state not in {item.state for item in snapshot.counties}:
+            raise HTTPException(status_code=404, detail="State not found in current release")
+        response.headers["Cache-Control"] = "public, max-age=60, must-revalidate"
+        result = aggregate_state(
+            state,
+            snapshot,
+            [CountyEvidence(county=item) for item in snapshot.counties if item.state == state],
+            review_config,
+            review_hash,
+            observation_context,
+        )
+        logger.info(
+            "county_review_evaluated",
+            extra={
+                "context": {
+                    "methodology_id": result.methodology_id,
+                    "methodology_version": result.methodology_version,
+                    "config_sha256": result.configuration_sha256,
+                    "result_state": result.result_state,
+                    "rules_enabled": sum(rule.enabled for rule in review_config.rules.values()),
+                    "rules_disabled": sum(
+                        not rule.enabled for rule in review_config.rules.values()
+                    ),
+                    "candidates": len(result.review_candidates),
+                    "abstentions": result.coverage.abstained_counties,
+                    "data_gaps": len(result.data_gaps),
+                    "latency_ms": round((time.perf_counter() - started) * 1000),
+                }
+            },
+        )
+        return result
 
     @app.get(
         "/v1/atlas/metadata",
