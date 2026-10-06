@@ -5825,7 +5825,7 @@
           },
           "evidence_references": {
             "items": {
-              "$ref": "#/components/schemas/ReviewEvidenceReference"
+              "$ref": "#/components/schemas/PublicReviewEvidenceReference"
             },
             "type": "array",
             "title": "Evidence References"
@@ -5867,7 +5867,7 @@
         ],
         "title": "Candidate"
       },
-      "ReviewEvidenceReference": {
+      "PublicReviewEvidenceReference": {
         "properties": {
           "family": {
             "type": "string",
@@ -5881,13 +5881,9 @@
             "type": "string",
             "title": "Source Version"
           },
-          "source_row_id": {
+          "public_record_ref": {
             "type": "string",
-            "title": "Source Row Id"
-          },
-          "revision_id": {
-            "type": "string",
-            "title": "Revision Id"
+            "title": "Public Record Ref"
           },
           "county_fips": {
             "type": "string",
@@ -5927,16 +5923,16 @@
           "family",
           "source_product",
           "source_version",
-          "source_row_id",
-          "revision_id",
+          "public_record_ref",
           "county_fips",
           "release_id",
           "source_as_of",
           "retrieved_at",
           "target",
-          "status"
+          "status",
+          "limitations"
         ],
-        "title": "ReviewEvidenceReference"
+        "title": "PublicReviewEvidenceReference"
       },
       "DataGap": {
         "properties": {

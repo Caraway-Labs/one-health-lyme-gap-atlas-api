@@ -39,6 +39,7 @@ def ref(family: str, target: str, status: str, fips: str = "08001") -> ReviewEvi
         source_version="2025",
         source_row_id=f"row-{target}",
         revision_id="rev-1",
+        public_record_ref=f"fixture-safe-{target}",
         county_fips=fips,
         release_id="release-1",
         source_as_of="2025-12-31",
@@ -123,6 +124,11 @@ def test_d_native_statuses(pathogen: str, scapularis: str, pacificus: str, expec
     assert (
         "candidate" if result.candidate else "abstain" if result.abstained else "negative"
     ) == expected
+    if result.candidate is not None:
+        public = result.candidate.model_dump(mode="json")
+        assert "source_row_id" not in str(public)
+        assert "revision_id" not in str(public)
+        assert all(ref["public_record_ref"] for ref in public["evidence_references"])
 
 
 def test_d_fails_closed_on_provenance_and_scope() -> None:
@@ -135,6 +141,10 @@ def test_d_fails_closed_on_provenance_and_scope() -> None:
     item = evidence()
     assert item.pathogen is not None
     item.pathogen.source_version = "other"
+    assert evaluate_d(item, enabled_d()).gaps[0].code == "SOURCE_PROVENANCE_MISMATCH"
+    item = evidence()
+    assert item.pathogen is not None
+    item.pathogen.public_record_ref = None
     assert evaluate_d(item, enabled_d()).gaps[0].code == "SOURCE_PROVENANCE_MISMATCH"
     item = evidence()
     item.county = county(scope=False)

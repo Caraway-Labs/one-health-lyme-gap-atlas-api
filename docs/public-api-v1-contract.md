@@ -25,7 +25,9 @@ and enabled rules. Activation requires a reviewed new method/config version,
 steward approval of restricted derived use and safe public fields, and exact
 row, revision, county, source version, and release proof. The D evaluator is
 prepared and fixture-tested for that later version; it does not read the
-aggregate tick-status rollup. Data #429 and API #88 remain separate semantic
+aggregate tick-status rollup. Raw source row and revision IDs are internal to
+evaluation; only a governed safe public record reference can enter a candidate
+response. Data #429 and API #88 remain separate semantic
 projection work. Review output is not an annual observation or a risk ranking.
 
 FastAPI's `openapi.json` is the canonical public HTTP schema; `/openapi.json`,

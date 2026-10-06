@@ -91,6 +91,7 @@ class ReviewEvidenceReference(BaseModel):
     source_version: str
     source_row_id: str
     revision_id: str
+    public_record_ref: str | None = None
     county_fips: str
     release_id: str
     source_as_of: str
@@ -98,6 +99,20 @@ class ReviewEvidenceReference(BaseModel):
     target: str
     status: str
     limitations: list[str] = Field(default_factory=list)
+
+
+class PublicReviewEvidenceReference(BaseModel):
+    family: str
+    source_product: str
+    source_version: str
+    public_record_ref: str
+    county_fips: str
+    release_id: str
+    source_as_of: str
+    retrieved_at: datetime
+    target: str
+    status: str
+    limitations: list[str]
 
 
 class CountyEvidence(BaseModel):
@@ -114,7 +129,7 @@ class Candidate(BaseModel):
     reason_codes: list[str]
     reason_text: str
     evidence_families: list[str]
-    evidence_references: list[ReviewEvidenceReference]
+    evidence_references: list[PublicReviewEvidenceReference]
     completeness: Literal["limited"] = "limited"
     limitations: list[str]
     freshness_comparability: str
@@ -239,6 +254,7 @@ def evaluate_d(evidence: CountyEvidence, rule: RuleConfig) -> CountyEvaluation:
             and ref.source_version == versions[ref.source_product]
             and ref.source_row_id
             and ref.revision_id
+            and ref.public_record_ref
             for ref in (pathogen, scapularis, pacificus)
         )
     )
@@ -308,7 +324,22 @@ def evaluate_d(evidence: CountyEvidence, rule: RuleConfig) -> CountyEvaluation:
                 "Ixodes status is Reported; inspect the source records."
             ),
             evidence_families=["county_pathogen_status", "county_vector_status"],
-            evidence_references=[pathogen, scapularis, pacificus],
+            evidence_references=[
+                PublicReviewEvidenceReference(
+                    family=ref.family,
+                    source_product=ref.source_product,
+                    source_version=ref.source_version,
+                    public_record_ref=ref.public_record_ref or "",
+                    county_fips=ref.county_fips,
+                    release_id=ref.release_id,
+                    source_as_of=ref.source_as_of,
+                    retrieved_at=ref.retrieved_at,
+                    target=ref.target,
+                    status=ref.status,
+                    limitations=ref.limitations,
+                )
+                for ref in (pathogen, scapularis, pacificus)
+            ],
             limitations=[
                 "Cumulative status does not establish timing, transmission, outbreak, or risk.",
                 "Effort, collection date, and pathogen species attribution are unavailable.",

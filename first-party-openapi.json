@@ -5413,7 +5413,7 @@
           },
           "evidence_references": {
             "items": {
-              "$ref": "#/components/schemas/ReviewEvidenceReference"
+              "$ref": "#/components/schemas/PublicReviewEvidenceReference"
             },
             "type": "array",
             "title": "Evidence References"
@@ -8939,6 +8939,73 @@
         ],
         "title": "ProjectionProvenance"
       },
+      "PublicReviewEvidenceReference": {
+        "properties": {
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "source_product": {
+            "type": "string",
+            "title": "Source Product"
+          },
+          "source_version": {
+            "type": "string",
+            "title": "Source Version"
+          },
+          "public_record_ref": {
+            "type": "string",
+            "title": "Public Record Ref"
+          },
+          "county_fips": {
+            "type": "string",
+            "title": "County Fips"
+          },
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "source_as_of": {
+            "type": "string",
+            "title": "Source As Of"
+          },
+          "retrieved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Retrieved At"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "family",
+          "source_product",
+          "source_version",
+          "public_record_ref",
+          "county_fips",
+          "release_id",
+          "source_as_of",
+          "retrieved_at",
+          "target",
+          "status",
+          "limitations"
+        ],
+        "title": "PublicReviewEvidenceReference"
+      },
       "PublisherDateStates": {
         "properties": {
           "published_at": {
@@ -9283,77 +9350,6 @@
           "rule_coverage"
         ],
         "title": "ReviewCoverage"
-      },
-      "ReviewEvidenceReference": {
-        "properties": {
-          "family": {
-            "type": "string",
-            "title": "Family"
-          },
-          "source_product": {
-            "type": "string",
-            "title": "Source Product"
-          },
-          "source_version": {
-            "type": "string",
-            "title": "Source Version"
-          },
-          "source_row_id": {
-            "type": "string",
-            "title": "Source Row Id"
-          },
-          "revision_id": {
-            "type": "string",
-            "title": "Revision Id"
-          },
-          "county_fips": {
-            "type": "string",
-            "title": "County Fips"
-          },
-          "release_id": {
-            "type": "string",
-            "title": "Release Id"
-          },
-          "source_as_of": {
-            "type": "string",
-            "title": "Source As Of"
-          },
-          "retrieved_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Retrieved At"
-          },
-          "target": {
-            "type": "string",
-            "title": "Target"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "limitations": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Limitations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "family",
-          "source_product",
-          "source_version",
-          "source_row_id",
-          "revision_id",
-          "county_fips",
-          "release_id",
-          "source_as_of",
-          "retrieved_at",
-          "target",
-          "status"
-        ],
-        "title": "ReviewEvidenceReference"
       },
       "Score": {
         "properties": {
