@@ -34,7 +34,7 @@ The [county geography contract](docs/county-geography-contract.md) distinguishes
 stable FIPS identity, existing SVI display geometry, and internal TIGER analysis geometry.
 
 ```powershell
-uv sync --extra dev
+uv sync --extra dev --locked
 uv run ruff check .
 uv run mypy
 uv run pytest
