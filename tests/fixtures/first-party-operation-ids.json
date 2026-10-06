@@ -60,6 +60,9 @@
   "/v1/counties/{fips}": {
     "get": "county_v1_counties__fips__get"
   },
+  "/v1/counties/{fips}/tier1-surveillance-priority": {
+    "get": "county_tier1_surveillance_priority_get"
+  },
   "/v1/counties/{fips}/report.pdf": {
     "get": "county_report_pdf_v1_counties__fips__report_pdf_get"
   },

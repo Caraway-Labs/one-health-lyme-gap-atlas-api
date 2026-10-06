@@ -12,6 +12,7 @@
   "/v1/atlas/geometry": "geometry_v1_atlas_geometry_get",
   "/v1/atlas/scores": "scores_v1_atlas_scores_get",
   "/v1/counties/{fips}": "county_v1_counties__fips__get",
+  "/v1/counties/{fips}/tier1-surveillance-priority": "county_tier1_surveillance_priority_get",
   "/v1/counties/{fips}/report.pdf": "county_report_pdf_v1_counties__fips__report_pdf_get",
   "/v1/states/{state}/report.pdf": "state_report_pdf_v1_states__state__report_pdf_get",
   "/v1/states/{state}/review": "state_review_v1_states__state__review_get",

@@ -20,7 +20,7 @@ def test_canonical_documentation_urls_and_cross_link() -> None:
     assert schema["servers"] == [
         {"url": "https://api.carawaylabs.com", "description": "Production"}
     ]
-    assert len(schema["paths"]) == 17
+    assert len(schema["paths"]) == 18
     for path in ("/docs", "/redoc"):
         page = client.get(path, follow_redirects=False)
         assert page.status_code == 200
