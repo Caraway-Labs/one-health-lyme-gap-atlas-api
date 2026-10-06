@@ -79,8 +79,26 @@ def test_insufficient_is_separate_from_low_and_absent_has_no_fallback() -> None:
     assert absent.get("/v1/counties/09110/tier1-surveillance-priority").status_code == 404
 
 
+def test_not_estimable_preserves_null_tier() -> None:
+    item = row("LOW", "NOT_ESTIMABLE")
+    item = item[:1] + (None, None, None) + item[4:]
+    api = TestClient(
+        create_app(settings=ApiSettings(), tier1_priority_repository=FixtureRepository(item))
+    )
+    result = api.get("/v1/counties/09110/tier1-surveillance-priority")
+    assert result.status_code == 200
+    assert result.json()["priority_tier"] is None
+    assert result.json()["evidence_sufficiency"] == "NOT_ESTIMABLE"
+
+
 @pytest.mark.parametrize(
-    "bad", [row("UNKNOWN"), row("LOW")[:11] + ('[{"code":"x"}]', "ref"), row()[:11] + ("{}", "ref")]
+    "bad",
+    [
+        row("UNKNOWN"),
+        row("LOW")[:11] + ('[{"code":"x"}]', "ref"),
+        row()[:11] + ("{}", "ref"),
+        row()[:1] + (None,) + row()[2:],
+    ],
 )
 def test_malformed_persisted_values_fail_closed(bad: tuple[Any, ...]) -> None:
     api = TestClient(

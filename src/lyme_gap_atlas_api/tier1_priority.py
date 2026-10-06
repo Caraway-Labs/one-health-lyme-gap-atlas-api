@@ -5,7 +5,7 @@ from datetime import datetime
 from math import isfinite
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from .config import ApiSettings
 from .dependency_telemetry import connect
@@ -45,7 +45,9 @@ class Tier1CountyPriority(BaseModel):
     )
 
     county_fips: str = Field(pattern=r"^\d{5}$")
-    priority_tier: Literal["HIGH", "MEDIUM", "LOW"]
+    priority_tier: Literal["HIGH", "MEDIUM", "LOW"] | None = Field(
+        description="Persisted tier, or null when evidence is NOT_ESTIMABLE."
+    )
     priority_percentile: float | None = Field(
         description="Relative to this scored batch and population; not a probability."
     )
@@ -68,6 +70,12 @@ class Tier1CountyPriority(BaseModel):
         if value is not None and not isfinite(value):
             raise ValueError("Non-finite model value")
         return value
+
+    @model_validator(mode="after")
+    def estimability(self) -> "Tier1CountyPriority":
+        if self.priority_tier is None and self.evidence_sufficiency != "NOT_ESTIMABLE":
+            raise ValueError("A missing tier requires NOT_ESTIMABLE evidence")
+        return self
 
 
 class Tier1PriorityRepository(Protocol):

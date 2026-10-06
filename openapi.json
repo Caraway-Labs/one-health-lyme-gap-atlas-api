@@ -4497,13 +4497,21 @@
             "title": "County Fips"
           },
           "priority_tier": {
-            "type": "string",
-            "enum": [
-              "HIGH",
-              "MEDIUM",
-              "LOW"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "HIGH",
+                  "MEDIUM",
+                  "LOW"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Priority Tier"
+            "title": "Priority Tier",
+            "description": "Persisted tier, or null when evidence is NOT_ESTIMABLE."
           },
           "priority_percentile": {
             "anyOf": [
