@@ -23,6 +23,7 @@ PUBLIC_PATHS = frozenset(
         "/v1/counties/{fips}",
         "/v1/counties/{fips}/report.pdf",
         "/v1/states/{state}/report.pdf",
+        "/v1/states/{state}/review",
     }
 )
 

@@ -14,5 +14,6 @@
   "/v1/counties/{fips}": "county_v1_counties__fips__get",
   "/v1/counties/{fips}/report.pdf": "county_report_pdf_v1_counties__fips__report_pdf_get",
   "/v1/states/{state}/report.pdf": "state_report_pdf_v1_states__state__report_pdf_get",
+  "/v1/states/{state}/review": "state_review_v1_states__state__review_get",
   "/v1/atlas/ranking.csv": "ranking_csv_v1_atlas_ranking_csv_get"
 }

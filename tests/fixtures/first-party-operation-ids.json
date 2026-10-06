@@ -86,5 +86,8 @@
   },
   "/v1/intelligence/sources": {
     "get": "listIntelligenceSources"
+  },
+  "/v1/states/{state}/review": {
+    "get": "state_review_v1_states__state__review_get"
   }
 }

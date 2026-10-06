@@ -86,6 +86,21 @@ class FakeRepository:
         return Snapshot(metadata=metadata, counties=[county])
 
 
+def test_state_review_disabled_method_contract() -> None:
+    api = client()
+    response = api.get("/v1/states/CO/review?observation_context=2025")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["result_state"] == "unsupported"
+    assert body["review_candidates"] == []
+    assert body["coverage"]["assessed_counties"] == 1
+    assert body["data_gaps"][0]["code"] == "SOURCE_NATIVE_LINEAGE_UNAVAILABLE"
+    assert body["requested_observation_context"] == "2025"
+    assert body["methodology_version"] == "1.0.0"
+    assert len(body["configuration_sha256"]) == 64
+    assert api.get("/v1/states/CO/review?dataset_version=other").status_code == 404
+
+
 class UnavailableRepository:
     def ready(self) -> bool:
         return False

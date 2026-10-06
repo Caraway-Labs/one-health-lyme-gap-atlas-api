@@ -1,5 +1,33 @@
 # Canonical public API V1 contract (API #52)
 
+## State county Review (API #93)
+
+`GET /v1/states/{state}/review` is a read-only, anonymous state result over the
+current pinned county release. Optional `dataset_version` must match that release;
+`observation_context` records the requested context, while the response states
+the effective current cumulative county status and 2023 human snapshot context.
+Responses are publicly cacheable for 60 seconds. Unknown states or releases
+return 404. The response includes methodology ID/version, SHA-256 of the exact
+deployed configuration artifact bytes, release ID, evaluation time, candidates,
+separate county data gaps, and assessed/eligible/abstained/evaluated coverage.
+
+Method `atlas-county-review@1.0.0` has all four rules disabled. It therefore
+returns `unsupported`, never `none_stand_out` or a candidate. Current county
+summary statuses lack the source-native row/revision references required to
+activate the prepared pathogen/vector rule; the response reports this as a
+separate lineage data gap for counties in the approved tick scope. The status
+summary alone is not an authoritative rule D input. No score, stage, disease
+risk, local transmission, or outbreak conclusion is produced.
+
+The API package contains the byte-for-byte Web #249 initial configuration. Its
+typed loader rejects unknown rules or fields, changed 1.0.0 source identities,
+and enabled rules. Activation requires a reviewed new method/config version,
+steward approval of restricted derived use and safe public fields, and exact
+row, revision, county, source version, and release proof. The D evaluator is
+prepared and fixture-tested for that later version; it does not read the
+aggregate tick-status rollup. Data #429 and API #88 remain separate semantic
+projection work. Review output is not an annual observation or a risk ranking.
+
 FastAPI's `openapi.json` is the canonical public HTTP schema; `/openapi.json`,
 `/docs`, and `/redoc` consume the same approved public projection. It includes
 only supported structured-data GET operations and their reachable schemas.

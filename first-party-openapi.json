@@ -3315,6 +3315,181 @@
         }
       }
     },
+    "/v1/states/{state}/review": {
+      "get": {
+        "tags": [
+          "states"
+        ],
+        "summary": "Review a state's county evidence",
+        "description": "Versioned county Review result. Current rules are disabled. Lineage gaps are separate. Public cache TTL is 60 seconds.",
+        "operationId": "state_review_v1_states__state__review_get",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "title": "State"
+            }
+          },
+          {
+            "name": "observation_context",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Observation Context"
+            }
+          },
+          {
+            "name": "dataset_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateReview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "County or dataset release not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-404",
+                      "title": "Request failed",
+                      "status": 404,
+                      "detail": "County or dataset release not found.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more request values are invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-422",
+                      "title": "Request failed",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-429",
+                      "title": "Request failed",
+                      "status": 429,
+                      "detail": "Rate limit exceeded.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Atlas data service is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-503",
+                      "title": "Request failed",
+                      "status": 503,
+                      "detail": "Atlas data service is unavailable.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/atlas/metadata": {
       "get": {
         "tags": [
@@ -5204,6 +5379,82 @@
         "title": "BriefingSource",
         "type": "object"
       },
+      "Candidate": {
+        "properties": {
+          "county_fips": {
+            "type": "string",
+            "title": "County Fips"
+          },
+          "county_name": {
+            "type": "string",
+            "title": "County Name"
+          },
+          "county_url": {
+            "type": "string",
+            "title": "County Url"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          },
+          "reason_text": {
+            "type": "string",
+            "title": "Reason Text"
+          },
+          "evidence_families": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Families"
+          },
+          "evidence_references": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewEvidenceReference"
+            },
+            "type": "array",
+            "title": "Evidence References"
+          },
+          "completeness": {
+            "type": "string",
+            "const": "limited",
+            "title": "Completeness",
+            "default": "limited"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "freshness_comparability": {
+            "type": "string",
+            "title": "Freshness Comparability"
+          },
+          "suggested_next_check": {
+            "type": "string",
+            "title": "Suggested Next Check"
+          }
+        },
+        "type": "object",
+        "required": [
+          "county_fips",
+          "county_name",
+          "county_url",
+          "reason_codes",
+          "reason_text",
+          "evidence_families",
+          "evidence_references",
+          "limitations",
+          "freshness_comparability",
+          "suggested_next_check"
+        ],
+        "title": "Candidate"
+      },
       "ChatHistoryTurn": {
         "properties": {
           "role": {
@@ -5739,6 +5990,29 @@
           "release_id"
         ],
         "title": "Coverage"
+      },
+      "DataGap": {
+        "properties": {
+          "county_fips": {
+            "type": "string",
+            "title": "County Fips"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "county_fips",
+          "code",
+          "detail"
+        ],
+        "title": "DataGap"
       },
       "DerivedMetadata": {
         "properties": {},
@@ -8974,6 +9248,113 @@
         ],
         "title": "ResourceEnvelope[Source]"
       },
+      "ReviewCoverage": {
+        "properties": {
+          "assessed_counties": {
+            "type": "integer",
+            "title": "Assessed Counties"
+          },
+          "eligible_counties": {
+            "type": "integer",
+            "title": "Eligible Counties"
+          },
+          "abstained_counties": {
+            "type": "integer",
+            "title": "Abstained Counties"
+          },
+          "evaluated_counties": {
+            "type": "integer",
+            "title": "Evaluated Counties"
+          },
+          "rule_coverage": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Rule Coverage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assessed_counties",
+          "eligible_counties",
+          "abstained_counties",
+          "evaluated_counties",
+          "rule_coverage"
+        ],
+        "title": "ReviewCoverage"
+      },
+      "ReviewEvidenceReference": {
+        "properties": {
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "source_product": {
+            "type": "string",
+            "title": "Source Product"
+          },
+          "source_version": {
+            "type": "string",
+            "title": "Source Version"
+          },
+          "source_row_id": {
+            "type": "string",
+            "title": "Source Row Id"
+          },
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "county_fips": {
+            "type": "string",
+            "title": "County Fips"
+          },
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "source_as_of": {
+            "type": "string",
+            "title": "Source As Of"
+          },
+          "retrieved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Retrieved At"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "family",
+          "source_product",
+          "source_version",
+          "source_row_id",
+          "revision_id",
+          "county_fips",
+          "release_id",
+          "source_as_of",
+          "retrieved_at",
+          "target",
+          "status"
+        ],
+        "title": "ReviewEvidenceReference"
+      },
       "Score": {
         "properties": {
           "score": {
@@ -9297,6 +9678,101 @@
           "relationship"
         ],
         "title": "StandardsMapping"
+      },
+      "StateReview": {
+        "properties": {
+          "requested_state": {
+            "type": "string",
+            "title": "Requested State"
+          },
+          "methodology_id": {
+            "type": "string",
+            "title": "Methodology Id"
+          },
+          "methodology_version": {
+            "type": "string",
+            "title": "Methodology Version"
+          },
+          "configuration_sha256": {
+            "type": "string",
+            "title": "Configuration Sha256"
+          },
+          "data_release_version": {
+            "type": "string",
+            "title": "Data Release Version"
+          },
+          "evaluated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Evaluated At"
+          },
+          "requested_observation_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Observation Context"
+          },
+          "effective_observation_context": {
+            "type": "string",
+            "title": "Effective Observation Context"
+          },
+          "result_state": {
+            "type": "string",
+            "enum": [
+              "candidates_found",
+              "insufficient_evidence",
+              "unsupported",
+              "none_stand_out"
+            ],
+            "title": "Result State"
+          },
+          "review_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            },
+            "type": "array",
+            "title": "Review Candidates"
+          },
+          "data_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/DataGap"
+            },
+            "type": "array",
+            "title": "Data Gaps"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/ReviewCoverage"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "requested_state",
+          "methodology_id",
+          "methodology_version",
+          "configuration_sha256",
+          "data_release_version",
+          "evaluated_at",
+          "requested_observation_context",
+          "effective_observation_context",
+          "result_state",
+          "review_candidates",
+          "data_gaps",
+          "coverage",
+          "limitations"
+        ],
+        "title": "StateReview"
       },
       "StructuredAssistantRequest": {
         "properties": {

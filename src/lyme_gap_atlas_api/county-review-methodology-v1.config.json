@@ -1,0 +1,50 @@
+{
+  "methodology_id": "atlas-county-review",
+  "methodology_version": "1.0.0",
+  "configuration_role": "canonical_initial_methodology_definition_for_api_93",
+  "rules": {
+    "human_emerging": {
+      "enabled": false,
+      "disabled_reason": "historical_value_and_comparability_not_proven",
+      "eligible_source_ids": [],
+      "eligible_methodology_eras": [],
+      "lookback_periods": null,
+      "minimum_count_or_support": null,
+      "freshness_limit": null,
+      "material_change_criterion": null
+    },
+    "vector_transition": {
+      "enabled": false,
+      "disabled_reason": "comparable_county_native_snapshots_not_proven",
+      "eligible_source_ids": [],
+      "allowed_evidence_state_transitions": [],
+      "minimum_effort_or_testing_support": null,
+      "freshness_limit": null,
+      "snapshot_comparability_rule": null
+    },
+    "human_vector_discordance": {
+      "enabled": false,
+      "disabled_reason": "eligible_source_pair_and_completeness_not_proven",
+      "allowed_source_pairs": [],
+      "period_alignment_rule": null,
+      "minimum_evidence_support": null,
+      "freshness_limit": null,
+      "material_difference_criterion": null
+    },
+    "pathogen_present_vector_reported": {
+      "enabled": false,
+      "disabled_reason": "source_use_and_provenance_gate_pending",
+      "candidate_reason_code": "PATHOGEN_PRESENT_VECTOR_REPORTED_REVIEW",
+      "source_products": [
+        "cdc-ixodes-county-status-2025",
+        "cdc-ixodes-pathogen-status-2025"
+      ],
+      "pathogen_target": "Borrelia burgdorferi sensu stricto",
+      "vector_taxa": ["Ixodes scapularis", "Ixodes pacificus"],
+      "accepted_source_as_of": "2025-12-31",
+      "freshness_limit": null,
+      "source_use_approval_reference": null
+    }
+  },
+  "automatic_review_stage_assignment": false
+}
