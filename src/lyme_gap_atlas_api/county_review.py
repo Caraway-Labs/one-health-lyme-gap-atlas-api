@@ -40,6 +40,7 @@ class RuleConfig(BaseModel):
     material_difference_criterion: str | None = None
     candidate_reason_code: str | None = None
     source_products: list[str] | None = None
+    eligible_source_versions: dict[str, str] | None = None
     pathogen_target: str | None = None
     vector_taxa: list[str] | None = None
     accepted_source_as_of: str | None = None
@@ -68,6 +69,8 @@ class ReviewConfig(BaseModel):
             or d.pathogen_target != "Borrelia burgdorferi sensu stricto"
             or d.vector_taxa != ["Ixodes scapularis", "Ixodes pacificus"]
             or d.accepted_source_as_of != "2025-12-31"
+            or d.eligible_source_versions is not None
+            or d.source_use_approval_reference is not None
         ):
             raise ValueError("Unapproved D source or predicate configuration")
         return self
@@ -161,6 +164,26 @@ class StateReview(BaseModel):
 def evaluate_d(evidence: CountyEvidence, rule: RuleConfig) -> CountyEvaluation:
     """Evaluate D only on exact native rows. Never use aggregate tick_status."""
     county = evidence.county
+    products = rule.source_products or []
+    taxa = rule.vector_taxa or []
+    versions = rule.eligible_source_versions or {}
+    if (
+        len(products) != 2
+        or len(taxa) != 2
+        or set(versions) != set(products)
+        or not all(versions.values())
+        or not rule.source_use_approval_reference
+    ):
+        return CountyEvaluation(
+            abstained=True,
+            gaps=[
+                DataGap(
+                    county_fips=county.fips,
+                    code="RULE_CONFIGURATION_UNAPPROVED",
+                    detail="Exact source versions and use approval are required.",
+                )
+            ],
+        )
     if not county.in_contiguous_tick_scope:
         return CountyEvaluation(
             gaps=[
@@ -173,8 +196,8 @@ def evaluate_d(evidence: CountyEvidence, rule: RuleConfig) -> CountyEvaluation:
         )
     refs = [
         evidence.pathogen,
-        evidence.vector.get("Ixodes scapularis"),
-        evidence.vector.get("Ixodes pacificus"),
+        evidence.vector.get(taxa[0]),
+        evidence.vector.get(taxa[1]),
     ]
     if evidence.diagnostics:
         return CountyEvaluation(
@@ -203,18 +226,17 @@ def evaluate_d(evidence: CountyEvidence, rule: RuleConfig) -> CountyEvaluation:
         )
     pathogen, scapularis, pacificus = refs
     assert pathogen is not None and scapularis is not None and pacificus is not None
-    expected = rule.source_products or []
     valid = (
-        pathogen.source_product == expected[1]
-        and scapularis.source_product == pacificus.source_product == expected[0]
+        pathogen.source_product == products[1]
+        and scapularis.source_product == pacificus.source_product == products[0]
         and pathogen.target == rule.pathogen_target
-        and scapularis.target == "Ixodes scapularis"
-        and pacificus.target == "Ixodes pacificus"
+        and scapularis.target == taxa[0]
+        and pacificus.target == taxa[1]
         and all(
             ref.county_fips == county.fips
             and ref.release_id == county.release_id
             and ref.source_as_of == rule.accepted_source_as_of
-            and ref.source_version
+            and ref.source_version == versions[ref.source_product]
             and ref.source_row_id
             and ref.revision_id
             for ref in (pathogen, scapularis, pacificus)

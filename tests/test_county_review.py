@@ -66,7 +66,16 @@ def evidence(
 
 def enabled_d() -> RuleConfig:
     config, _ = load_config()
-    return config.rules["pathogen_present_vector_reported"].model_copy(update={"enabled": True})
+    return config.rules["pathogen_present_vector_reported"].model_copy(
+        update={
+            "enabled": True,
+            "eligible_source_versions": {
+                "cdc-ixodes-county-status-2025": "2025",
+                "cdc-ixodes-pathogen-status-2025": "2025",
+            },
+            "source_use_approval_reference": "fixture-only",
+        }
+    )
 
 
 def snapshot(*counties: CountyRecord) -> Snapshot:
@@ -117,9 +126,15 @@ def test_d_native_statuses(pathogen: str, scapularis: str, pacificus: str, expec
 
 
 def test_d_fails_closed_on_provenance_and_scope() -> None:
+    missing_approval = enabled_d().model_copy(update={"source_use_approval_reference": None})
+    assert evaluate_d(evidence(), missing_approval).gaps[0].code == "RULE_CONFIGURATION_UNAPPROVED"
     item = evidence()
     assert item.pathogen is not None
     item.pathogen.source_product = "unapproved"
+    assert evaluate_d(item, enabled_d()).gaps[0].code == "SOURCE_PROVENANCE_MISMATCH"
+    item = evidence()
+    assert item.pathogen is not None
+    item.pathogen.source_version = "other"
     assert evaluate_d(item, enabled_d()).gaps[0].code == "SOURCE_PROVENANCE_MISMATCH"
     item = evidence()
     item.county = county(scope=False)
