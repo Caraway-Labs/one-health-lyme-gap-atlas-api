@@ -11,10 +11,12 @@ tier policy, generation time, up to three persisted reason code/text pairs, and
 limitation reference.
 The API does not calculate or substitute any of those values. LOW is a scored
 tier; INSUFFICIENT and NOT_ESTIMABLE are evidence states, and neither is a
-synonym for LOW or for missing output. A null tier is accepted only for
-NOT_ESTIMABLE evidence. The percentile is relative to its scored
-batch/population; the raw score is model-native. Neither represents disease
-risk, predicted incidence, probability, clinical risk, or diagnosis.
+synonym for LOW or for missing output. NOT_ESTIMABLE requires null tier,
+percentile, and raw score; scored SUFFICIENT/INSUFFICIENT records require all
+three. A present percentile must be finite and within 0–100. The percentile is
+relative to its scored batch/population; the raw score is model-native. Neither
+represents disease risk, predicted incidence, probability, clinical risk, or
+diagnosis.
 
 An absent county result returns 404. An empty or inaccessible current view,
 query failure, duplicate county, or malformed persisted value returns 503.

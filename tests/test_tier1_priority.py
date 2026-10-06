@@ -88,7 +88,41 @@ def test_not_estimable_preserves_null_tier() -> None:
     result = api.get("/v1/counties/09110/tier1-surveillance-priority")
     assert result.status_code == 200
     assert result.json()["priority_tier"] is None
+    assert result.json()["priority_percentile"] is None
+    assert result.json()["raw_model_score"] is None
     assert result.json()["evidence_sufficiency"] == "NOT_ESTIMABLE"
+
+
+@pytest.mark.parametrize(
+    ("sufficiency", "tier", "percentile", "score"),
+    [
+        ("NOT_ESTIMABLE", "HIGH", None, None),
+        ("NOT_ESTIMABLE", None, 50.0, None),
+        ("NOT_ESTIMABLE", None, None, 1.0),
+        ("SUFFICIENT", None, 50.0, 1.0),
+        ("SUFFICIENT", "HIGH", None, 1.0),
+        ("SUFFICIENT", "HIGH", 50.0, None),
+        ("INSUFFICIENT", None, 50.0, 1.0),
+        ("INSUFFICIENT", "LOW", None, 1.0),
+        ("INSUFFICIENT", "LOW", 50.0, None),
+        ("SUFFICIENT", "HIGH", -0.1, 1.0),
+        ("SUFFICIENT", "HIGH", 100.1, 1.0),
+        ("SUFFICIENT", "HIGH", float("nan"), 1.0),
+        ("SUFFICIENT", "HIGH", 50.0, float("inf")),
+    ],
+)
+def test_invalid_score_state_fails_closed(
+    sufficiency: str,
+    tier: str | None,
+    percentile: float | None,
+    score: float | None,
+) -> None:
+    item = list(row())
+    item[1:5] = [tier, percentile, score, sufficiency]
+    api = TestClient(
+        create_app(settings=ApiSettings(), tier1_priority_repository=FixtureRepository(tuple(item)))
+    )
+    assert api.get("/v1/counties/09110/tier1-surveillance-priority").status_code == 503
 
 
 @pytest.mark.parametrize(

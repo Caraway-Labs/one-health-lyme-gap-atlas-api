@@ -49,7 +49,7 @@ class Tier1CountyPriority(BaseModel):
         description="Persisted tier, or null when evidence is NOT_ESTIMABLE."
     )
     priority_percentile: float | None = Field(
-        description="Relative to this scored batch and population; not a probability."
+        ge=0, le=100, description="Relative to this scored batch and population; not a probability."
     )
     raw_model_score: float | None = Field(
         description="Model-native technical output, not disease risk."
@@ -73,8 +73,16 @@ class Tier1CountyPriority(BaseModel):
 
     @model_validator(mode="after")
     def estimability(self) -> "Tier1CountyPriority":
-        if self.priority_tier is None and self.evidence_sufficiency != "NOT_ESTIMABLE":
-            raise ValueError("A missing tier requires NOT_ESTIMABLE evidence")
+        scored = (
+            self.priority_tier,
+            self.priority_percentile,
+            self.raw_model_score,
+        )
+        if self.evidence_sufficiency == "NOT_ESTIMABLE":
+            if any(value is not None for value in scored):
+                raise ValueError("NOT_ESTIMABLE requires null tier, percentile, and score")
+        elif any(value is None for value in scored):
+            raise ValueError("Scored evidence requires tier, percentile, and score")
         return self
 
 
