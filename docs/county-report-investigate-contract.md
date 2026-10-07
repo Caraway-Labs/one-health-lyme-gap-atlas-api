@@ -12,7 +12,8 @@ measure IDs already returned by `/v1/observations`. Never send source names,
 source content, caveats, values, or Typst from the browser.
 
 `county-v2` requires dataset_version, exact inclusive period_start/period_end,
-and one to 20 distinct repeated measure_id parameters. Every selected measure
+and one to 20 distinct measure_id selectors, repeated or comma-separated.
+Comma-separated arrays are supported for the existing Orval fetch serializer. Every selected measure
 must return nonempty, unpaginated canonical observations for exactly that county,
 release, and complete period. The interval is bounded to 500 logical day buckets
 per measure, with at most 500 returned observations per measure; broader or
@@ -60,7 +61,7 @@ Observation schema change is needed. Both OpenAPI artifacts add the three
 optional HTTP selectors and document v2's conditional requirements.
 
 After merge, WEB #460 should consume the exact merged `first-party-openapi.json`
-for its existing full client/validator generation (public documentation consumes
+for its existing Orval 8.2 full client/validator generation (public documentation consumes
 `openapi.json`). Re-enable export only where the visible evidence is canonical
 and shares one exact county, release and complete observation period, and all
 visible measures are selected. Compare observation source IDs/lineage, provenance

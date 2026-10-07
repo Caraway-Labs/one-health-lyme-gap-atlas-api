@@ -187,6 +187,8 @@ def test_real_typst_web460_text():
     [
         ({"measure_id": "unpublished"}, 404),
         ({"measure_id": ["tick_survey", "tick_survey"]}, 422),
+        ({"measure_id": "tick_survey,tick_survey"}, 422),
+        ({"measure_id": ",".join(["tick_survey"] * 21)}, 422),
         ({"measure_id": ["tick_survey"] * 21}, 422),
         ({"period_end": "2022-12-31"}, 422),
         ({"period_end": "2025-12-31"}, 400),
@@ -212,3 +214,23 @@ def test_changed_caveat_cannot_answer_old_etag_and_valid_context_can():
     assert changed.status_code == 200
     assert changed.headers["etag"] != first.headers["etag"]
     assert len(renderer.calls) == 2
+
+
+def test_orval_comma_array_and_repeated_selectors_have_identical_meaning():
+    api, renderer, observations = setup()
+    observations.measure_exists = lambda *args: True
+    original = observations.query
+
+    def query(filters, release, offset):
+        values = list(original(filters, release, offset)[0])
+        values[0] = "observation-" + filters.measure_id
+        values[1] = filters.measure_id
+        return [tuple(values)]
+
+    observations.query = query
+    csv = api.get(PATH, params={**PARAMS, "measure_id": "tick_survey,second_measure"})
+    repeated = api.get(PATH, params={**PARAMS, "measure_id": ["second_measure", "tick_survey"]})
+    assert csv.status_code == repeated.status_code == 200
+    assert csv.content == repeated.content
+    assert csv.headers["etag"] == repeated.headers["etag"]
+    assert len(renderer.calls) == 1

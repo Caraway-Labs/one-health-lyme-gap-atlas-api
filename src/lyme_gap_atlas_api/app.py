@@ -1022,7 +1022,7 @@ def create_app(
             "PDF attachment using the immutable county-v1 registered template by default. "
             "Optional dataset_version and score settings bind report inputs. "
             "Opt-in county-v2 requires dataset_version, period_start, period_end and repeated "
-            "measure_id (1–20); reads exact canonical observations and preserves source lineage, "
+            "measure_id (1–20, repeated or comma-separated); reads canonical evidence, lineage, "
             "value states and limitations. Missing or mismatched provenance returns 503; "
             "unknown observations return 404. V1 rejects observation selectors with 422. "
             "V2 responses use no-store and revalidate authoritative context before cache/304. "
@@ -1045,7 +1045,8 @@ def create_app(
         measure_id: Annotated[
             list[str] | None,
             Query(
-                description="One to 20 distinct canonical measure IDs for county-v2.", max_length=20
+                description="1–20 measure IDs; repeated or comma-separated for county-v2.",
+                max_length=20,
             ),
         ] = None,
         template: Annotated[str, Query(pattern=r"^[a-z]+-v\d+$")] = "county-v1",
@@ -1055,6 +1056,9 @@ def create_app(
             raise HTTPException(
                 status_code=422, detail="The requested county report template is not available."
             )
+        # Web Orval fetch codegen serializes arrays as comma-separated values.
+        if measure_id is not None:
+            measure_id = [item for value in measure_id for item in value.split(",")]
         context_requested = any(x is not None for x in (period_start, period_end, measure_id))
         if template == "county-v1" and context_requested:
             raise HTTPException(status_code=422, detail="Observation context requires county-v2.")
@@ -1064,6 +1068,7 @@ def create_app(
             or period_end is None
             or period_end < period_start
             or not measure_id
+            or len(measure_id) > 20
             or len(set(measure_id)) != len(measure_id)
             or any(not x.strip() for x in measure_id)
         ):

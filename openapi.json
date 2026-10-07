@@ -916,7 +916,7 @@
           "counties"
         ],
         "summary": "Download a county report",
-        "description": "PDF attachment using the immutable county-v1 registered template by default. Optional dataset_version and score settings bind report inputs. Opt-in county-v2 requires dataset_version, period_start, period_end and repeated measure_id (1\u201320); reads exact canonical observations and preserves source lineage, value states and limitations. Missing or mismatched provenance returns 503; unknown observations return 404. V1 rejects observation selectors with 422. V2 responses use no-store and revalidate authoritative context before cache/304. ETag/If-None-Match supports 304; V1 public cache TTL 300 seconds with revalidation. Unknown templates return 422; resource limits 413; renderer failure/timeout 503.",
+        "description": "PDF attachment using the immutable county-v1 registered template by default. Optional dataset_version and score settings bind report inputs. Opt-in county-v2 requires dataset_version, period_start, period_end and repeated measure_id (1\u201320, repeated or comma-separated); reads canonical evidence, lineage, value states and limitations. Missing or mismatched provenance returns 503; unknown observations return 404. V1 rejects observation selectors with 422. V2 responses use no-store and revalidate authoritative context before cache/304. ETag/If-None-Match supports 304; V1 public cache TTL 300 seconds with revalidation. Unknown templates return 422; resource limits 413; renderer failure/timeout 503.",
         "operationId": "county_report_pdf_v1_counties__fips__report_pdf_get",
         "parameters": [
           {
@@ -1000,10 +1000,10 @@
                   "type": "null"
                 }
               ],
-              "description": "One to 20 distinct canonical measure IDs for county-v2.",
+              "description": "1\u201320 measure IDs; repeated or comma-separated for county-v2.",
               "title": "Measure Id"
             },
-            "description": "One to 20 distinct canonical measure IDs for county-v2."
+            "description": "1\u201320 measure IDs; repeated or comma-separated for county-v2."
           },
           {
             "name": "template",
