@@ -36,8 +36,8 @@ environment. `docker build .`, the production Typst regression, and the
 gitleaks container are additional CI-equivalent checks when Docker is
 available; Docker is not needed for the Python quality commands. The report
 renderer uses a test stand-in by default; real Typst is supplied by the image.
-`uv build` currently fails on a duplicate report-template entry in the wheel;
-the Docker image build is the current production build gate. Repository-wide
+`uv build` builds the source distribution and wheel, including report templates.
+The Docker image build remains the production build gate. Repository-wide
 `ruff format --check .` is not a current CI gate and reports existing formatting
 drift; format changed Python files without reformatting unrelated code.
 
