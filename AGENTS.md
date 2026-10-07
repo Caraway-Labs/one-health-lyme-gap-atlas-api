@@ -46,8 +46,14 @@ drift; format changed Python files without reformatting unrelated code.
 - Start from current `main` in a feature branch, usually `codex/<short-topic>`.
   Open a PR; do not push directly to protected `main`. Record scope, affected
   contracts/ADRs, security and privacy impact, test evidence, and any remaining
-  limitations. One approving review, resolved conversations, and the current
-  `quality` check are required for merge.
+  limitations. Pull requests remain required. Merge requires a green current
+  `quality` check, resolved conversations, and an up-to-date branch. The
+  GitHub approving-review count on `main` is 0 because the human author
+  identity cannot approve its own Codex Cloud pull requests. Independent
+  OpenAI `.agent` coordinator review is the procedural peer-review gate
+  (advisory `APPROVE`, `REQUEST CHANGES`, or `BLOCKED`), distinct from a
+  GitHub-native approval. The human retains explicit merge authority. Never
+  auto-merge.
 - Keep database and Supabase migrations versioned and environment-specific.
   Never run a remote migration, PROD read, or deployment from an agent setup
   job. Follow `supabase/README.md` and the workspace least-privilege rules for
@@ -62,6 +68,41 @@ drift; format changed Python files without reformatting unrelated code.
 - Before handoff, pass the applicable commands above and the focused tests for
   the change. Update and validate both OpenAPI artifacts for route or schema
   changes, and include downstream generated-client compatibility evidence.
+
+## OpenAI `.agent` peer review
+
+Desired flow: issue or spec → Codex Cloud implements → same-repo pull
+request → GitHub Actions `quality` and independent `.agent` review → repair
+loop when needed → human merge → existing `main` deployment. Deployment
+behavior stays in `docs/ci-and-production-deploy.md`.
+
+The reviewer must be the OpenAI `.agent` coordinator, independent of the
+authoring Codex Cloud session. That coordinator reviews Web Cursor pull
+requests and API Codex Cloud pull requests with repository-specific rubrics.
+The authoring session does not review its own pull request. The reviewer
+does not merge and does not deploy.
+
+On each open or update, review the actual diff, the linked issue's acceptance
+criteria, architecture, contracts, security, data provenance, and PHI
+boundaries, tests, CI results, and deployment side effects. Publish a GitHub
+pull-request review or comment with an explicit advisory verdict of
+`APPROVE`, `REQUEST CHANGES`, or `BLOCKED`, plus evidence and actionable
+findings. State that the verdict is procedural. Do not represent it as a
+GitHub-recognized approving review from an independent identity.
+
+`REQUEST CHANGES` goes back to the originating Codex Cloud session. That
+session updates the branch, `quality` reruns, and `.agent` re-reviews the
+latest commit SHA. `BLOCKED` waits for an owner decision before merge.
+`APPROVE`, together with passing current `quality`, resolved conversations,
+and a branch that is up to date with `main`, is the signal to notify the
+human for an explicit merge. Never auto-merge.
+
+GitHub does not enforce the `.agent` verdict. It stays a procedural gate
+until a future status-check story. Phase 1 adds no OpenAI billing or
+credentials, third-party GitHub Apps, webhooks, runners, or new Actions
+jobs. The recorded `main` protection change, the dry-run checklist, and
+that follow-up are in
+[Pull request governance](docs/ci-and-production-deploy.md#pull-request-governance).
 
 Read the workspace [AGENTS.md](../AGENTS.md), [technology and governance
 baseline](../TECHNOLOGY_AND_GOVERNANCE.md), this repository's `README.md`, and
