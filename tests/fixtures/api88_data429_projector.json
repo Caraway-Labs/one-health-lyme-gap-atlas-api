@@ -1,0 +1,1024 @@
+{
+  "detected_below_establishment": {
+    "contract_version": "atlas-surveillance-evidence-consumer-v2",
+    "semantic": {
+      "contract_version": "atlas-semantic-consumer-v1",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "freshness": {
+        "metadata_revised_at": {
+          "state": "KNOWN",
+          "value": "2026-09-24"
+        },
+        "observation_period": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "published_at": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "retrieved_at": {
+          "state": "UNAVAILABLE",
+          "value": null
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "2025"
+        }
+      },
+      "indicator": {
+        "id": "tick_surveillance"
+      },
+      "lineage": {
+        "dataset_id": "cdc-ixodes-county-status-2025",
+        "evidence_basis": null,
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "SOURCE",
+            "code": "no_records_not_absence",
+            "text": "No records does not establish biological absence."
+          }
+        ],
+        "lineage_id": "lineage:v1:ab2bc9230e5a2b79ee56404b11f22b4a260385b57f558ff0e5211fcd86fd8352",
+        "measure_id": "scapularis_status",
+        "measure_version": "1.0.0",
+        "metadata_revision_id": "metadata-revision:v1:b1234be776541fd353567ed45e2bc3b41611cf36c5d5265141055727b1377594",
+        "methodology_version": "reviewed-v1",
+        "publisher": "cdc_arbonet_tick_module",
+        "record_refs": [
+          "record-scapularis_status-0"
+        ],
+        "release_id": null,
+        "representativeness": "COUNTY_NATIVE_STATUS",
+        "result_id": null,
+        "result_revision_id": null,
+        "semantic_observation_id": "observation:v1:2ab91f7ed32baa383563d35b7ba06dfb9e22a9d127c7ff6f13e2fc5c28016213",
+        "semantic_revision_id": "revision:v1:309a1f3853324359fd16f95aa6d487f6011da090498f1b21edd8d3b07ec31b9c",
+        "source_version_id": "fixture-version-1",
+        "source_vintage": "2025",
+        "transformation_version": "release-builder-v1"
+      },
+      "measure": {
+        "allowed_strata": [],
+        "allowed_value_states": [
+          "OBSERVED",
+          "UNKNOWN",
+          "UNAVAILABLE"
+        ],
+        "applicability": {
+          "allowed_strata": [],
+          "geography_grain": "COUNTY",
+          "origin": "REPORTED",
+          "representativeness": "COUNTY_NATIVE_STATUS",
+          "temporal_semantics": "CUMULATIVE_THROUGH_DATE"
+        },
+        "definition": "Synthetic fixture meaning for scapularis_status",
+        "denominator": "NONE",
+        "description": {
+          "state": "KNOWN",
+          "value": "Synthetic description of scapularis_status"
+        },
+        "id": "scapularis_status",
+        "label": "Scapularis Status",
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "SOURCE",
+            "code": "no_records_not_absence",
+            "text": "No records does not establish biological absence."
+          }
+        ],
+        "meaning_signature": "13a57e6eb3b6b9942b44575a2c1761d4cbd1f6c269b9123d8e142636b04e6149",
+        "metadata_id": "metadata:scapularis_status:1.0.0",
+        "metadata_revision": 1,
+        "metadata_revision_id": "metadata-revision:v1:b1234be776541fd353567ed45e2bc3b41611cf36c5d5265141055727b1377594",
+        "origin": "REPORTED",
+        "quality_evidence": {
+          "eligibility_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "evidence_basis": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "propagation_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "quality_contract": {
+            "state": "KNOWN",
+            "value": "surveillance-quality-profile-v1"
+          },
+          "uncertainty": {
+            "state": "UNKNOWN",
+            "value": null
+          }
+        },
+        "semantic_version": "1.0.0",
+        "type": "string",
+        "unit": "status"
+      },
+      "observation": {
+        "denominator_value": null,
+        "geography": {
+          "county_fips": "08013",
+          "grain": "COUNTY",
+          "representativeness": "COUNTY_NATIVE_STATUS"
+        },
+        "id": "observation:v1:2ab91f7ed32baa383563d35b7ba06dfb9e22a9d127c7ff6f13e2fc5c28016213",
+        "revision_id": "revision:v1:309a1f3853324359fd16f95aa6d487f6011da090498f1b21edd8d3b07ec31b9c",
+        "strata": {},
+        "temporal": {
+          "date": "2025-12-31",
+          "semantics": "CUMULATIVE_THROUGH_DATE"
+        },
+        "value": "Reported",
+        "value_state": "OBSERVED"
+      },
+      "provenance": {
+        "dataset_id": {
+          "state": "KNOWN",
+          "value": "cdc-ixodes-county-status-2025"
+        },
+        "method_version": {
+          "state": "KNOWN",
+          "value": "reviewed-v1"
+        },
+        "publisher": {
+          "state": "KNOWN",
+          "value": "cdc_arbonet_tick_module"
+        },
+        "source_id": {
+          "state": "KNOWN",
+          "value": "cdc_arbonet_tick_module"
+        },
+        "source_version_id": {
+          "state": "KNOWN",
+          "value": "fixture-version-1"
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "2025"
+        },
+        "transformation_version": {
+          "state": "NOT_APPLICABLE",
+          "value": null
+        }
+      },
+      "release": null
+    },
+    "surveillance_evidence": {
+      "contract_version": "atlas-surveillance-evidence-v3",
+      "evidence_revision_id": "evidence:v3:6c29f31ed48c767c5da85ba1a70fcfd2b003be0d4d70e38932f3ca45dc6e0d23",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "limitations": [
+        "No qualifying record is not biological absence.",
+        "Site/event evidence is not county representative.",
+        "Detection alone does not establish prevalence or establishment criteria.",
+        "No freshness, pooling, public admission or scientific approval is inferred.",
+        "Detected; establishment criteria not documented as met in the source.",
+        "Publisher cumulative Reported label for Ixodes scapularis through 2025-12-31; not a 2025 collection event.",
+        "No tick count, life stage, collection date, effort, current ecological non-establishment or sampling completeness is inferred."
+      ],
+      "observation_key": "observation:v1:2ab91f7ed32baa383563d35b7ba06dfb9e22a9d127c7ff6f13e2fc5c28016213",
+      "reason_codes": [
+        "PUBLISHER_REPORTED_ESTABLISHMENT_NOT_DOCUMENTED"
+      ],
+      "revision_id": "revision:v1:309a1f3853324359fd16f95aa6d487f6011da090498f1b21edd8d3b07ec31b9c",
+      "source_rule_id": "county_tick_status:evidence-v3",
+      "state": "detected_below_establishment",
+      "value_state": "OBSERVED"
+    }
+  },
+  "established": {
+    "contract_version": "atlas-surveillance-evidence-consumer-v2",
+    "semantic": {
+      "contract_version": "atlas-semantic-consumer-v1",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "freshness": {
+        "metadata_revised_at": {
+          "state": "KNOWN",
+          "value": "2026-09-24"
+        },
+        "observation_period": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "published_at": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "retrieved_at": {
+          "state": "UNAVAILABLE",
+          "value": null
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "2025"
+        }
+      },
+      "indicator": {
+        "id": "tick_surveillance"
+      },
+      "lineage": {
+        "dataset_id": "county-tick-status",
+        "evidence_basis": null,
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "SOURCE",
+            "code": "no_records_not_absence",
+            "text": "No records does not establish biological absence."
+          }
+        ],
+        "lineage_id": "lineage:v1:a20c8fc1f6bdddb10c1c6c0fb1e6360ddf5d9d7b7e0dd755b07b5461df87eb34",
+        "measure_id": "scapularis_status",
+        "measure_version": "1.0.0",
+        "metadata_revision_id": "metadata-revision:v1:8efdfecf517fb6115ee39df02b99fb00b81706d071ef197de30a7cba4693b506",
+        "methodology_version": "reviewed-v1",
+        "publisher": "cdc_tick",
+        "record_refs": [
+          "record-scapularis_status-0"
+        ],
+        "release_id": null,
+        "representativeness": "COUNTY_NATIVE_STATUS",
+        "result_id": null,
+        "result_revision_id": null,
+        "semantic_observation_id": "observation:v1:66821976dfbf285e1c4095fc6db78073e1460200d7467327e134cdbb839378b5",
+        "semantic_revision_id": "revision:v1:e7674ab3e83041915565dc1406d3b8e8c05f42c7c6974b5429e1bce92ac82cde",
+        "source_version_id": "fixture-version-1",
+        "source_vintage": "2025",
+        "transformation_version": "release-builder-v1"
+      },
+      "measure": {
+        "allowed_strata": [],
+        "allowed_value_states": [
+          "OBSERVED",
+          "UNKNOWN",
+          "UNAVAILABLE"
+        ],
+        "applicability": {
+          "allowed_strata": [],
+          "geography_grain": "COUNTY",
+          "origin": "REPORTED",
+          "representativeness": "COUNTY_NATIVE_STATUS",
+          "temporal_semantics": "CUMULATIVE_THROUGH_DATE"
+        },
+        "definition": "Synthetic fixture meaning for scapularis_status",
+        "denominator": "NONE",
+        "description": {
+          "state": "KNOWN",
+          "value": "Synthetic description of scapularis_status"
+        },
+        "id": "scapularis_status",
+        "label": "Scapularis Status",
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "SOURCE",
+            "code": "no_records_not_absence",
+            "text": "No records does not establish biological absence."
+          }
+        ],
+        "meaning_signature": "13a57e6eb3b6b9942b44575a2c1761d4cbd1f6c269b9123d8e142636b04e6149",
+        "metadata_id": "metadata:scapularis_status:1.0.0",
+        "metadata_revision": 1,
+        "metadata_revision_id": "metadata-revision:v1:8efdfecf517fb6115ee39df02b99fb00b81706d071ef197de30a7cba4693b506",
+        "origin": "REPORTED",
+        "quality_evidence": {
+          "eligibility_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "evidence_basis": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "propagation_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "quality_contract": {
+            "state": "KNOWN",
+            "value": "surveillance-quality-profile-v1"
+          },
+          "uncertainty": {
+            "state": "UNKNOWN",
+            "value": null
+          }
+        },
+        "semantic_version": "1.0.0",
+        "type": "string",
+        "unit": "status"
+      },
+      "observation": {
+        "denominator_value": null,
+        "geography": {
+          "county_fips": "08013",
+          "grain": "COUNTY",
+          "representativeness": "COUNTY_NATIVE_STATUS"
+        },
+        "id": "observation:v1:66821976dfbf285e1c4095fc6db78073e1460200d7467327e134cdbb839378b5",
+        "revision_id": "revision:v1:e7674ab3e83041915565dc1406d3b8e8c05f42c7c6974b5429e1bce92ac82cde",
+        "strata": {},
+        "temporal": {
+          "date": "2025-12-31",
+          "semantics": "CUMULATIVE_THROUGH_DATE"
+        },
+        "value": "Established",
+        "value_state": "OBSERVED"
+      },
+      "provenance": {
+        "dataset_id": {
+          "state": "KNOWN",
+          "value": "county-tick-status"
+        },
+        "method_version": {
+          "state": "KNOWN",
+          "value": "reviewed-v1"
+        },
+        "publisher": {
+          "state": "KNOWN",
+          "value": "cdc_tick"
+        },
+        "source_id": {
+          "state": "KNOWN",
+          "value": "cdc_tick"
+        },
+        "source_version_id": {
+          "state": "KNOWN",
+          "value": "fixture-version-1"
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "2025"
+        },
+        "transformation_version": {
+          "state": "NOT_APPLICABLE",
+          "value": null
+        }
+      },
+      "release": null
+    },
+    "surveillance_evidence": {
+      "contract_version": "atlas-surveillance-evidence-v3",
+      "evidence_revision_id": "evidence:v3:3567b7300081c1202ccca18909d2af23b4bfd853e4a5396d5c711792211f8f3c",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "limitations": [
+        "No qualifying record is not biological absence.",
+        "Site/event evidence is not county representative.",
+        "Detection alone does not establish prevalence or establishment criteria.",
+        "No freshness, pooling, public admission or scientific approval is inferred."
+      ],
+      "observation_key": "observation:v1:66821976dfbf285e1c4095fc6db78073e1460200d7467327e134cdbb839378b5",
+      "reason_codes": [
+        "PUBLISHER_ESTABLISHED"
+      ],
+      "revision_id": "revision:v1:e7674ab3e83041915565dc1406d3b8e8c05f42c7c6974b5429e1bce92ac82cde",
+      "source_rule_id": "county_tick_status:evidence-v3",
+      "state": "established",
+      "value_state": "OBSERVED"
+    }
+  },
+  "no_qualifying_record": {
+    "contract_version": "atlas-surveillance-evidence-consumer-v2",
+    "semantic": {
+      "contract_version": "atlas-semantic-consumer-v1",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "freshness": {
+        "metadata_revised_at": {
+          "state": "KNOWN",
+          "value": "2026-09-24"
+        },
+        "observation_period": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "published_at": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "retrieved_at": {
+          "state": "UNAVAILABLE",
+          "value": null
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "2025"
+        }
+      },
+      "indicator": {
+        "id": "tick_surveillance"
+      },
+      "lineage": {
+        "dataset_id": "county-tick-status",
+        "evidence_basis": null,
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "SOURCE",
+            "code": "no_records_not_absence",
+            "text": "No records does not establish biological absence."
+          }
+        ],
+        "lineage_id": "lineage:v1:a5ff06dd90f70794e0a512c128763601d0ba1cdbfd4975323ed285bdc6821363",
+        "measure_id": "scapularis_status",
+        "measure_version": "1.0.0",
+        "metadata_revision_id": "metadata-revision:v1:a94623919ece9bfbaeba6d505393b1d4c94517872e50b7fcf5e12eed2bf59cd5",
+        "methodology_version": "reviewed-v1",
+        "publisher": "cdc_tick",
+        "record_refs": [
+          "record-scapularis_status-0"
+        ],
+        "release_id": null,
+        "representativeness": "COUNTY_NATIVE_STATUS",
+        "result_id": null,
+        "result_revision_id": null,
+        "semantic_observation_id": "observation:v1:66821976dfbf285e1c4095fc6db78073e1460200d7467327e134cdbb839378b5",
+        "semantic_revision_id": "revision:v1:b6eb45c8c431b94195732a1e49916627edc34bbc65cb2c8f8882798e99338cef",
+        "source_version_id": "fixture-version-1",
+        "source_vintage": "2025",
+        "transformation_version": "release-builder-v1"
+      },
+      "measure": {
+        "allowed_strata": [],
+        "allowed_value_states": [
+          "OBSERVED",
+          "UNKNOWN",
+          "UNAVAILABLE",
+          "NO_RECORDS"
+        ],
+        "applicability": {
+          "allowed_strata": [],
+          "geography_grain": "COUNTY",
+          "origin": "REPORTED",
+          "representativeness": "COUNTY_NATIVE_STATUS",
+          "temporal_semantics": "CUMULATIVE_THROUGH_DATE"
+        },
+        "definition": "Synthetic fixture meaning for scapularis_status",
+        "denominator": "NONE",
+        "description": {
+          "state": "KNOWN",
+          "value": "Synthetic description of scapularis_status"
+        },
+        "id": "scapularis_status",
+        "label": "Scapularis Status",
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "SOURCE",
+            "code": "no_records_not_absence",
+            "text": "No records does not establish biological absence."
+          }
+        ],
+        "meaning_signature": "0dc66c4ed4e295bb5d5ceede6108af675e8d18de7b005753a45a207193fe997a",
+        "metadata_id": "metadata:scapularis_status:1.0.0",
+        "metadata_revision": 1,
+        "metadata_revision_id": "metadata-revision:v1:a94623919ece9bfbaeba6d505393b1d4c94517872e50b7fcf5e12eed2bf59cd5",
+        "origin": "REPORTED",
+        "quality_evidence": {
+          "eligibility_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "evidence_basis": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "propagation_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "quality_contract": {
+            "state": "KNOWN",
+            "value": "surveillance-quality-profile-v1"
+          },
+          "uncertainty": {
+            "state": "UNKNOWN",
+            "value": null
+          }
+        },
+        "semantic_version": "1.0.0",
+        "type": "string",
+        "unit": "status"
+      },
+      "observation": {
+        "denominator_value": null,
+        "geography": {
+          "county_fips": "08013",
+          "grain": "COUNTY",
+          "representativeness": "COUNTY_NATIVE_STATUS"
+        },
+        "id": "observation:v1:66821976dfbf285e1c4095fc6db78073e1460200d7467327e134cdbb839378b5",
+        "revision_id": "revision:v1:b6eb45c8c431b94195732a1e49916627edc34bbc65cb2c8f8882798e99338cef",
+        "strata": {},
+        "temporal": {
+          "date": "2025-12-31",
+          "semantics": "CUMULATIVE_THROUGH_DATE"
+        },
+        "value": "No records",
+        "value_state": "NO_RECORDS"
+      },
+      "provenance": {
+        "dataset_id": {
+          "state": "KNOWN",
+          "value": "county-tick-status"
+        },
+        "method_version": {
+          "state": "KNOWN",
+          "value": "reviewed-v1"
+        },
+        "publisher": {
+          "state": "KNOWN",
+          "value": "cdc_tick"
+        },
+        "source_id": {
+          "state": "KNOWN",
+          "value": "cdc_tick"
+        },
+        "source_version_id": {
+          "state": "KNOWN",
+          "value": "fixture-version-1"
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "2025"
+        },
+        "transformation_version": {
+          "state": "NOT_APPLICABLE",
+          "value": null
+        }
+      },
+      "release": null
+    },
+    "surveillance_evidence": {
+      "contract_version": "atlas-surveillance-evidence-v3",
+      "evidence_revision_id": "evidence:v3:1078bad6bad5837c85969c1a4e7c7408787a4fc7c3fc902982f4eb989f440928",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "limitations": [
+        "No qualifying record is not biological absence.",
+        "Site/event evidence is not county representative.",
+        "Detection alone does not establish prevalence or establishment criteria.",
+        "No freshness, pooling, public admission or scientific approval is inferred."
+      ],
+      "observation_key": "observation:v1:66821976dfbf285e1c4095fc6db78073e1460200d7467327e134cdbb839378b5",
+      "reason_codes": [
+        "PUBLISHER_NO_RECORDS"
+      ],
+      "revision_id": "revision:v1:b6eb45c8c431b94195732a1e49916627edc34bbc65cb2c8f8882798e99338cef",
+      "source_rule_id": "county_tick_status:evidence-v3",
+      "state": "no_qualifying_record",
+      "value_state": "NO_RECORDS"
+    }
+  },
+  "sampled_not_detected": {
+    "contract_version": "atlas-surveillance-evidence-consumer-v2",
+    "semantic": {
+      "contract_version": "atlas-semantic-consumer-v1",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "freshness": {
+        "metadata_revised_at": {
+          "state": "KNOWN",
+          "value": "2026-09-24"
+        },
+        "observation_period": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "published_at": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "retrieved_at": {
+          "state": "UNAVAILABLE",
+          "value": null
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "RELEASE-2026"
+        }
+      },
+      "indicator": {
+        "id": "pathogen_surveillance"
+      },
+      "lineage": {
+        "dataset_id": "DP1.10092.001",
+        "evidence_basis": null,
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "REPRESENTATIVENESS",
+            "code": "not_county_representative",
+            "text": "Site and event evidence does not establish county representativeness."
+          },
+          {
+            "category": "DENOMINATOR",
+            "code": "bounded_denominator",
+            "text": "The denominator applies only to the recorded testing scope."
+          }
+        ],
+        "lineage_id": "lineage:v1:7ea55b2f40d43c426011c9930f838e233800f56e7091fa2555a4ad3a2d55bf4f",
+        "measure_id": "neon_individual_pathogen_test",
+        "measure_version": "1.0.0",
+        "metadata_revision_id": "metadata-revision:v1:cf73d4b5f28549231b079958d53cacebafa13f98d8d96d8d3cf3cd7fd7502f35",
+        "methodology_version": "reviewed-v1",
+        "publisher": "neon",
+        "record_refs": [
+          "record-neon_individual_pathogen_test-0"
+        ],
+        "release_id": null,
+        "representativeness": "NOT_COUNTY_REPRESENTATIVE",
+        "result_id": null,
+        "result_revision_id": null,
+        "semantic_observation_id": "observation:v1:b05d247ae51662e2601de6b7873ccdb6fc9b7be0bdd6a838bf535680391273d5",
+        "semantic_revision_id": "revision:v1:46b4cca629ecc37c2c9eea661bcb08e7cf04cf32dc854e2230c2d6c2f904a257",
+        "source_version_id": "fixture-version-1",
+        "source_vintage": "RELEASE-2026",
+        "transformation_version": "release-builder-v1"
+      },
+      "measure": {
+        "allowed_strata": [
+          "tick_taxon",
+          "life_stage",
+          "pathogen_target",
+          "collection_method",
+          "testing_scope"
+        ],
+        "allowed_value_states": [
+          "OBSERVED",
+          "UNKNOWN",
+          "UNAVAILABLE",
+          "ZERO"
+        ],
+        "applicability": {
+          "allowed_strata": [
+            "tick_taxon",
+            "life_stage",
+            "pathogen_target",
+            "collection_method",
+            "testing_scope"
+          ],
+          "geography_grain": "SITE_EVENT",
+          "origin": "REPORTED",
+          "representativeness": "NOT_COUNTY_REPRESENTATIVE",
+          "temporal_semantics": "POINT_IN_TIME"
+        },
+        "definition": "Synthetic fixture meaning for neon_individual_pathogen_test",
+        "denominator": "individual_tests",
+        "description": {
+          "state": "KNOWN",
+          "value": "Synthetic description of neon_individual_pathogen_test"
+        },
+        "id": "neon_individual_pathogen_test",
+        "label": "Neon Individual Pathogen Test",
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "REPRESENTATIVENESS",
+            "code": "not_county_representative",
+            "text": "Site and event evidence does not establish county representativeness."
+          },
+          {
+            "category": "DENOMINATOR",
+            "code": "bounded_denominator",
+            "text": "The denominator applies only to the recorded testing scope."
+          }
+        ],
+        "meaning_signature": "163856ef460a5fd6bab4b370678d1b07d88471985c47d39018a9c27ef7e5aeae",
+        "metadata_id": "metadata:neon_individual_pathogen_test:1.0.0",
+        "metadata_revision": 1,
+        "metadata_revision_id": "metadata-revision:v1:cf73d4b5f28549231b079958d53cacebafa13f98d8d96d8d3cf3cd7fd7502f35",
+        "origin": "REPORTED",
+        "quality_evidence": {
+          "eligibility_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "evidence_basis": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "propagation_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "quality_contract": {
+            "state": "KNOWN",
+            "value": "surveillance-quality-profile-v1"
+          },
+          "uncertainty": {
+            "state": "UNKNOWN",
+            "value": null
+          }
+        },
+        "semantic_version": "1.0.0",
+        "type": "number",
+        "unit": "ticks"
+      },
+      "observation": {
+        "denominator_value": null,
+        "geography": {
+          "county_fips": null,
+          "event_id": "event-neon_individual_pathogen_test",
+          "grain": "SITE_EVENT",
+          "representativeness": "NOT_COUNTY_REPRESENTATIVE",
+          "site_id": "BLAN"
+        },
+        "id": "observation:v1:b05d247ae51662e2601de6b7873ccdb6fc9b7be0bdd6a838bf535680391273d5",
+        "revision_id": "revision:v1:46b4cca629ecc37c2c9eea661bcb08e7cf04cf32dc854e2230c2d6c2f904a257",
+        "strata": {
+          "pathogen_target": "BORRELIA_BURGDORFERI_SENSU_LATO",
+          "tick_taxon": "IXODES_SCAPULARIS"
+        },
+        "temporal": {
+          "date": "2016-05-01",
+          "semantics": "POINT_IN_TIME"
+        },
+        "value": 0,
+        "value_state": "ZERO"
+      },
+      "provenance": {
+        "dataset_id": {
+          "state": "KNOWN",
+          "value": "DP1.10092.001"
+        },
+        "method_version": {
+          "state": "KNOWN",
+          "value": "reviewed-v1"
+        },
+        "publisher": {
+          "state": "KNOWN",
+          "value": "neon"
+        },
+        "source_id": {
+          "state": "KNOWN",
+          "value": "neon"
+        },
+        "source_version_id": {
+          "state": "KNOWN",
+          "value": "fixture-version-1"
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "RELEASE-2026"
+        },
+        "transformation_version": {
+          "state": "NOT_APPLICABLE",
+          "value": null
+        }
+      },
+      "release": null
+    },
+    "surveillance_evidence": {
+      "contract_version": "atlas-surveillance-evidence-v3",
+      "evidence_revision_id": "evidence:v3:146338a811efd3dd802a99ce3440fa91c2be50e225b2f4ba496d8024bf7c2341",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "limitations": [
+        "No qualifying record is not biological absence.",
+        "Site/event evidence is not county representative.",
+        "Detection alone does not establish prevalence or establishment criteria.",
+        "No freshness, pooling, public admission or scientific approval is inferred."
+      ],
+      "observation_key": "observation:v1:b05d247ae51662e2601de6b7873ccdb6fc9b7be0bdd6a838bf535680391273d5",
+      "reason_codes": [
+        "SOURCE_NORMALIZED_INDIVIDUAL_NEGATIVE_TEST"
+      ],
+      "revision_id": "revision:v1:46b4cca629ecc37c2c9eea661bcb08e7cf04cf32dc854e2230c2d6c2f904a257",
+      "source_rule_id": "neon_pathogen_test:evidence-v3",
+      "state": "sampled_not_detected",
+      "value_state": "ZERO"
+    }
+  },
+  "unknown": {
+    "contract_version": "atlas-surveillance-evidence-consumer-v2",
+    "semantic": {
+      "contract_version": "atlas-semantic-consumer-v1",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "freshness": {
+        "metadata_revised_at": {
+          "state": "KNOWN",
+          "value": "2026-09-24"
+        },
+        "observation_period": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "published_at": {
+          "state": "UNKNOWN",
+          "value": null
+        },
+        "retrieved_at": {
+          "state": "UNAVAILABLE",
+          "value": null
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "2025"
+        }
+      },
+      "indicator": {
+        "id": "pathogen_surveillance"
+      },
+      "lineage": {
+        "dataset_id": "county-pathogen-status",
+        "evidence_basis": null,
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "SOURCE",
+            "code": "no_records_not_absence",
+            "text": "No records does not establish biological absence."
+          }
+        ],
+        "lineage_id": "lineage:v1:e4f7b0e8bc34ac9064bdcd190871a4b771cb4bd4673a5c56a71810ee85e82af1",
+        "measure_id": "burgdorferi_status",
+        "measure_version": "1.0.0",
+        "metadata_revision_id": "metadata-revision:v1:fa01d5cf3c66be4a7a55e122a425a04056e91c1a3f4d06c81bfc06d7bcd25d2e",
+        "methodology_version": "reviewed-v1",
+        "publisher": "cdc_pathogen",
+        "record_refs": [
+          "record-burgdorferi_status-0"
+        ],
+        "release_id": null,
+        "representativeness": "COUNTY_NATIVE_STATUS",
+        "result_id": null,
+        "result_revision_id": null,
+        "semantic_observation_id": "observation:v1:01f1e6777ed1e52df7167a1d8823b13fa97cdf7425c730d46483328632255113",
+        "semantic_revision_id": "revision:v1:4575313ea50755151ecdb2b87967556bc4899ea1ef1ff958d74e63a31d85c06a",
+        "source_version_id": "fixture-version-1",
+        "source_vintage": "2025",
+        "transformation_version": "release-builder-v1"
+      },
+      "measure": {
+        "allowed_strata": [],
+        "allowed_value_states": [
+          "OBSERVED",
+          "UNKNOWN",
+          "UNAVAILABLE"
+        ],
+        "applicability": {
+          "allowed_strata": [],
+          "geography_grain": "COUNTY",
+          "origin": "REPORTED",
+          "representativeness": "COUNTY_NATIVE_STATUS",
+          "temporal_semantics": "CUMULATIVE_THROUGH_DATE"
+        },
+        "definition": "Synthetic fixture meaning for burgdorferi_status",
+        "denominator": "NONE",
+        "description": {
+          "state": "KNOWN",
+          "value": "Synthetic description of burgdorferi_status"
+        },
+        "id": "burgdorferi_status",
+        "label": "Burgdorferi Status",
+        "limitations": [
+          {
+            "category": "INTERPRETATION",
+            "code": "no_human_risk_inference",
+            "text": "This measure does not estimate individual human risk."
+          },
+          {
+            "category": "SOURCE",
+            "code": "no_records_not_absence",
+            "text": "No records does not establish biological absence."
+          }
+        ],
+        "meaning_signature": "3f370862305263a0bfa97f7da6b374abab7934a68a3181e7ffa72a30566104c1",
+        "metadata_id": "metadata:burgdorferi_status:1.0.0",
+        "metadata_revision": 1,
+        "metadata_revision_id": "metadata-revision:v1:fa01d5cf3c66be4a7a55e122a425a04056e91c1a3f4d06c81bfc06d7bcd25d2e",
+        "origin": "REPORTED",
+        "quality_evidence": {
+          "eligibility_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "evidence_basis": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "propagation_contract": {
+            "state": "NOT_APPLICABLE",
+            "value": null
+          },
+          "quality_contract": {
+            "state": "KNOWN",
+            "value": "surveillance-quality-profile-v1"
+          },
+          "uncertainty": {
+            "state": "UNKNOWN",
+            "value": null
+          }
+        },
+        "semantic_version": "1.0.0",
+        "type": "string",
+        "unit": "status"
+      },
+      "observation": {
+        "denominator_value": null,
+        "geography": {
+          "county_fips": "08013",
+          "grain": "COUNTY",
+          "representativeness": "COUNTY_NATIVE_STATUS"
+        },
+        "id": "observation:v1:01f1e6777ed1e52df7167a1d8823b13fa97cdf7425c730d46483328632255113",
+        "revision_id": "revision:v1:4575313ea50755151ecdb2b87967556bc4899ea1ef1ff958d74e63a31d85c06a",
+        "strata": {},
+        "temporal": {
+          "date": "2025-12-31",
+          "semantics": "CUMULATIVE_THROUGH_DATE"
+        },
+        "value": "Present",
+        "value_state": "OBSERVED"
+      },
+      "provenance": {
+        "dataset_id": {
+          "state": "KNOWN",
+          "value": "county-pathogen-status"
+        },
+        "method_version": {
+          "state": "KNOWN",
+          "value": "reviewed-v1"
+        },
+        "publisher": {
+          "state": "KNOWN",
+          "value": "cdc_pathogen"
+        },
+        "source_id": {
+          "state": "KNOWN",
+          "value": "cdc_pathogen"
+        },
+        "source_version_id": {
+          "state": "KNOWN",
+          "value": "fixture-version-1"
+        },
+        "source_vintage": {
+          "state": "KNOWN",
+          "value": "2025"
+        },
+        "transformation_version": {
+          "state": "NOT_APPLICABLE",
+          "value": null
+        }
+      },
+      "release": null
+    },
+    "surveillance_evidence": {
+      "contract_version": "atlas-surveillance-evidence-v3",
+      "evidence_revision_id": "evidence:v3:aa1f1967f7b2fe947d6827778a5362cb12f5c4f0fc177d21ff9270222a582a94",
+      "evidence_tier": "SYNTHETIC_FIXTURE",
+      "limitations": [
+        "No qualifying record is not biological absence.",
+        "Site/event evidence is not county representative.",
+        "Detection alone does not establish prevalence or establishment criteria.",
+        "No freshness, pooling, public admission or scientific approval is inferred."
+      ],
+      "observation_key": "observation:v1:01f1e6777ed1e52df7167a1d8823b13fa97cdf7425c730d46483328632255113",
+      "reason_codes": [
+        "DETECTION_ESTABLISHMENT_RELATION_UNPROVEN"
+      ],
+      "revision_id": "revision:v1:4575313ea50755151ecdb2b87967556bc4899ea1ef1ff958d74e63a31d85c06a",
+      "source_rule_id": "county_pathogen_status:evidence-v3",
+      "state": "unknown",
+      "value_state": "OBSERVED"
+    }
+  }
+}

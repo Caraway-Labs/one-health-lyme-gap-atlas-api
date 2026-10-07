@@ -62,7 +62,28 @@ def test_disabled_has_no_query_and_does_not_claim_empty() -> None:
     assert response.headers["content-type"].startswith("application/problem+json")
 
 
-def test_items_preserve_dates_provenance_and_cross_source_identity() -> None:
+def test_enabled_empty_items_and_sources_are_honest() -> None:
+    class EmptyRepository(Repository):
+        def read(self, *args: Any) -> tuple[str, list[tuple[Any, ...]]]:
+            self.calls.append(args)
+            return "empty-projection", []
+
+    repository = EmptyRepository()
+    app = client(repository)
+    for path in ("/v1/intelligence/items", "/v1/intelligence/sources"):
+        response = app.get(path)
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+        body = response.json()
+        assert body["data"] == []
+        assert body["meta"]["next_page_token"] is None
+        assert body["meta"]["source_health_available"] is False
+        if path.endswith("/sources"):
+            assert body["source_catalog_complete"] is False
+    assert [call[0] for call in repository.calls] == ["items", "sources"]
+
+
+def test_items_preserve_dates_and_provenance() -> None:
     repository = Repository()
     response = client(repository).get("/v1/intelligence/items")
     assert response.status_code == 200
@@ -72,6 +93,70 @@ def test_items_preserve_dates_provenance_and_cross_source_identity() -> None:
     assert item["published_at"] != item["fetched_at"]
     assert response.json()["meta"]["source_health_available"] is False
     assert "raw" not in item
+
+
+def test_two_sources_and_revisions_survive_http_paging_without_private_fields() -> None:
+    class CrossSourceRepository(Repository):
+        def read(self, kind: str, *args: Any) -> tuple[str, list[tuple[Any, ...]]]:
+            self.calls.append((kind, *args))
+            if kind == "sources":
+                return "stable", [
+                    ("cdc-newsroom", 1, "CDC", "official_public_health"),
+                    ("nih-news-releases", 2, "NIH", "official_public_health"),
+                ]
+            first = deepcopy(self.document)
+            first["source_id"] = "cdc-newsroom"
+            revised = deepcopy(first)
+            revised["revision_id"] = "b" * 64
+            other = deepcopy(first)
+            other.update(
+                source_id="nih-news-releases",
+                registry_version=2,
+                item_id="c" * 64,
+                revision_id="d" * 64,
+                deduplication_key="c" * 64,
+            )
+            rows = [
+                tuple(item[name] for name in ITEM_COLUMNS)
+                + (organization, "official_public_health")
+                for item, organization in ((first, "CDC"), (revised, "CDC"), (other, "NIH"))
+            ]
+            offset, size = args[-2:]
+            return "stable", rows[offset : offset + size + 1]
+
+    repository = CrossSourceRepository()
+    app = client(repository)
+    first_page = app.get("/v1/intelligence/items?page_size=2")
+    assert first_page.status_code == 200
+    assert first_page.headers["cache-control"] == "no-store"
+    token = first_page.json()["meta"]["next_page_token"]
+    assert token
+    second_page = app.get(
+        "/v1/intelligence/items", params={"page_size": 2, "page_token": token}
+    )
+    assert second_page.status_code == 200
+    assert second_page.json()["meta"]["next_page_token"] is None
+    evidence = first_page.json()["data"] + second_page.json()["data"]
+    assert [(entry["item"]["source_id"], entry["item"]["revision_id"]) for entry in evidence] == [
+        ("cdc-newsroom", repository.document["revision_id"]),
+        ("cdc-newsroom", "b" * 64),
+        ("nih-news-releases", "d" * 64),
+    ]
+    assert evidence[0]["item"]["item_id"] == evidence[1]["item"]["item_id"]
+    assert evidence[2]["item"]["item_id"] != evidence[0]["item"]["item_id"]
+    assert [entry["source"]["organization"] for entry in evidence] == ["CDC", "CDC", "NIH"]
+    assert len({entry["item"]["canonical_url"] for entry in evidence}) == 1
+    assert all("raw_publisher_date" not in entry["item"] for entry in evidence)
+    assert all(
+        entry["item"]["provenance"] == repository.document["provenance"] for entry in evidence
+    )
+    sources = app.get("/v1/intelligence/sources")
+    assert sources.status_code == 200
+    assert [(item["source_id"], item["registry_version"]) for item in sources.json()["data"]] == [
+        ("cdc-newsroom", 1),
+        ("nih-news-releases", 2),
+    ]
+    assert all(item["operational_state"] == "unavailable" for item in sources.json()["data"])
 
 
 def test_missing_publisher_date_remains_unknown() -> None:
