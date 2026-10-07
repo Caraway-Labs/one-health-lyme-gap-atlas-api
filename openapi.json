@@ -4494,7 +4494,8 @@
           "county_fips": {
             "type": "string",
             "pattern": "^\\d{5}$",
-            "title": "County Fips"
+            "title": "County Fips",
+            "description": "Five-digit county FIPS for this persisted result."
           },
           "priority_tier": {
             "anyOf": [
@@ -4511,7 +4512,7 @@
               }
             ],
             "title": "Priority Tier",
-            "description": "Persisted tier, or null when evidence is NOT_ESTIMABLE."
+            "description": "HIGH, MEDIUM, or LOW model-assisted surveillance review priority under the named tier policy; not disease risk. Null for NOT_ESTIMABLE."
           },
           "priority_percentile": {
             "anyOf": [
@@ -4525,7 +4526,7 @@
               }
             ],
             "title": "Priority Percentile",
-            "description": "Relative to this scored batch and population; not a probability."
+            "description": "Within-batch relative position among scored counties for this model and inference batch (0-100). Not a probability or comparable across batches, model versions, populations, or tier policies without a separate validation. Null for NOT_ESTIMABLE."
           },
           "raw_model_score": {
             "anyOf": [
@@ -4537,7 +4538,7 @@
               }
             ],
             "title": "Raw Model Score",
-            "description": "Model-native technical output, not disease risk."
+            "description": "Model-native anomaly score; not a probability, incidence estimate, or clinical/disease risk. Its scale is model-specific and is not comparable across versions without validation. Null for NOT_ESTIMABLE."
           },
           "evidence_sufficiency": {
             "type": "string",
@@ -4546,12 +4547,14 @@
               "INSUFFICIENT",
               "NOT_ESTIMABLE"
             ],
-            "title": "Evidence Sufficiency"
+            "title": "Evidence Sufficiency",
+            "description": "Input-data sufficiency state, not calibrated model confidence. NOT_ESTIMABLE is an abstention with null tier, percentile, and score; INSUFFICIENT may retain scored fields."
           },
           "model_version": {
             "type": "string",
             "minLength": 1,
-            "title": "Model Version"
+            "title": "Model Version",
+            "description": "Version of the model that generated this result."
           },
           "release_id": {
             "type": "string",
@@ -4568,17 +4571,20 @@
           "prediction_batch_version": {
             "type": "string",
             "minLength": 1,
-            "title": "Prediction Batch Version"
+            "title": "Prediction Batch Version",
+            "description": "Inference batch identity defining the percentile comparison population."
           },
           "tier_policy_version": {
             "type": "string",
             "minLength": 1,
-            "title": "Tier Policy Version"
+            "title": "Tier Policy Version",
+            "description": "Version of the policy assigning review tiers from scored results."
           },
           "generated_at_utc": {
             "type": "string",
             "format": "date-time",
-            "title": "Generated At Utc"
+            "title": "Generated At Utc",
+            "description": "UTC batch generation time, not the request time or source observation date."
           },
           "reasons": {
             "items": {
