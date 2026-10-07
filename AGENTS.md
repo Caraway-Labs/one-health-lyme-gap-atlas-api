@@ -1,5 +1,68 @@
 # Atlas API instructions
 
+This FastAPI service owns the server-side REST boundary for Atlas reads,
+governed Snowflake queries, and bounded knowledge-graph evidence retrieval.
+The public HTTP schema is `openapi.json`; `first-party-openapi.json` includes
+internal operations for existing first-party consumers. Do not expose internal
+AI/RAG operations through the public projection.
+
+## Fresh Linux checkout
+
+Run `bash scripts/bootstrap-agent.sh` from the repository root. It installs a
+local `uv` tool if necessary, selects the pinned Python 3.12 interpreter from
+`.python-version`, and runs `uv sync --extra dev --locked`. Git, Python 3 with
+`venv`, and access to PyPI, the Python runtime download, and the two pinned
+GitHub source dependencies are needed. No `.env` or production credential is
+needed for the ordinary quality suite. The script prints the `uv` path to use
+if it installed a local copy.
+
+Canonical commands (use the script's local `uv` path if `uv` is not on PATH):
+
+```sh
+uv sync --extra dev --locked
+uv run ruff check .
+uv run mypy
+uv run pytest -q
+uv run python scripts/export_openapi.py
+uv run python scripts/openapi_quality.py --base-ref origin/main
+uv run uvicorn lyme_gap_atlas_api.app:app --reload
+```
+
+The server can start without credentials for local smoke or documentation
+work; data-backed routes require the approved service connections. The normal
+pytest suite uses fakes and local fixtures. Do not place real Snowflake,
+Neo4j, Supabase, OpenAI, or DigitalOcean credentials in a cloud coding
+environment. `docker build .`, the production Typst regression, and the
+gitleaks container are additional CI-equivalent checks when Docker is
+available; Docker is not needed for the Python quality commands. The report
+renderer uses a test stand-in by default; real Typst is supplied by the image.
+`uv build` currently fails on a duplicate report-template entry in the wheel;
+the Docker image build is the current production build gate. Repository-wide
+`ruff format --check .` is not a current CI gate and reports existing formatting
+drift; format changed Python files without reformatting unrelated code.
+
+## Delivery rules
+
+- Start from current `main` in a feature branch, usually `codex/<short-topic>`.
+  Open a PR; do not push directly to protected `main`. Record scope, affected
+  contracts/ADRs, security and privacy impact, test evidence, and any remaining
+  limitations. One approving review, resolved conversations, and the current
+  `quality` check are required for merge.
+- Keep database and Supabase migrations versioned and environment-specific.
+  Never run a remote migration, PROD read, or deployment from an agent setup
+  job. Follow `supabase/README.md` and the workspace least-privilege rules for
+  explicitly authorized integration work.
+- Preserve structured, redacted observability. Follow the telemetry contracts
+  under `docs/`; never log credentials, bearer tokens, prompts, patient data,
+  or raw private records. Codex Cloud must not receive PHI.
+- Do not change the public contract, access model, data classification,
+  deployment topology, or public-health interpretation without the required
+  governed decision and owner review. Do not change CI, GitHub settings,
+  production configuration, or external resources as setup work.
+- Before handoff, pass the applicable commands above and the focused tests for
+  the change. Update and validate both OpenAPI artifacts for route or schema
+  changes, and include downstream generated-client compatibility evidence.
+
 Read the workspace [AGENTS.md](../AGENTS.md), [technology and governance
 baseline](../TECHNOLOGY_AND_GOVERNANCE.md), this repository's `README.md`, and
 the relevant workspace ADRs before material work: [0002 public API and
