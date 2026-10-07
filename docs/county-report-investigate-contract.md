@@ -26,6 +26,11 @@ read and canonical Observation model; it does not introduce SQL or a second PDF
 pipeline. Renderer JSON preserves the full canonical observations: value/state,
 period, source resource and lineage identities, dataset, provenance reference,
 methodology and versions, timestamps, evidence reference and all limitations.
+Environmental coverage is rendered field by field, including coverage status,
+source-time presence, labeled-day convention, area support, exact decimal
+fractions, and methodology/geometry/metadata revisions. Null coverage metadata
+is explicitly unavailable and remains separate from observation value_state.
+
 The new immutable Typst template displays observation source context and caveats
 separately from release limitations. Empty release-wide sources never replace
 observation provenance. V2 omits legacy score and fixed-year summary sections
@@ -87,3 +92,16 @@ References: public-api-v1-contract.md, county-geography-contract.md,
 api-telemetry-contract.md, workspace technology/governance baseline and ADR 0002.
 No access model, data classification, geography, production configuration or
 public-health interpretation changes are introduced.
+
+
+## Production PDF regression gate
+
+The quality workflow extracts the pinned binary from the newly built production
+image and exports PATH in the same shell that invokes pytest. It runs both
+`tests/test_typst_renderer.py` and `tests/test_report_context.py` with
+`--require-real-typst`. This includes legacy county/state PDFs, WEB460, and all
+five environmental coverage/value-state cases (nonzero, zero, partial coverage,
+source missing, and out of coverage). The flag fails when Typst is absent;
+ordinary credential-free development may still skip real-binary tests without
+that flag. PDF text checks preserve source/provenance, coverage, exact decimal
+support, day convention, unavailable metadata, values and material caveats.

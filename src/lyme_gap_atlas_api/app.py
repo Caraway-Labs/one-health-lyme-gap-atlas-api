@@ -1014,6 +1014,7 @@ def create_app(
                 "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
             },
             304: {"description": "Matching If-None-Match; empty body."},
+            400: problem_response(400, "QUERY_TOO_BROAD", "Narrow the observation period."),
             413: problem_response(413, None, "The report exceeds configured resource limits."),
         },
         operation_id="county_report_pdf_v1_counties__fips__report_pdf_get",

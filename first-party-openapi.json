@@ -4581,6 +4581,30 @@
           "304": {
             "description": "Matching If-None-Match; empty body."
           },
+          "400": {
+            "description": "Narrow the observation period.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-400",
+                      "title": "Request failed",
+                      "status": 400,
+                      "detail": "Narrow the observation period.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "QUERY_TOO_BROAD"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "413": {
             "description": "The report exceeds configured resource limits.",
             "content": {

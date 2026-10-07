@@ -1,6 +1,5 @@
 """Representative WEB460 mismatch; no production data or provenance invented."""
 
-import shutil
 from datetime import date
 from io import BytesIO
 
@@ -8,10 +7,12 @@ import pytest
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from test_api import FakePdfRenderer, FakeRepository
+from test_environmental_context import fixture_row
 from test_public_observations import row
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
+from lyme_gap_atlas_api.environmental_context import FIELDS
 from lyme_gap_atlas_api.reports.renderer import RendererFailure, RenderLimits
 from lyme_gap_atlas_api.reports.renderers.typst import TypstRenderer
 
@@ -152,8 +153,7 @@ def test_v2_requires_complete_explicit_context(key):
     assert renderer.calls == []
 
 
-@pytest.mark.skipif(shutil.which("typst") is None, reason="Production Typst binary unavailable")
-def test_real_typst_web460_text():
+def test_real_typst_web460_text(real_typst_binary):
     limits = RenderLimits(
         timeout_seconds=5,
         max_pages=50,
@@ -162,7 +162,7 @@ def test_real_typst_web460_text():
         max_aggregate_asset_bytes=20971520,
         max_pdf_bytes=26214400,
     )
-    api, _, _ = setup(TypstRenderer(limits))
+    api, _, _ = setup(TypstRenderer(limits, binary=(real_typst_binary,)))
     response = api.get(PATH, params=PARAMS)
     assert response.status_code == 200, response.text
     text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(response.content)).pages)
@@ -198,6 +198,9 @@ def test_bounded_context_errors(updates, status):
     api, renderer, _ = setup()
     response = api.get(PATH, params={**PARAMS, **updates})
     assert response.status_code == status
+    if status == 400:
+        assert response.json()["code"] == "QUERY_TOO_BROAD"
+        assert "400" in api.app.openapi()["paths"][PATH]["get"]["responses"]
     assert response.headers["cache-control"] == "no-store"
     assert renderer.calls == []
 
@@ -234,3 +237,105 @@ def test_orval_comma_array_and_repeated_selectors_have_identical_meaning():
     assert csv.content == repeated.content
     assert csv.headers["etag"] == repeated.headers["etag"]
     assert len(renderer.calls) == 1
+
+
+class EnvironmentalReportRepository(FakeRepository):
+    def load_snapshot(self):
+        snapshot = super().load_snapshot()
+        snapshot.metadata.release_id = "fixture-release"
+        snapshot.counties[0] = snapshot.counties[0].model_copy(
+            update={"release_id": "fixture-release"}
+        )
+        return snapshot
+
+
+@pytest.mark.parametrize(
+    "value, state, coverage",
+    [
+        (2.5, "OBSERVED", "COMPLETE"),
+        (0.0, "ZERO", "COMPLETE"),
+        (None, "MISSING", "PARTIAL_COVERAGE"),
+        (None, "MISSING", "SOURCE_MISSING"),
+        (None, "UNAVAILABLE", "OUT_OF_SOURCE_COVERAGE"),
+    ],
+)
+def test_real_typst_environmental_context_pdf(real_typst_binary, value, state, coverage):
+    class Observations:
+        def current_release(self):
+            return "fixture-release"
+
+        def measure_exists(self, measure_id, release):
+            return measure_id == "nclimgrid_prcp_county_day"
+
+        def query(self, query, release, offset):
+            values = dict(zip(FIELDS, fixture_row("08001", value, state, coverage), strict=True))
+            values["source_time_present"] = coverage != "SOURCE_MISSING"
+            # Exact DECIMAL support metadata and an honestly unavailable area.
+            values["source_coverage_fraction"] = "0.75000"
+            values["source_coverage_fraction_stored_type"] = "DECIMAL"
+            values["source_coverage_fraction_native_double"] = None
+            values["expected_area_m2"] = None
+            values["expected_area_m2_stored_type"] = "NULL_VALUE"
+            values["expected_area_m2_native_double"] = None
+            return [tuple(values[field] for field in FIELDS)]
+
+    renderer = TypstRenderer(RenderLimits.from_settings(ApiSettings()), binary=(real_typst_binary,))
+    api = TestClient(
+        create_app(
+            EnvironmentalReportRepository(),
+            ApiSettings(rate_limit_per_minute=1000),
+            pdf_renderer=renderer,
+            observation_repository=Observations(),
+        )
+    )
+    visible = api.get(
+        "/v1/observations",
+        params={
+            "measure_id": "nclimgrid_prcp_county_day",
+            "geography_type": "county",
+            "geography_id": "08001",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-01",
+        },
+    ).json()["data"][0]
+    response = api.get(
+        PATH,
+        params={
+            "template": "county-v2",
+            "dataset_version": "fixture-release",
+            "period_start": "2025-01-01",
+            "period_end": "2025-01-01",
+            "measure_id": "nclimgrid_prcp_county_day",
+        },
+    )
+    assert response.status_code == 200, response.text
+    text = " ".join(
+        " ".join(page.extract_text().split()) for page in PdfReader(BytesIO(response.content)).pages
+    )
+    expected = [
+        "08001",
+        "fixture-release",
+        "2025-01-01",
+        "nclimgrid_prcp_county_day",
+        "NOAA NCEI",
+        "noaa_nclimgrid_daily",
+        "nclimgrid-daily-v1.0.0-scaled",
+        "atlas-nclimgrid-county-day/2",
+        "fixture-metadata",
+        "fixture-weight",
+        "fixture-tiger-2025",
+        "0.75000",
+        "Source coverage fraction",
+        "Valid fraction of supported area",
+        "Upstream modification metadata",
+        "Unavailable",
+        "Source time present " + ("No" if coverage == "SOURCE_MISSING" else "Yes"),
+        "Value state: " + state,
+        "Coverage status " + coverage,
+        "Value: " + ("Data unavailable" if value is None else "0" if value == 0 else str(value)),
+        visible["provenance_ref"],
+        visible["environmental_context"]["day_convention"],
+        *visible["limitations"],
+    ]
+    for phrase in expected:
+        assert " ".join(phrase.split()) in text
