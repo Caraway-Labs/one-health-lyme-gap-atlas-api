@@ -8,6 +8,7 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from copy import deepcopy
+from datetime import date
 from typing import Annotated, Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Request, status
@@ -449,6 +450,9 @@ def create_app(
             problem.model_dump(mode="json", exclude=set() if is_canonical else {"code"}),
             status_code=response_status,
             media_type="application/problem+json",
+            headers={"Cache-Control": "no-store"}
+            if request.url.path.endswith("/report.pdf")
+            else None,
         )
 
     @app.exception_handler(PublicQueryError)
@@ -469,6 +473,9 @@ def create_app(
             problem.model_dump(mode="json"),
             status_code=response_status,
             media_type="application/problem+json",
+            headers={"Cache-Control": "no-store"}
+            if request.url.path.endswith("/report.pdf")
+            else None,
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -504,7 +511,11 @@ def create_app(
             problem.model_dump(mode="json", exclude={"code"} if problem.code is None else set()),
             status_code=exc.status_code,
             media_type="application/problem+json",
-            headers=exc.headers,
+            headers=(
+                {**(exc.headers or {}), "Cache-Control": "no-store"}
+                if request.url.path.endswith("/report.pdf")
+                else exc.headers
+            ),
         )
 
     @app.exception_handler(AtlasDataUnavailableError)
@@ -1010,7 +1021,12 @@ def create_app(
         description=(
             "PDF attachment using the immutable county-v1 registered template by default. "
             "Optional dataset_version and score settings bind report inputs. "
-            "ETag/If-None-Match supports 304; public cache TTL 300 seconds with "
+            "Opt-in county-v2 requires dataset_version, period_start, period_end and repeated "
+            "measure_id (1–20); reads exact canonical observations and preserves source lineage, "
+            "value states and limitations. Missing or mismatched provenance returns 503; "
+            "unknown observations return 404. V1 rejects observation selectors with 422. "
+            "V2 responses use no-store and revalidate authoritative context before cache/304. "
+            "ETag/If-None-Match supports 304; V1 public cache TTL 300 seconds with "
             "revalidation. Unknown templates return 422; resource limits 413; renderer "
             "failure/timeout 503."
         ),
@@ -1020,6 +1036,18 @@ def create_app(
         fips: Annotated[str, Path(pattern=r"^\d{5}$")],
         score_settings: Annotated[ScoreSettings, Depends(_score_settings)],
         dataset_version: str | None = None,
+        period_start: Annotated[
+            date | None, Query(description="Exact inclusive observation start for county-v2.")
+        ] = None,
+        period_end: Annotated[
+            date | None, Query(description="Exact inclusive observation end for county-v2.")
+        ] = None,
+        measure_id: Annotated[
+            list[str] | None,
+            Query(
+                description="One to 20 distinct canonical measure IDs for county-v2.", max_length=20
+            ),
+        ] = None,
         template: Annotated[str, Query(pattern=r"^[a-z]+-v\d+$")] = "county-v1",
     ) -> Response:
         template_definition = TEMPLATE_REGISTRY.get(template)
@@ -1027,12 +1055,33 @@ def create_app(
             raise HTTPException(
                 status_code=422, detail="The requested county report template is not available."
             )
+        context_requested = any(x is not None for x in (period_start, period_end, measure_id))
+        if template == "county-v1" and context_requested:
+            raise HTTPException(status_code=422, detail="Observation context requires county-v2.")
+        if template == "county-v2" and (
+            not dataset_version
+            or period_start is None
+            or period_end is None
+            or period_end < period_start
+            or not measure_id
+            or len(set(measure_id)) != len(measure_id)
+            or any(not x.strip() for x in measure_id)
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="county-v2 requires release, exact period and distinct measures.",
+            )
         try:
             report = reports.county_report(fips, score_settings, dataset_version, template)
         except (KeyError, LookupError) as exc:
             raise HTTPException(
                 status_code=404, detail="County or dataset release not found"
             ) from exc
+        if template == "county-v2":
+            assert period_start is not None and period_end is not None and measure_id
+            report = reports.investigate_context(
+                report, request.app.state.observation_service, measure_id, period_start, period_end
+            )
         try:
             payload = pdf_cache.get_or_render(
                 _report_cache_key(report), lambda: renderer.render(report, template)
@@ -1071,13 +1120,24 @@ def create_app(
         if _matches_etag(request, etag):
             return Response(
                 status_code=304,
-                headers={"Cache-Control": "public, max-age=300, must-revalidate", "ETag": etag},
+                headers={
+                    "Cache-Control": (
+                        "no-store"
+                        if template == "county-v2"
+                        else "public, max-age=300, must-revalidate"
+                    ),
+                    "ETag": etag,
+                },
             )
         return Response(
             payload,
             media_type="application/pdf",
             headers={
-                "Cache-Control": "public, max-age=300, must-revalidate",
+                "Cache-Control": (
+                    "no-store"
+                    if template == "county-v2"
+                    else "public, max-age=300, must-revalidate"
+                ),
                 "Content-Disposition": f'attachment; filename="{filename}.pdf"',
                 "ETag": etag,
             },

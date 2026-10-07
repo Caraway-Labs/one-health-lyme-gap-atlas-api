@@ -6,9 +6,10 @@ from lyme_gap_atlas_api.reports.template_registry import TEMPLATE_REGISTRY, trus
 
 
 def test_registry_exposes_only_versioned_server_template_paths() -> None:
-    assert set(TEMPLATE_REGISTRY) == {"county-v1", "state-v1"}
+    assert set(TEMPLATE_REGISTRY) == {"county-v1", "county-v2", "state-v1"}
     assert trusted_template_paths() == {
         "county-v1": "county/v1/report.typ",
+        "county-v2": "county/v2/report.typ",
         "state-v1": "state/v1/report.typ",
     }
     assert all(
