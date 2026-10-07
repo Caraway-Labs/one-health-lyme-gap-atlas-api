@@ -1,4 +1,3 @@
-import shutil
 import sys
 from collections.abc import Callable
 from io import BytesIO
@@ -173,7 +172,6 @@ def test_asset_limits_are_enforced() -> None:
         validate_asset_sizes([b"12", b"34"], _limits(max_aggregate_asset_bytes=3))
 
 
-@pytest.mark.skipif(shutil.which("typst") is None, reason="requires the pinned Typst binary")
 @pytest.mark.parametrize(
     ("template_key", "report_factory", "required_text"),
     [
@@ -206,10 +204,11 @@ def test_real_typst_templates_render_meaningful_report_content(
     template_key: str,
     report_factory: Callable[[ReportService], CountyReport | StateReport],
     required_text: tuple[str, ...],
+    real_typst_binary: str,
 ) -> None:
     reports = ReportService(AtlasService(FakeRepository()))
     report = report_factory(reports)
-    payload = TypstRenderer(_limits()).render(report, template_key)
+    payload = TypstRenderer(_limits(), binary=(real_typst_binary,)).render(report, template_key)
     rendered_text = "\n".join(
         page.extract_text() or "" for page in PdfReader(BytesIO(payload)).pages
     )

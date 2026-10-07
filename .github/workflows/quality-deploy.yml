@@ -91,8 +91,9 @@ jobs:
           docker cp "${container_id}:/usr/local/bin/typst" .ci-bin/typst
           docker rm "${container_id}"
           chmod +x .ci-bin/typst
-          echo "$PWD/.ci-bin" >> "$GITHUB_PATH"
-          uv run pytest -q tests/test_typst_renderer.py
+          export PATH="$PWD/.ci-bin:$PATH"
+          typst --version
+          uv run pytest -q --require-real-typst tests/test_typst_renderer.py tests/test_report_context.py
       - name: Scan Git history for secrets
         run: >-
           docker run --rm -v "$PWD:/repo"

@@ -1,9 +1,11 @@
 """Stable report data contracts kept separate from HTTP and renderer models."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
+
+from ..public_contract import Observation
 
 
 class ReportIdentity(BaseModel):
@@ -78,6 +80,14 @@ class ReportScore(BaseModel):
     rural_signal: float
 
 
+class ReportObservationContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    period_start: date
+    period_end: date
+    observations: list[Observation]
+
+
 class CountyReport(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -85,6 +95,7 @@ class CountyReport(BaseModel):
     geography: ReportGeography
     provenance: ReportProvenance
     score: ReportScore
+    observation_context: ReportObservationContext | None = None
     priority: str
     population: ReportMetric
     human_health: list[ReportMetric]
