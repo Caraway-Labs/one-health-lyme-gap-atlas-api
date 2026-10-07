@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ValueState(StrEnum):
@@ -167,6 +167,105 @@ class EnvironmentalContext(BaseModel):
     weight_version: str
     geometry_version: str = Field(description="Analysis geometry identity only; no polygons.")
     metadata_revision_id: str
+
+
+class SurveillanceEvidenceContext(BaseModel):
+    """Data-projector evidence, never an API classification."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    contract_version: Literal["atlas-surveillance-evidence-v3"]
+    state: Literal[
+        "established", "detected_below_establishment", "sampled_not_detected",
+        "no_qualifying_record", "unknown",
+    ]
+    reason_codes: list[str] = Field(min_length=1)
+    evidence_tier: Literal["GOVERNED_MAPPING"]
+    observation_key: str
+    revision_id: str
+    value_state: str
+    source_rule_id: str
+    limitations: list[str] = Field(min_length=1)
+    evidence_revision_id: str
+
+
+class MethodologyComparisonContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    contract_version: Literal["atlas-lyme-surveillance-methodology-v1"]
+    comparison_state: Literal["COMPARABLE", "CAUTION_REQUIRED", "NOT_COMPARABLE", "UNKNOWN"]
+    reason_codes: list[str]
+    methodology_era_ids: list[str | None]
+    jurisdiction_class: str | None
+    references: list[str]
+    limitations: list[str]
+    left_observation_id: str = Field(description="Public ID of the comparison's left input.")
+
+
+class TemporalWindowContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    start: date
+    end_exclusive: date
+    calendar: Literal["GREGORIAN"]
+    timezone: Literal["UTC"]
+
+
+class TemporalLagContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["ZERO", "FIXED", "ROLLING", "SEASONAL"]
+    anchor: Literal["START", "END_EXCLUSIVE"]
+    offset_days: int
+    window_days: int | None = None
+    season_id: str | None = None
+
+
+class TemporalCoverageContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected: int | float
+    observed: int | float
+    unit: str
+    partial_allowed: bool
+
+
+class TemporalReferencePeriodContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    start: date
+    end_exclusive: date
+    source_vintage: str
+
+
+class TemporalAlignmentContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    contract_version: Literal["atlas-temporal-alignment-v1"]
+    method_id: str
+    method_version: str
+    source_id: str
+    measure_id: str
+    aggregation_rule: str
+    coverage_denominator: str
+    decision_cutoff: datetime
+    disposition: Literal["ELIGIBLE", "INELIGIBLE", "RETROSPECTIVE_ONLY", "UNKNOWN_AVAILABILITY"]
+    reason_codes: list[str]
+    limitations: list[str]
+    observation_window: TemporalWindowContext
+    target_window: TemporalWindowContext
+    lag: TemporalLagContext
+    coverage: TemporalCoverageContext
+    reference_period: TemporalReferencePeriodContext | None = None
+
+
+class SurveillanceContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    evidence: SurveillanceEvidenceContext | None = None
+    methodology_comparison: MethodologyComparisonContext | None = None
+    temporal_alignment: TemporalAlignmentContext | None = None
 
 
 class Observation(BaseModel):
