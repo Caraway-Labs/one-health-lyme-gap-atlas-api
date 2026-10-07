@@ -4319,7 +4319,7 @@
           "counties"
         ],
         "summary": "Download a county report",
-        "description": "PDF attachment using the immutable county-v1 registered template by default. Optional dataset_version and score settings bind report inputs. ETag/If-None-Match supports 304; public cache TTL 300 seconds with revalidation. Unknown templates return 422; resource limits 413; renderer failure/timeout 503.",
+        "description": "PDF attachment using the immutable county-v1 registered template by default. Optional dataset_version and score settings bind report inputs. Opt-in county-v2 requires dataset_version, period_start, period_end and repeated measure_id (1\u201320, repeated or comma-separated); reads canonical evidence, lineage, value states and limitations. Missing or mismatched provenance returns 503; unknown observations return 404. V1 rejects observation selectors with 422. V2 responses use no-store and revalidate authoritative context before cache/304. ETag/If-None-Match supports 304; V1 public cache TTL 300 seconds with revalidation. Unknown templates return 422; resource limits 413; renderer failure/timeout 503.",
         "operationId": "county_report_pdf_v1_counties__fips__report_pdf_get",
         "parameters": [
           {
@@ -4347,6 +4347,66 @@
               ],
               "title": "Dataset Version"
             }
+          },
+          {
+            "name": "period_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exact inclusive observation start for county-v2.",
+              "title": "Period Start"
+            },
+            "description": "Exact inclusive observation start for county-v2."
+          },
+          {
+            "name": "period_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exact inclusive observation end for county-v2.",
+              "title": "Period End"
+            },
+            "description": "Exact inclusive observation end for county-v2."
+          },
+          {
+            "name": "measure_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1\u201320 measure IDs; repeated or comma-separated for county-v2.",
+              "title": "Measure Id"
+            },
+            "description": "1\u201320 measure IDs; repeated or comma-separated for county-v2."
           },
           {
             "name": "template",
@@ -4520,6 +4580,30 @@
           },
           "304": {
             "description": "Matching If-None-Match; empty body."
+          },
+          "400": {
+            "description": "Narrow the observation period.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-400",
+                      "title": "Request failed",
+                      "status": 400,
+                      "detail": "Narrow the observation period.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "QUERY_TOO_BROAD"
+                    }
+                  }
+                }
+              }
+            }
           },
           "413": {
             "description": "The report exceeds configured resource limits.",

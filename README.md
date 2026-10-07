@@ -63,6 +63,8 @@ configure it with `PDF_CACHE_ENABLED=true`, `PDF_CACHE_TTL_SECONDS=300`, and
 `PDF_CACHE_MAX_ENTRIES=128`. A cache hit returns the original artifact, including its
 generation timestamp, until the TTL expires or a material report input changes.
 
+For Investigate exports, use the opt-in `county-v2` [observation context contract](docs/county-report-investigate-contract.md). Legacy v1 remains the default.
+
 ## PDF export operations
 
 The API exposes only versioned, server-registered templates: `county-v1` and `state-v1`.

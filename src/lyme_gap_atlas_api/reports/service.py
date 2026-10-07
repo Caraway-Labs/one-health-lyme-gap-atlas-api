@@ -1,18 +1,22 @@
 """Build report contracts from the server-authoritative Atlas service."""
 
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from statistics import fmean
 
 from lyme_gap_atlas_shared.domain import ScoreSettings
 
 from ..models import AtlasMetadata, CountyDetail, CountyScoreSummary
+from ..public_contract import GeographyType, ObservationQuery
+from ..public_observations import ObservationService
+from ..repository import AtlasDataUnavailableError
 from ..service import AtlasService
 from .models import (
     CountyReport,
     ReportGeography,
     ReportIdentity,
     ReportMetric,
+    ReportObservationContext,
     ReportProvenance,
     ReportScore,
     ReportSource,
@@ -85,6 +89,60 @@ class ReportService:
             data_completeness=self._metric(
                 "evidence_completeness", "Evidence completeness", detail.evidence_completeness
             ),
+        )
+
+    def investigate_context(
+        self,
+        report: CountyReport,
+        observations: ObservationService,
+        measure_ids: list[str],
+        period_start: date,
+        period_end: date,
+    ) -> CountyReport:
+        items = []
+        for measure_id in sorted(measure_ids):
+            query = ObservationQuery(
+                measure_id=measure_id,
+                geography_type=GeographyType.county,
+                geography_id=[report.geography.identifier],
+                start_date=period_start,
+                end_date=period_end,
+                page_size=500,
+            )
+            query.validate_bounds(ceiling=500)
+            result = observations.search(query)
+            if not result.data or result.meta.next_page_token:
+                raise AtlasDataUnavailableError("Report observation context unavailable")
+            for item in result.data:
+                if (
+                    item.release_id != report.provenance.dataset_version
+                    or item.geography.geography_id != report.geography.identifier
+                    or item.period_start != period_start
+                    or item.period_end != period_end
+                    or item.measure_id != measure_id
+                    or not all(
+                        (
+                            item.source_id,
+                            item.source_label,
+                            item.provenance_ref,
+                            item.lineage_source_id,
+                            item.dataset_id,
+                            item.methodology_version,
+                            item.semantic_version,
+                        )
+                    )
+                ):
+                    raise AtlasDataUnavailableError("Report provenance unavailable or mismatched")
+                items.append(item)
+        return report.model_copy(
+            update={
+                "identity": report.identity.model_copy(update={"report_version": "v2"}),
+                "observation_context": ReportObservationContext(
+                    period_start=period_start,
+                    period_end=period_end,
+                    observations=items,
+                ),
+            }
         )
 
     def state_report(
