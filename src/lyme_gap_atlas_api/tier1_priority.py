@@ -73,8 +73,8 @@ class Tier1CountyPriority(BaseModel):
     evidence_sufficiency: Literal["SUFFICIENT", "INSUFFICIENT", "NOT_ESTIMABLE"] = Field(
         description=(
             "Input-data sufficiency state, not calibrated model confidence. NOT_ESTIMABLE "
-            "is an abstention with null tier, percentile, and score; INSUFFICIENT may "
-            "retain scored fields."
+            "is an abstention with null tier, percentile, and score; SUFFICIENT and "
+            "INSUFFICIENT both require tier, percentile, and score."
         )
     )
     model_version: str = Field(

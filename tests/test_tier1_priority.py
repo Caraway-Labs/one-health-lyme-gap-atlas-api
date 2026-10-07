@@ -178,12 +178,26 @@ def test_repository_uses_only_presentation_view(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_openapi_semantics() -> None:
-    schema = create_app(settings=ApiSettings()).openapi()
-    operation = schema["paths"]["/v1/counties/{fips}/tier1-surveillance-priority"]["get"]
-    assert "not Lyme disease risk" in operation["description"]
-    assert "LOW is a scored tier" in operation["description"]
-    assert "404" in operation["responses"] and "503" in operation["responses"]
-    assert "priority_tier" in schema["components"]["schemas"]["Tier1CountyPriority"]["properties"]
+    app = create_app(settings=ApiSettings())
+    for schema in (app.openapi(), app.first_party_openapi()):
+        operation = schema["paths"]["/v1/counties/{fips}/tier1-surveillance-priority"]["get"]
+        assert "not Lyme disease risk" in operation["description"]
+        assert "LOW is a scored tier" in operation["description"]
+        assert "404" in operation["responses"] and "503" in operation["responses"]
+        fields = schema["components"]["schemas"]["Tier1CountyPriority"]["properties"]
+        assert "surveillance review priority" in fields["priority_tier"]["description"]
+        assert "Within-batch relative position" in fields["priority_percentile"]["description"]
+        assert "not comparable across batches" in fields["priority_percentile"]["description"]
+        assert "Model-native anomaly score" in fields["raw_model_score"]["description"]
+        assert "not calibrated model confidence" in fields["evidence_sufficiency"]["description"]
+        assert "INSUFFICIENT both require" in fields["evidence_sufficiency"]["description"]
+        for field in (
+            "model_version",
+            "prediction_batch_version",
+            "tier_policy_version",
+            "generated_at_utc",
+        ):
+            assert fields[field]["description"]
 
 
 def test_unavailable_is_not_absent() -> None:
