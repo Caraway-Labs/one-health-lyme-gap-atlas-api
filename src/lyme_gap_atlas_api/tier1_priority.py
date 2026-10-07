@@ -44,25 +44,55 @@ class Tier1CountyPriority(BaseModel):
         }
     )
 
-    county_fips: str = Field(pattern=r"^\d{5}$", description="Five-digit county FIPS for this persisted result.")
+    county_fips: str = Field(
+        pattern=r"^\d{5}$", description="Five-digit county FIPS for this persisted result."
+    )
     priority_tier: Literal["HIGH", "MEDIUM", "LOW"] | None = Field(
-        description="HIGH, MEDIUM, or LOW model-assisted surveillance review priority under the named tier policy; not disease risk. Null for NOT_ESTIMABLE."
+        description=(
+            "HIGH, MEDIUM, or LOW model-assisted surveillance review priority under the "
+            "named tier policy; not disease risk. Null for NOT_ESTIMABLE."
+        )
     )
     priority_percentile: float | None = Field(
-        ge=0, le=100, description="Within-batch relative position among scored counties for this model and inference batch (0-100). Not a probability or comparable across batches, model versions, populations, or tier policies without a separate validation. Null for NOT_ESTIMABLE."
+        ge=0,
+        le=100,
+        description=(
+            "Within-batch relative position among scored counties for this model and "
+            "inference batch (0-100). Not a probability or comparable across batches, "
+            "model versions, populations, or tier policies without a separate validation. "
+            "Null for NOT_ESTIMABLE."
+        ),
     )
     raw_model_score: float | None = Field(
-        description="Model-native anomaly score; not a probability, incidence estimate, or clinical/disease risk. Its scale is model-specific and is not comparable across versions without validation. Null for NOT_ESTIMABLE."
+        description=(
+            "Model-native anomaly score; not a probability, incidence estimate, or "
+            "clinical/disease risk. Its scale is model-specific and is not comparable "
+            "across versions without validation. Null for NOT_ESTIMABLE."
+        )
     )
     evidence_sufficiency: Literal["SUFFICIENT", "INSUFFICIENT", "NOT_ESTIMABLE"] = Field(
-        description="Input-data sufficiency state, not calibrated model confidence. NOT_ESTIMABLE is an abstention with null tier, percentile, and score; INSUFFICIENT may retain scored fields."
+        description=(
+            "Input-data sufficiency state, not calibrated model confidence. NOT_ESTIMABLE "
+            "is an abstention with null tier, percentile, and score; INSUFFICIENT may "
+            "retain scored fields."
+        )
     )
-    model_version: str = Field(min_length=1, description="Version of the model that generated this result.")
+    model_version: str = Field(
+        min_length=1, description="Version of the model that generated this result."
+    )
     release_id: str = Field(min_length=1, description="Governed source release for this batch.")
     source_commit: str = Field(min_length=1, description="ML source commit for reproducibility.")
-    prediction_batch_version: str = Field(min_length=1, description="Inference batch identity defining the percentile comparison population.")
-    tier_policy_version: str = Field(min_length=1, description="Version of the policy assigning review tiers from scored results.")
-    generated_at_utc: datetime = Field(description="UTC batch generation time, not the request time or source observation date.")
+    prediction_batch_version: str = Field(
+        min_length=1,
+        description="Inference batch identity defining the percentile comparison population.",
+    )
+    tier_policy_version: str = Field(
+        min_length=1,
+        description="Version of the policy assigning review tiers from scored results.",
+    )
+    generated_at_utc: datetime = Field(
+        description="UTC batch generation time, not the request time or source observation date."
+    )
     reasons: list[PriorityReason] = Field(max_length=3)
     limitation_ref: str = Field(min_length=1)
 
