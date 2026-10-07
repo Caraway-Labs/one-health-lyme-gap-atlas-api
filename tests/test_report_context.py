@@ -200,7 +200,10 @@ def test_bounded_context_errors(updates, status):
     assert response.status_code == status
     if status == 400:
         assert response.json()["code"] == "QUERY_TOO_BROAD"
-        assert "400" in api.app.openapi()["paths"][PATH]["get"]["responses"]
+        assert (
+            "400"
+            in api.app.openapi()["paths"]["/v1/counties/{fips}/report.pdf"]["get"]["responses"]
+        )
     assert response.headers["cache-control"] == "no-store"
     assert renderer.calls == []
 
