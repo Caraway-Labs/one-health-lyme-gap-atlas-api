@@ -187,7 +187,9 @@ def test_openapi_semantics() -> None:
         fields = schema["components"]["schemas"]["Tier1CountyPriority"]["properties"]
         assert "surveillance review priority" in fields["priority_tier"]["description"]
         assert "Within-batch relative position" in fields["priority_percentile"]["description"]
-        assert "not comparable across batches" in fields["priority_percentile"]["description"]
+        assert "Not a probability or comparable across batches" in fields[
+            "priority_percentile"
+        ]["description"]
         assert "Model-native anomaly score" in fields["raw_model_score"]["description"]
         assert "not calibrated model confidence" in fields["evidence_sufficiency"]["description"]
         assert "INSUFFICIENT both require" in fields["evidence_sufficiency"]["description"]
