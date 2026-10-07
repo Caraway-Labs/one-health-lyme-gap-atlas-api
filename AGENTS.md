@@ -63,13 +63,61 @@ drift; format changed Python files without reformatting unrelated code.
   the change. Update and validate both OpenAPI artifacts for route or schema
   changes, and include downstream generated-client compatibility evidence.
 
-Read the workspace [AGENTS.md](../AGENTS.md), [technology and governance
-baseline](../TECHNOLOGY_AND_GOVERNANCE.md), this repository's `README.md`, and
-the relevant workspace ADRs before material work: [0002 public API and
-Snowflake access](../docs/adr/0002-public-api-and-snowflake-access.md),
-[0003 geospatial delivery](../docs/adr/0003-geospatial-delivery.md), and, for
-knowledge-graph work, [ADR 0007](../one-health-lyme-gap-atlas-knowledge-graph/docs/adr/0007-knowledge-graph-and-public-evidence-chat.md)
-through [ADR 0009](../one-health-lyme-gap-atlas-knowledge-graph/docs/adr/0009-explicit-deployment-promotion.md).
+## Governance reference resolution
+
+These instructions support both the assembled local Atlas workspace and a
+standalone API checkout. Resolve paths relative to this repository root; use
+the same relative paths on Linux and Windows, with no fixed checkout location.
+
+1. Read this `AGENTS.md`, [README.md](README.md), and the relevant API-local
+   contracts and runbooks first. The delivery rules above and API boundaries
+   below are the self-contained minimum for every task. Relevant local sources
+   include [public API policy](docs/public-api-v1-contract.md),
+   [geography](docs/county-geography-contract.md),
+   [telemetry/redaction](docs/api-telemetry-contract.md),
+   [migrations](supabase/README.md), and
+   [production delivery](docs/ci-and-production-deploy.md).
+2. In an assembled workspace, read and honor the parent `AGENTS.md` and
+   `TECHNOLOGY_AND_GOVERNANCE.md` whenever present, and read the applicable
+   workspace/sibling ADRs below before material work in their domain. These
+   documents supplement API-local instructions; they are not prerequisites for
+   bootstrapping an isolated checkout.
+3. In a standalone checkout, absent irrelevant supplements do not block
+   ordinary scoped development or the credential-free quality suite. Report
+   missing references only when relevant to the task; never claim to have read
+   unavailable documents. For a materially affected domain, obtain the
+   authoritative document from its canonical source below or the owner.
+4. If a required governing document or recorded owner decision is unavailable
+   for a contract, security boundary, PHI/data access, migration, deployment,
+   or public-health semantics change, stop that governed change and request
+   the authoritative document/owner decision. An API-local summary or a missing
+   file never authorizes bypassing governance.
+
+The workspace technology and governance baseline is authoritative for
+cross-repository technology and engineering governance; accepted ADRs govern
+their domains. API-local contracts, generated schemas, and runbooks specify
+the current API implementation within those decisions. Repository instructions
+may add detail but must not weaken workspace rules. If sources conflict, appear
+stale, or leave authority/supersession unclear, stop the affected change and
+ask the owner to resolve it; do not guess or silently choose a weaker rule.
+
+Reference audit (local paths are conditional; canonical sources require access):
+
+| Guidance | Local workspace path | Canonical source / applicability |
+| --- | --- | --- |
+| Workspace instructions | `../AGENTS.md` | [Workspace AGENTS.md](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas/blob/main/AGENTS.md); supplemental workflow whenever present |
+| Technology and governance baseline | `../TECHNOLOGY_AND_GOVERNANCE.md` | [Baseline](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas/blob/main/TECHNOLOGY_AND_GOVERNANCE.md); cross-repository governed decisions |
+| ADR 0002 | `../docs/adr/0002-public-api-and-snowflake-access.md` | [Public API and Snowflake access](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas/blob/main/docs/adr/0002-public-api-and-snowflake-access.md); public contract and warehouse access changes |
+| ADR 0003 | `../docs/adr/0003-geospatial-delivery.md` | [Geospatial delivery](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas/blob/main/docs/adr/0003-geospatial-delivery.md); geography/geometry delivery changes |
+| KG ADR 0007 | `../one-health-lyme-gap-atlas-knowledge-graph/docs/adr/0007-knowledge-graph-and-public-evidence-chat.md` | [KG and public evidence chat](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph/blob/main/docs/adr/0007-knowledge-graph-and-public-evidence-chat.md); KG evidence/chat changes |
+| KG ADR 0008 | `../one-health-lyme-gap-atlas-knowledge-graph/docs/adr/0008-neo4j-community-shared-runtime-debt.md` | [Neo4j shared-runtime debt](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph/blob/main/docs/adr/0008-neo4j-community-shared-runtime-debt.md); KG runtime/security changes |
+| KG ADR 0009 | `../one-health-lyme-gap-atlas-knowledge-graph/docs/adr/0009-explicit-deployment-promotion.md` | [Explicit deployment promotion](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph/blob/main/docs/adr/0009-explicit-deployment-promotion.md); KG infrastructure/promotion changes |
+
+This is a reference inventory, not an exhaustive list of governed decisions.
+Follow additional applicable ADRs and contracts linked by the relevant sources.
+It does not require cloning other repositories or migrating DATA work to Cloud.
+
+## Minimum API governance boundaries
 
 - This service is the sole browser-facing boundary for Snowflake. Keep all
   credentials and query logic server-side; use the approved least-privilege
