@@ -13,8 +13,12 @@ The API does not calculate or substitute any of those values. LOW is a scored
 tier; INSUFFICIENT and NOT_ESTIMABLE are evidence states, and neither is a
 synonym for LOW or for missing output. NOT_ESTIMABLE requires null tier,
 percentile, and raw score; scored SUFFICIENT/INSUFFICIENT records require all
-three. A present percentile must be finite and within 0–100. The percentile is
-relative to its scored batch/population; the raw score is model-native. Neither
+three. A present percentile must be finite and within 0-100. The percentile is
+relative to its scored batch/population; compare percentiles only within the
+same model, inference batch, population, and tier policy. The raw score is a
+model-native anomaly score, whose scale is not validated for comparison across
+model versions. Evidence sufficiency describes input data, not calibrated
+model confidence. Neither
 represents disease risk, predicted incidence, probability, clinical risk, or
 diagnosis.
 
@@ -24,6 +28,8 @@ The endpoint has public cache TTL 60 seconds; `generated_at_utc` is the batch
 generation timestamp, not request time. Production availability depends on
 Data #627's separately reviewed PROD projection/grant and API #197's deployed
 runtime proof. The Web client must regenerate from committed `openapi.json`.
+The [model release history](tier1-model-release-history.md) records the shipped
+API contract separately from production data availability.
 
 ## State county Review (API #93)
 
