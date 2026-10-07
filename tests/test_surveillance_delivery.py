@@ -166,19 +166,41 @@ LEFT = SourceIdentity("left-key", "revision-1", "cdc_lyme", "approved-current")
 RIGHT = SourceIdentity("right-key", "revision-1", "cdc_lyme", "approved-current")
 
 
-def comparison_delivery():
-    result = copy.deepcopy(COMPANIONS["methodology"])
-    projection = result["projection"]
+def comparison_delivery(kind="methodology"):
+    projection = copy.deepcopy(
+        COMPANIONS[kind]["projection"] if kind == "methodology" else COMPANIONS[kind]
+    )
+    historical = kind != "methodology"
+    left = replace(LEFT, source_version_id="approved-historical") if historical else LEFT
+    left_resource = "cdc_lyme_qtbi_xd4i" if historical else "cdc_lyme_x5j9_wybp"
+    right_historical = kind == "methodology_caution_version"
+    right = (
+        replace(RIGHT, source_version_id="approved-historical")
+        if right_historical else RIGHT
+    )
+    right_resource = "cdc_lyme_qtbi_xd4i" if right_historical else "cdc_lyme_x5j9_wybp"
+    left_class = "LOW" if kind == "methodology_caution_changed" else "HIGH"
+    if kind == "methodology_unknown":
+        left_class = "UNKNOWN"
+    reference = (
+        "https://example.org/fixture-reviewed-jurisdiction-evidence"
+        if kind in {
+            "methodology_caution_changed", "methodology_caution_version",
+            "methodology_not_comparable",
+        }
+        else None
+    )
     certified = ComparisonProducerBinding(
-        LEFT, RIGHT, "cdc_lyme_x5j9_wybp", "cdc_lyme_x5j9_wybp",
+        left, right, left_resource, right_resource,
         "Probable", "Probable",
-        "left-public-id", projection["jurisdiction_class"], None, projection,
+        "left-public-id", projection["jurisdiction_class"],
+        left_class, "HIGH", reference, projection,
     )
     companion = ComparisonDelivery(
-        LEFT, RIGHT, certified.left_resource_key, certified.right_resource_key,
-        None, "left-public-id", projection, certified,
+        left, right, certified.left_resource_key, certified.right_resource_key,
+        reference, "left-public-id", projection, certified,
     )
-    return SurveillanceDelivery(BINDING, HUMAN.observation_id, RIGHT, comparison=companion)
+    return SurveillanceDelivery(BINDING, HUMAN.observation_id, right, comparison=companion)
 
 
 def test_data430_ordered_pair_and_certified_context():
@@ -203,6 +225,37 @@ def test_data430_ordered_pair_and_certified_context():
         with pytest.raises(AtlasDataUnavailableError):
             admit_surveillance_context(
                 HUMAN, replace(item, comparison=changed), BINDING, VECTOR_SLICE
+            )
+
+
+@pytest.mark.parametrize(
+    ("kind", "state", "jurisdiction"),
+    [
+        ("methodology", "COMPARABLE", "HIGH"),
+        ("methodology_caution_changed", "CAUTION_REQUIRED", "UNKNOWN"),
+        ("methodology_caution_version", "CAUTION_REQUIRED", "HIGH"),
+        ("methodology_not_comparable", "NOT_COMPARABLE", "HIGH"),
+        ("methodology_unknown", "UNKNOWN", "UNKNOWN"),
+    ],
+)
+def test_data430_producer_comparison_state_matrix(kind, state, jurisdiction):
+    item = comparison_delivery(kind)
+    result = admit_surveillance_context(HUMAN, item, BINDING, VECTOR_SLICE)
+    assert result.methodology_comparison.comparison_state == state
+    assert result.methodology_comparison.jurisdiction_class == jurisdiction
+    if kind == "methodology_caution_changed":
+        assert result.methodology_comparison.reason_codes == ["JURISDICTION_CLASS_CHANGED"]
+        with pytest.raises(AtlasDataUnavailableError):
+            admit_surveillance_context(
+                HUMAN,
+                replace(item, comparison=replace(
+                    item.comparison,
+                    producer_binding=replace(
+                        item.comparison.producer_binding,
+                        jurisdiction_evidence_reference=None,
+                    ),
+                )),
+                BINDING, VECTOR_SLICE,
             )
 
 

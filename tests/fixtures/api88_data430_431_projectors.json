@@ -100,5 +100,95 @@
         "https://www.cdc.gov/mmwr/volumes/73/wr/mm7306a1.htm"
       ]
     }
+  },
+  "methodology_caution_changed": {
+    "comparison_state": "CAUTION_REQUIRED",
+    "contract_version": "atlas-lyme-surveillance-methodology-v1",
+    "jurisdiction_class": "UNKNOWN",
+    "limitations": [
+      "Comparable means case-definition scope only; label completeness, value state, and as-of eligibility remain separate.",
+      "No historical source value is changed or numerically adjusted."
+    ],
+    "methodology_era_ids": [
+      "cdc_2017",
+      "cdc_2022"
+    ],
+    "reason_codes": [
+      "JURISDICTION_CLASS_CHANGED"
+    ],
+    "references": [
+      "https://example.org/fixture-reviewed-jurisdiction-evidence",
+      "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2017/",
+      "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2022/",
+      "https://www.cdc.gov/lyme/data-research/facts-stats/index.html",
+      "https://www.cdc.gov/mmwr/volumes/73/wr/mm7306a1.htm"
+    ]
+  },
+  "methodology_caution_version": {
+    "comparison_state": "CAUTION_REQUIRED",
+    "contract_version": "atlas-lyme-surveillance-methodology-v1",
+    "jurisdiction_class": "HIGH",
+    "limitations": [
+      "Comparable means case-definition scope only; label completeness, value state, and as-of eligibility remain separate.",
+      "No historical source value is changed or numerically adjusted."
+    ],
+    "methodology_era_ids": [
+      "cdc_2008",
+      "cdc_2011"
+    ],
+    "reason_codes": [
+      "CASE_DEFINITION_VERSION_CHANGE"
+    ],
+    "references": [
+      "https://example.org/fixture-reviewed-jurisdiction-evidence",
+      "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2008/",
+      "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2011/",
+      "https://www.cdc.gov/lyme/data-research/facts-stats/index.html"
+    ]
+  },
+  "methodology_not_comparable": {
+    "comparison_state": "NOT_COMPARABLE",
+    "contract_version": "atlas-lyme-surveillance-methodology-v1",
+    "jurisdiction_class": "HIGH",
+    "limitations": [
+      "Comparable means case-definition scope only; label completeness, value state, and as-of eligibility remain separate.",
+      "No historical source value is changed or numerically adjusted."
+    ],
+    "methodology_era_ids": [
+      "cdc_2017",
+      "cdc_2022"
+    ],
+    "reason_codes": [
+      "CASE_DEFINITION_2022_BREAK"
+    ],
+    "references": [
+      "https://example.org/fixture-reviewed-jurisdiction-evidence",
+      "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2017/",
+      "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2022/",
+      "https://www.cdc.gov/lyme/data-research/facts-stats/index.html",
+      "https://www.cdc.gov/mmwr/volumes/73/wr/mm7306a1.htm"
+    ]
+  },
+  "methodology_unknown": {
+    "comparison_state": "UNKNOWN",
+    "contract_version": "atlas-lyme-surveillance-methodology-v1",
+    "jurisdiction_class": "UNKNOWN",
+    "limitations": [
+      "Comparable means case-definition scope only; label completeness, value state, and as-of eligibility remain separate.",
+      "No historical source value is changed or numerically adjusted."
+    ],
+    "methodology_era_ids": [
+      "cdc_2017",
+      "cdc_2022"
+    ],
+    "reason_codes": [
+      "JURISDICTION_APPLICABILITY_UNKNOWN"
+    ],
+    "references": [
+      "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2017/",
+      "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2022/",
+      "https://www.cdc.gov/lyme/data-research/facts-stats/index.html",
+      "https://www.cdc.gov/mmwr/volumes/73/wr/mm7306a1.htm"
+    ]
   }
 }

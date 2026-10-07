@@ -85,6 +85,8 @@ class ComparisonProducerBinding:
     right_case_category: str | None
     left_public_observation_id: str
     jurisdiction_class: str
+    left_jurisdiction_class: str
+    right_jurisdiction_class: str
     jurisdiction_evidence_reference: str | None
     projection: Mapping[str, Any]
 
@@ -317,9 +319,25 @@ def _admit_surveillance_context(
             or (
                 certified.left_case_category in {"Confirmed", "Probable"}
                 and certified.right_case_category in {"Confirmed", "Probable"}
-                and certified.jurisdiction_class != "UNKNOWN"
                 and comparison.jurisdiction_class == certified.jurisdiction_class
                 and bool(comparison.references)
+                and certified.left_jurisdiction_class in {"HIGH", "LOW"}
+                and certified.right_jurisdiction_class in {"HIGH", "LOW"}
+                and (
+                    (
+                        certified.left_jurisdiction_class
+                        == certified.right_jurisdiction_class
+                        == certified.jurisdiction_class
+                    )
+                    or (
+                        certified.left_jurisdiction_class
+                        != certified.right_jurisdiction_class
+                        and certified.jurisdiction_class == "UNKNOWN"
+                        and comparison.comparison_state == "CAUTION_REQUIRED"
+                        and "JURISDICTION_CLASS_CHANGED" in comparison.reason_codes
+                        and bool(certified.jurisdiction_evidence_reference)
+                    )
+                )
             )
         )
 
