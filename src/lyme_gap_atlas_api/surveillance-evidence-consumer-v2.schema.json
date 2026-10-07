@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://carawaylabs.com/schemas/surveillance-evidence-consumer-v2.schema.json",
+  "title": "Existing surveillance evidence consumer v2 envelope with v3 evidence",
+  "description": "Serialization contract only. Validation provides no source authority, scientific approval or consumer admission.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "semantic", "surveillance_evidence"],
+  "properties": {
+    "contract_version": {"const": "atlas-surveillance-evidence-consumer-v2"},
+    "semantic": {"$ref": "https://carawaylabs.com/schemas/atlas-semantic-consumer-v1.schema.json"},
+    "surveillance_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_version", "state", "reason_codes", "evidence_tier", "observation_key", "revision_id", "value_state", "source_rule_id", "limitations", "evidence_revision_id"],
+      "properties": {
+        "contract_version": {"const": "atlas-surveillance-evidence-v3"},
+        "state": {"enum": ["established", "detected_below_establishment", "sampled_not_detected", "no_qualifying_record", "unknown"]},
+        "reason_codes": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "evidence_tier": {"enum": ["SYNTHETIC_FIXTURE", "GOVERNED_MAPPING"]},
+        "observation_key": {"type": "string", "minLength": 1},
+        "revision_id": {"type": "string", "minLength": 1},
+        "value_state": {"$ref": "https://carawaylabs.com/schemas/atlas-semantic-consumer-v1.schema.json#/$defs/value_state"},
+        "source_rule_id": {"type": "string", "pattern": "^.+:evidence-v3$"},
+        "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "evidence_revision_id": {"type": "string", "pattern": "^evidence:v3:[0-9a-f]{64}$"}
+      }
+    }
+  }
+}
