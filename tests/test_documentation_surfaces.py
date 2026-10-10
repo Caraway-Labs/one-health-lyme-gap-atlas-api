@@ -4,16 +4,11 @@ import re
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from test_public_metadata import MetadataFixture
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.documentation import FAVICON, LOGO, SWAGGER_PARAMETERS
-from lyme_gap_atlas_api.public_metadata import MetadataRows
-
-
-class DocumentationMetadata:
-    def load_metadata(self) -> MetadataRows:
-        return MetadataRows(indicators=[], measures=[])
 
 
 def test_legacy_swagger_can_call_the_canonical_server_with_manifest_cors() -> None:
@@ -21,7 +16,7 @@ def test_legacy_swagger_can_call_the_canonical_server_with_manifest_cors() -> No
     match = re.search(r"key: CORS_ORIGINS\s+value: ([^\n]+)", manifest)
     assert match is not None
     settings = ApiSettings(cors_origins=match.group(1).strip().split(","))
-    client = TestClient(create_app(settings=settings, metadata_repository=DocumentationMetadata()))
+    client = TestClient(create_app(settings=settings, metadata_repository=MetadataFixture()))
     for origin in ("https://api.carawaylabs.com", "https://onehealthatlas.org"):
         headers = {"Origin": origin}
         response = client.get("/openapi.json", headers=headers)
