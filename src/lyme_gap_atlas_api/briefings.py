@@ -83,6 +83,22 @@ class IntelligenceProvenance(BriefingModel):
     normalization_version: Literal["intelligence-identity-v1"]
 
 
+def public_canonical_url(value: str) -> str:
+    """Validate the existing canonical HTTPS link boundary for feed consumers."""
+    url = urlsplit(value)
+    if (
+        url.scheme != "https"
+        or not url.hostname
+        or url.username
+        or url.password
+        or url.fragment
+        or url.port not in {None, 443}
+        or re.search(r"[\x00-\x20\x7f]", value)
+    ):
+        raise ValueError("BRIEFING_PUBLIC_URL_REQUIRED")
+    return value
+
+
 class IntelligenceItem(BriefingModel):
     """Typed consumer of normalized DATA #131 v1 items, without renormalization."""
 
@@ -122,17 +138,7 @@ class IntelligenceItem(BriefingModel):
         if self.item_id != self.deduplication_key:
             raise ValueError("BRIEFING_ITEM_IDENTITY_MISMATCH")
         if self.canonical_url is not None:
-            url = urlsplit(self.canonical_url)
-            if (
-                url.scheme != "https"
-                or not url.hostname
-                or url.username
-                or url.password
-                or url.fragment
-                or url.port not in {None, 443}
-                or re.search(r"[\x00-\x20\x7f]", self.canonical_url)
-            ):
-                raise ValueError("BRIEFING_PUBLIC_URL_REQUIRED")
+            public_canonical_url(self.canonical_url)
         if any(
             len(values) != len(set(values))
             for values in (self.topics, self.geographies, self.limitations)

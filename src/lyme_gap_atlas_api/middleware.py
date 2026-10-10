@@ -20,7 +20,7 @@ logger = operational_logger(__name__)
 
 _PUBLIC_COLLECTIONS = {
     "/v1/indicators", "/v1/measures", "/v1/sources", "/v1/observations",
-    "/v1/intelligence/items", "/v1/intelligence/sources",
+    "/v1/intelligence/feed", "/v1/intelligence/items", "/v1/intelligence/sources",
 }
 _PUBLIC_DETAILS = ("/v1/indicators/", "/v1/measures/", "/v1/sources/", "/v1/methodologies/")
 
