@@ -1,6 +1,9 @@
 name: one-health-lyme-gap-atlas-api
 region: sfo
 domains:
+  - domain: api.onehealthatlas.org
+    type: ALIAS
+    minimum_tls_version: "1.2"
   - domain: api.carawaylabs.com
     type: PRIMARY
     zone: carawaylabs.com
