@@ -1,5 +1,7 @@
 import json
+import re
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -595,6 +597,43 @@ def test_comma_separated_cors_origins_work_from_environment(monkeypatch) -> None
     )
 
     assert settings.cors_origins == ["https://carawaylabs.com", "http://localhost:3000"]
+
+
+@pytest.mark.parametrize(
+    "origin,allowed",
+    [
+        ("https://carawaylabs.com", True),
+        ("https://www.carawaylabs.com", True),
+        ("https://one-health-lyme-gap-atlas-web-yqobn.ondigitalocean.app", True),
+        ("http://localhost:3000", True),
+        ("https://onehealthatlas.org", True),
+        ("https://onehealthatlas.org.evil.example", False),
+        ("http://onehealthatlas.org", False),
+    ],
+)
+def test_production_cors_keeps_existing_origins_and_adds_canonical_host(
+    monkeypatch, origin: str, allowed: bool
+) -> None:
+    spec = (Path(__file__).parents[1] / ".do" / "app.yaml").read_text(encoding="utf-8")
+    match = re.search(r"- key: CORS_ORIGINS\s+value: ([^\n]+)", spec)
+    assert match is not None
+    monkeypatch.setenv("CORS_ORIGINS", match.group(1).strip())
+    settings = ApiSettings(
+        snowflake_account="test",
+        snowflake_user="test",
+        snowflake_role="test",
+        snowflake_pat="test",
+    )
+    api = TestClient(create_app(FakeRepository(), settings))
+    response = api.options(
+        "/health/live",
+        headers={"Origin": origin, "Access-Control-Request-Method": "GET"},
+    )
+    assert response.status_code == (200 if allowed else 400)
+    assert response.headers.get("access-control-allow-origin") == (origin if allowed else None)
+    response = api.get("/health/live", headers={"Origin": origin})
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == (origin if allowed else None)
 
 
 def test_kg_chat_enabled_accepts_deploy_env_alias(monkeypatch) -> None:
