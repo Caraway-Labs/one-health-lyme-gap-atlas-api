@@ -1,14 +1,14 @@
 # Public Atlas API guide
 
-Base URL: `https://api.carawaylabs.com`. The canonical public API is V1 and
+Base URL: `https://api.onehealthatlas.org`. The canonical public API is V1 and
 serves anonymous, read-only JSON without an API key. Collections have `data`,
 `meta`, and `links`; details have `data`. Errors are RFC 9457
 `application/problem+json` with a stable `code`, HTTP `status`, `detail`, and
 `request_id`. The OpenAPI application version is separate from the V1 contract.
 
-Use the [interactive API reference](https://api.carawaylabs.com/docs),
-[readable reference](https://api.carawaylabs.com/redoc), or
-[public OpenAPI JSON](https://api.carawaylabs.com/openapi.json).
+Use the [interactive API reference](https://api.onehealthatlas.org/docs),
+[readable reference](https://api.onehealthatlas.org/redoc), or
+[public OpenAPI JSON](https://api.onehealthatlas.org/openapi.json).
 The [governed V1 contract](public-api-v1-contract.md) explains semantic policy.
 These routes publish current-release metadata and county observations. They
 do not provide historical-release selection, arbitrary aggregation, or geometry.
@@ -18,10 +18,10 @@ do not provide historical-release selection, arbitrary aggregation, or geometry.
 The following `curl` requests use IDs verified in the production release:
 
 ```sh
-curl -fsS 'https://api.carawaylabs.com/v1/indicators?page_size=10'
-curl -fsS 'https://api.carawaylabs.com/v1/measures?indicator_id=human_disease_burden&page_size=10'
-curl -fsS 'https://api.carawaylabs.com/v1/measures/case_count_floor_2023'
-curl -fsS 'https://api.carawaylabs.com/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=08001&year=2023'
+curl -fsS 'https://api.onehealthatlas.org/v1/indicators?page_size=10'
+curl -fsS 'https://api.onehealthatlas.org/v1/measures?indicator_id=human_disease_burden&page_size=10'
+curl -fsS 'https://api.onehealthatlas.org/v1/measures/case_count_floor_2023'
+curl -fsS 'https://api.onehealthatlas.org/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=08001&year=2023'
 ```
 
 The `human_disease_burden` indicator lists `case_count_floor_2023` in
@@ -36,8 +36,8 @@ contain **only the annual 2023 period**. A date range selects available periods;
 it does not imply historical depth. No strata are governed in this release.
 
 ```sh
-curl -fsS 'https://api.carawaylabs.com/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=08001&geography_id=08003&year=2023&page_size=1'
-curl -fsS 'https://api.carawaylabs.com/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=08001&start_date=2023-01-01&end_date=2023-12-31'
+curl -fsS 'https://api.onehealthatlas.org/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=08001&geography_id=08003&year=2023&page_size=1'
+curl -fsS 'https://api.onehealthatlas.org/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=08001&start_date=2023-01-01&end_date=2023-12-31'
 ```
 
 Read `meta.next_page_token`; if non-null, send it as `page_token` with every
@@ -53,7 +53,7 @@ requests`) and traverses both counties without a maintained Atlas SDK:
 ```python
 import requests
 
-base = "https://api.carawaylabs.com"
+base = "https://api.onehealthatlas.org"
 params = [
     ("measure_id", "case_count_floor_2023"),
     ("geography_type", "county"),
@@ -84,8 +84,8 @@ resource IDs. For this live measure they are `human` and
 `human_confirmed_probable_case_floor_v1`:
 
 ```sh
-curl -fsS 'https://api.carawaylabs.com/v1/sources/human'
-curl -fsS 'https://api.carawaylabs.com/v1/methodologies/human_confirmed_probable_case_floor_v1'
+curl -fsS 'https://api.onehealthatlas.org/v1/sources/human'
+curl -fsS 'https://api.onehealthatlas.org/v1/methodologies/human_confirmed_probable_case_floor_v1'
 ```
 
 The source describes publisher, `dataset_id`, `lineage_source_id`, source URL,

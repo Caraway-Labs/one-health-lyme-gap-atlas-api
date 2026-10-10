@@ -16,7 +16,7 @@ def test_curl_examples_match_openapi() -> None:
     assert len(urls) >= 7
     for url in urls:
         parsed = urlsplit(url)
-        assert parsed.scheme == "https" and parsed.netloc == "api.carawaylabs.com"
+        assert parsed.scheme == "https" and parsed.netloc == "api.onehealthatlas.org"
         path = parsed.path
         if path not in SCHEMA["paths"]:
             path = re.sub(r"/case_count_floor_2023$", "/{measure_id}", path)

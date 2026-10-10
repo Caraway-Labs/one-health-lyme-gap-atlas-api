@@ -344,10 +344,10 @@ def create_app(
         summary=API_SUMMARY,
         contact={"name": "Caraway Labs", "url": "https://carawaylabs.com"},
         openapi_tags=TAGS,
-        servers=[{"url": "https://api.carawaylabs.com", "description": "Production"}],
+        servers=[{"url": "https://api.onehealthatlas.org", "description": "Production"}],
         openapi_external_docs={
             "description": "Atlas documentation and developer guides",
-            "url": "https://carawaylabs.com/docs",
+            "url": "https://onehealthatlas.org/docs",
         },
     )
     app.state.service = service

@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, Response
 router = APIRouter(include_in_schema=False)
 FAVICON = Path(__file__).with_name("docs_assets") / "favicon.svg"
 LOGO = {
-    "url": "https://api.carawaylabs.com/docs/favicon.svg",
+    "url": "https://api.onehealthatlas.org/docs/favicon.svg",
     "altText": "Atlas",
 }
 SWAGGER_PARAMETERS = {

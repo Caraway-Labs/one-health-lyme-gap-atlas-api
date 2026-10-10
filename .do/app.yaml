@@ -60,7 +60,7 @@ services:
         value: key_pair
         scope: RUN_TIME
       - key: CORS_ORIGINS
-        value: https://carawaylabs.com,https://www.carawaylabs.com,https://one-health-lyme-gap-atlas-web-yqobn.ondigitalocean.app,http://localhost:3000,https://onehealthatlas.org
+        value: https://carawaylabs.com,https://www.carawaylabs.com,https://one-health-lyme-gap-atlas-web-yqobn.ondigitalocean.app,http://localhost:3000,https://onehealthatlas.org,https://api.carawaylabs.com
         scope: RUN_TIME
       - key: KG_CHAT_ENABLED
         value: "true"
