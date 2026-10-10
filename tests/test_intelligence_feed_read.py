@@ -289,8 +289,11 @@ def test_v2_publisher_projection_without_raw_or_private_native_metadata() -> Non
         assert rejected.status_code == 503 and unsafe_url not in rejected.text
 
 
+@pytest.mark.parametrize("kind", ["items", "feed"])
 @pytest.mark.parametrize("mode", ["stable", "changed", "too_broad", "driver_error"])
-def test_sql_boundary_limits_and_state_checks(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
+def test_sql_boundary_limits_and_state_checks(
+    monkeypatch: pytest.MonkeyPatch, mode: str, kind: str
+) -> None:
     class Cursor:
         def __init__(self) -> None:
             self.calls: list[tuple[Any, ...]] = []
@@ -334,19 +337,23 @@ def test_sql_boundary_limits_and_state_checks(monkeypatch: pytest.MonkeyPatch, m
         ApiSettings(snowflake_presentation_database="ONE_HEALTH_LYME_GAP_ATLAS_PROD")
     )
     if mode == "stable":
-        marker, rows = repository.read("items", "source'bound", None, None, 0, 10)
+        marker, rows = repository.read(kind, "source'bound", None, None, 0, 10)
         assert len(marker) == 64 and rows == []
         assert cursor.calls[1][1] == ("source'bound", 11, 0)
         assert all("source'bound" not in sql for sql, _, _ in cursor.calls)
+        if kind == "feed":
+            assert "INTELLIGENCE_FEED_V2" in cursor.calls[1][0]
+            selected = cursor.calls[1][0].split(" FROM ")[0]
+            assert not any(field in selected for field in ("EXCERPT", "MEDIA", "NATIVE_METADATA"))
         assert all(
             "PRESENTATION.INTELLIGENCE_FEED_V" in sql.replace(chr(34), "")
             for sql, _, _ in cursor.calls
         )
     elif mode == "too_broad":
         with pytest.raises(PublicQueryError):
-            repository.read("items", None, None, None, 0, 10)
+            repository.read(kind, None, None, None, 0, 10)
         assert len(cursor.calls) == 1
     else:
         with pytest.raises(AtlasDataUnavailableError) as error:
-            repository.read("items", None, None, None, 0, 10)
+            repository.read(kind, None, None, None, 0, 10)
         assert "secret" not in str(error.value)

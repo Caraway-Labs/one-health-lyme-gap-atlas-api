@@ -3,15 +3,24 @@
 import hashlib
 import json
 from datetime import date
-from typing import Any, Literal, Protocol, cast
+from typing import Annotated, Any, Literal, Protocol, Self, cast
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
-from pydantic import Field
+from pydantic import AfterValidator, Field, model_validator
 
-from .briefings import BriefingModel, BriefingSource, IntelligenceItem
+from .briefings import (
+    BriefingModel,
+    BriefingSource,
+    Digest,
+    IntelligenceItem,
+    State,
+    Text,
+    Utc,
+    public_canonical_url,
+)
 from .config import ApiSettings
 from .dependency_telemetry import connect
-from .intelligence_projection import IntelligenceItemProjectionV2
+from .intelligence_projection import IntelligenceItemProjectionV2, ProjectionProvenance
 from .public_contract import PublicQueryError
 from .public_routes import PROBLEMS
 from .public_tokens import decode, encode
@@ -46,6 +55,44 @@ V2_COLUMNS = ITEM_COLUMNS + ("publisher_metadata", "derived_metadata")
 UNAVAILABLE = "Governed intelligence data is unavailable."
 
 
+FEED_COLUMNS = (
+    "item_id",
+    "revision_id",
+    "title",
+    "canonical_url",
+    "published_at",
+    "fetched_at",
+    "provenance",
+    "limitations",
+    "contract_version",
+    "publication_date_state",
+    "publisher",
+)
+
+
+class FeedEntry(BriefingModel):
+    item_id: Digest
+    revision_id: Digest
+    title: Text | None
+    canonical_url: (
+        Annotated[str, Field(max_length=4096), AfterValidator(public_canonical_url)] | None
+    )
+    published_at: Utc | None
+    fetched_at: Utc
+    provenance: ProjectionProvenance
+    limitations: Annotated[tuple[Text, ...], Field(max_length=100)]
+    contract_version: Literal["2.0.0"]
+    publication_date_state: State
+    publisher: Text | None
+    source: BriefingSource
+
+    @model_validator(mode="after")
+    def date_state(self) -> Self:
+        if (self.published_at is not None) != (self.publication_date_state == "present"):
+            raise ValueError("INTELLIGENCE_PUBLICATION_DATE_STATE_INVALID")
+        return self
+
+
 class FeedEvidence(BriefingModel):
     item: IntelligenceItem | IntelligenceItemProjectionV2
     source: BriefingSource
@@ -68,6 +115,11 @@ class FeedMeta(BriefingModel):
 
 class FeedItems(BriefingModel):
     data: tuple[FeedEvidence, ...]
+    meta: FeedMeta
+
+
+class MetadataFeed(BriefingModel):
+    data: tuple[FeedEntry, ...]
     meta: FeedMeta
 
 
@@ -105,11 +157,11 @@ class SnowflakeFeedRepository:
         if self.settings.presentation_database not in {
             "ONE_HEALTH_LYME_GAP_ATLAS_DEV",
             "ONE_HEALTH_LYME_GAP_ATLAS_PROD",
-        } or kind not in {"items", "sources"}:
+        } or kind not in {"items", "sources", "feed"}:
             raise AtlasDataUnavailableError(UNAVAILABLE)
         view_name = (
             "INTELLIGENCE_FEED_V2"
-            if self.settings.intelligence_feed_projection_version == "v2"
+            if kind == "feed" or self.settings.intelligence_feed_projection_version == "v2"
             else "INTELLIGENCE_FEED_V"
         )
         view = (
@@ -127,7 +179,7 @@ class SnowflakeFeedRepository:
             clauses.append("SUBSTR(PUBLISHED_AT, 1, 10) <= %s")
             params.append(end.isoformat())
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
-        count = "COUNT(*)" if kind == "items" else "COUNT(DISTINCT SOURCE_ID, REGISTRY_VERSION)"
+        count = "COUNT(*)" if kind != "sources" else "COUNT(DISTINCT SOURCE_ID, REGISTRY_VERSION)"
         state_sql = (
             f"SELECT {count}, HASH_AGG(ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION, "
             f"FETCHED_AT, CONTENT_SHA256, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION) "
@@ -140,13 +192,21 @@ class SnowflakeFeedRepository:
         )
         columns = ", ".join(name.upper() for name in item_columns)
         columns += ", ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
+        if kind == "feed":
+            columns = ", ".join(name.upper() for name in FEED_COLUMNS[:9])
+            columns += (
+                ", FIELD_STATES:published_at::VARCHAR AS PUBLICATION_DATE_STATE"
+                ", IFF(IS_NULL_VALUE(PUBLISHER_METADATA:publisher), NULL,"
+                " PUBLISHER_METADATA:publisher::VARCHAR) AS PUBLISHER"
+                ", SOURCE_ID, REGISTRY_VERSION, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
+            )
         if kind == "sources":
             columns = (
                 "DISTINCT SOURCE_ID, REGISTRY_VERSION, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
             )
         order = (
             "ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION"
-            if kind == "items"
+            if kind != "sources"
             else "SOURCE_ID, REGISTRY_VERSION"
         )
         statement = f"SELECT {columns} FROM {view}{where} ORDER BY {order} LIMIT %s OFFSET %s"
@@ -191,7 +251,7 @@ class FeedService:
         end: date | None,
         size: int,
         token: str | None,
-    ) -> FeedItems | FeedSources:
+    ) -> FeedItems | FeedSources | MetadataFeed:
         if start and end and start > end:
             raise PublicQueryError("INVALID_REQUEST", "Publication date range is reversed.")
         fingerprint = hashlib.sha256(
@@ -220,6 +280,27 @@ class FeedService:
         )
         meta = FeedMeta(next_page_token=next_token)
         try:
+            if kind == "feed":
+                entries = []
+                for row in rows[:size]:
+                    document = dict(zip(FEED_COLUMNS, row[:-4], strict=True))
+                    for field in ("provenance", "limitations"):
+                        if isinstance(document[field], str):
+                            document[field] = json.loads(document[field])
+                    document["source"] = dict(
+                        zip(
+                            (
+                                "source_id",
+                                "registry_version",
+                                "organization",
+                                "reviewed_trust_classification",
+                            ),
+                            row[-4:],
+                            strict=True,
+                        )
+                    )
+                    entries.append(FeedEntry.model_validate(document))
+                return MetadataFeed(data=tuple(entries), meta=meta)
             if kind == "sources":
                 sources = tuple(
                     FeedSource.model_validate(
@@ -274,7 +355,7 @@ def _service(request: Request, response: Response, page_size: int) -> FeedServic
     settings = cast(ApiSettings, request.app.state.public_settings)
     response.headers["Cache-Control"] = "no-store"
     allowed = {"page_size", "page_token"}
-    if request.url.path.endswith("/items"):
+    if request.url.path.endswith(("/items", "/feed")):
         allowed.update({"source_id", "published_from", "published_to"})
     if set(request.query_params) - allowed:
         raise PublicQueryError("INVALID_REQUEST", "Unknown query parameter.")
@@ -346,5 +427,33 @@ def sources(
             None,
             page_size,
             page_token,
+        ),
+    )
+
+
+@router.get(
+    "/v1/intelligence/feed",
+    response_model=MetadataFeed,
+    operation_id="listIntelligenceFeed",
+    summary="Read source-attributed publication metadata",
+    responses=PROBLEMS,
+    description="Read only from governed INTELLIGENCE_FEED_V2. No excerpts, article bodies "
+    "or media. Publisher dates remain null when unknown; inclusive date filters exclude "
+    "unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, "
+    "no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
+)
+def feed(
+    request: Request,
+    response: Response,
+    source_id: str | None = Query(None, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,199}$"),
+    published_from: date | None = None,
+    published_to: date | None = None,
+    page_size: int = Query(100, ge=1, le=500),
+    page_token: str | None = Query(None, max_length=2048),
+) -> MetadataFeed:
+    return cast(
+        MetadataFeed,
+        _service(request, response, page_size).search(
+            "feed", source_id, published_from, published_to, page_size, page_token
         ),
     )
