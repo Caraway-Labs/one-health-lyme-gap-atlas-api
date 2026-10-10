@@ -10,13 +10,13 @@
     },
     "version": "0.1.0",
     "x-logo": {
-      "url": "https://api.carawaylabs.com/docs/favicon.svg",
+      "url": "https://api.onehealthatlas.org/docs/favicon.svg",
       "altText": "Atlas"
     }
   },
   "servers": [
     {
-      "url": "https://api.carawaylabs.com",
+      "url": "https://api.onehealthatlas.org",
       "description": "Production"
     }
   ],
@@ -11457,6 +11457,6 @@
   ],
   "externalDocs": {
     "description": "Atlas documentation and developer guides",
-    "url": "https://carawaylabs.com/docs"
+    "url": "https://onehealthatlas.org/docs"
   }
 }
