@@ -81,8 +81,12 @@ jobs:
       - name: Verify documentation asset in production image
         run: >-
           docker run --rm --entrypoint python lyme-atlas-api:quality
-          -c "from lyme_gap_atlas_api.documentation import FAVICON;
-          assert FAVICON.read_bytes().startswith(b'<svg')"
+          -c "import hashlib; from lyme_gap_atlas_api.documentation import ASSETS;
+          assert hashlib.sha256((ASSETS / 'favicon.ico').read_bytes()).hexdigest() ==
+          '9a3f9ae0df3e926a33c2e8dbbabcf1c1b4770515ed75a7c673ad8304d7c98d19';
+          assert hashlib.sha256((ASSETS / 'favicon-256x256.png').read_bytes()).hexdigest() ==
+          'b803ae4b899ff9a318bba31a049ee3ecd1d65fd0b80530da5b9361aa457eac23';
+          assert not (ASSETS / 'favicon.svg').exists()"
       - name: Run report-template regression tests with the production Typst binary
         run: |
           set -euo pipefail

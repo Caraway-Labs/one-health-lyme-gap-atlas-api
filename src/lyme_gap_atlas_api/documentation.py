@@ -7,9 +7,13 @@ from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import HTMLResponse, Response
 
 router = APIRouter(include_in_schema=False)
-FAVICON = Path(__file__).with_name("docs_assets") / "favicon.svg"
+ASSETS = Path(__file__).with_name("docs_assets")
+ASSET_VERSION = "summit-compass-north-20261010"
+FAVICON = ASSETS / "favicon.ico"
+FAVICON_URL = f"/docs/{ASSET_VERSION}/favicon.ico"
+LOGO_URL = f"/docs/{ASSET_VERSION}/favicon-256x256.png"
 LOGO = {
-    "url": "https://api.onehealthatlas.org/docs/favicon.svg",
+    "url": f"https://api.onehealthatlas.org{LOGO_URL}",
     "altText": "Atlas",
 }
 SWAGGER_PARAMETERS = {
@@ -24,11 +28,20 @@ SWAGGER_PARAMETERS = {
 }
 
 
-@router.get("/docs/favicon.svg")
+@router.get(FAVICON_URL)
 def favicon() -> Response:
     return Response(
         content=FAVICON.read_bytes(),
-        media_type="image/svg+xml",
+        media_type="image/x-icon",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get(LOGO_URL)
+def logo() -> Response:
+    return Response(
+        content=(ASSETS / "favicon-256x256.png").read_bytes(),
+        media_type="image/png",
         headers={"Cache-Control": "public, max-age=86400"},
     )
 
@@ -42,7 +55,7 @@ def install_documentation(app: FastAPI) -> None:
         return get_swagger_ui_html(
             openapi_url=app.openapi_url or "/openapi.json",
             title=f"{app.title} — Swagger",
-            swagger_favicon_url="/docs/favicon.svg",
+            swagger_favicon_url=FAVICON_URL,
             swagger_ui_parameters=SWAGGER_PARAMETERS,
         )
 
@@ -51,5 +64,5 @@ def install_documentation(app: FastAPI) -> None:
         return get_redoc_html(
             openapi_url=app.openapi_url or "/openapi.json",
             title=f"{app.title} — ReDoc",
-            redoc_favicon_url="/docs/favicon.svg",
+            redoc_favicon_url=FAVICON_URL,
         )
