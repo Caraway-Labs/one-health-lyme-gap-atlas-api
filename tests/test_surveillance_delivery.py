@@ -104,6 +104,13 @@ def test_data429_projector_fixtures_are_schema_valid_but_not_admitted():
     for state, envelope in DATA429.items():
         assert _evidence_validator.is_valid(envelope)
         assert envelope["surveillance_evidence"]["state"] == state
+        assert envelope["surveillance_evidence"]["normalized_state"] == {
+            "established": "established",
+            "detected_below_establishment": "detected",
+            "sampled_not_detected": "unknown",
+            "no_qualifying_record": "unknown",
+            "unknown": "detected",  # Publisher Present, legacy state unknown.
+        }[state]
         assert envelope["semantic"]["provenance"]["source_id"]["state"] == "KNOWN"
         assert envelope["surveillance_evidence"]["evidence_tier"] == "SYNTHETIC_FIXTURE"
     with pytest.raises(AtlasDataUnavailableError):

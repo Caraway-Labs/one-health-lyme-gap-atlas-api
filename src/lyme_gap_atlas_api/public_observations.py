@@ -22,6 +22,7 @@ from .public_contract import (
 )
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .surveillance_delivery import SurveillanceResolver, resolve_context
 
 
 class ObservationRepository(Protocol):
@@ -111,8 +112,13 @@ class SnowflakeObservationRepository:
 
 
 class ObservationService:
-    def __init__(self, repository: ObservationRepository) -> None:
+    def __init__(
+        self,
+        repository: ObservationRepository,
+        surveillance_resolver: SurveillanceResolver | None = None,
+    ) -> None:
         self.repository = repository
+        self.surveillance_resolver = surveillance_resolver
 
     def search(
         self, query: ObservationQuery, *, checkpoint: Callable[[], None] | None = None
@@ -142,6 +148,10 @@ class ObservationService:
         check()
         mapper = environmental_observation if query.measure_id in MEASURES else self._observation
         items = [mapper(row) for row in rows[: query.page_size]]
+        if self.surveillance_resolver is not None:
+            for item in items:
+                check()
+                item.surveillance_context = resolve_context(item, self.surveillance_resolver)
         token = None
         if len(rows) > query.page_size:
             token = self._token(fingerprint, release, offset + query.page_size)

@@ -1823,7 +1823,7 @@
           "observations"
         ],
         "summary": "Query county observations",
-        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. A measure and bounded county/time selection are required; no user sorting or aggregation.",
+        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. Surveillance context is optional and requires an admitted Data delivery; normalized_state preserves Data semantics and the publisher value remains value. Missing context does not establish absence or temporal comparability. A measure and bounded county/time selection are required; no user sorting or aggregation.",
         "operationId": "observations_v1_observations_get",
         "parameters": [
           {
@@ -8829,6 +8829,89 @@
         ],
         "title": "Methodology"
       },
+      "MethodologyComparisonContext": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "atlas-lyme-surveillance-methodology-v1",
+            "title": "Contract Version"
+          },
+          "comparison_state": {
+            "type": "string",
+            "enum": [
+              "COMPARABLE",
+              "CAUTION_REQUIRED",
+              "NOT_COMPARABLE",
+              "UNKNOWN"
+            ],
+            "title": "Comparison State"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          },
+          "methodology_era_ids": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Methodology Era Ids"
+          },
+          "jurisdiction_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jurisdiction Class"
+          },
+          "references": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "References"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "left_observation_id": {
+            "type": "string",
+            "title": "Left Observation Id",
+            "description": "Public ID of the comparison's left input."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "comparison_state",
+          "reason_codes",
+          "methodology_era_ids",
+          "jurisdiction_class",
+          "references",
+          "limitations",
+          "left_observation_id"
+        ],
+        "title": "MethodologyComparisonContext"
+      },
       "MixedAssistantRequest": {
         "properties": {
           "question": {
@@ -9199,6 +9282,17 @@
               }
             ],
             "description": "Present only for reviewed environmental context. DECIMAL quantities may use exact numeric strings; native DOUBLE remains a JSON number."
+          },
+          "surveillance_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SurveillanceContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only supplied through an admitted Data release/bundle and supported slice. Omitted or null carries no evidence-state, comparability or lag claim. Comparison is case-definition scope only; alignment is descriptive, not causal."
           }
         },
         "type": "object",
@@ -10600,6 +10694,404 @@
         "additionalProperties": false,
         "type": "object",
         "title": "StructuredContext"
+      },
+      "SurveillanceContext": {
+        "properties": {
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SurveillanceEvidenceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "methodology_comparison": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MethodologyComparisonContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "temporal_alignment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemporalAlignmentContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SurveillanceContext"
+      },
+      "SurveillanceEvidenceContext": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "atlas-surveillance-evidence-v3",
+            "title": "Contract Version"
+          },
+          "normalized_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "established",
+                  "detected",
+                  "unknown"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normalized State",
+            "description": "Data-owned county evidence state, projected without classification. Null means the older companion did not supply normalization; unknown supports no biological absence conclusion. Original publisher value remains Observation.value."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "established",
+              "detected_below_establishment",
+              "sampled_not_detected",
+              "no_qualifying_record",
+              "unknown"
+            ],
+            "title": "State"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Reason Codes"
+          },
+          "evidence_tier": {
+            "type": "string",
+            "const": "GOVERNED_MAPPING",
+            "title": "Evidence Tier"
+          },
+          "observation_key": {
+            "type": "string",
+            "title": "Observation Key"
+          },
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "value_state": {
+            "type": "string",
+            "title": "Value State"
+          },
+          "source_rule_id": {
+            "type": "string",
+            "title": "Source Rule Id"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Limitations"
+          },
+          "evidence_revision_id": {
+            "type": "string",
+            "title": "Evidence Revision Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "state",
+          "reason_codes",
+          "evidence_tier",
+          "observation_key",
+          "revision_id",
+          "value_state",
+          "source_rule_id",
+          "limitations",
+          "evidence_revision_id"
+        ],
+        "title": "SurveillanceEvidenceContext",
+        "description": "Data-projector evidence, never an API classification."
+      },
+      "TemporalAlignmentContext": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "atlas-temporal-alignment-v1",
+            "title": "Contract Version"
+          },
+          "method_id": {
+            "type": "string",
+            "title": "Method Id"
+          },
+          "method_version": {
+            "type": "string",
+            "title": "Method Version"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "measure_id": {
+            "type": "string",
+            "title": "Measure Id"
+          },
+          "aggregation_rule": {
+            "type": "string",
+            "title": "Aggregation Rule"
+          },
+          "coverage_denominator": {
+            "type": "string",
+            "title": "Coverage Denominator"
+          },
+          "decision_cutoff": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Decision Cutoff"
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "ELIGIBLE",
+              "INELIGIBLE",
+              "RETROSPECTIVE_ONLY",
+              "UNKNOWN_AVAILABILITY"
+            ],
+            "title": "Disposition"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "observation_window": {
+            "$ref": "#/components/schemas/TemporalWindowContext"
+          },
+          "target_window": {
+            "$ref": "#/components/schemas/TemporalWindowContext"
+          },
+          "lag": {
+            "$ref": "#/components/schemas/TemporalLagContext"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/TemporalCoverageContext"
+          },
+          "reference_period": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemporalReferencePeriodContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "method_id",
+          "method_version",
+          "source_id",
+          "measure_id",
+          "aggregation_rule",
+          "coverage_denominator",
+          "decision_cutoff",
+          "disposition",
+          "reason_codes",
+          "limitations",
+          "observation_window",
+          "target_window",
+          "lag",
+          "coverage"
+        ],
+        "title": "TemporalAlignmentContext"
+      },
+      "TemporalCoverageContext": {
+        "properties": {
+          "expected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Expected"
+          },
+          "observed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Observed"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "partial_allowed": {
+            "type": "boolean",
+            "title": "Partial Allowed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected",
+          "observed",
+          "unit",
+          "partial_allowed"
+        ],
+        "title": "TemporalCoverageContext"
+      },
+      "TemporalLagContext": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ZERO",
+              "FIXED",
+              "ROLLING",
+              "SEASONAL"
+            ],
+            "title": "Kind"
+          },
+          "anchor": {
+            "type": "string",
+            "enum": [
+              "START",
+              "END_EXCLUSIVE"
+            ],
+            "title": "Anchor"
+          },
+          "offset_days": {
+            "type": "integer",
+            "title": "Offset Days"
+          },
+          "window_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Days"
+          },
+          "season_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "anchor",
+          "offset_days"
+        ],
+        "title": "TemporalLagContext"
+      },
+      "TemporalReferencePeriodContext": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end_exclusive": {
+            "type": "string",
+            "format": "date",
+            "title": "End Exclusive"
+          },
+          "source_vintage": {
+            "type": "string",
+            "title": "Source Vintage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "start",
+          "end_exclusive",
+          "source_vintage"
+        ],
+        "title": "TemporalReferencePeriodContext"
+      },
+      "TemporalWindowContext": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end_exclusive": {
+            "type": "string",
+            "format": "date",
+            "title": "End Exclusive"
+          },
+          "calendar": {
+            "type": "string",
+            "const": "GREGORIAN",
+            "title": "Calendar"
+          },
+          "timezone": {
+            "type": "string",
+            "const": "UTC",
+            "title": "Timezone"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "start",
+          "end_exclusive",
+          "calendar",
+          "timezone"
+        ],
+        "title": "TemporalWindowContext"
       },
       "Tier1CountyPriority": {
         "properties": {

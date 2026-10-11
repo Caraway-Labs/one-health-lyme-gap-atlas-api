@@ -1,11 +1,16 @@
 # API 88 captured Data projector fixtures
 
-The adjacent JSON files were generated offline from Data repository commit
+The temporal JSON fixtures were generated offline from Data repository commit
 `0765061e7ec16c44e4af6cec4a118169225cfa6f` with the existing synthetic
 test inputs and production projector functions:
 
-- `api88_data429_projector.json`: `project_surveillance_evidence` with the five
-  cases in `tests/test_surveillance_evidence_consumer_schema.py`.
+- `api88_data429_projector.json` was refreshed from Data commit
+  `641620ddc65a8183d45d2c5c0522ca3a92f5a265` (includes merged PR #670).
+  It uses `payload`, `case`, `reported`, and `negative` from Data's
+  `test_surveillance_evidence_consumer_schema.py` and
+  `test_surveillance_evidence_mapping.py`: Established, Reported, site negative,
+  county tick No records, and county pathogen Present. All normalized values
+  and evidence revision hashes are actual projector outputs, not API mappings.
 - `api88_data430_431_projectors.json`: `compare_methodology` then
   `project_methodology_comparison`; `evaluate_alignment` then
   `project_temporal_alignment`, using the existing Data test `record()` and
