@@ -179,7 +179,7 @@
     },
     "surveillance_evidence": {
       "contract_version": "atlas-surveillance-evidence-v3",
-      "evidence_revision_id": "evidence:v3:6c29f31ed48c767c5da85ba1a70fcfd2b003be0d4d70e38932f3ca45dc6e0d23",
+      "evidence_revision_id": "evidence:v3:7acca8503e8a0d06b050bc0afa7eb01c93da3ccd8d10fb6b1b5c8613384e56ac",
       "evidence_tier": "SYNTHETIC_FIXTURE",
       "limitations": [
         "No qualifying record is not biological absence.",
@@ -190,6 +190,7 @@
         "Publisher cumulative Reported label for Ixodes scapularis through 2025-12-31; not a 2025 collection event.",
         "No tick count, life stage, collection date, effort, current ecological non-establishment or sampling completeness is inferred."
       ],
+      "normalized_state": "detected",
       "observation_key": "observation:v1:2ab91f7ed32baa383563d35b7ba06dfb9e22a9d127c7ff6f13e2fc5c28016213",
       "reason_codes": [
         "PUBLISHER_REPORTED_ESTABLISHMENT_NOT_DOCUMENTED"
@@ -380,7 +381,7 @@
     },
     "surveillance_evidence": {
       "contract_version": "atlas-surveillance-evidence-v3",
-      "evidence_revision_id": "evidence:v3:3567b7300081c1202ccca18909d2af23b4bfd853e4a5396d5c711792211f8f3c",
+      "evidence_revision_id": "evidence:v3:66eb53abceed5001b1e5d7e9988884fda90fab41a5e9e5ca34c1f39276f1a15d",
       "evidence_tier": "SYNTHETIC_FIXTURE",
       "limitations": [
         "No qualifying record is not biological absence.",
@@ -388,6 +389,7 @@
         "Detection alone does not establish prevalence or establishment criteria.",
         "No freshness, pooling, public admission or scientific approval is inferred."
       ],
+      "normalized_state": "established",
       "observation_key": "observation:v1:66821976dfbf285e1c4095fc6db78073e1460200d7467327e134cdbb839378b5",
       "reason_codes": [
         "PUBLISHER_ESTABLISHED"
@@ -579,7 +581,7 @@
     },
     "surveillance_evidence": {
       "contract_version": "atlas-surveillance-evidence-v3",
-      "evidence_revision_id": "evidence:v3:1078bad6bad5837c85969c1a4e7c7408787a4fc7c3fc902982f4eb989f440928",
+      "evidence_revision_id": "evidence:v3:000863a92de3190817c89f32157345b8ef83e283fc2b73b64ac42df7c6f00bca",
       "evidence_tier": "SYNTHETIC_FIXTURE",
       "limitations": [
         "No qualifying record is not biological absence.",
@@ -587,6 +589,7 @@
         "Detection alone does not establish prevalence or establishment criteria.",
         "No freshness, pooling, public admission or scientific approval is inferred."
       ],
+      "normalized_state": "unknown",
       "observation_key": "observation:v1:66821976dfbf285e1c4095fc6db78073e1460200d7467327e134cdbb839378b5",
       "reason_codes": [
         "PUBLISHER_NO_RECORDS"
@@ -805,7 +808,7 @@
     },
     "surveillance_evidence": {
       "contract_version": "atlas-surveillance-evidence-v3",
-      "evidence_revision_id": "evidence:v3:146338a811efd3dd802a99ce3440fa91c2be50e225b2f4ba496d8024bf7c2341",
+      "evidence_revision_id": "evidence:v3:1c7da4de5de6ca82eaedf4e0118571139a6696bb771b703059a768ff78a5be24",
       "evidence_tier": "SYNTHETIC_FIXTURE",
       "limitations": [
         "No qualifying record is not biological absence.",
@@ -813,6 +816,7 @@
         "Detection alone does not establish prevalence or establishment criteria.",
         "No freshness, pooling, public admission or scientific approval is inferred."
       ],
+      "normalized_state": "unknown",
       "observation_key": "observation:v1:b05d247ae51662e2601de6b7873ccdb6fc9b7be0bdd6a838bf535680391273d5",
       "reason_codes": [
         "SOURCE_NORMALIZED_INDIVIDUAL_NEGATIVE_TEST"
@@ -1003,7 +1007,7 @@
     },
     "surveillance_evidence": {
       "contract_version": "atlas-surveillance-evidence-v3",
-      "evidence_revision_id": "evidence:v3:aa1f1967f7b2fe947d6827778a5362cb12f5c4f0fc177d21ff9270222a582a94",
+      "evidence_revision_id": "evidence:v3:87212ea4992751cd3092b48e834ca9527e038b4b4f986c55c8da6fc71f0ff98b",
       "evidence_tier": "SYNTHETIC_FIXTURE",
       "limitations": [
         "No qualifying record is not biological absence.",
@@ -1011,6 +1015,7 @@
         "Detection alone does not establish prevalence or establishment criteria.",
         "No freshness, pooling, public admission or scientific approval is inferred."
       ],
+      "normalized_state": "detected",
       "observation_key": "observation:v1:01f1e6777ed1e52df7167a1d8823b13fa97cdf7425c730d46483328632255113",
       "reason_codes": [
         "DETECTION_ESTABLISHMENT_RELATION_UNPROVEN"

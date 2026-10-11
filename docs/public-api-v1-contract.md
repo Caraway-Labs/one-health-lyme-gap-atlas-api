@@ -1,5 +1,17 @@
 # Canonical public API V1 contract (API #52)
 
+## Optional surveillance companions (API #88)
+
+`GET /v1/observations` may carry `surveillance_context` only through the existing
+admitted Data delivery boundary. It is null in the default runtime, which has no
+surveillance resolver. `evidence.normalized_state` directly preserves Data's
+`established`, `detected`, or `unknown`; older companions may omit it. The original
+publisher value remains `value`. Unknown or missing context never means biological
+absence. Methodology comparison and temporal alignment are independent optional
+companions; omission never means comparable or zero lag. See the
+[acceptance and admission audit](api-88-evidence-state-integration.md) for the
+remaining DATA #429 production prerequisite and the meaning of these fields.
+
 ## Tier 1 county surveillance review priority (API #10)
 
 `GET /v1/counties/{fips}/tier1-surveillance-priority` returns the persisted

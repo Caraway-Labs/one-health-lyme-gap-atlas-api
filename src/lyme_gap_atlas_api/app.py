@@ -143,6 +143,7 @@ from .reports.renderer import (
 from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
+from .surveillance_delivery import SurveillanceResolver
 from .telemetry import PrivateInstrumentationProvider, server_request_hook, server_response_hook
 from .telemetry_logging import operational_logger, operational_request_id, protect_dependency_logs
 from .tier1_priority import (
@@ -260,6 +261,7 @@ def create_app(
     provenance_repository: ProvenanceRepository | None = None,
     intelligence_repository: FeedRepository | None = None,
     tier1_priority_repository: Tier1PriorityRepository | None = None,
+    surveillance_resolver: SurveillanceResolver | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
     configure_logging()
@@ -357,7 +359,7 @@ def create_app(
         metadata_repository or SnowflakeMetadataRepository(config)
     )
     app.state.observation_service = ObservationService(
-        observation_repository or SnowflakeObservationRepository(config)
+        observation_repository or SnowflakeObservationRepository(config), surveillance_resolver
     )
     app.state.provenance_service = ProvenanceService(
         provenance_repository or SnowflakeProvenanceRepository(config)
