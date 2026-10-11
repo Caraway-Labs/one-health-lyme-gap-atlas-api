@@ -71,4 +71,5 @@ def install_documentation(app: FastAPI) -> None:
         )
         # FastAPI has no theme argument; pass the supported ReDoc element option.
         theme = escape(json.dumps(REDOC_THEME), quote=True)
-        return HTMLResponse(bytes(page.body).decode().replace("<redoc ", f'<redoc theme="{theme}" ', 1))
+        html = bytes(page.body).decode().replace("<redoc ", f'<redoc theme="{theme}" ', 1)
+        return HTMLResponse(html)
