@@ -1,6 +1,8 @@
 """Durable machine/framework documentation URLs and consumer separation."""
 
+import hashlib
 import re
+import struct
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -8,7 +10,7 @@ from test_public_metadata import MetadataFixture
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
-from lyme_gap_atlas_api.documentation import FAVICON, LOGO, SWAGGER_PARAMETERS
+from lyme_gap_atlas_api.documentation import ASSETS, FAVICON_URL, LOGO, LOGO_URL, SWAGGER_PARAMETERS
 
 
 def test_legacy_swagger_can_call_the_canonical_server_with_manifest_cors() -> None:
@@ -31,9 +33,10 @@ def test_legacy_swagger_can_call_the_canonical_server_with_manifest_cors() -> No
         result = client.get("/v1/indicators", headers=headers)
         assert result.status_code == 200
         assert result.headers["access-control-allow-origin"] == origin
-    assert "access-control-allow-origin" not in client.get(
-        "/openapi.json", headers={"Origin": "https://untrusted.example"}
-    ).headers
+    assert (
+        "access-control-allow-origin"
+        not in client.get("/openapi.json", headers={"Origin": "https://untrusted.example"}).headers
+    )
 
 
 def test_canonical_documentation_urls_and_cross_link() -> None:
@@ -66,16 +69,40 @@ def test_atlas_branding_and_standard_swagger_interaction() -> None:
     for path in ("/docs", "/redoc"):
         page = client.get(path)
         assert "One Health Lyme Gap Atlas API" in page.text
-        assert 'href="/docs/favicon.svg"' in page.text
+        assert f'href="{FAVICON_URL}"' in page.text
+        assert "favicon.svg" not in page.text
     swagger = client.get("/docs").text
     assert "SwaggerUIBundle" in swagger
     for key, value in SWAGGER_PARAMETERS.items():
         import json
 
         assert f'"{key}": {json.dumps(value)}' in swagger
-    asset = client.get("/docs/favicon.svg")
-    assert asset.status_code == 200
-    assert asset.headers["content-type"].startswith("image/svg+xml")
-    assert asset.content == FAVICON.read_bytes()
-    assert "/docs/favicon.svg" not in schema["paths"]
-    assert "/docs/favicon.svg" not in client.app.first_party_openapi()["paths"]
+    assert LOGO["url"] in schema["info"]["description"]
+    assert "favicon.svg" not in str(schema["info"])
+    assert client.get("/docs/favicon.svg").status_code == 404
+    for url, mime, checksum in (
+        (
+            FAVICON_URL,
+            "image/x-icon",
+            "9a3f9ae0df3e926a33c2e8dbbabcf1c1b4770515ed75a7c673ad8304d7c98d19",
+        ),
+        (LOGO_URL, "image/png", "b803ae4b899ff9a318bba31a049ee3ecd1d65fd0b80530da5b9361aa457eac23"),
+    ):
+        asset = client.get(url)
+        assert asset.status_code == 200
+        assert asset.headers["content-type"] == mime
+        assert asset.headers["cache-control"] == "public, max-age=86400"
+        assert asset.content == (ASSETS / url.rsplit("/", 1)[1]).read_bytes()
+        assert hashlib.sha256(asset.content).hexdigest() == checksum
+        assert client.get(url, headers={"Cache-Control": "no-cache"}).content == asset.content
+        assert url not in schema["paths"]
+        assert url not in client.app.first_party_openapi()["paths"]
+
+
+def test_approved_icon_dimensions() -> None:
+    ico = (ASSETS / "favicon.ico").read_bytes()
+    assert struct.unpack_from("<HHH", ico) == (0, 1, 3)
+    assert {(ico[6 + i * 16], ico[7 + i * 16]) for i in range(3)} == {(16, 16), (32, 32), (48, 48)}
+    png = (ASSETS / "favicon-256x256.png").read_bytes()
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
+    assert struct.unpack_from(">II", png, 16) == (256, 256)

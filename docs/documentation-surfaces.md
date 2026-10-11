@@ -58,12 +58,16 @@ platform migration is part of this surface contract.
 ## Framework presentation and assets
 
 Swagger and retained ReDoc use FastAPI's standard HTML helpers, the existing
-Atlas title/description, and the approved Atlas favicon. The SVG is copied
-unchanged from Web commit `1287058fbc1bd7222a2c1628865ad694d719bb25`,
-`public/favicon.svg` (Git blob `ca747cb66b233fedec5ff0c84f97bb4631c05dbf`).
-It is included with package sources in the production image and served at
-`/docs/favicon.svg`; OpenAPI
-`info.x-logo` points to that production asset. This is documentation presentation,
+Atlas title/description, and the owner-approved Summit Compass North assets
+(API #218, Web #528 / PR #531). The multi-size `favicon.ico` (16/32/48)
+and `favicon-256x256.png` are copied unchanged from the approved local handoff.
+The ICO matches Web's committed Git blob `d0497d13f18aeedeaaa6bda66a32d5cd3b6390a2`.
+Both are packaged in the wheel and production image and served under
+`/docs/summit-compass-north-20261010/` with explicit image MIME types and
+`Cache-Control: public, max-age=86400`. The versioned path bypasses cached legacy
+favicons; future asset changes must use a new version. The legacy SVG is removed.
+Both browser icons use the ICO; OpenAPI description and `info.x-logo` use the
+256-pixel PNG at the canonical production URL. This is documentation presentation,
 not a new API operation, and it is absent from both generated operation lists.
 
 Swagger retains its standard Try It Out controls for approved GETs and the
