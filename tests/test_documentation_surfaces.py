@@ -1,8 +1,10 @@
 """Durable machine/framework documentation URLs and consumer separation."""
 
 import hashlib
+import json
 import re
 import struct
+from html.parser import HTMLParser
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -74,10 +76,23 @@ def test_atlas_branding_and_standard_swagger_interaction() -> None:
     swagger = client.get("/docs").text
     assert "SwaggerUIBundle" in swagger
     for key, value in SWAGGER_PARAMETERS.items():
-        import json
 
         assert f'"{key}": {json.dumps(value)}' in swagger
-    assert LOGO["url"] in schema["info"]["description"]
+    assert LOGO["url"] not in schema["info"]["description"]
+    assert "![" not in schema["info"]["description"]
+    assert schema["info"]["contact"] == {
+        "name": "One Health Atlas", "url": "https://onehealthatlas.org/"
+    }
+    assert client.app.first_party_openapi()["info"]["contact"] == schema["info"]["contact"]
+    themes = []
+
+    class RedocParser(HTMLParser):
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            if tag == "redoc":
+                themes.append(json.loads(dict(attrs)["theme"] or "{}"))
+
+    RedocParser().feed(client.get("/redoc").text)
+    assert themes == [{"logo": {"maxWidth": "96px", "maxHeight": "96px"}}]
     assert "favicon.svg" not in str(schema["info"])
     assert client.get("/docs/favicon.svg").status_code == 404
     for url, mime, checksum in (

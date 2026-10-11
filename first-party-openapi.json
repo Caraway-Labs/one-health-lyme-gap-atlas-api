@@ -5,8 +5,8 @@
     "summary": "Complete first-party Atlas product contract",
     "description": "Build artifact for existing first-party Web client and validator generation. Not an external developer contract or HTTP surface. Use the public openapi.json for external documentation.",
     "contact": {
-      "name": "Caraway Labs",
-      "url": "https://carawaylabs.com/"
+      "name": "One Health Atlas",
+      "url": "https://onehealthatlas.org/"
     },
     "version": "0.1.0",
     "x-logo": {
