@@ -39,13 +39,13 @@ IDENTITIES = {
         "cdc-ixodes-county-status-2025",
         "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
         "metadata-revision:v1:c60fb91162b5ed33d34a01d3fef24e0a4a2ef8976bbd07ac1082fd783adfb509",
-        "cdc_tick_ixodes_county_status",
+        "tick",
     ),
     "burgdorferi_status": (
         "cdc-ixodes-pathogen-status-2025",
         "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
         "metadata-revision:v1:01b6eaf0d3f6e96ebf8ac9020e31584f55175c95d676e40d3da7d430b9b08522",
-        "cdc_tick_ixodes_pathogen_status",
+        "pathogen",
     ),
 }
 BINDING = BundleBinding(RELEASE, BUNDLE, "Data #429 retained CDC admission / PR #676")
@@ -164,7 +164,7 @@ class CDCObservationAdapter:
         _require(_evidence_validator.is_valid(envelope))
         semantic = envelope["semantic"]
         item, metadata, lineage = (semantic[k] for k in ("observation", "measure", "lineage"))
-        dataset, version, revision, resource = IDENTITIES[measure]
+        dataset, version, revision, public_source_key = IDENTITIES[measure]
         _require(metadata["metadata_revision_id"] == lineage["metadata_revision_id"] == revision)
         _require(metadata["metadata_revision"] == 2 and metadata["semantic_version"] == "1.0.0")
         _require(lineage["dataset_id"] == dataset and lineage["source_version_id"] == version)
@@ -195,7 +195,7 @@ class CDCObservationAdapter:
             denominator=metadata["denominator"],
             semantic_version=metadata["semantic_version"],
             release_id=RELEASE,
-            source_id=resource,
+            source_id=public_source_key,
             lineage_source_id=SOURCE,
             dataset_id=dataset,
             source_label=None,
@@ -212,7 +212,7 @@ class CDCObservationAdapter:
             evidence=EvidenceReference(
                 resource_type="observation",
                 resource_id=item["id"],
-                source_id=resource,
+                source_id=public_source_key,
                 provenance_ref=item["id"],
                 semantic_version=metadata["semantic_version"],
                 methodology_version=lineage["transformation_version"],

@@ -65,7 +65,7 @@ def envelope(measure, county):
     return result
 
 
-def client(producer=envelope, config=None):
+def client(producer=envelope, config=None, provenance_repository=None):
     class Repository(FixtureRepository):
         def current_release(self):
             return RELEASE
@@ -73,7 +73,11 @@ def client(producer=envelope, config=None):
         def measure_exists(self, measure_id, release):
             raise AssertionError("CDC must use the approved producer, not public view membership")
 
-    api = create_app(settings=config or settings(), observation_repository=Repository())
+    api = create_app(
+        settings=config or settings(),
+        observation_repository=Repository(),
+        provenance_repository=provenance_repository,
+    )
     api.state.observation_service = ObservationService(
         Repository(), cdc_adapter=CDCObservationAdapter(config or settings(), producer)
     )
@@ -107,6 +111,9 @@ def test_three_accepted_cases(measure, county, value, state, normalized):
     assert item["surveillance_context"]["evidence"]["normalized_state"] == normalized
     assert item["release_id"] == RELEASE
     assert item["metadata_revision_id"] == IDENTITIES[measure][2]
+    expected_key = "tick" if measure == "scapularis_status" else "pathogen"
+    assert item["source_id"] == item["evidence"]["source_id"] == expected_key
+    assert item["lineage_source_id"] == "cdc_arbonet_tick_module"
     assert item["source_label"] is item["methodology_id"] is item["methodology"] is None
     assert item["source_vintage"] == "2025"
     assert item["denominator"] == "NONE"
@@ -229,3 +236,43 @@ def test_wrong_release_fails_before_producer():
     adapter = CDCObservationAdapter(settings(), lambda *_: pytest.fail("must not query"))
     with pytest.raises(AtlasDataUnavailableError):
         adapter.search(ObservationQuery(**params(county=["13081"])), "wrong", 0)
+
+
+@pytest.mark.parametrize(
+    "measure,county,key",
+    [
+        ("scapularis_status", "13081", "tick"),
+        ("burgdorferi_status", "19135", "pathogen"),
+        ("burgdorferi_status", "12047", "pathogen"),
+    ],
+)
+def test_emitted_source_key_resolves_through_existing_catalog_endpoint(measure, county, key):
+    from test_public_provenance import OTHER
+    from test_public_provenance import FixtureRepository as SourceFixture
+
+    class Catalog(SourceFixture):
+        release = RELEASE
+
+        def source(self, source_id, release):
+            assert release == RELEASE
+            if source_id != key:
+                return None
+            result = list(OTHER)
+            result[1], result[2] = "Fixture CDC source", "through 2025-12-31"
+            result[0], result[5], result[6], result[11] = (
+                key,
+                "cdc_arbonet_tick_module",
+                IDENTITIES[measure][0],
+                RELEASE,
+            )
+            return tuple(result)
+
+    api = client(provenance_repository=Catalog())
+    observation = api.get("/v1/observations", params=params(measure, county)).json()["data"][0]
+    response = api.get(f"/v1/sources/{observation['source_id']}")
+    assert response.status_code == 200
+    source = response.json()["data"]
+    assert source["source_id"] == key == observation["evidence"]["source_id"]
+    assert source["release_version"] == observation["release_id"] == RELEASE
+    assert source["lineage_source_id"] == observation["lineage_source_id"]
+    assert source["dataset_id"] == observation["dataset_id"]

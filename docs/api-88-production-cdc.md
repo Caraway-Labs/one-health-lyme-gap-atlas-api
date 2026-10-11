@@ -14,6 +14,11 @@ authority reads. Data retains all classification, metadata and admission logic.
 No Data module is presumed present: the dependency is installed through the
 existing uv lock and Docker build. Canonical metadata is packaged by Data.
 No scientific inference or duplicated private authority SQL is introduced.
+Public `source_id` and `evidence.source_id` use the accepted manifest's catalog
+keys `tick` and `pathogen`, resolving through `/v1/sources/{source_id}`. They are
+distinct from `lineage_source_id=cdc_arbonet_tick_module`, the two dataset IDs,
+and Data's private ingestion resource/version identities. The producer retains
+all private resource admission checks; these keys do not broaden admission.
 
 Release: `governed-2026-10-06-nlcd-demo-cohort`.
 Bundle: `603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9`.
