@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from .config import ApiSettings
 from .dependency_telemetry import dependency_span
-from .models import UserProfile, UserProfileWrite
+from .models import STARTING_VIEW_VERSION, UserProfile, UserProfileWrite
 from .telemetry_logging import operational_logger
 
 logger = operational_logger(__name__)
@@ -23,6 +23,44 @@ class ProfileStoreError(RuntimeError):
         self.operation = operation
         self.category = category
         self.upstream_status = upstream_status
+
+
+PROFILE_COLUMNS = "role,state_code,organization,job_title,starting_view_version"
+
+
+def profile_upsert_body(user_id: UUID, profile: UserProfileWrite) -> dict[str, Any]:
+    """Columns written by one profile upsert.
+
+    Ordinary saves omit ``starting_view_version`` so the stored onboarding
+    marker is preserved. An explicit completion writes that marker as version 1
+    in the same body as ``state_code``. The client never supplies the version.
+    """
+
+    body: dict[str, Any] = {
+        "user_id": str(user_id),
+        "role": profile.role,
+        "state_code": profile.state_code,
+        "organization": profile.organization,
+        "job_title": profile.job_title,
+    }
+    if profile.complete_starting_view is True:
+        body["starting_view_version"] = STARTING_VIEW_VERSION
+    return body
+
+
+def apply_profile_write(existing: UserProfile | None, profile: UserProfileWrite) -> UserProfile:
+    """Same completion rule as the upsert body, for stores that keep the row."""
+
+    version = None if existing is None else existing.starting_view_version
+    if profile.complete_starting_view is True:
+        version = STARTING_VIEW_VERSION
+    return UserProfile(
+        role=profile.role,
+        state_code=profile.state_code,
+        organization=profile.organization,
+        job_title=profile.job_title,
+        starting_view_version=version,
+    )
 
 
 class ProfileStore(Protocol):
@@ -45,7 +83,7 @@ class SupabaseProfileStore:
     def get(self, user_id: UUID) -> UserProfile | None:
         response = self._request(
             "GET",
-            params={"user_id": f"eq.{user_id}", "select": "role,state_code,organization,job_title"},
+            params={"user_id": f"eq.{user_id}", "select": PROFILE_COLUMNS},
         )
         payload = self._json_list(response, operation="get")
         if not payload:
@@ -53,12 +91,11 @@ class SupabaseProfileStore:
         return self._profile_from_response(payload[0], operation="get")
 
     def save(self, user_id: UUID, profile: UserProfileWrite) -> UserProfile:
-        payload = {"user_id": str(user_id), **profile.model_dump()}
         response = self._request(
             "POST",
             headers={"Prefer": "resolution=merge-duplicates,return=representation"},
-            params={"select": "role,state_code,organization,job_title"},
-            json=payload,
+            params={"select": PROFILE_COLUMNS},
+            json=profile_upsert_body(user_id, profile),
         )
         result = self._json_list(response, operation="save")
         if len(result) != 1:

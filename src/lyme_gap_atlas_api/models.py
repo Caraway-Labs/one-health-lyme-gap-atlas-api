@@ -69,6 +69,44 @@ US_STATE_CODES = {
 }
 
 
+# Onboarding completion marker assigned by the server. Not a row revision.
+STARTING_VIEW_VERSION: Literal[1] = 1
+
+_COMPLETE_STARTING_VIEW_DESCRIPTION = (
+    "Explicit onboarding-completion action. Send true to validate state_code and "
+    "store starting_view_version 1 with that jurisdiction in the same write. Omit "
+    "this field on an ordinary Settings or profile save so the stored marker is "
+    "left unchanged. Clients cannot choose the version."
+)
+
+_STARTING_VIEW_VERSION_DESCRIPTION = (
+    "Server-owned starting-view onboarding marker. Null means this profile has "
+    "not completed onboarding, including every profile saved before the marker "
+    "existed. 1 means onboarding was completed with the stored state_code; a "
+    "null state_code is United States. A later read that shows 1 and the "
+    "requested state_code confirms that completion write. This is not a profile "
+    "revision or an idempotency key."
+)
+
+
+def _normalize_state_code(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().upper()
+    if normalized not in US_STATE_CODES:
+        raise ValueError("state_code must be a supported US state or DC")
+    return normalized
+
+
+def _normalize_bounded_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("value must not be blank")
+    return normalized
+
+
 class UserProfileWrite(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -76,32 +114,46 @@ class UserProfileWrite(BaseModel):
     state_code: str | None = Field(default=None, max_length=2)
     organization: str | None = Field(default=None, max_length=120)
     job_title: str | None = Field(default=None, max_length=120)
+    complete_starting_view: Literal[True] | None = Field(
+        default=None,
+        description=_COMPLETE_STARTING_VIEW_DESCRIPTION,
+    )
 
     @field_validator("state_code")
     @classmethod
     def validate_state_code(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        normalized = value.strip().upper()
-        if normalized not in US_STATE_CODES:
-            raise ValueError("state_code must be a supported US state or DC")
-        return normalized
+        return _normalize_state_code(value)
 
     @field_validator("organization", "job_title")
     @classmethod
     def normalize_bounded_text(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("value must not be blank")
-        return normalized
+        return _normalize_bounded_text(value)
 
 
-class UserProfile(UserProfileWrite):
+class UserProfile(BaseModel):
     # Database adapter responses include server-owned columns such as user_id and
     # timestamps. They are deliberately not part of the browser-facing profile.
+    # starting_view_version is the exception: it is server-owned and readable.
     model_config = ConfigDict(extra="ignore")
+
+    role: ProfileRole | None = None
+    state_code: str | None = Field(default=None, max_length=2)
+    organization: str | None = Field(default=None, max_length=120)
+    job_title: str | None = Field(default=None, max_length=120)
+    starting_view_version: Literal[1] | None = Field(
+        default=None,
+        description=_STARTING_VIEW_VERSION_DESCRIPTION,
+    )
+
+    @field_validator("state_code")
+    @classmethod
+    def validate_state_code(cls, value: str | None) -> str | None:
+        return _normalize_state_code(value)
+
+    @field_validator("organization", "job_title")
+    @classmethod
+    def normalize_bounded_text(cls, value: str | None) -> str | None:
+        return _normalize_bounded_text(value)
 
 
 class UserProfileResponse(BaseModel):
@@ -250,6 +302,7 @@ class CountyDetail(CountyScoreSummary):
 
 class ProblemDetails(BaseModel):
     """RFC 9457 error. Canonical public resources add stable code; legacy routes may omit it."""
+
     type: str
     title: str
     status: int
