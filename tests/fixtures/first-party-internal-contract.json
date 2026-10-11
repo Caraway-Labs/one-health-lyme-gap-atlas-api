@@ -1823,17 +1823,10 @@
           "title": "Job Title"
         },
         "complete_starting_view": {
-          "anyOf": [
-            {
-              "type": "boolean",
-              "const": true
-            },
-            {
-              "type": "null"
-            }
-          ],
+          "type": "boolean",
+          "const": true,
           "title": "Complete Starting View",
-          "description": "Explicit onboarding-completion action. Send true to validate state_code and store starting_view_version 1 with that jurisdiction in the same write. Omit this field on an ordinary Settings or profile save so the stored marker is left unchanged. Clients cannot choose the version."
+          "description": "Explicit onboarding-completion action. When supplied, the value must be JSON boolean true. That validates state_code and stores starting_view_version 1 with that jurisdiction in the same write. Omit this field on an ordinary Settings or profile save so the stored marker is left unchanged. Null, false, numbers, and strings are rejected. Clients cannot choose the version."
         }
       },
       "additionalProperties": false,

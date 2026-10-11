@@ -7,6 +7,7 @@ from uuid import UUID
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from test_api import FakeRepository, FakeTokenVerifier, MemoryProfileStore
 
 from lyme_gap_atlas_api.app import create_app
@@ -151,6 +152,58 @@ def test_invalid_jurisdiction_does_not_complete_or_persist() -> None:
         assert rejected.status_code == 422
     assert store.profiles == {}
     assert api.get("/v1/me/profile", headers=headers).json()["profile"] is None
+
+
+@pytest.mark.parametrize("value", [1, 1.0, "true", "false", "1", False, None])
+def test_rejected_completion_value_does_not_create_a_profile(value: object) -> None:
+    api, store = _api()
+    rejected = api.put(
+        "/v1/me/profile",
+        headers=_headers(),
+        json={"state_code": "NY", "complete_starting_view": value},
+    )
+
+    assert rejected.status_code == 422
+    assert store.profiles == {}
+    assert api.get("/v1/me/profile", headers=_headers()).json()["profile"] is None
+
+
+def test_rejected_completion_values_leave_incomplete_profile_unchanged() -> None:
+    api, store = _api()
+    headers = _headers()
+    saved = api.put(
+        "/v1/me/profile",
+        headers=headers,
+        json={"state_code": "CO", "organization": "State lab"},
+    )
+    assert saved.status_code == 200
+    original = saved.json()["profile"]
+    assert original["starting_view_version"] is None
+
+    for value in (1, 1.0, "true", "false", "1", False, None):
+        rejected = api.put(
+            "/v1/me/profile",
+            headers=headers,
+            json={
+                "state_code": "NY",
+                "organization": "Changed",
+                "complete_starting_view": value,
+            },
+        )
+        assert rejected.status_code == 422
+
+    assert store.profiles[USER_ID].starting_view_version is None
+    assert store.profiles[USER_ID].state_code == "CO"
+    assert store.profiles[USER_ID].organization == "State lab"
+    assert api.get("/v1/me/profile", headers=headers).json()["profile"] == original
+
+
+def test_json_numbers_are_not_boolean_true() -> None:
+    for raw in ("1", "1.0"):
+        with pytest.raises(ValidationError):
+            UserProfileWrite.model_validate_json(
+                f'{{"state_code":"CO","complete_starting_view":{raw}}}'
+            )
 
 
 def test_client_cannot_set_or_clear_the_version() -> None:

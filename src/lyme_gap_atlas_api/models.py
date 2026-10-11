@@ -5,6 +5,7 @@ from uuid import UUID
 
 from lyme_gap_atlas_shared.domain import Score
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 ProfileRole = Literal[
     "general_public_citizen",
@@ -73,11 +74,18 @@ US_STATE_CODES = {
 STARTING_VIEW_VERSION: Literal[1] = 1
 
 _COMPLETE_STARTING_VIEW_DESCRIPTION = (
-    "Explicit onboarding-completion action. Send true to validate state_code and "
-    "store starting_view_version 1 with that jurisdiction in the same write. Omit "
-    "this field on an ordinary Settings or profile save so the stored marker is "
-    "left unchanged. Clients cannot choose the version."
+    "Explicit onboarding-completion action. When supplied, the value must be JSON "
+    "boolean true. That validates state_code and stores starting_view_version 1 "
+    "with that jurisdiction in the same write. Omit this field on an ordinary "
+    "Settings or profile save so the stored marker is left unchanged. Null, false, "
+    "numbers, and strings are rejected. Clients cannot choose the version."
 )
+
+
+def _boolean_true_schema(schema: dict[str, Any]) -> None:
+    """Publish boolean true only. Omission stays a Python default, not JSON null."""
+
+    schema.pop("default", None)
 
 _STARTING_VIEW_VERSION_DESCRIPTION = (
     "Server-owned starting-view onboarding marker. Null means this profile has "
@@ -114,10 +122,18 @@ class UserProfileWrite(BaseModel):
     state_code: str | None = Field(default=None, max_length=2)
     organization: str | None = Field(default=None, max_length=120)
     job_title: str | None = Field(default=None, max_length=120)
-    complete_starting_view: Literal[True] | None = Field(
+    complete_starting_view: Literal[True] | SkipJsonSchema[None] = Field(
         default=None,
         description=_COMPLETE_STARTING_VIEW_DESCRIPTION,
+        json_schema_extra=_boolean_true_schema,
     )
+
+    @field_validator("complete_starting_view", mode="before")
+    @classmethod
+    def complete_starting_view_must_be_boolean_true(cls, value: object) -> object:
+        if value is True:
+            return True
+        raise ValueError("complete_starting_view must be boolean true when supplied")
 
     @field_validator("state_code")
     @classmethod
