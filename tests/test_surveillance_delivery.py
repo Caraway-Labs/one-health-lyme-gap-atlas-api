@@ -36,9 +36,7 @@ VECTOR = VECTOR.model_copy(
     update={
         "observation_id": "fixture-vector-public-id",
         "measure_id": "scapularis_status",
-        "geography": GeographyIdentity(
-            geography_type=GeographyType.county, geography_id="08013"
-        ),
+        "geography": GeographyIdentity(geography_type=GeographyType.county, geography_id="08013"),
         "period_start": date(2025, 12, 31),
         "period_end": date(2025, 12, 31),
         "temporal_grain": "CUMULATIVE",
@@ -47,9 +45,14 @@ VECTOR = VECTOR.model_copy(
     }
 )
 VECTOR_SLICE = SupportedSlice(
-    "scapularis_status", VECTOR_SOURCE, "CUMULATIVE",
-    date(2025, 12, 31), date(2025, 12, 31),
-    frozenset({VECTOR.value_state}), "scapularis_status", "CUMULATIVE_THROUGH_DATE",
+    "scapularis_status",
+    VECTOR_SOURCE,
+    "CUMULATIVE",
+    date(2025, 12, 31),
+    date(2025, 12, 31),
+    frozenset({VECTOR.value_state}),
+    "scapularis_status",
+    "CUMULATIVE_THROUGH_DATE",
 )
 
 
@@ -59,7 +62,8 @@ def admitted_evidence():
     envelope["semantic"]["evidence_tier"] = "REVIEWED_CONTRACT"
     envelope["surveillance_evidence"]["evidence_tier"] = "GOVERNED_MAPPING"
     envelope["semantic"]["release"] = {
-        "id": BINDING.release_id, "bundle_sha256": BINDING.bundle_sha256
+        "id": BINDING.release_id,
+        "bundle_sha256": BINDING.bundle_sha256,
     }
     envelope["semantic"]["lineage"]["release_id"] = BINDING.release_id
     return envelope
@@ -70,11 +74,15 @@ def evidence_delivery(envelope=None):
     source = envelope["semantic"]["provenance"]
     observation = envelope["semantic"]["observation"]
     identity = SourceIdentity(
-        observation["id"], observation["revision_id"],
-        source["source_id"]["value"], source["source_version_id"]["value"],
+        observation["id"],
+        observation["revision_id"],
+        source["source_id"]["value"],
+        source["source_version_id"]["value"],
     )
     return SurveillanceDelivery(
-        BINDING, VECTOR.observation_id, identity,
+        BINDING,
+        VECTOR.observation_id,
+        identity,
         evidence=EvidenceDelivery(identity, envelope),
     )
 
@@ -87,8 +95,11 @@ def admit_vector(envelope=None, *, delivery=None):
 
 def test_data429_projector_fixtures_are_schema_valid_but_not_admitted():
     assert set(DATA429) == {
-        "established", "detected_below_establishment", "sampled_not_detected",
-        "no_qualifying_record", "unknown",
+        "established",
+        "detected_below_establishment",
+        "sampled_not_detected",
+        "no_qualifying_record",
+        "unknown",
     }
     for state, envelope in DATA429.items():
         assert _evidence_validator.is_valid(envelope)
@@ -127,9 +138,12 @@ def test_evidence_shape_identity_and_release_mismatch_denies(mutate):
     envelope = admitted_evidence()
     mutate(envelope)
     with pytest.raises(AtlasDataUnavailableError):
-        admit_vector(delivery=replace(evidence_delivery(), evidence=EvidenceDelivery(
-            evidence_delivery().primary_identity, envelope
-        )))
+        admit_vector(
+            delivery=replace(
+                evidence_delivery(),
+                evidence=EvidenceDelivery(evidence_delivery().primary_identity, envelope),
+            )
+        )
 
 
 def test_unsupported_value_and_grain_denied_before_resolution():
@@ -147,9 +161,8 @@ def test_unsupported_value_and_grain_denied_before_resolution():
     with pytest.raises(AtlasDataUnavailableError):
         resolve_context(VECTOR.model_copy(update={"temporal_grain": "YEAR"}), Resolver())
     with pytest.raises(AtlasDataUnavailableError):
-        resolve_context(
-            VECTOR.model_copy(update={"value_state": "NO_RECORDS"}), Resolver()
-        )
+        resolve_context(VECTOR.model_copy(update={"value_state": "NO_RECORDS"}), Resolver())
+
     class Unresolved(Resolver):
         def resolve(self, observation):
             return None
@@ -161,6 +174,17 @@ def test_unsupported_value_and_grain_denied_before_resolution():
 HUMAN = ObservationService._observation(row("42003", "12", "OBSERVED"))
 HUMAN = HUMAN.model_copy(
     update={"period_start": date(2022, 1, 1), "period_end": date(2022, 12, 31)}
+)
+HUMAN_SLICE = replace(
+    VECTOR_SLICE,
+    measure_id=HUMAN.measure_id,
+    source_id=HUMAN.lineage_source_id,
+    temporal_grain=HUMAN.temporal_grain,
+    period_start=HUMAN.period_start,
+    period_end=HUMAN.period_end,
+    value_states=frozenset({HUMAN.value_state}),
+    semantic_measure_id=HUMAN.measure_id,
+    semantic_temporal_semantics="PERIOD",
 )
 LEFT = SourceIdentity("left-key", "revision-1", "cdc_lyme", "approved-current")
 RIGHT = SourceIdentity("right-key", "revision-1", "cdc_lyme", "approved-current")
@@ -174,38 +198,51 @@ def comparison_delivery(kind="methodology"):
     left = replace(LEFT, source_version_id="approved-historical") if historical else LEFT
     left_resource = "cdc_lyme_qtbi_xd4i" if historical else "cdc_lyme_x5j9_wybp"
     right_historical = kind == "methodology_caution_version"
-    right = (
-        replace(RIGHT, source_version_id="approved-historical")
-        if right_historical else RIGHT
-    )
+    right = replace(RIGHT, source_version_id="approved-historical") if right_historical else RIGHT
     right_resource = "cdc_lyme_qtbi_xd4i" if right_historical else "cdc_lyme_x5j9_wybp"
     left_class = "LOW" if kind == "methodology_caution_changed" else "HIGH"
     if kind == "methodology_unknown":
         left_class = "UNKNOWN"
     reference = (
         "https://example.org/fixture-reviewed-jurisdiction-evidence"
-        if kind in {
-            "methodology_caution_changed", "methodology_caution_version",
+        if kind
+        in {
+            "methodology_caution_changed",
+            "methodology_caution_version",
             "methodology_not_comparable",
         }
         else None
     )
     certified = ComparisonProducerBinding(
-        left, right, left_resource, right_resource,
-        "Probable", "Probable",
-        "left-public-id", projection["jurisdiction_class"],
-        left_class, "HIGH", reference, projection,
+        left,
+        right,
+        left_resource,
+        right_resource,
+        "Probable",
+        "Probable",
+        "left-public-id",
+        projection["jurisdiction_class"],
+        left_class,
+        "HIGH",
+        reference,
+        projection,
     )
     companion = ComparisonDelivery(
-        left, right, certified.left_resource_key, certified.right_resource_key,
-        reference, "left-public-id", projection, certified,
+        left,
+        right,
+        certified.left_resource_key,
+        certified.right_resource_key,
+        reference,
+        "left-public-id",
+        projection,
+        certified,
     )
     return SurveillanceDelivery(BINDING, HUMAN.observation_id, right, comparison=companion)
 
 
 def test_data430_ordered_pair_and_certified_context():
     item = comparison_delivery()
-    result = admit_surveillance_context(HUMAN, item, BINDING, VECTOR_SLICE)
+    result = admit_surveillance_context(HUMAN, item, BINDING, HUMAN_SLICE)
     assert result.methodology_comparison.comparison_state == "COMPARABLE"
     assert result.methodology_comparison.left_observation_id == "left-public-id"
     original = item.comparison
@@ -215,16 +252,17 @@ def test_data430_ordered_pair_and_certified_context():
         replace(original, left=replace(LEFT, source_version_id="other")),
         replace(original, left_public_observation_id="wrong"),
         replace(original, projection=[]),
-        replace(original, producer_binding=replace(
-            original.producer_binding, left_case_category=None
-        )),
-        replace(original, producer_binding=replace(
-            original.producer_binding, jurisdiction_class="UNKNOWN"
-        )),
+        replace(
+            original, producer_binding=replace(original.producer_binding, left_case_category=None)
+        ),
+        replace(
+            original,
+            producer_binding=replace(original.producer_binding, jurisdiction_class="UNKNOWN"),
+        ),
     ):
         with pytest.raises(AtlasDataUnavailableError):
             admit_surveillance_context(
-                HUMAN, replace(item, comparison=changed), BINDING, VECTOR_SLICE
+                HUMAN, replace(item, comparison=changed), BINDING, HUMAN_SLICE
             )
 
 
@@ -240,7 +278,7 @@ def test_data430_ordered_pair_and_certified_context():
 )
 def test_data430_producer_comparison_state_matrix(kind, state, jurisdiction):
     item = comparison_delivery(kind)
-    result = admit_surveillance_context(HUMAN, item, BINDING, VECTOR_SLICE)
+    result = admit_surveillance_context(HUMAN, item, BINDING, HUMAN_SLICE)
     assert result.methodology_comparison.comparison_state == state
     assert result.methodology_comparison.jurisdiction_class == jurisdiction
     if kind == "methodology_caution_changed":
@@ -248,14 +286,18 @@ def test_data430_producer_comparison_state_matrix(kind, state, jurisdiction):
         with pytest.raises(AtlasDataUnavailableError):
             admit_surveillance_context(
                 HUMAN,
-                replace(item, comparison=replace(
-                    item.comparison,
-                    producer_binding=replace(
-                        item.comparison.producer_binding,
-                        jurisdiction_evidence_reference=None,
+                replace(
+                    item,
+                    comparison=replace(
+                        item.comparison,
+                        producer_binding=replace(
+                            item.comparison.producer_binding,
+                            jurisdiction_evidence_reference=None,
+                        ),
                     ),
-                )),
-                BINDING, VECTOR_SLICE,
+                ),
+                BINDING,
+                HUMAN_SLICE,
             )
 
 
@@ -267,16 +309,30 @@ CONTEXT_OBSERVATION = HUMAN.model_copy(
     update={"measure_id": "county-context", "lineage_source_id": "synthetic-source"}
 )
 
+CONTEXT_SLICE = replace(
+    HUMAN_SLICE,
+    measure_id=CONTEXT_OBSERVATION.measure_id,
+    source_id=CONTEXT_OBSERVATION.lineage_source_id,
+    semantic_measure_id=CONTEXT_OBSERVATION.measure_id,
+)
+
 
 def alignment_delivery(projection=None):
     projection = copy.deepcopy(ALIGNMENT if projection is None else projection)
     companion = AlignmentDelivery(
-        ALIGNMENT_INPUT, projection["method_id"], projection["method_version"],
-        projection["observation_window"], projection["target_window"],
-        projection["decision_cutoff"], projection.get("reference_period"), projection,
+        ALIGNMENT_INPUT,
+        projection["method_id"],
+        projection["method_version"],
+        projection["observation_window"],
+        projection["target_window"],
+        projection["decision_cutoff"],
+        projection.get("reference_period"),
+        projection,
     )
     return SurveillanceDelivery(
-        BINDING, CONTEXT_OBSERVATION.observation_id, ALIGNMENT_INPUT,
+        BINDING,
+        CONTEXT_OBSERVATION.observation_id,
+        ALIGNMENT_INPUT,
         alignment=companion,
     )
 
@@ -285,7 +341,9 @@ def test_data431_discrete_and_fractional_area_round_trip():
     for name, expected in (("alignment_discrete", 31), ("alignment_fractional_area", 100.5)):
         context = admit_surveillance_context(
             CONTEXT_OBSERVATION,
-            alignment_delivery(COMPANIONS[name]), BINDING, VECTOR_SLICE,
+            alignment_delivery(COMPANIONS[name]),
+            BINDING,
+            CONTEXT_SLICE,
         )
         assert context.temporal_alignment.disposition == "ELIGIBLE"
         assert context.temporal_alignment.coverage.expected == expected
@@ -302,14 +360,18 @@ def test_data431_nested_private_fields_denied(nested):
     projection = copy.deepcopy(ALIGNMENT)
     if nested == "reference_period":
         projection[nested] = {
-            "id": "fixture-reference", "start": "2024-01-01",
-            "end_exclusive": "2025-01-01", "source_vintage": "fixture-vintage",
+            "id": "fixture-reference",
+            "start": "2024-01-01",
+            "end_exclusive": "2025-01-01",
+            "source_vintage": "fixture-vintage",
         }
     projection[nested]["physical_artifact_id"] = "private-lineage-proof"
     with pytest.raises(AtlasDataUnavailableError):
         admit_surveillance_context(
             CONTEXT_OBSERVATION,
-            alignment_delivery(projection), BINDING, VECTOR_SLICE,
+            alignment_delivery(projection),
+            BINDING,
+            CONTEXT_SLICE,
         )
 
 
@@ -323,6 +385,33 @@ def test_data431_declaration_mismatch_denied():
     ):
         with pytest.raises(AtlasDataUnavailableError):
             admit_surveillance_context(
-                CONTEXT_OBSERVATION, replace(item, alignment=changed),
-                BINDING, VECTOR_SLICE,
+                CONTEXT_OBSERVATION,
+                replace(item, alignment=changed),
+                BINDING,
+                CONTEXT_SLICE,
             )
+
+
+@pytest.mark.parametrize("family", ["evidence", "comparison", "alignment"])
+@pytest.mark.parametrize(
+    "changed",
+    [
+        {"geography": GeographyIdentity(geography_type=GeographyType.state, geography_id="08")},
+        {"measure_id": "unsupported"},
+        {"lineage_source_id": "unsupported"},
+        {"temporal_grain": "unsupported"},
+        {"period_start": date(2000, 1, 1)},
+        {"period_end": date(2000, 12, 31)},
+        {"value_state": "NO_RECORDS"},
+    ],
+)
+def test_direct_admission_rejects_observation_outside_supported_slice(family, changed):
+    observation, delivery, selected = {
+        "evidence": (VECTOR, evidence_delivery(), VECTOR_SLICE),
+        "comparison": (HUMAN, comparison_delivery(), HUMAN_SLICE),
+        "alignment": (CONTEXT_OBSERVATION, alignment_delivery(), CONTEXT_SLICE),
+    }[family]
+    with pytest.raises(AtlasDataUnavailableError):
+        admit_surveillance_context(
+            observation.model_copy(update=changed), delivery, BINDING, selected
+        )

@@ -128,9 +128,7 @@ _semantic_schema = json.loads(
     _contracts.joinpath("atlas-semantic-consumer-v1.schema.json").read_text(encoding="utf-8")
 )
 _evidence_schema = json.loads(
-    _contracts.joinpath("surveillance-evidence-consumer-v2.schema.json").read_text(
-        encoding="utf-8"
-    )
+    _contracts.joinpath("surveillance-evidence-consumer-v2.schema.json").read_text(encoding="utf-8")
 )
 _evidence_validator = Draft202012Validator(
     _evidence_schema,
@@ -147,16 +145,7 @@ def resolve_context(
     """Inactive adapter entrypoint for a future reviewed observation projection."""
     try:
         selected = resolver.supported_slice(observation.release_id)
-        _require(
-            selected is not None
-            and observation.geography.geography_type.value == "county"
-            and observation.measure_id == selected.measure_id
-            and observation.lineage_source_id == selected.source_id
-            and observation.temporal_grain == selected.temporal_grain
-            and observation.period_start == selected.period_start
-            and observation.period_end == selected.period_end
-            and observation.value_state in selected.value_states
-        )
+        _require_supported_slice(observation, selected)
         admitted = resolver.admitted_binding(observation.release_id)
         delivery = resolver.resolve(observation)
         if admitted is None or delivery is None:
@@ -169,6 +158,19 @@ def resolve_context(
 def _require(condition: bool) -> None:
     if not condition:
         raise AtlasDataUnavailableError("Governed surveillance context is unavailable")
+
+
+def _require_supported_slice(observation: Observation, selected: SupportedSlice) -> None:
+    _require(
+        selected is not None
+        and observation.geography.geography_type.value == "county"
+        and observation.measure_id == selected.measure_id
+        and observation.lineage_source_id == selected.source_id
+        and observation.temporal_grain == selected.temporal_grain
+        and observation.period_start == selected.period_start
+        and observation.period_end == selected.period_end
+        and observation.value_state in selected.value_states
+    )
 
 
 def _object(value: Any) -> Mapping[str, Any]:
@@ -215,6 +217,7 @@ def _admit_surveillance_context(
     selected: SupportedSlice,
 ) -> SurveillanceContext:
     binding = delivery.binding
+    _require_supported_slice(observation, selected)
     _require(
         bool(binding.release_id and binding.bundle_sha256 and binding.authority_reference)
         and binding == admitted
@@ -244,8 +247,7 @@ def _admit_surveillance_context(
         _require(
             measure.get("id") == selected.semantic_measure_id
             and applicability.get("geography_grain") == "COUNTY"
-            and applicability.get("temporal_semantics")
-            == selected.semantic_temporal_semantics
+            and applicability.get("temporal_semantics") == selected.semantic_temporal_semantics
             and geography.get("grain") == "COUNTY"
             and geography.get("county_fips") == observation.geography.geography_id
             and temporal.get("semantics") == selected.semantic_temporal_semantics
@@ -306,8 +308,7 @@ def _admit_surveillance_context(
             and item.left_resource_key == certified.left_resource_key
             and item.right_resource_key == certified.right_resource_key
             and item.left_public_observation_id == certified.left_public_observation_id
-            and item.jurisdiction_evidence_reference
-            == certified.jurisdiction_evidence_reference
+            and item.jurisdiction_evidence_reference == certified.jurisdiction_evidence_reference
             and comparison_projection == _object(certified.projection)
         )
         comparison = _safe_model(
@@ -330,8 +331,7 @@ def _admit_surveillance_context(
                         == certified.jurisdiction_class
                     )
                     or (
-                        certified.left_jurisdiction_class
-                        != certified.right_jurisdiction_class
+                        certified.left_jurisdiction_class != certified.right_jurisdiction_class
                         and certified.jurisdiction_class == "UNKNOWN"
                         and comparison.comparison_state == "CAUTION_REQUIRED"
                         and "JURISDICTION_CLASS_CHANGED" in comparison.reason_codes
