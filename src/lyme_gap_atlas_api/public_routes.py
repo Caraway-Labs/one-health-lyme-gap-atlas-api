@@ -460,8 +460,8 @@ def observation_service(request: Request) -> ObservationService:
     description="Current published county observations only. Ordered by measure ID, county FIPS, "
     "period start, and observation ID. Opaque page tokens bind to filters and release. "
     "Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental "
-    'measures use labeled daily periods, carry environmental_context coverage, and have no '
-    'supported strata. '
+    "measures use labeled daily periods, carry environmental_context coverage, and have no "
+    "supported strata. "
     "Environmental context is descriptive weather, with no causal, disease-risk or ML claim. "
     "Surveillance context is optional and requires an admitted Data delivery; "
     "normalized_state preserves Data semantics and the publisher value remains value. "
