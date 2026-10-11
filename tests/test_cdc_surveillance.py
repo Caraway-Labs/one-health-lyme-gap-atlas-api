@@ -107,6 +107,13 @@ def test_three_accepted_cases(measure, county, value, state, normalized):
     assert item["surveillance_context"]["evidence"]["normalized_state"] == normalized
     assert item["release_id"] == RELEASE
     assert item["metadata_revision_id"] == IDENTITIES[measure][2]
+    assert item["source_label"] is item["methodology_id"] is item["methodology"] is None
+    assert item["source_vintage"] == "2025"
+    assert item["denominator"] == "NONE"
+    assert item["methodology_version"] and item["release_methodology_version"]
+    assert item["limitations"] == [
+        x["text"] for x in envelope(measure, county)["semantic"]["measure"]["limitations"]
+    ]
     assert item["limitations"] and item["surveillance_context"]["evidence"]["limitations"]
     for private in (
         "bundle_sha256",

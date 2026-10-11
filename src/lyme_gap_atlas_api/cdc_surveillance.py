@@ -1,14 +1,19 @@
 """Narrow API binding to the immutable, admitted Data CDC producer."""
 
-import json
 from collections.abc import Callable
 from datetime import date
 from typing import Any
 
 from .config import ApiSettings
 from .dependency_telemetry import connect
-from .public_contract import Observation, ObservationQuery, ValueState
-from .public_observations import ObservationService
+from .public_contract import (
+    EvidenceReference,
+    GeographyIdentity,
+    GeographyType,
+    Observation,
+    ObservationQuery,
+    ValueState,
+)
 from .repository import AtlasDataUnavailableError
 from .surveillance_delivery import (
     BundleBinding,
@@ -174,39 +179,46 @@ class CDCObservationAdapter:
         freshness = semantic["freshness"]
         acquired = freshness["retrieved_at"]["value"]
         limitations = [x["text"] for x in metadata["limitations"]]
-        # The semantic identity is consumer-safe; raw source IDs/proof never enter the DTO.
-        row = (
-            item["id"],
-            measure,
-            county,
-            "COUNTY",
-            PERIOD,
-            PERIOD,
-            "CUMULATIVE",
-            json.dumps(item["value"]),
-            item["value_state"],
-            metadata["unit"],
-            None if metadata["denominator"] == "NONE" else metadata["denominator"],
-            None,
-            metadata["semantic_version"],
-            RELEASE,
-            resource,
-            metadata["label"],
-            freshness["source_vintage"]["value"],
-            None,
-            acquired,
-            lineage["transformation_version"],
-            metadata["definition"],
-            lineage["methodology_version"],
-            None,
-            " ".join(limitations),
-            None,
-            SOURCE,
-            dataset,
-            lineage["methodology_version"],
+        # Project the existing DTO directly: the legacy SQL tuple mapper requires
+        # a methodology catalog ID that this admitted producer does not supply.
+        # Never manufacture catalog identity/labels from a measure or a version.
+        observation = Observation(
+            observation_id=item["id"],
+            measure_id=measure,
+            geography=GeographyIdentity(geography_type=GeographyType.county, geography_id=county),
+            period_start=PERIOD,
+            period_end=PERIOD,
+            temporal_grain="CUMULATIVE",
+            value=item["value"],
+            value_state=item["value_state"],
+            unit=metadata["unit"],
+            denominator=metadata["denominator"],
+            semantic_version=metadata["semantic_version"],
+            release_id=RELEASE,
+            source_id=resource,
+            lineage_source_id=SOURCE,
+            dataset_id=dataset,
+            source_label=None,
+            source_vintage=freshness["source_vintage"]["value"],
+            source_url=None,
+            atlas_acquired_at=acquired,
+            methodology_id=None,
+            methodology=None,
+            methodology_version=lineage["transformation_version"],
+            release_methodology_version=lineage["methodology_version"],
+            metadata_revision_id=revision,
+            limitations=limitations,
+            provenance_ref=item["id"],
+            evidence=EvidenceReference(
+                resource_type="observation",
+                resource_id=item["id"],
+                source_id=resource,
+                provenance_ref=item["id"],
+                semantic_version=metadata["semantic_version"],
+                methodology_version=lineage["transformation_version"],
+                release_id=RELEASE,
+            ),
         )
-        observation = ObservationService._observation(row)
-        observation.metadata_revision_id = revision
         observation.surveillance_context = resolve_context(
             observation, CDCResolver(measure, envelope)
         )

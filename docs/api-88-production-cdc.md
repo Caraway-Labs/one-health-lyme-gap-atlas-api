@@ -50,6 +50,11 @@ python -m lyme_gap_atlas_api.cdc_reader_probe
 
 It verifies actual current identity then performs the three producer reads;
 only service identity and county/measure/normalized-state summaries are emitted.
+Data supplies a reviewed measure definition and methodology version, but no
+distinct source label or public methodology catalog ID/text. Those nullable
+observation fields remain null; a measure label is not source attribution and a
+version is not a methodology resource ID. Known source/vintage, transformation
+and methodology versions, metadata revision and individual limitations remain.
 The API transport disables secondary roles in each service session, and the
 pinned Data producer checks that session's role/database/warehouse before any
 authority read (`cdc_consumer_runtime.py:293-301`). A regression test
