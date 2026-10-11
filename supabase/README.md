@@ -40,3 +40,19 @@ schemas**. This setting makes the schema available to PostgREST; it does not
 grant browser access. Retain the migration's least-privilege permissions: do
 not grant `anon` or `authenticated` schema or table privileges. Validate this
 setting in Development before applying it in Production.
+
+## Starting-view completion marker
+
+`20261011161500_add_starting_view_version.sql` adds nullable
+`atlas_accounts.user_profiles.starting_view_version`. Existing rows stay null,
+which means onboarding is incomplete. Do not backfill.
+
+Apply the migration in Development before deploying an API build that selects
+the column. The previous API ignores the extra column and does not send it, so
+it can keep running after the column exists. A new API pointed at a database
+without the column fails profile reads and writes closed (503).
+
+Rollback: deploy the previous API first, while the column is still unused by
+that build. Dropping the column is a separate reviewed migration and discards
+any completion markers already stored. Do not drop it as part of an application
+rollback.

@@ -1729,6 +1729,19 @@
             }
           ],
           "title": "Job Title"
+        },
+        "starting_view_version": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "const": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Starting View Version",
+          "description": "Server-owned starting-view onboarding marker. Null means this profile has not completed onboarding, including every profile saved before the marker existed. 1 means onboarding was completed with the stored state_code; a null state_code is United States. A later read that shows 1 and the requested state_code confirms that completion write. This is not a profile revision or an idempotency key."
         }
       },
       "type": "object",
@@ -1808,6 +1821,12 @@
             }
           ],
           "title": "Job Title"
+        },
+        "complete_starting_view": {
+          "type": "boolean",
+          "const": true,
+          "title": "Complete Starting View",
+          "description": "Explicit onboarding-completion action. When supplied, the value must be JSON boolean true. That validates state_code and stores starting_view_version 1 with that jurisdiction in the same write. Omit this field on an ordinary Settings or profile save so the stored marker is left unchanged. Null, false, numbers, and strings are rejected. Clients cannot choose the version."
         }
       },
       "additionalProperties": false,

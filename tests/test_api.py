@@ -24,7 +24,7 @@ from lyme_gap_atlas_api.models import (
     UserProfile,
     UserProfileWrite,
 )
-from lyme_gap_atlas_api.profiles import ProfileStore
+from lyme_gap_atlas_api.profiles import ProfileStore, apply_profile_write
 from lyme_gap_atlas_api.reports.renderer import (
     RenderCompilationError,
     RendererFailure,
@@ -155,7 +155,7 @@ class MemoryProfileStore(ProfileStore):
         return self.profiles.get(user_id)
 
     def save(self, user_id: UUID, profile: UserProfileWrite) -> UserProfile:
-        saved = UserProfile.model_validate(profile.model_dump())
+        saved = apply_profile_write(self.profiles.get(user_id), profile)
         self.profiles[user_id] = saved
         return saved
 
@@ -741,6 +741,7 @@ def test_private_profile_routes_enforce_token_owner_and_no_store_cache() -> None
         "state_code": "CO",
         "organization": "Caraway Labs",
         "job_title": "Analyst",
+        "starting_view_version": None,
     }
     loaded = api.get("/v1/me/profile", headers={"Authorization": "Bearer test-token"})
     assert loaded.status_code == 200
@@ -764,6 +765,7 @@ def test_profile_response_ignores_server_owned_columns() -> None:
         "state_code": "AL",
         "organization": "Example organization",
         "job_title": "Example role",
+        "starting_view_version": None,
     }
 
 
