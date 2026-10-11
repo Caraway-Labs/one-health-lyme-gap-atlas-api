@@ -1,0 +1,48 @@
+{
+  "redoc": {
+    "contact": [
+      {
+        "href": "https://onehealthatlas.org/",
+        "text": ""
+      },
+      {
+        "href": "https://onehealthatlas.org/",
+        "text": "https://onehealthatlas.org/"
+      }
+    ],
+    "favicon": "/docs/summit-compass-north-20261010/favicon.ico",
+    "images": [
+      {
+        "complete": true,
+        "height": 96,
+        "naturalWidth": 256,
+        "src": "https://api.onehealthatlas.org/docs/summit-compass-north-20261010/favicon-256x256.png",
+        "width": 96
+      },
+      {
+        "complete": true,
+        "height": 15,
+        "naturalWidth": 300,
+        "src": "https://cdn.redoc.ly/redoc/logo-mini.svg",
+        "width": 15
+      }
+    ]
+  },
+  "swagger": {
+    "contact": [
+      {
+        "href": "https://onehealthatlas.org/",
+        "text": "One Health Atlas - Website"
+      }
+    ],
+    "favicon": "/docs/summit-compass-north-20261010/favicon.ico",
+    "images": []
+  },
+  "tryItOut": {
+    "url": "https://api.onehealthatlas.org/v1/indicators",
+    "status": 200,
+    "durationMs": 3007,
+    "requestId": "477b80e6-920e-4110-88c0-6c83f40d56ca"
+  },
+  "comparison": "Production ReDoc appearance matches approved screenshot; no material differences."
+}

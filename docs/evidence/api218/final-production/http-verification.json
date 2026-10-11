@@ -1,0 +1,84 @@
+[
+  {
+    "url": "https://api.onehealthatlas.org/docs",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 1130,
+    "sha256": "3d3082a11bb9b8503dc6ef3efc6b080f5427ff3a566fb0c40d358001b8f03159",
+    "cache_control": "private",
+    "nosniff": "nosniff"
+  },
+  {
+    "url": "https://api.onehealthatlas.org/redoc",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 1025,
+    "sha256": "6dd77f09495d051d151187c8d3363385822f9e89618f22d32f15763273301a53",
+    "cache_control": "private",
+    "nosniff": "nosniff"
+  },
+  {
+    "url": "https://api.onehealthatlas.org/openapi.json",
+    "status": 200,
+    "content_type": "application/json",
+    "bytes": 110799,
+    "sha256": "e543f0e526750b9f4a06338507872db1a2b13861b946a6cc167813877de18bf6",
+    "cache_control": "private",
+    "nosniff": "nosniff",
+    "public_paths": 18,
+    "exact_approved_schema": true
+  },
+  {
+    "url": "https://api.onehealthatlas.org/health/live",
+    "status": 200,
+    "content_type": "application/json",
+    "bytes": 15,
+    "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288",
+    "cache_control": "private",
+    "nosniff": "nosniff"
+  },
+  {
+    "url": "https://api.onehealthatlas.org/docs/summit-compass-north-20261010/favicon.ico",
+    "status": 200,
+    "content_type": "image/x-icon",
+    "bytes": 7210,
+    "sha256": "9a3f9ae0df3e926a33c2e8dbbabcf1c1b4770515ed75a7c673ad8304d7c98d19",
+    "cache_control": "public, max-age=86400",
+    "nosniff": "nosniff",
+    "dimensions": [
+      [
+        16,
+        16
+      ],
+      [
+        32,
+        32
+      ],
+      [
+        48,
+        48
+      ]
+    ]
+  },
+  {
+    "url": "https://api.onehealthatlas.org/docs/summit-compass-north-20261010/favicon-256x256.png",
+    "status": 200,
+    "content_type": "image/png",
+    "bytes": 65877,
+    "sha256": "b803ae4b899ff9a318bba31a049ee3ecd1d65fd0b80530da5b9361aa457eac23",
+    "cache_control": "public, max-age=86400",
+    "nosniff": "nosniff",
+    "dimensions": [
+      256,
+      256
+    ]
+  },
+  {
+    "url": "https://api.onehealthatlas.org/docs/favicon.svg",
+    "status": 404
+  },
+  {
+    "url": "https://api.onehealthatlas.org/first-party-openapi.json",
+    "status": 404
+  }
+]
