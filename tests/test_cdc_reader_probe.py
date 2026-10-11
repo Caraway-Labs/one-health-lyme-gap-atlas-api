@@ -20,7 +20,7 @@ class Cursor:
     def __exit__(self, *args):
         return None
 
-    def execute(self, sql, **kwargs):
+    def execute(self, sql, *args, **kwargs):
         self.statements.append((sql, kwargs))
 
     def fetchone(self):
@@ -94,3 +94,52 @@ def test_service_probe_refuses_wrong_or_missing_actual_identity(monkeypatch, cap
     with pytest.raises(SystemExit, match="identity verification failed"):
         cdc_reader_probe.main()
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("stage", ["connection", "producer", "malformed"])
+def test_probe_redacts_failures_without_partial_results(monkeypatch, capsys, stage):
+    def fail(*args, **kwargs):
+        raise RuntimeError("private SQL and account diagnostics")
+
+    monkeypatch.setattr(
+        cdc_reader_probe,
+        "connect",
+        fail if stage == "connection" else lambda _: Connection(Cursor(SERVICE)),
+    )
+    monkeypatch.setattr(
+        cdc_reader_probe, "_read", (lambda *_: {}) if stage == "malformed" else fail
+    )
+    with pytest.raises(SystemExit, match="^CDC service acceptance probe unavailable$") as error:
+        cdc_reader_probe.main()
+    assert error.value.__suppress_context__ is True
+    output = capsys.readouterr()
+    assert output.out == output.err == ""
+
+
+def test_pinned_producer_disables_secondary_roles_and_rechecks_its_own_session(monkeypatch):
+    from lyme_gap_atlas_data import cdc_consumer_runtime
+
+    from lyme_gap_atlas_api import cdc_surveillance
+    from lyme_gap_atlas_api.config import ApiSettings
+
+    class ProducerCursor(Cursor):
+        description = [(key,) for key in ("USER", "ROLE", "DATABASE", "WAREHOUSE")]
+
+        def fetchmany(self, limit):
+            return [self.identity]
+
+    cursor = ProducerCursor((SERVICE[0], "wrong-primary-role", *SERVICE[2:]))
+    monkeypatch.setattr(cdc_consumer_runtime, "connect", lambda _: Connection(cursor))
+    monkeypatch.setattr(
+        cdc_surveillance,
+        "SnowflakeSettings",
+        lambda: ApiSettings(snowflake_auth_method="key_pair", snowflake_user=SERVICE[0]),
+    )
+    with pytest.raises(
+        cdc_consumer_runtime.CDCConsumerUnavailable, match="intended reader identity required"
+    ):
+        cdc_surveillance._read("scapularis_status", "13081")
+    # Real pinned Data code runs here: no Data projector/admission method is mocked.
+    assert len(cursor.statements) == 3
+    assert cursor.statements[1] == ("USE SECONDARY ROLES NONE", {})
+    assert cursor.statements[2][0] == cdc_consumer_runtime.IDENTITY_SQL

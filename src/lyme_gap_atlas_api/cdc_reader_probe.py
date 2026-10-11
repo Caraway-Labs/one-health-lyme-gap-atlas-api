@@ -1,13 +1,14 @@
 """Read-only in-container service identity/consumer acceptance; safe JSON only."""
 
 import json
+from typing import Any
 
 from .cdc_surveillance import MEMBERS, _read
 from .config import ApiSettings
 from .dependency_telemetry import connect
 
 
-def main() -> None:
+def _probe() -> dict[str, Any]:
     settings = ApiSettings()
     with connect(settings) as connection, connection.cursor() as cursor:
         cursor.execute("USE SECONDARY ROLES NONE")
@@ -35,16 +36,17 @@ def main() -> None:
                     "normalized_state": envelope["surveillance_evidence"]["normalized_state"],
                 }
             )
-    print(
-        json.dumps(
-            {
-                "identity": dict(
-                    zip(("user", "role", "database", "warehouse"), expected, strict=True)
-                ),
-                "consumer_reads": results,
-            }
-        )
-    )
+    return {
+        "identity": dict(zip(("user", "role", "database", "warehouse"), expected, strict=True)),
+        "consumer_reads": results,
+    }
+
+
+def main() -> None:
+    try:
+        print(json.dumps(_probe()))
+    except Exception:
+        raise SystemExit("CDC service acceptance probe unavailable") from None
 
 
 if __name__ == "__main__":

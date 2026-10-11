@@ -45,6 +45,12 @@ python -m lyme_gap_atlas_api.cdc_reader_probe
 
 It verifies actual current identity then performs the three producer reads;
 only service identity and county/measure/normalized-state summaries are emitted.
+The pinned Data producer opens separate service sessions, disables secondary
+roles in each, and checks its own current role/database/warehouse before any
+authority read (`cdc_consumer_runtime.py:293-301,318-337`). A regression test
+exercises that actual packaged producer against a wrong session role. The probe
+also redacts connection/producer/shape failures with a fixed exit message and
+emits no partial acceptance output or private traceback.
 After activation, run `uv run python scripts/probe_cdc_api.py` from this reviewed
 checkout and retain its sanitized genuine HTTP output on API #88.
 Do not substitute a human PAT. Minimum required access: assignment of the
