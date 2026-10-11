@@ -175,9 +175,18 @@ class SurveillanceEvidenceContext(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     contract_version: Literal["atlas-surveillance-evidence-v3"]
+    normalized_state: Literal["established", "detected", "unknown"] | None = Field(
+        default=None,
+        description="Data-owned county evidence state, projected without classification. "
+        "Null means the older companion did not supply normalization; unknown supports no "
+        "biological absence conclusion. Original publisher value remains Observation.value.",
+    )
     state: Literal[
-        "established", "detected_below_establishment", "sampled_not_detected",
-        "no_qualifying_record", "unknown",
+        "established",
+        "detected_below_establishment",
+        "sampled_not_detected",
+        "no_qualifying_record",
+        "unknown",
     ]
     reason_codes: list[str] = Field(min_length=1)
     evidence_tier: Literal["GOVERNED_MAPPING"]
@@ -339,6 +348,12 @@ class Observation(BaseModel):
         default=None,
         description="Present only for reviewed environmental context. DECIMAL quantities may use "
         "exact numeric strings; native DOUBLE remains a JSON number.",
+    )
+    surveillance_context: SurveillanceContext | None = Field(
+        default=None,
+        description="Only supplied through an admitted Data release/bundle and supported slice. "
+        "Omitted or null carries no evidence-state, comparability or lag claim. "
+        "Comparison is case-definition scope only; alignment is descriptive, not causal.",
     )
 
     @model_validator(mode="after")
