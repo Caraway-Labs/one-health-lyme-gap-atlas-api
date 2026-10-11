@@ -125,7 +125,9 @@ to CDC MMG, PHIN VADS, USCDI, LOINC, or FHIR is optional reviewed metadata from
 data #469–#473 and does not assert live clinical exchange.
 
 The public V1 `value_state` enum is `OBSERVED`, `ZERO`, `MISSING`,
-`SUPPRESSED`, `UNAVAILABLE`, and `NO_COUNTY_LINKED_RECORD`. The latter preserves
+`SUPPRESSED`, `UNAVAILABLE`, `NO_COUNTY_LINKED_RECORD`, and `NO_RECORDS`.
+`NO_RECORDS` preserves CDC's literal `No records` and normalized unknown,
+without establishing biological absence. `NO_COUNTY_LINKED_RECORD` preserves
 the governed categorical status with literal value `no_county_linked_record`;
 it is neither null nor zero. `NOT_APPLICABLE` and `INCOMPLETE`
 are **not** observation value states.
@@ -138,8 +140,8 @@ for `value_state`. An adapter must never convert an unknown or missing value to
 the governed semantic layer does not supply them. Reviewed governed metadata
 may later be exposed as optional, additive fields without reinterpreting
 `value_state`. No speculative observation fields are present in this schema.
-The Data semantic consumer schema currently permits four other states:
-`UNKNOWN`, `NOT_REPORTED`, `NOT_DEFENSIBLE`, and `NO_RECORDS`.
+The Data semantic consumer schema currently permits three other states:
+`UNKNOWN`, `NOT_REPORTED`, and `NOT_DEFENSIBLE`.
 The public V1 enum does not silently map any of them
 to another state. #54 fails explicitly if a selected governed
 observation has a state this public contract cannot represent; it must not

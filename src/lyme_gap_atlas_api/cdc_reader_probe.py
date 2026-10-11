@@ -28,7 +28,7 @@ def _probe() -> dict[str, Any]:
     results = []
     for measure, counties in MEMBERS.items():
         for county in sorted(counties):
-            envelope = _read(measure, county)
+            envelope = _read(measure, county, settings=settings)
             results.append(
                 {
                     "measure": measure,

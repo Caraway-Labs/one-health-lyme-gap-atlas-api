@@ -20,7 +20,14 @@ No new endpoint, classification, authentication model or deployment topology.
 
 Package Data at exact reviewed commit
 `8ce5d47d518161986d20954f3ddceb8f66504c92`. Invoke its existing
-`cdc_consumer_runtime.read_cdc_consumer` using existing service key-pair settings.
+`cdc_consumer_runtime._project` and `_resources`, the exact producer used by
+`read_cdc_consumer`, using existing service key-pair settings. The convenience
+reader fixes its connection timeout at 30 seconds and has no timeout argument.
+The API therefore supplies its existing connection and query callback to that
+same producer, preserving both API's configured statement limit and Data's
+30-second cap, disabling secondary roles and leaving all admission in Data.
+The exact package pin bounds the private-function coupling; no projector code
+or private authority SQL is duplicated in the API.
 Keep the API's existing shared-Python commit via uv's dependency override:
 the connection interface is unchanged and binding/package tests validate it.
 Data's full package brings its existing geospatial dependencies; no producer

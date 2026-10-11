@@ -1,5 +1,9 @@
 # API 88 surveillance consumer handoff proposal
 
+Historical proposal preceding Data #429 completion and the approved public
+NO_RECORDS addition. Current producer binding, contract and remaining API-owned
+release gates are in [production CDC integration](api-88-production-cdc.md).
+
 Status: **joint Data/API review proposal**, not a publication or admission decision. API 88 remains open through evidence-state, comparison, alignment, OpenAPI, and live acceptance. The initial county slice below is only a proposed partial increment.
 
 ## Existing boundary and producer authority

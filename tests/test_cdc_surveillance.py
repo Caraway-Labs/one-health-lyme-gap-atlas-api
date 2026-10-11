@@ -180,18 +180,42 @@ def test_enabled_app_binds_existing_service():
     assert create_app(settings=settings()).state.observation_service.cdc_adapter is None
 
 
-def test_packaged_producer_binding(monkeypatch):
+@pytest.mark.parametrize("county", ["12047", "19135"])
+def test_packaged_producer_preserves_configured_timeout_on_identity_and_authority(
+    monkeypatch, county
+):
     from lyme_gap_atlas_data import cdc_consumer_runtime
+    from test_cdc_reader_probe import Connection, ProducerCursor
 
-    calls = []
-    monkeypatch.setattr("lyme_gap_atlas_api.cdc_surveillance.SnowflakeSettings", settings)
-    monkeypatch.setattr(
-        cdc_consumer_runtime,
-        "read_cdc_consumer",
-        lambda *args, **kwargs: calls.append((args, kwargs)) or {},
+    cursor = ProducerCursor()
+    monkeypatch.setattr("lyme_gap_atlas_api.cdc_surveillance.connect", lambda _: Connection(cursor))
+    with pytest.raises(AtlasDataUnavailableError):
+        _read("burgdorferi_status", county, settings=settings(public_query_timeout_seconds=5))
+    assert cursor.statements[0] == (
+        "ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS=5",
+        {"timeout": 5},
     )
-    assert _read("scapularis_status", "13081") == {}
-    assert calls == [(("scapularis_status", "13081"), {"environment": "prod"})]
+    assert cursor.statements[1] == ("USE SECONDARY ROLES NONE", {"timeout": 5})
+    assert [statement[0] for statement in cursor.statements[2:]] == [
+        cdc_consumer_runtime.IDENTITY_SQL,
+        cdc_consumer_runtime.AUTHORITY_SQL,
+    ]
+    assert all(kwargs == {"timeout": 5} for _, kwargs in cursor.statements)
+
+
+@pytest.mark.parametrize("county", ["12047", "19135"])
+def test_actual_producer_transport_timeout_becomes_sanitized_http_unavailable(monkeypatch, county):
+    from test_cdc_reader_probe import Connection, ProducerCursor
+
+    config = settings(public_query_timeout_seconds=5)
+    cursor = ProducerCursor(authority_timeout=True)
+    monkeypatch.setattr("lyme_gap_atlas_api.cdc_surveillance.connect", lambda _: Connection(cursor))
+    response = client(None, config).get(
+        "/v1/observations", params=params("burgdorferi_status", county)
+    )
+    assert response.status_code == 503
+    assert "surveillance_context" not in response.text and "private" not in response.text
+    assert all(kwargs == {"timeout": 5} for _, kwargs in cursor.statements)
 
 
 def test_wrong_release_fails_before_producer():

@@ -41,12 +41,35 @@ class Connection:
         return self._cursor
 
 
+class ProducerCursor(Cursor):
+    def __init__(self, identity=SERVICE, authority_timeout=False):
+        super().__init__(identity)
+        self.authority_timeout = authority_timeout
+        self.description = []
+        self.rows = []
+
+    def execute(self, sql, *args, **kwargs):
+        from lyme_gap_atlas_data import cdc_consumer_runtime
+
+        super().execute(sql, *args, **kwargs)
+        if sql == cdc_consumer_runtime.IDENTITY_SQL:
+            self.description = [(key,) for key in ("USER", "ROLE", "DATABASE", "WAREHOUSE")]
+            self.rows = [self.identity]
+        elif sql == cdc_consumer_runtime.AUTHORITY_SQL:
+            if self.authority_timeout:
+                raise TimeoutError("private SQL and account diagnostics")
+            self.description, self.rows = [], []
+
+    def fetchmany(self, limit):
+        return self.rows[:limit]
+
+
 def test_service_probe_disables_secondary_roles_and_emits_only_safe_summary(monkeypatch, capsys):
     cursor = Cursor(SERVICE)
     monkeypatch.setattr(cdc_reader_probe, "connect", lambda _: Connection(cursor))
     calls = []
 
-    def read(measure, county):
+    def read(measure, county, **kwargs):
         calls.append((measure, county))
         return {
             "surveillance_evidence": {
@@ -107,7 +130,7 @@ def test_probe_redacts_failures_without_partial_results(monkeypatch, capsys, sta
         fail if stage == "connection" else lambda _: Connection(Cursor(SERVICE)),
     )
     monkeypatch.setattr(
-        cdc_reader_probe, "_read", (lambda *_: {}) if stage == "malformed" else fail
+        cdc_reader_probe, "_read", (lambda *_, **kwargs: {}) if stage == "malformed" else fail
     )
     with pytest.raises(SystemExit, match="^CDC service acceptance probe unavailable$") as error:
         cdc_reader_probe.main()
@@ -122,24 +145,16 @@ def test_pinned_producer_disables_secondary_roles_and_rechecks_its_own_session(m
     from lyme_gap_atlas_api import cdc_surveillance
     from lyme_gap_atlas_api.config import ApiSettings
 
-    class ProducerCursor(Cursor):
-        description = [(key,) for key in ("USER", "ROLE", "DATABASE", "WAREHOUSE")]
-
-        def fetchmany(self, limit):
-            return [self.identity]
-
     cursor = ProducerCursor((SERVICE[0], "wrong-primary-role", *SERVICE[2:]))
-    monkeypatch.setattr(cdc_consumer_runtime, "connect", lambda _: Connection(cursor))
-    monkeypatch.setattr(
-        cdc_surveillance,
-        "SnowflakeSettings",
-        lambda: ApiSettings(snowflake_auth_method="key_pair", snowflake_user=SERVICE[0]),
+    monkeypatch.setattr(cdc_surveillance, "connect", lambda _: Connection(cursor))
+    config = ApiSettings(
+        snowflake_auth_method="key_pair", snowflake_user=SERVICE[0], public_query_timeout_seconds=5
     )
-    with pytest.raises(
-        cdc_consumer_runtime.CDCConsumerUnavailable, match="intended reader identity required"
-    ):
-        cdc_surveillance._read("scapularis_status", "13081")
+    from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
+
+    with pytest.raises(AtlasDataUnavailableError, match="Governed CDC surveillance is unavailable"):
+        cdc_surveillance._read("scapularis_status", "13081", settings=config)
     # Real pinned Data code runs here: no Data projector/admission method is mocked.
     assert len(cursor.statements) == 3
-    assert cursor.statements[1] == ("USE SECONDARY ROLES NONE", {})
+    assert cursor.statements[1] == ("USE SECONDARY ROLES NONE", {"timeout": 5})
     assert cursor.statements[2][0] == cdc_consumer_runtime.IDENTITY_SQL

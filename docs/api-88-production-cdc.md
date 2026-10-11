@@ -4,8 +4,13 @@
 
 DATA #429 is completed; no Data review or publication is reopened.
 The API pins its accepted producer artifact at
-`8ce5d47d518161986d20954f3ddceb8f66504c92` and calls
-`cdc_consumer_runtime.read_cdc_consumer(..., environment="prod")`.
+`8ce5d47d518161986d20954f3ddceb8f66504c92` and consumes the exact `_project`
+producer and `_resources` used by `cdc_consumer_runtime.read_cdc_consumer`.
+The convenience reader hardcodes a 30-second transport timeout; this API adapter
+supplies only the query callback through its existing governed connection with
+`min(public_query_timeout_seconds, 30)` on every statement and the session.
+Default is 15 seconds; a configured 5-second bound reaches both identity and
+authority reads. Data retains all classification, metadata and admission logic.
 No Data module is presumed present: the dependency is installed through the
 existing uv lock and Docker build. Canonical metadata is packaged by Data.
 No scientific inference or duplicated private authority SQL is introduced.
@@ -45,9 +50,9 @@ python -m lyme_gap_atlas_api.cdc_reader_probe
 
 It verifies actual current identity then performs the three producer reads;
 only service identity and county/measure/normalized-state summaries are emitted.
-The pinned Data producer opens separate service sessions, disables secondary
-roles in each, and checks its own current role/database/warehouse before any
-authority read (`cdc_consumer_runtime.py:293-301,318-337`). A regression test
+The API transport disables secondary roles in each service session, and the
+pinned Data producer checks that session's role/database/warehouse before any
+authority read (`cdc_consumer_runtime.py:293-301`). A regression test
 exercises that actual packaged producer against a wrong session role. The probe
 also redacts connection/producer/shape failures with a fixed exit message and
 emits no partial acceptance output or private traceback.

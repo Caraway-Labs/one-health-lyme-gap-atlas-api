@@ -5,9 +5,8 @@ from collections.abc import Callable
 from datetime import date
 from typing import Any
 
-from lyme_gap_atlas_shared.settings import SnowflakeSettings
-
 from .config import ApiSettings
+from .dependency_telemetry import connect
 from .public_contract import Observation, ObservationQuery, ValueState
 from .public_observations import ObservationService
 from .repository import AtlasDataUnavailableError
@@ -48,17 +47,34 @@ BINDING = BundleBinding(RELEASE, BUNDLE, "Data #429 retained CDC admission / PR 
 Producer = Callable[[str, str], dict[str, Any]]
 
 
-def _read(measure: str, county: str) -> dict[str, Any]:
-    runtime = SnowflakeSettings()
+def _read(measure: str, county: str, *, settings: ApiSettings | None = None) -> dict[str, Any]:
+    runtime = settings or ApiSettings()
     _require(
         runtime.snowflake_auth_method == "key_pair" and runtime.snowflake_user == "OH_LYME_API_SVC"
     )
-    # Package pin supplies Data's authority checks and canonical resources.
-    from lyme_gap_atlas_data.cdc_consumer_runtime import (
-        read_cdc_consumer,
-    )
+    from lyme_gap_atlas_data import cdc_consumer_runtime
 
-    return read_cdc_consumer(measure, county, environment="prod")
+    # Reuse read_cdc_consumer's exact pinned producer. Its convenience connection
+    # hardcodes 30s; the API supplies only I/O so its stricter configured bound
+    # applies to every identity/authority statement. All admission stays in Data.
+    timeout = min(runtime.public_query_timeout_seconds, 30)
+    try:
+        with connect(runtime) as connection, connection.cursor() as cursor:
+            cursor.execute(
+                f"ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS={timeout}", timeout=timeout
+            )
+            cursor.execute("USE SECONDARY ROLES NONE", timeout=timeout)
+
+            def query(sql: str, params: tuple[str, ...]) -> list[dict[str, Any]]:
+                cursor.execute(sql, params, timeout=timeout)
+                columns = [str(column[0]) for column in cursor.description or []]
+                return [dict(zip(columns, row, strict=True)) for row in cursor.fetchmany(2)]
+
+            return cdc_consumer_runtime._project(
+                query, cdc_consumer_runtime._resources(), measure, county, "prod"
+            )
+    except Exception:
+        raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable") from None
 
 
 def _require(condition: bool) -> None:
@@ -109,9 +125,11 @@ class CDCResolver:
 
 
 class CDCObservationAdapter:
-    def __init__(self, settings: ApiSettings, producer: Producer = _read) -> None:
+    def __init__(self, settings: ApiSettings, producer: Producer | None = None) -> None:
         self.settings = settings
-        self.producer = producer
+        self.producer = producer or (
+            lambda measure, county: _read(measure, county, settings=settings)
+        )
 
     def search(self, query: ObservationQuery, release: str, offset: int) -> list[Observation]:
         _require(release == RELEASE and query.measure_id in MEMBERS)
