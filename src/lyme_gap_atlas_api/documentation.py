@@ -1,5 +1,7 @@
 """Standard FastAPI documentation helpers with approved Atlas assets."""
 
+import json
+from html import escape
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
@@ -26,6 +28,7 @@ SWAGGER_PARAMETERS = {
     # Explicit approved GETs; preserve the usual Try It Out interaction.
     "supportedSubmitMethods": ["get"],
 }
+REDOC_THEME = {"logo": {"maxWidth": "96px", "maxHeight": "96px"}}
 
 
 @router.get(FAVICON_URL)
@@ -61,8 +64,12 @@ def install_documentation(app: FastAPI) -> None:
 
     @app.get("/redoc", include_in_schema=False)
     def redoc() -> HTMLResponse:
-        return get_redoc_html(
+        page = get_redoc_html(
             openapi_url=app.openapi_url or "/openapi.json",
             title=f"{app.title} — ReDoc",
             redoc_favicon_url=FAVICON_URL,
         )
+        # FastAPI has no theme argument; pass the supported ReDoc element option.
+        theme = escape(json.dumps(REDOC_THEME), quote=True)
+        html = bytes(page.body).decode().replace("<redoc ", f'<redoc theme="{theme}" ', 1)
+        return HTMLResponse(html)

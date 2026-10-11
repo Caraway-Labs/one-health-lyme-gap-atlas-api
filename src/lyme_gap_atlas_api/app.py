@@ -342,7 +342,7 @@ def create_app(
         version=config.app_version,
         description=API_DESCRIPTION,
         summary=API_SUMMARY,
-        contact={"name": "Caraway Labs", "url": "https://carawaylabs.com"},
+        contact={"name": "One Health Atlas", "url": "https://onehealthatlas.org/"},
         openapi_tags=TAGS,
         servers=[{"url": "https://api.onehealthatlas.org", "description": "Production"}],
         openapi_external_docs={

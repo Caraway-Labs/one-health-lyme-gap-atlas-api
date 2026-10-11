@@ -66,7 +66,7 @@ Both are packaged in the wheel and production image and served under
 `/docs/summit-compass-north-20261010/` with explicit image MIME types and
 `Cache-Control: public, max-age=86400`. The versioned path bypasses cached legacy
 favicons; future asset changes must use a new version. The legacy SVG is removed.
-Both browser icons use the ICO; OpenAPI description and `info.x-logo` use the
+Both browser icons use the ICO; only `info.x-logo` uses the
 256-pixel PNG at the canonical production URL. This is documentation presentation,
 not a new API operation, and it is absent from both generated operation lists.
 
@@ -79,3 +79,10 @@ ongoing upstream security/version maintenance, and this scope provides no
 measured reliability/security benefit that justifies that change. Browser smoke
 must check both renderers and a synthetic intercepted GET execution; it must not
 invoke paid providers or treat fixture success as live production-data proof.
+
+Follow-up polish for API #218 sets OpenAPI contact metadata to One Health Atlas
+(https://onehealthatlas.org/), shared by Swagger and ReDoc. The description has
+no redundant Markdown logo. ReDoc retains the unchanged approved PNG and uses
+the supported HTML theme attribute with logo maxWidth/maxHeight of 96px.
+FastAPI has no theme parameter, so the helper output receives that one attribute;
+there are no CSS selectors, DOM scripts, or changed framework/CDN defaults.
