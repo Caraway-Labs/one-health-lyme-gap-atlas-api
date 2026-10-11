@@ -3,14 +3,20 @@
 ## Optional surveillance companions (API #88)
 
 `GET /v1/observations` may carry `surveillance_context` only through the existing
-admitted Data delivery boundary. It is null in the default runtime, which has no
-surveillance resolver. `evidence.normalized_state` directly preserves Data's
+admitted Data delivery boundary. CDC is disabled by default; the reviewed
+`CDC_SURVEILLANCE_ENABLED` runtime flag binds the approved Data producer.
+`evidence.normalized_state` directly preserves Data's
 `established`, `detected`, or `unknown`; older companions may omit it. The original
 publisher value remains `value`. Unknown or missing context never means biological
 absence. Methodology comparison and temporal alignment are independent optional
 companions; omission never means comparable or zero lag. See the
-[acceptance and admission audit](api-88-evidence-state-integration.md) for the
-remaining DATA #429 production prerequisite and the meaning of these fields.
+[production CDC integration](api-88-production-cdc.md) for the accepted three
+county/measure memberships and remaining API service/deployment/HTTP gates.
+DATA #429 is completed. The additive `NO_RECORDS` value state preserves the
+publisher's literal `No records`; it never establishes absence. Optional
+`metadata_revision_id` is the exact reviewed consumer-safe revision identity.
+CDC requests use `start_date=end_date=2025-12-31`, cumulative rather than annual
+grain. Unknown/unavailable remain distinct. See [ADR 0017](adr/0017-cdc-consumer-observations.md).
 
 ## Tier 1 county surveillance review priority (API #10)
 

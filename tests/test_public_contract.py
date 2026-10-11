@@ -66,6 +66,7 @@ def test_public_paths_and_generated_shapes() -> None:
         "SUPPRESSED",
         "UNAVAILABLE",
         "NO_COUNTY_LINKED_RECORD",
+        "NO_RECORDS",
     ]
     assert {state.value for state in ValueState} == {
         "OBSERVED",
@@ -74,6 +75,7 @@ def test_public_paths_and_generated_shapes() -> None:
         "SUPPRESSED",
         "UNAVAILABLE",
         "NO_COUNTY_LINKED_RECORD",
+        "NO_RECORDS",
     }
     public_states = set(schema["components"]["schemas"]["ValueState"]["enum"])
     assert "NOT_APPLICABLE" not in public_states

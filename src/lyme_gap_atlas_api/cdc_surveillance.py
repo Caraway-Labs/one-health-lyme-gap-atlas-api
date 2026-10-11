@@ -1,0 +1,195 @@
+"""Narrow API binding to the immutable, admitted Data CDC producer."""
+
+import json
+from collections.abc import Callable
+from datetime import date
+from typing import Any
+
+from lyme_gap_atlas_shared.settings import SnowflakeSettings
+
+from .config import ApiSettings
+from .public_contract import Observation, ObservationQuery, ValueState
+from .public_observations import ObservationService
+from .repository import AtlasDataUnavailableError
+from .surveillance_delivery import (
+    BundleBinding,
+    EvidenceDelivery,
+    SourceIdentity,
+    SupportedSlice,
+    SurveillanceDelivery,
+    _evidence_validator,
+    resolve_context,
+)
+
+RELEASE = "governed-2026-10-06-nlcd-demo-cohort"
+BUNDLE = "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9"
+PERIOD = date(2025, 12, 31)
+SOURCE = "cdc_arbonet_tick_module"
+# Retained memberships, not a county-wide source coverage assertion.
+MEMBERS = {
+    "scapularis_status": frozenset({"13081"}),
+    "burgdorferi_status": frozenset({"19135", "12047"}),
+}
+IDENTITIES = {
+    "scapularis_status": (
+        "cdc-ixodes-county-status-2025",
+        "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+        "metadata-revision:v1:c60fb91162b5ed33d34a01d3fef24e0a4a2ef8976bbd07ac1082fd783adfb509",
+        "cdc_tick_ixodes_county_status",
+    ),
+    "burgdorferi_status": (
+        "cdc-ixodes-pathogen-status-2025",
+        "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+        "metadata-revision:v1:01b6eaf0d3f6e96ebf8ac9020e31584f55175c95d676e40d3da7d430b9b08522",
+        "cdc_tick_ixodes_pathogen_status",
+    ),
+}
+BINDING = BundleBinding(RELEASE, BUNDLE, "Data #429 retained CDC admission / PR #676")
+Producer = Callable[[str, str], dict[str, Any]]
+
+
+def _read(measure: str, county: str) -> dict[str, Any]:
+    runtime = SnowflakeSettings()
+    _require(
+        runtime.snowflake_auth_method == "key_pair" and runtime.snowflake_user == "OH_LYME_API_SVC"
+    )
+    # Package pin supplies Data's authority checks and canonical resources.
+    from lyme_gap_atlas_data.cdc_consumer_runtime import (
+        read_cdc_consumer,
+    )
+
+    return read_cdc_consumer(measure, county, environment="prod")
+
+
+def _require(condition: bool) -> None:
+    if not condition:
+        raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable")
+
+
+class CDCResolver:
+    """One immutable producer response, checked by the existing admission seam."""
+
+    def __init__(self, measure: str, envelope: dict[str, Any]) -> None:
+        self.measure = measure
+        self.envelope = envelope
+
+    def admitted_binding(self, release_id: str) -> BundleBinding:
+        _require(release_id == RELEASE)
+        return BINDING
+
+    def supported_slice(self, release_id: str) -> SupportedSlice:
+        self.admitted_binding(release_id)
+        return SupportedSlice(
+            self.measure,
+            SOURCE,
+            "CUMULATIVE",
+            PERIOD,
+            PERIOD,
+            frozenset({ValueState.OBSERVED, ValueState.NO_RECORDS}),
+            self.measure,
+            "CUMULATIVE_THROUGH_DATE",
+        )
+
+    def resolve(self, observation: Observation) -> SurveillanceDelivery:
+        semantic = self.envelope["semantic"]
+        source = semantic["provenance"]
+        item = semantic["observation"]
+        identity = SourceIdentity(
+            item["id"],
+            item["revision_id"],
+            source["source_id"]["value"],
+            source["source_version_id"]["value"],
+        )
+        return SurveillanceDelivery(
+            BINDING,
+            observation.observation_id,
+            identity,
+            evidence=EvidenceDelivery(identity, self.envelope),
+        )
+
+
+class CDCObservationAdapter:
+    def __init__(self, settings: ApiSettings, producer: Producer = _read) -> None:
+        self.settings = settings
+        self.producer = producer
+
+    def search(self, query: ObservationQuery, release: str, offset: int) -> list[Observation]:
+        _require(release == RELEASE and query.measure_id in MEMBERS)
+        _require(set(query.geography_id) <= MEMBERS[query.measure_id])
+        # Cumulative evidence must not be represented as an annual sampling bucket.
+        _require(query.year is None and query.start_date == PERIOD and query.end_date == PERIOD)
+        _require(
+            self.settings.snowflake_auth_method == "key_pair"
+            and self.settings.snowflake_user == "OH_LYME_API_SVC"
+            and self.settings.snowflake_role == "OH_LYME_PROD_READ"
+            and self.settings.snowflake_database == "ONE_HEALTH_LYME_GAP_ATLAS_PROD"
+            and self.settings.snowflake_warehouse == "COMPUTE_WH"
+        )
+        try:
+            return [
+                self._observation(query.measure_id, county)
+                for county in sorted(query.geography_id)[offset : offset + query.page_size + 1]
+            ]
+        except AtlasDataUnavailableError:
+            raise
+        except Exception:
+            # Never leak Data's private authority, diagnostics, or credential failures.
+            raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable") from None
+
+    def _observation(self, measure: str, county: str) -> Observation:
+        envelope = self.producer(measure, county)
+        _require(_evidence_validator.is_valid(envelope))
+        semantic = envelope["semantic"]
+        item, metadata, lineage = (semantic[k] for k in ("observation", "measure", "lineage"))
+        dataset, version, revision, resource = IDENTITIES[measure]
+        _require(metadata["metadata_revision_id"] == lineage["metadata_revision_id"] == revision)
+        _require(metadata["metadata_revision"] == 2 and metadata["semantic_version"] == "1.0.0")
+        _require(lineage["dataset_id"] == dataset and lineage["source_version_id"] == version)
+        _require(
+            semantic["provenance"]["source_version_id"] == {"state": "KNOWN", "value": version}
+        )
+        _require(item["geography"]["county_fips"] == county and item["strata"] == {})
+        _require(
+            envelope["surveillance_evidence"].get("normalized_state")
+            in {"detected", "unknown", "established"}
+        )
+        freshness = semantic["freshness"]
+        acquired = freshness["retrieved_at"]["value"]
+        limitations = [x["text"] for x in metadata["limitations"]]
+        # The semantic identity is consumer-safe; raw source IDs/proof never enter the DTO.
+        row = (
+            item["id"],
+            measure,
+            county,
+            "COUNTY",
+            PERIOD,
+            PERIOD,
+            "CUMULATIVE",
+            json.dumps(item["value"]),
+            item["value_state"],
+            metadata["unit"],
+            None if metadata["denominator"] == "NONE" else metadata["denominator"],
+            None,
+            metadata["semantic_version"],
+            RELEASE,
+            resource,
+            metadata["label"],
+            freshness["source_vintage"]["value"],
+            None,
+            acquired,
+            lineage["transformation_version"],
+            metadata["definition"],
+            lineage["methodology_version"],
+            None,
+            " ".join(limitations),
+            None,
+            SOURCE,
+            dataset,
+            lineage["methodology_version"],
+        )
+        observation = ObservationService._observation(row)
+        observation.metadata_revision_id = revision
+        observation.surveillance_context = resolve_context(
+            observation, CDCResolver(measure, envelope)
+        )
+        return observation

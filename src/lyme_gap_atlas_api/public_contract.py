@@ -16,6 +16,7 @@ class ValueState(StrEnum):
     SUPPRESSED = "SUPPRESSED"
     UNAVAILABLE = "UNAVAILABLE"
     NO_COUNTY_LINKED_RECORD = "NO_COUNTY_LINKED_RECORD"
+    NO_RECORDS = "NO_RECORDS"
 
 
 class GeographyType(StrEnum):
@@ -278,6 +279,9 @@ class SurveillanceContext(BaseModel):
 
 
 class Observation(BaseModel):
+    metadata_revision_id: str | None = Field(
+        default=None, description="Reviewed consumer-safe metadata revision; not private lineage."
+    )
     observation_id: str = Field(
         description="Stable observation identity and compact provenance reference."
     )
@@ -293,7 +297,8 @@ class Observation(BaseModel):
         description=(
             "OBSERVED is nonzero; ZERO is numeric zero; MISSING/SUPPRESSED/UNAVAILABLE "
             "require null; NO_COUNTY_LINKED_RECORD retains the literal "
-            "no_county_linked_record, not evidence of absence."
+            "no_county_linked_record; NO_RECORDS retains CDC's No records. "
+            "Neither establishes biological absence."
         )
     )
     unit: str
@@ -358,6 +363,8 @@ class Observation(BaseModel):
 
     @model_validator(mode="after")
     def validate_value_state(self) -> "Observation":
+        if self.value_state == ValueState.NO_RECORDS and self.value != "No records":
+            raise ValueError("NO_RECORDS requires the original CDC publisher value")
         if self.period_end < self.period_start:
             raise ValueError("period_end precedes period_start")
         if self.value_state == ValueState.ZERO and (

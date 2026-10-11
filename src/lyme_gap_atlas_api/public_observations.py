@@ -4,7 +4,10 @@ import hashlib
 import json
 from collections.abc import Callable
 from datetime import date
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from .cdc_surveillance import CDCObservationAdapter
 
 from .config import ApiSettings
 from .dependency_telemetry import connect
@@ -116,9 +119,11 @@ class ObservationService:
         self,
         repository: ObservationRepository,
         surveillance_resolver: SurveillanceResolver | None = None,
+        cdc_adapter: "CDCObservationAdapter | None" = None,
     ) -> None:
         self.repository = repository
         self.surveillance_resolver = surveillance_resolver
+        self.cdc_adapter = cdc_adapter
 
     def search(
         self, query: ObservationQuery, *, checkpoint: Callable[[], None] | None = None
@@ -132,8 +137,11 @@ class ObservationService:
             )
         check()
         release = self.repository.current_release()
+        from .cdc_surveillance import MEMBERS
+
+        cdc = self.cdc_adapter is not None and query.measure_id in MEMBERS
         check()
-        if not self.repository.measure_exists(query.measure_id, release):
+        if not cdc and not self.repository.measure_exists(query.measure_id, release):
             raise PublicQueryError(
                 "RESOURCE_NOT_FOUND", "Measure has no published county observations."
             )
@@ -144,16 +152,25 @@ class ObservationService:
         ).hexdigest()
         offset = self._offset(query.page_token, fingerprint, release)
         check()
-        rows = self.repository.query(query, release, offset)
+        if cdc:
+            assert self.cdc_adapter is not None
+            items = self.cdc_adapter.search(query, release, offset)
+            more = len(items) > query.page_size
+            items = items[: query.page_size]
+        else:
+            rows = self.repository.query(query, release, offset)
+            more = len(rows) > query.page_size
+            mapper = (
+                environmental_observation if query.measure_id in MEASURES else self._observation
+            )
+            items = [mapper(row) for row in rows[: query.page_size]]
         check()
-        mapper = environmental_observation if query.measure_id in MEASURES else self._observation
-        items = [mapper(row) for row in rows[: query.page_size]]
-        if self.surveillance_resolver is not None:
+        if not cdc and self.surveillance_resolver is not None:
             for item in items:
                 check()
                 item.surveillance_context = resolve_context(item, self.surveillance_resolver)
         token = None
-        if len(rows) > query.page_size:
+        if more:
             token = self._token(fingerprint, release, offset + query.page_size)
         return CollectionEnvelope(
             data=items, meta=CollectionMeta(next_page_token=token), links=CollectionLinks()
