@@ -3,7 +3,7 @@
 from typing import Any
 
 API_SUMMARY = "Governed Atlas analytics, metadata, and provenance"
-API_DESCRIPTION = """![Atlas](https://api.onehealthatlas.org/docs/favicon.svg)
+API_DESCRIPTION = """![Atlas](https://api.onehealthatlas.org/docs/summit-compass-north-20261010/favicon-256x256.png)
 
 Read-only structured data from the One Health Lyme Gap Atlas.
 Ordinary public reads are anonymous and require no API key.
