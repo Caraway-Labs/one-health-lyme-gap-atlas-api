@@ -3,12 +3,17 @@ import runpy
 from pathlib import Path
 
 import pytest
-from test_cdc_surveillance import client
+from test_cdc_surveillance import client, envelope
 
 
 def test_receipt_preserves_admitted_request_and_checks_problem_response(monkeypatch, capsys):
     probe = runpy.run_path(str(Path(__file__).parents[1] / "scripts/probe_cdc_api.py"))
-    monkeypatch.setattr("httpx.Client", lambda **_: client())
+    def producer(measure, county):
+        if county == "08013":
+            raise PermissionError("missing exact retained admission")
+        return envelope(measure, county)
+
+    monkeypatch.setattr("httpx.Client", lambda **_: client(producer))
     monkeypatch.setattr("sys.argv", ["probe_cdc_api.py", "--base-url", "http://testserver"])
     probe["main"]()
     receipt = json.loads(capsys.readouterr().out)
