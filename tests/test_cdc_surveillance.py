@@ -1,6 +1,7 @@
 """Offline fixtures prove API binding, never production acceptance."""
 
 import copy
+from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -93,6 +94,59 @@ def params(measure="scapularis_status", county="13081", **changes):
         end_date="2025-12-31",
         **changes,
     )
+
+
+@pytest.mark.parametrize("counties", ["08013", ["19135", "08013"]])
+def test_unsupported_counties_fail_before_all_repository_and_producer_reads(counties):
+    repository = Mock()
+    repository.current_release.side_effect = AssertionError("private Snowflake diagnostics")
+    producer = Mock(side_effect=AssertionError("private lineage diagnostics"))
+    api = create_app(settings=settings(), observation_repository=repository)
+    api.state.observation_service = ObservationService(
+        repository, cdc_adapter=CDCObservationAdapter(settings(), producer)
+    )
+    response = TestClient(api).get(
+        "/v1/observations", params=params("burgdorferi_status", counties)
+    )
+    assert response.status_code == 503
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["detail"] == (
+        "The governed Atlas data service is temporarily unavailable."
+    )
+    assert response.json()["status"] == 503
+    assert response.headers["x-request-id"] == response.json()["request_id"]
+    repository.current_release.assert_not_called()
+    repository.measure_exists.assert_not_called()
+    repository.query.assert_not_called()
+    producer.assert_not_called()
+    assert "private" not in response.text
+    assert "Snowflake" not in response.text
+    assert "surveillance_context" not in response.text
+
+
+def test_supported_cdc_still_checks_current_release_before_producer():
+    repository = Mock()
+    repository.current_release.return_value = "unapproved-release"
+    producer = Mock()
+    service = ObservationService(
+        repository, cdc_adapter=CDCObservationAdapter(settings(), producer)
+    )
+    with pytest.raises(AtlasDataUnavailableError):
+        service.search(ObservationQuery(**params(county=["13081"])))
+    repository.current_release.assert_called_once_with()
+    producer.assert_not_called()
+
+
+def test_cdc_preflight_preserves_request_cancellation_checkpoint():
+    repository, producer = Mock(), Mock()
+    service = ObservationService(
+        repository, cdc_adapter=CDCObservationAdapter(settings(), producer)
+    )
+    checkpoint = Mock(side_effect=TimeoutError("deadline"))
+    with pytest.raises(TimeoutError):
+        service.search(ObservationQuery(**params(county=["13081"])), checkpoint=checkpoint)
+    repository.current_release.assert_not_called()
+    producer.assert_not_called()
 
 
 @pytest.mark.parametrize(

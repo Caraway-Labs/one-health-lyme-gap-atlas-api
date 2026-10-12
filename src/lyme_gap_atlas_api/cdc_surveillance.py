@@ -136,8 +136,9 @@ class CDCObservationAdapter:
             lambda measure, county: _read(measure, county, settings=settings)
         )
 
-    def search(self, query: ObservationQuery, release: str, offset: int) -> list[Observation]:
-        _require(release == RELEASE and query.measure_id in MEMBERS)
+    def validate_query(self, query: ObservationQuery) -> None:
+        """Reject unsupported requests before any repository or producer read."""
+        _require(query.measure_id in MEMBERS)
         _require(set(query.geography_id) <= MEMBERS[query.measure_id])
         # Cumulative evidence must not be represented as an annual sampling bucket.
         _require(query.year is None and query.start_date == PERIOD and query.end_date == PERIOD)
@@ -148,6 +149,10 @@ class CDCObservationAdapter:
             and self.settings.snowflake_database == "ONE_HEALTH_LYME_GAP_ATLAS_PROD"
             and self.settings.snowflake_warehouse == "COMPUTE_WH"
         )
+
+    def search(self, query: ObservationQuery, release: str, offset: int) -> list[Observation]:
+        self.validate_query(query)
+        _require(release == RELEASE)
         try:
             return [
                 self._observation(query.measure_id, county)
