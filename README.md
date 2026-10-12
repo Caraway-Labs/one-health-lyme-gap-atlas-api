@@ -28,8 +28,11 @@ Indicator and measure discovery (#53), bounded county observation queries
 Geography retains its documented 503 until its owning story is delivered.
 `GET /v1/states/{state}/review` returns the versioned county Review result,
 separate data gaps, and coverage from the current governed release. Method
-`atlas-county-review@1.0.0` has no enabled candidate rules while source-native
-lineage and restricted-source derived-use approval remain pending.
+`atlas-county-review@2.0.0` enables all four assessment paths, with explicit
+abstentions for missing history, incompatible periods and unapproved comparison
+criteria. Published Established species facts can support D nonqualification;
+candidates require complete admitted native evidence. Historical disabled
+v1.0.0 remains immutable. See [v2 execution and verification](docs/api-229-county-review-v2.md).
 The [county geography contract](docs/county-geography-contract.md) distinguishes
 stable FIPS identity, existing SVI display geometry, and internal TIGER analysis geometry.
 
