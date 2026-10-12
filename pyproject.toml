@@ -7,6 +7,7 @@ name = "one-health-lyme-gap-atlas-api"
 version = "0.1.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
+  "one-health-lyme-gap-atlas-data @ git+https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data.git@8ce5d47d518161986d20954f3ddceb8f66504c92",
   "fastapi>=0.115,<1",
   "httpx>=0.28,<1",
   "jsonschema>=4.23,<5",
@@ -32,6 +33,11 @@ packages = ["src/lyme_gap_atlas_api"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.uv]
+# Data's consumer uses the same shared connection API. Retain the API's reviewed
+# shared pin rather than installing Data's older shared tag beside it.
+override-dependencies = ["one-health-lyme-gap-atlas-shared[snowflake,observability] @ git+https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git@83ccbe76047185f6aacaff551afd8b03d88aa5cf"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

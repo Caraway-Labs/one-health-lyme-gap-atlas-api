@@ -465,6 +465,8 @@ def observation_service(request: Request) -> ObservationService:
     "Environmental context is descriptive weather, with no causal, disease-risk or ML claim. "
     "Surveillance context is optional and requires an admitted Data delivery; "
     "normalized_state preserves Data semantics and the publisher value remains value. "
+    "Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; "
+    "only scapularis_status/13081 and burgdorferi_status/19135,12047 are admitted. "
     "Missing context does not establish absence or temporal comparability. "
     "A measure and bounded county/time selection are required; no user sorting or aggregation.",
     operation_id="observations_v1_observations_get",

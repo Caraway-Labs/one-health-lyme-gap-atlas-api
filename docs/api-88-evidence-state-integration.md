@@ -1,5 +1,10 @@
 # API #88 evidence-state integration
 
+Historical PR #224 receipt. DATA #429 has since completed. The current
+API-owned CDC integration and remaining runtime acceptance gates are in
+[production CDC integration](api-88-production-cdc.md); its closed Data
+dependency is not reopened by this historical audit.
+
 This increment lets the existing observation service serialize already admitted
 Data evidence and temporal companions. It adds no classifier, source registry,
 SQL view, ingestion, grant, release mutation, endpoint or production resolver.

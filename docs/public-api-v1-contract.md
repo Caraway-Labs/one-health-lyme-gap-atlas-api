@@ -3,14 +3,20 @@
 ## Optional surveillance companions (API #88)
 
 `GET /v1/observations` may carry `surveillance_context` only through the existing
-admitted Data delivery boundary. It is null in the default runtime, which has no
-surveillance resolver. `evidence.normalized_state` directly preserves Data's
+admitted Data delivery boundary. CDC is disabled by default; the reviewed
+`CDC_SURVEILLANCE_ENABLED` runtime flag binds the approved Data producer.
+`evidence.normalized_state` directly preserves Data's
 `established`, `detected`, or `unknown`; older companions may omit it. The original
 publisher value remains `value`. Unknown or missing context never means biological
 absence. Methodology comparison and temporal alignment are independent optional
 companions; omission never means comparable or zero lag. See the
-[acceptance and admission audit](api-88-evidence-state-integration.md) for the
-remaining DATA #429 production prerequisite and the meaning of these fields.
+[production CDC integration](api-88-production-cdc.md) for the accepted three
+county/measure memberships and remaining API service/deployment/HTTP gates.
+DATA #429 is completed. The additive `NO_RECORDS` value state preserves the
+publisher's literal `No records`; it never establishes absence. Optional
+`metadata_revision_id` is the exact reviewed consumer-safe revision identity.
+CDC requests use `start_date=end_date=2025-12-31`, cumulative rather than annual
+grain. Unknown/unavailable remain distinct. See [ADR 0017](adr/0017-cdc-consumer-observations.md).
 
 ## Tier 1 county surveillance review priority (API #10)
 
@@ -119,7 +125,9 @@ to CDC MMG, PHIN VADS, USCDI, LOINC, or FHIR is optional reviewed metadata from
 data #469–#473 and does not assert live clinical exchange.
 
 The public V1 `value_state` enum is `OBSERVED`, `ZERO`, `MISSING`,
-`SUPPRESSED`, `UNAVAILABLE`, and `NO_COUNTY_LINKED_RECORD`. The latter preserves
+`SUPPRESSED`, `UNAVAILABLE`, `NO_COUNTY_LINKED_RECORD`, and `NO_RECORDS`.
+`NO_RECORDS` preserves CDC's literal `No records` and normalized unknown,
+without establishing biological absence. `NO_COUNTY_LINKED_RECORD` preserves
 the governed categorical status with literal value `no_county_linked_record`;
 it is neither null nor zero. `NOT_APPLICABLE` and `INCOMPLETE`
 are **not** observation value states.
@@ -132,8 +140,8 @@ for `value_state`. An adapter must never convert an unknown or missing value to
 the governed semantic layer does not supply them. Reviewed governed metadata
 may later be exposed as optional, additive fields without reinterpreting
 `value_state`. No speculative observation fields are present in this schema.
-The Data semantic consumer schema currently permits four other states:
-`UNKNOWN`, `NOT_REPORTED`, `NOT_DEFENSIBLE`, and `NO_RECORDS`.
+The Data semantic consumer schema currently permits three other states:
+`UNKNOWN`, `NOT_REPORTED`, and `NOT_DEFENSIBLE`.
 The public V1 enum does not silently map any of them
 to another state. #54 fails explicitly if a selected governed
 observation has a state this public contract cannot represent; it must not

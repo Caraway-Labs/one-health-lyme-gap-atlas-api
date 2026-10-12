@@ -41,6 +41,7 @@ from .auth import (
 )
 from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
 from .briefings import add_briefing_openapi
+from .cdc_surveillance import CDCObservationAdapter
 from .config import ApiSettings, get_settings
 from .county_review import CountyEvidence, StateReview, aggregate_state, load_config
 from .documentation import LOGO, install_documentation
@@ -359,7 +360,9 @@ def create_app(
         metadata_repository or SnowflakeMetadataRepository(config)
     )
     app.state.observation_service = ObservationService(
-        observation_repository or SnowflakeObservationRepository(config), surveillance_resolver
+        observation_repository or SnowflakeObservationRepository(config),
+        surveillance_resolver,
+        CDCObservationAdapter(config) if config.cdc_surveillance_enabled else None,
     )
     app.state.provenance_service = ProvenanceService(
         provenance_repository or SnowflakeProvenanceRepository(config)

@@ -2733,7 +2733,7 @@
           "observations"
         ],
         "summary": "Query county observations",
-        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. Surveillance context is optional and requires an admitted Data delivery; normalized_state preserves Data semantics and the publisher value remains value. Missing context does not establish absence or temporal comparability. A measure and bounded county/time selection are required; no user sorting or aggregation.",
+        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. Surveillance context is optional and requires an admitted Data delivery; normalized_state preserves Data semantics and the publisher value remains value. Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; only scapularis_status/13081 and burgdorferi_status/19135,12047 are admitted. Missing context does not establish absence or temporal comparability. A measure and bounded county/time selection are required; no user sorting or aggregation.",
         "operationId": "observations_v1_observations_get",
         "parameters": [
           {
@@ -5295,7 +5295,8 @@
           "MISSING",
           "SUPPRESSED",
           "UNAVAILABLE",
-          "NO_COUNTY_LINKED_RECORD"
+          "NO_COUNTY_LINKED_RECORD",
+          "NO_RECORDS"
         ],
         "title": "ValueState",
         "description": "Public V1 states, including the governed county status added by API #54."
@@ -5400,6 +5401,18 @@
       },
       "Observation": {
         "properties": {
+          "metadata_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Revision Id",
+            "description": "Reviewed consumer-safe metadata revision; not private lineage."
+          },
           "observation_id": {
             "type": "string",
             "title": "Observation Id",
@@ -5445,7 +5458,7 @@
           },
           "value_state": {
             "$ref": "#/components/schemas/ValueState",
-            "description": "OBSERVED is nonzero; ZERO is numeric zero; MISSING/SUPPRESSED/UNAVAILABLE require null; NO_COUNTY_LINKED_RECORD retains the literal no_county_linked_record, not evidence of absence."
+            "description": "OBSERVED is nonzero; ZERO is numeric zero; MISSING/SUPPRESSED/UNAVAILABLE require null; NO_COUNTY_LINKED_RECORD retains the literal no_county_linked_record; NO_RECORDS retains CDC's No records. Neither establishes biological absence."
           },
           "unit": {
             "type": "string",

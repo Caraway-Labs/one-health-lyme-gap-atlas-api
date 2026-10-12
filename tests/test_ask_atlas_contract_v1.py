@@ -81,6 +81,7 @@ def test_fixture_canonical_evidence_and_concrete_case_invariants() -> None:
     assert {state.value for state in ValueState} == {
         "OBSERVED", "ZERO", "MISSING", "SUPPRESSED", "UNAVAILABLE",
         "NO_COUNTY_LINKED_RECORD",
+        "NO_RECORDS",
     }
     assert observations["zero"].value_state == ValueState.ZERO
     assert observations["missing"].value is None
