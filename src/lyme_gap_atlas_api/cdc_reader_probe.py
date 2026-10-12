@@ -3,7 +3,7 @@
 import json
 from typing import Any
 
-from .cdc_surveillance import MEMBERS, _read
+from .cdc_surveillance import _read
 from .config import ApiSettings
 from .dependency_telemetry import connect
 
@@ -26,7 +26,12 @@ def _probe() -> dict[str, Any]:
     if row is None or tuple(row) != expected:
         raise SystemExit("CDC service identity verification failed")
     results = []
-    for measure, counties in MEMBERS.items():
+    # Regression samples only, never an eligibility list.
+    samples = {
+        "scapularis_status": ("13081",),
+        "burgdorferi_status": ("12047", "19135"),
+    }
+    for measure, counties in samples.items():
         for county in sorted(counties):
             envelope = _read(measure, county, settings=settings)
             results.append(

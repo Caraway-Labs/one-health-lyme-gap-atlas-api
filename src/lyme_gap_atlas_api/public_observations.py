@@ -136,9 +136,9 @@ class ObservationService:
                 "UNSUPPORTED_STRATIFICATION", "This release has no governed strata."
             )
         check()
-        from .cdc_surveillance import MEMBERS
+        from .cdc_surveillance import IDENTITIES
 
-        cdc = self.cdc_adapter is not None and query.measure_id in MEMBERS
+        cdc = self.cdc_adapter is not None and query.measure_id in IDENTITIES
         if cdc:
             assert self.cdc_adapter is not None
             self.cdc_adapter.validate_query(query)
@@ -157,7 +157,7 @@ class ObservationService:
         check()
         if cdc:
             assert self.cdc_adapter is not None
-            items = self.cdc_adapter.search(query, release, offset)
+            items = self.cdc_adapter.search(query, release, offset, checkpoint=check)
             more = len(items) > query.page_size
             items = items[: query.page_size]
         else:
