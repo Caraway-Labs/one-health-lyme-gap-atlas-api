@@ -382,6 +382,13 @@ def evaluate_transition(item: EvidenceInputs) -> RuleResult:
         if r.measure_id in {"scapularis_status", "pacificus_status", "burgdorferi_status"}
     ]
     refs = [observation_input(r) for r in native]
+    if any(not error.startswith("case_count_floor_2023:") for error in item.errors):
+        return abstain(
+            rule,
+            "EVIDENCE_DELIVERY_UNAVAILABLE",
+            "Native vector/pathogen delivery failed; historical support is not determined.",
+            refs,
+        )
     same_measure_history = any(
         a.measure_id == b.measure_id and a.period_end != b.period_end
         for a in native
@@ -418,6 +425,13 @@ def evaluate_transition(item: EvidenceInputs) -> RuleResult:
 def evaluate_discordance(item: EvidenceInputs) -> RuleResult:
     rule = "human_vector_discordance"
     refs = [observation_input(r) for r in item.observations]
+    if item.errors:
+        return abstain(
+            rule,
+            "EVIDENCE_DELIVERY_UNAVAILABLE",
+            "Paired evidence delivery failed; a scientific difference cannot be assessed.",
+            refs,
+        )
     human = [
         r
         for r in item.observations
@@ -478,6 +492,13 @@ def evaluate_pairing(item: EvidenceInputs) -> RuleResult:
             evidence=established,
         )
     refs = [observation_input(r) for r in item.observations if r.measure_id in MEMBERS]
+    if any(not error.startswith("case_count_floor_2023:") for error in item.errors):
+        return abstain(
+            rule,
+            "EVIDENCE_DELIVERY_UNAVAILABLE",
+            "Native pairing evidence delivery failed; source absence is not inferred.",
+            refs + item.published,
+        )
     evaluation = evaluate_d(
         item.native,
         RuleConfig(

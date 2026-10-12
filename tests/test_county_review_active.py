@@ -318,6 +318,22 @@ def test_transport_failure_does_not_become_missing_human_evidence() -> None:
     assert result.abstained and not result.evaluated
 
 
+def test_per_rule_cdc_delivery_failure_is_explicit() -> None:
+    item = inputs()
+    item.observations = [observed()]
+    item.errors = ["scapularis_status:EVIDENCE_DELIVERY_UNAVAILABLE"]
+    for evaluator in (evaluate_transition, evaluate_discordance, evaluate_pairing):
+        result = evaluator(item)
+        assert result.reason_codes == ["EVIDENCE_DELIVERY_UNAVAILABLE"]
+        assert result.abstained and not result.evaluated
+    item.errors = ["case_count_floor_2023:EVIDENCE_DELIVERY_UNAVAILABLE"]
+    assert evaluate_discordance(item).reason_codes == ["EVIDENCE_DELIVERY_UNAVAILABLE"]
+    item = inputs("Established")
+    published(item)
+    item.errors = ["scapularis_status:EVIDENCE_DELIVERY_UNAVAILABLE"]
+    assert evaluate_pairing(item).evaluated
+
+
 def test_established_requires_published_source_vintage_and_release() -> None:
     item = inputs("Established")
     snap = snapshot(item.county)
