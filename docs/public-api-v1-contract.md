@@ -12,6 +12,13 @@ absence. Methodology comparison and temporal alignment are independent optional
 companions; omission never means comparable or zero lag. See the
 [production CDC integration](api-88-production-cdc.md) for the accepted three
 county/measure memberships and remaining API service/deployment/HTTP gates.
+API #228 removes the API county allowlist: eligibility comes from the pinned
+Data producer's exact published observation/record/semantic-revision admission.
+The two measure identities, release/bundle and reviewed metadata stay pinned.
+Published source coverage alone is insufficient; unadmitted records and unknown
+coverage placeholders remain unavailable. Reads cover only the requested page
+plus one lookahead county (at most the existing 500 requested counties), with
+no background expansion or warehouse scan. Cancellation is checked between reads.
 DATA #429 is completed. The additive `NO_RECORDS` value state preserves the
 publisher's literal `No records`; it never establishes absence. Optional
 `metadata_revision_id` is the exact reviewed consumer-safe revision identity.

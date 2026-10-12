@@ -97,9 +97,9 @@ def params(measure="scapularis_status", county="13081", **changes):
 
 
 @pytest.mark.parametrize("counties", ["08013", ["19135", "08013"]])
-def test_unsupported_counties_fail_before_all_repository_and_producer_reads(counties):
+def test_unadmitted_counties_reach_producer_and_fail_closed(counties):
     repository = Mock()
-    repository.current_release.side_effect = AssertionError("private Snowflake diagnostics")
+    repository.current_release.return_value = RELEASE
     producer = Mock(side_effect=AssertionError("private lineage diagnostics"))
     api = create_app(settings=settings(), observation_repository=repository)
     api.state.observation_service = ObservationService(
@@ -115,10 +115,12 @@ def test_unsupported_counties_fail_before_all_repository_and_producer_reads(coun
     )
     assert response.json()["status"] == 503
     assert response.headers["x-request-id"] == response.json()["request_id"]
-    repository.current_release.assert_not_called()
+    repository.current_release.assert_called_once_with()
     repository.measure_exists.assert_not_called()
     repository.query.assert_not_called()
-    producer.assert_not_called()
+    producer.assert_called_once_with(
+        "burgdorferi_status", sorted([counties] if isinstance(counties, str) else counties)[0]
+    )
     assert "private" not in response.text
     assert "Snowflake" not in response.text
     assert "surveillance_context" not in response.text
@@ -222,13 +224,100 @@ def test_unavailable_producer_and_incorrect_identity():
     assert client(config=bad).get("/v1/observations", params=params()).status_code == 503
 
 
-def test_unapproved_membership_and_annual_coercion_rejected():
-    assert client().get("/v1/observations", params=params(county="08013")).status_code == 503
+def test_annual_coercion_rejected():
     query = params()
     query.pop("start_date")
     query.pop("end_date")
     query["year"] = 2025
     assert client().get("/v1/observations", params=query).status_code == 503
+
+
+@pytest.mark.parametrize(
+    "measure,county",
+    [
+        ("scapularis_status", "01001"),
+        ("scapularis_status", "01003"),
+        ("burgdorferi_status", "06001"),
+        ("burgdorferi_status", "06013"),
+    ],
+)
+def test_additional_producer_admitted_counties_succeed(measure, county):
+    # Injected admitted envelopes prove routing, not live PROD admission.
+    producer = Mock(side_effect=envelope)
+    response = client(producer).get("/v1/observations", params=params(measure, county))
+    assert response.status_code == 200
+    assert response.json()["data"][0]["geography"]["geography_id"] == county
+    producer.assert_called_once_with(measure, county)
+
+
+def test_unknown_coverage_placeholder_fails_closed():
+    result = envelope("scapularis_status", "02122")
+    result["semantic"]["observation"].update(value="Unknown", value_state="UNKNOWN")
+    result["surveillance_evidence"].update(value_state="UNKNOWN", normalized_state="unknown")
+    response = client(lambda *_: result).get("/v1/observations", params=params(county="02122"))
+    assert response.status_code == 503
+    assert "surveillance_context" not in response.text
+
+
+def test_published_record_without_exact_data_packet_binding_is_unavailable():
+    from lyme_gap_atlas_data import cdc_consumer_runtime
+
+    metadata = cdc_consumer_runtime._metadata(
+        cdc_consumer_runtime._resources(), "scapularis_status"
+    )
+    packet = {
+        "release_id": RELEASE,
+        "bundle_sha256": BUNDLE,
+        "scope": cdc_consumer_runtime.SLICES["scapularis_status"],
+        "metadata_revision_id": metadata["revision_id"],
+        "decision_reference": "retained-steward-decision",
+        "observation_bindings": {"different-observation": {"record_id": "13081"}},
+    }
+    facts = {
+        "release_status": "PUBLISHED",
+        "source_status": "APPROVED",
+        "review_decisions": [
+            {
+                "decision": "APPROVED",
+                "active_steward": True,
+                "reviewer": "steward",
+                "decision_id": "retained-decision",
+                "rationale": "approved exact record bindings",
+                "decided_at": metadata["steward_review"]["reviewed_at"]["value"],
+                "conditions": [{"cdc_consumer_admission": packet}],
+            }
+        ],
+    }
+
+    def producer(*_):
+        return cdc_consumer_runtime._packet(facts, metadata, {"observation_id": "unadmitted"})
+
+    with pytest.raises(
+        cdc_consumer_runtime.CDCConsumerUnavailable,
+        match="exact retained steward/release decision required",
+    ):
+        producer()
+    response = client(producer).get("/v1/observations", params=params(county="01001"))
+    assert response.status_code == 503
+    assert "retained-decision" not in response.text
+    assert "surveillance_context" not in response.text
+
+
+def test_page_bounds_and_cancellation_stop_producer_fanout():
+    producer = Mock(side_effect=envelope)
+    adapter = CDCObservationAdapter(settings(), producer)
+    query = ObservationQuery(**params(county=["01001", "01003", "01005", "13081"], page_size=1))
+    items = adapter.search(query, RELEASE, 1)
+    assert len(items) == 2
+    assert producer.call_args_list == [
+        (("scapularis_status", "01003"),),
+        (("scapularis_status", "01005"),),
+    ]
+    producer.reset_mock()
+    checkpoint = Mock(side_effect=[None, TimeoutError("deadline")])
+    with pytest.raises(TimeoutError):
+        adapter.search(query, RELEASE, 0, checkpoint=checkpoint)
+    producer.assert_called_once_with("scapularis_status", "01001")
 
 
 def test_pagination_binds_to_release_and_filters():

@@ -29,11 +29,6 @@ RELEASE = "governed-2026-10-06-nlcd-demo-cohort"
 BUNDLE = "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9"
 PERIOD = date(2025, 12, 31)
 SOURCE = "cdc_arbonet_tick_module"
-# Retained memberships, not a county-wide source coverage assertion.
-MEMBERS = {
-    "scapularis_status": frozenset({"13081"}),
-    "burgdorferi_status": frozenset({"19135", "12047"}),
-}
 IDENTITIES = {
     "scapularis_status": (
         "cdc-ixodes-county-status-2025",
@@ -138,8 +133,7 @@ class CDCObservationAdapter:
 
     def validate_query(self, query: ObservationQuery) -> None:
         """Reject unsupported requests before any repository or producer read."""
-        _require(query.measure_id in MEMBERS)
-        _require(set(query.geography_id) <= MEMBERS[query.measure_id])
+        _require(query.measure_id in IDENTITIES)
         # Cumulative evidence must not be represented as an annual sampling bucket.
         _require(query.year is None and query.start_date == PERIOD and query.end_date == PERIOD)
         _require(
@@ -150,19 +144,32 @@ class CDCObservationAdapter:
             and self.settings.snowflake_warehouse == "COMPUTE_WH"
         )
 
-    def search(self, query: ObservationQuery, release: str, offset: int) -> list[Observation]:
+    def search(
+        self,
+        query: ObservationQuery,
+        release: str,
+        offset: int,
+        *,
+        checkpoint: Callable[[], None] | None = None,
+    ) -> list[Observation]:
         self.validate_query(query)
         _require(release == RELEASE)
-        try:
-            return [
-                self._observation(query.measure_id, county)
-                for county in sorted(query.geography_id)[offset : offset + query.page_size + 1]
-            ]
-        except AtlasDataUnavailableError:
-            raise
-        except Exception:
-            # Never leak Data's private authority, diagnostics, or credential failures.
-            raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable") from None
+        items = []
+        # One page plus lookahead only; Data verifies each published record's
+        # exact retained admission. Source coverage alone never authorizes it.
+        for county in sorted(query.geography_id)[offset : offset + query.page_size + 1]:
+            if checkpoint is not None:
+                checkpoint()
+            try:
+                items.append(self._observation(query.measure_id, county))
+            except AtlasDataUnavailableError:
+                raise
+            except Exception:
+                # Never leak Data's private authority or database diagnostics.
+                raise AtlasDataUnavailableError(
+                    "Governed CDC surveillance is unavailable"
+                ) from None
+        return items
 
     def _observation(self, measure: str, county: str) -> Observation:
         envelope = self.producer(measure, county)

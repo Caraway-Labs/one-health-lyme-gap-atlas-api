@@ -64,3 +64,15 @@ protected security provisioning procedure; this change issues no grants.
 - [Public contract](../public-api-v1-contract.md)
 - [Release and Web handoff](../api-88-production-cdc.md)
 - `tests/test_cdc_surveillance.py`
+
+## API #228 implementation correction (2026-10-11)
+
+The owner explicitly requested removal of the three-example API restriction
+in [API #228](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-api/issues/228).
+This supersedes only the API county-list restriction above: the same pinned
+producer must establish exact published observation/record/semantic-revision
+membership for every requested county. The two supported measures, cumulative
+date, release/bundle, metadata identities, authentication and public schema remain
+unchanged. No scientific or publication authority is broadened by this correction.
+Additional coverage depends on retained Data-owned record admission; a published
+source or complete lineage is insufficient. See the #228 acceptance record.
