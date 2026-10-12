@@ -1,0 +1,12 @@
+{
+  "methodology_id": "atlas-county-review",
+  "methodology_version": "2.0.0",
+  "approval_reference": "API #229 product-owner direction: enable honest input assessment; no invented comparison criteria or expanded CDC admission",
+  "rules": {
+    "human_emerging": {"enabled": true},
+    "vector_transition": {"enabled": true},
+    "human_vector_discordance": {"enabled": true},
+    "pathogen_present_vector_reported": {"enabled": true}
+  },
+  "automatic_review_stage_assignment": false
+}
