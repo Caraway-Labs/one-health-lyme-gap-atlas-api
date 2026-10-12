@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import time
 
 import httpx
 
@@ -27,7 +28,9 @@ def main() -> None:
                 "start_date": "2025-12-31",
                 "end_date": "2025-12-31",
             }
+            started = time.monotonic()
             response = client.get(args.base_url.rstrip("/") + "/v1/observations", params=params)
+            elapsed_ms = round((time.monotonic() - started) * 1000)
             if response.status_code != 200:
                 raise SystemExit(f"FAIL {measure}/{county}: HTTP {response.status_code}")
             payload = response.json()
@@ -52,12 +55,38 @@ def main() -> None:
                     "cdc_runtime_authority",
                 )
             )
-            results.append({"request": params, "http_status": 200, "response": item})
-        params["geography_id"] = "08013"
+            results.append(
+                {"request": dict(params), "http_status": 200, "elapsed_ms": elapsed_ms,
+                 "response": item}
+            )
+        params = {**params, "geography_id": "08013"}
+        started = time.monotonic()
         unsupported = client.get(args.base_url.rstrip("/") + "/v1/observations", params=params)
-        assert unsupported.status_code == 503
+        elapsed_ms = round((time.monotonic() - started) * 1000)
+        if unsupported.status_code != 503:
+            print(json.dumps({"accepted": results, "unapproved": {
+                "request": params, "http_status": unsupported.status_code,
+                "elapsed_ms": elapsed_ms,
+                "content_type": unsupported.headers.get("content-type"),
+                "upstream_status": unsupported.headers.get("x-do-orig-status"),
+            }}, indent=2))
+            raise SystemExit(
+                f"FAIL burgdorferi_status/08013: HTTP {unsupported.status_code}; "
+                f"{elapsed_ms}ms; upstream status "
+                f"{unsupported.headers.get('x-do-orig-status', 'unknown')}"
+            )
+        assert unsupported.headers["content-type"].split(";")[0] == "application/problem+json"
+        problem = unsupported.json()
+        assert problem["status"] == 503
+        assert problem["detail"] == "The governed Atlas data service is temporarily unavailable."
         assert "surveillance_context" not in unsupported.text
-    print(json.dumps({"accepted": results, "unapproved_http_status": 503}, indent=2))
+        assert not any(
+            field in unsupported.text
+            for field in ("Snowflake", "LINEAGE_AUDIT", "authority_reference", "record_refs")
+        )
+    print(json.dumps({"accepted": results, "unapproved_http_status": 503,
+                      "unapproved": {"request": params, "elapsed_ms": elapsed_ms,
+                                     "response": problem}}, indent=2))
 
 
 if __name__ == "__main__":

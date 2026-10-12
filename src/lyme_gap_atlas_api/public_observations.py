@@ -136,10 +136,13 @@ class ObservationService:
                 "UNSUPPORTED_STRATIFICATION", "This release has no governed strata."
             )
         check()
-        release = self.repository.current_release()
         from .cdc_surveillance import MEMBERS
 
         cdc = self.cdc_adapter is not None and query.measure_id in MEMBERS
+        if cdc:
+            assert self.cdc_adapter is not None
+            self.cdc_adapter.validate_query(query)
+        release = self.repository.current_release()
         check()
         if not cdc and not self.repository.measure_exists(query.measure_id, release):
             raise PublicQueryError(
