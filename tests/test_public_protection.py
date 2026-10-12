@@ -2,12 +2,16 @@
 
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
+from test_api import FakeRepository
 from test_public_metadata import MetadataFixture
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
+from lyme_gap_atlas_api.county_review_active import EvidenceInputs
 
 
 def client(**settings: int) -> TestClient:
@@ -94,3 +98,57 @@ def test_concurrent_public_reads_are_bounded() -> None:
             release.set()
         assert first.result().status_code == 200
         assert second.result().status_code == 200
+
+
+@pytest.mark.parametrize("overflow_path", ["/v1/states/CO/review", "/v1/indicators"])
+def test_review_shares_concurrency_gate_before_evidence_loading(overflow_path: str) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    calls: list[str] = []
+
+    def load(state, snapshot):
+        calls.append(state)
+        entered.set()
+        assert release.wait(10)
+        return [EvidenceInputs(c) for c in snapshot.counties if c.state == state]
+
+    app = create_app(
+        repository=FakeRepository(),
+        metadata_repository=MetadataFixture(),
+        settings=ApiSettings(public_concurrent_requests_per_ip=1),
+    )
+    app.state.review_evidence_loader = SimpleNamespace(load=load)
+    api = TestClient(app)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(api.get, "/v1/states/CO/review")
+        try:
+            assert entered.wait(10)
+            limited = api.get(overflow_path)
+            assert limited.status_code == 429
+            assert limited.headers["Retry-After"] == "1"
+            assert limited.json()["code"] == "RATE_LIMITED"
+            assert calls == ["CO"]
+        finally:
+            release.set()
+        assert first.result().status_code == 200
+
+
+def test_review_and_canonical_reads_share_minute_budget() -> None:
+    calls: list[str] = []
+
+    def load(state, snapshot):
+        calls.append(state)
+        return [EvidenceInputs(c) for c in snapshot.counties if c.state == state]
+
+    app = create_app(
+        repository=FakeRepository(),
+        metadata_repository=MetadataFixture(),
+        settings=ApiSettings(public_rate_limit_per_minute=2),
+    )
+    app.state.review_evidence_loader = SimpleNamespace(load=load)
+    api = TestClient(app)
+    assert api.get("/v1/indicators").status_code == 200
+    assert api.get("/v1/states/CO/review").status_code == 200
+    limited = api.get("/v1/states/CO/review")
+    assert limited.status_code == 429 and int(limited.headers["Retry-After"]) >= 1
+    assert calls == ["CO"]

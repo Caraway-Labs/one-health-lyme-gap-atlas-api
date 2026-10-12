@@ -27,6 +27,8 @@ Do not expand CDC memberships, issue grants, copy a Data classifier or expose
 private proof. Admit each observation batch atomically against the snapshot's
 release, county, measure and period; delivery errors have a separate explicit
 reason and never become scientific missing values.
+Review is included in the existing public-read rate/concurrency guard before
+its warehouse-backed reads; no new limiter or different identity policy is added.
 
 For D, one published, release-bound species-specific `Established` fact logically
 disproves the existing **neither species Established** predicate. Such a result

@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import math
+import re
 import secrets
 import time
 from collections import defaultdict, deque
@@ -23,6 +24,7 @@ _PUBLIC_COLLECTIONS = {
     "/v1/intelligence/feed", "/v1/intelligence/items", "/v1/intelligence/sources",
 }
 _PUBLIC_DETAILS = ("/v1/indicators/", "/v1/measures/", "/v1/sources/", "/v1/methodologies/")
+_PUBLIC_REVIEW = re.compile(r"/v1/states/[A-Z]{2}/review")
 
 
 def _log_route(request: Request) -> str:
@@ -87,6 +89,7 @@ class PublicReadProtectionMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         if request.method != "GET" or not (
             path in _PUBLIC_COLLECTIONS or path.startswith(_PUBLIC_DETAILS)
+            or _PUBLIC_REVIEW.fullmatch(path)
         ):
             return await call_next(request)
         if len(request.scope.get("query_string", b"")) > self.max_query_bytes:

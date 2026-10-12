@@ -26,6 +26,9 @@ restricted raw workbooks or widen admission. Source/release/measure/geography/
 period mismatches, duplicate rows and unexpected pagination fail the batch closed.
 Transport/admission failure is recorded as `EVIDENCE_DELIVERY_UNAVAILABLE`, not
 zero or publisher No records. No baseline window is selected without approval.
+Review shares the existing canonical public-read per-IP rate and concurrency
+budget before snapshot/evidence reads. Excess concurrent requests return 429
+with Retry-After without invoking the loader; body/query bounds use the same guard.
 
 New `county_evaluations` expose rule IDs, eligibility, evaluated/abstained/candidate
 booleans, reason codes and public evidence. `rule_evaluation_counts` supplies

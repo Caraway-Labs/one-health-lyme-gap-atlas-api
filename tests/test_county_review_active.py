@@ -391,3 +391,117 @@ def test_loader_rejects_incompatible_or_incomplete_batches(mutant: str) -> None:
     loaded = ReviewEvidenceLoader(cast(ObservationService, Observations())).load("CO", snap)
     assert loaded[0].observations == []
     assert loaded[0].errors
+
+
+@pytest.mark.parametrize(
+    "measure,fips", [("scapularis_status", "13081"), ("burgdorferi_status", "19135")]
+)
+def test_existing_cdc_adapter_binds_known_native_provenance(measure: str, fips: str) -> None:
+    from typing import cast
+
+    from test_cdc_surveillance import envelope, settings
+
+    from lyme_gap_atlas_api.cdc_surveillance import CDCObservationAdapter
+    from lyme_gap_atlas_api.public_observations import ObservationService
+
+    def producer(measure_id, county_fips):
+        result = envelope(measure_id, county_fips)
+        result["semantic"]["freshness"]["retrieved_at"] = {
+            "state": "KNOWN",
+            "value": "2026-01-01T00:00:00Z",
+        }
+        return result
+
+    adapter = CDCObservationAdapter(settings(), producer)
+    item = inputs()
+    item.county = item.county.model_copy(update={"fips": fips})
+    snap = snapshot(item.county)
+    snap = replace(
+        snap,
+        metadata=snap.metadata.model_copy(
+            update={
+                "release_id": RELEASE,
+                "sources": [],
+            }
+        ),
+    )
+
+    class Observations:
+        cdc_adapter = adapter
+
+        def search(self, query: ObservationQuery) -> CollectionEnvelope[Observation]:
+            rows = (
+                []
+                if query.measure_id == "case_count_floor_2023"
+                else adapter.search(query, RELEASE, 0)
+            )
+            return CollectionEnvelope(data=rows, meta=CollectionMeta(), links=CollectionLinks())
+
+    loaded = ReviewEvidenceLoader(cast(ObservationService, Observations())).load("CO", snap)
+    native = (
+        loaded[0].native.pathogen
+        if measure == "burgdorferi_status"
+        else loaded[0].native.vector["Ixodes scapularis"]
+    )
+    assert native is not None and native.county_fips == fips
+    assert native.source_version == IDENTITIES[measure][1]
+    assert native.revision_id
+    assert native.public_record_ref == loaded[0].observations[0].provenance_ref
+    assert loaded[0].errors == []
+    config, digest = load_active_config()
+    result = evaluate_state("CO", snap, loaded, config, digest)
+    assert IDENTITIES[measure][1] not in result.model_dump_json()
+    assert not result.review_candidates
+
+
+def test_native_bridge_rejects_mismatched_metadata_and_unapproved_human_source() -> None:
+    from datetime import UTC, datetime
+
+    from lyme_gap_atlas_api.county_review_active import native_reference
+
+    item = inputs()
+    row = observed("scapularis_status", "Reported").model_copy(
+        update={
+            "atlas_acquired_at": datetime(2026, 1, 1, tzinfo=UTC),
+        }
+    )
+    native_reference(row, item)
+    assert item.native.vector == {}
+    item.observations = [observed().model_copy(update={"source_id": "other"})]
+    assert evaluate_human(item).reason_codes == ["SOURCE_NOT_APPROVED"]
+
+
+def test_comparable_history_still_requires_approved_transition_policy() -> None:
+    from lyme_gap_atlas_api.public_contract import MethodologyComparisonContext, SurveillanceContext
+
+    item = inputs()
+    comparison = MethodologyComparisonContext(
+        contract_version="atlas-lyme-surveillance-methodology-v1",
+        comparison_state="COMPARABLE",
+        reason_codes=["fixture_only"],
+        methodology_era_ids=[],
+        jurisdiction_class=None,
+        references=[],
+        limitations=[],
+        left_observation_id="fixture-only",
+    )
+    row = observed("scapularis_status", "Reported").model_copy(
+        update={
+            "surveillance_context": SurveillanceContext(methodology_comparison=comparison),
+        }
+    )
+    item.observations = [row, row.model_copy(update={"period_end": date(2024, 12, 31)})]
+    assert evaluate_transition(item).reason_codes == ["TRANSITION_POLICY_UNAPPROVED"]
+
+
+def test_state_preserves_delivery_gaps_and_excludes_other_states() -> None:
+    item = inputs()
+    item.errors = ["case_count_floor_2023:EVIDENCE_DELIVERY_UNAVAILABLE"]
+    other = inputs()
+    other.county = other.county.model_copy(update={"state": "AL"})
+    snap = snapshot(item.county)
+    snap = replace(snap, metadata=snap.metadata.model_copy(update={"release_id": RELEASE}))
+    config, digest = load_active_config()
+    result = evaluate_state("CO", snap, [item, other], config, digest)
+    assert result.coverage.assessed_counties == 1
+    assert any(g.code == "EVIDENCE_DELIVERY_UNAVAILABLE" for g in result.data_gaps)

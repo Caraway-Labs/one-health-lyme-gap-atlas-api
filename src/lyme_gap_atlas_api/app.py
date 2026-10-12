@@ -834,7 +834,14 @@ def create_app(
             "Published Established species facts may exclude the current D pairing; "
             "candidates require admitted native evidence. Public cache TTL is 60 seconds."
         ),
-        responses=LEGACY_ERRORS,
+        responses={
+            **LEGACY_ERRORS,
+            400: problem_response(
+                400, "INVALID_REQUEST", "Repeated query parameters are unsupported."
+            ),
+            413: problem_response(413, "INVALID_REQUEST", "GET request bodies are unsupported."),
+            414: problem_response(414, "INVALID_REQUEST", "Query string is too long."),
+        },
     )
     def state_review(
         state: Annotated[str, Path(pattern=r"^[A-Z]{2}$")],

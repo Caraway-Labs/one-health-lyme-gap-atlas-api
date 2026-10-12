@@ -3759,6 +3759,78 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Repeated query parameters are unsupported.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-400",
+                      "title": "Request failed",
+                      "status": 400,
+                      "detail": "Repeated query parameters are unsupported.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "GET request bodies are unsupported.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-413",
+                      "title": "Request failed",
+                      "status": 413,
+                      "detail": "GET request bodies are unsupported.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string is too long.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-414",
+                      "title": "Request failed",
+                      "status": 414,
+                      "detail": "Query string is too long.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
