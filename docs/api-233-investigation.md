@@ -73,8 +73,10 @@ access-blocked / DEFER receipts are superseded by the final audit and closure
 receipt. The [DATA #200 closure receipt](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/issues/200#issuecomment-5987477044)
 confirms PR #600 merged and prior BLOCKED/DEFER comments were superseded.
 The [DATA #496 accepted handoff](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/issues/496#issuecomment-6004641971)
-records #199/#200 complete and names API #212 / Web #414 as downstream
-consumption owners. No further source-admission or lineage gate is proposed.
+records #199/#200 complete and names WEB #210/#414 and API #84 as downstream
+context owners. API #212 opened later and owns the specific five-measure API
+implementation described below. No further source-admission or lineage gate
+is proposed.
 
 The Data handoff records historical [release build
 receipt](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/actions/runs/35328355391)
