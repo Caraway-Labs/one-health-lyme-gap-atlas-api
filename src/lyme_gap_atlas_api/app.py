@@ -150,6 +150,7 @@ from .telemetry_logging import operational_logger, operational_request_id, prote
 from .tier1_priority import (
     SnowflakeTier1PriorityRepository,
     Tier1CountyPriority,
+    Tier1CountyPriorityAvailability,
     Tier1PriorityRepository,
     Tier1PriorityService,
 )
@@ -1009,6 +1010,56 @@ def create_app(
             raise HTTPException(status_code=404, detail="No current Tier 1 county result")
         response.headers["Cache-Control"] = "public, max-age=60"
         return result
+
+    @app.get(
+        "/v1/counties/{fips}/tier1-surveillance-priority/availability",
+        response_model=Tier1CountyPriorityAvailability,
+        tags=["counties"],
+        operation_id="county_tier1_surveillance_priority_availability_get",
+        summary="Get Tier 1 result availability and persisted data",
+        description=(
+            "Additive availability contract for current supported county geographies. "
+            "A successful lookup returns AVAILABLE with the exact persisted result, or "
+            "UNAVAILABLE with reason NO_PUBLISHED_MODEL and null data after the current "
+            "geography release and Tier 1 projection have both been read successfully. "
+            "geography_release_id identifies the release used to validate the FIPS. "
+            "This endpoint does not turn null into zero or synthesize model output. "
+            "NOT_ESTIMABLE is a persisted result state and is distinct from no published "
+            "model result. Malformed FIPS returns 422; an identity outside the current "
+            "geography release returns typed 404; dependency or malformed-data failures "
+            "return 503. Public cache TTL 60 seconds."
+        ),
+        responses={
+            **LEGACY_ERRORS,
+            404: problem_response(
+                404, "RESOURCE_NOT_FOUND", "County is not in the current geography release."
+            ),
+        },
+    )
+    def county_tier1_priority_availability(
+        response: Response, fips: Annotated[str, Path(pattern=r"^\d{5}$")]
+    ) -> Tier1CountyPriorityAvailability:
+        snapshot = service.snapshot()
+        current_fips = {county.fips for county in snapshot.counties}
+        if fips not in current_fips:
+            raise PublicQueryError(
+                "RESOURCE_NOT_FOUND", "County is not in the current geography release."
+            )
+        result = tier1_priority.county(fips)
+        response.headers["Cache-Control"] = "public, max-age=60"
+        if result is None:
+            return Tier1CountyPriorityAvailability(
+                availability="UNAVAILABLE",
+                geography_release_id=snapshot.metadata.release_id,
+                reason="NO_PUBLISHED_MODEL",
+                data=None,
+            )
+        return Tier1CountyPriorityAvailability(
+            availability="AVAILABLE",
+            geography_release_id=snapshot.metadata.release_id,
+            reason=None,
+            data=result,
+        )
 
     @app.get(
         "/v1/counties/{fips}/report.pdf",

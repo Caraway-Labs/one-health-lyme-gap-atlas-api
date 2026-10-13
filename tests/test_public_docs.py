@@ -24,8 +24,11 @@ def test_curl_examples_match_openapi() -> None:
         if path not in SCHEMA["paths"]:
             path = re.sub(r"/case_count_floor_2023$", "/{measure_id}", path)
             path = re.sub(r"/human$", "/{source_id}", path)
+            path = re.sub(r"/human_confirmed_probable_case_floor_v1$", "/{methodology_id}", path)
             path = re.sub(
-                r"/human_confirmed_probable_case_floor_v1$", "/{methodology_id}", path
+                r"/counties/\d{5}/tier1-surveillance-priority/availability$",
+                "/counties/{fips}/tier1-surveillance-priority/availability",
+                path,
             )
         operation = SCHEMA["paths"][path]["get"]
         allowed = {item["name"] for item in operation.get("parameters", [])}
@@ -45,8 +48,11 @@ def test_guide_documents_all_value_states_and_cumulative_cdc_selector() -> None:
     assert states == {state.value for state in ValueState}
     assert "normalized state is unknown, never biological absence" in GUIDE
     urls = re.findall(r"curl -fsS '([^']+)'", GUIDE)
-    cdc = [parse_qs(urlsplit(url).query) for url in urls
-           if parse_qs(urlsplit(url).query).get("measure_id", [None])[0] in IDENTITIES]
+    cdc = [
+        parse_qs(urlsplit(url).query)
+        for url in urls
+        if parse_qs(urlsplit(url).query).get("measure_id", [None])[0] in IDENTITIES
+    ]
     assert cdc
     for query in cdc:
         assert "year" not in query
