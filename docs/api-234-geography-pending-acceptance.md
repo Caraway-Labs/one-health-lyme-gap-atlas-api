@@ -9,10 +9,12 @@ or geometry. Invalid identity keys remain client errors. County display
 geometry continues to use its existing separate endpoint and representation.
 
 `tests/test_public_contract.py::test_valid_canonical_geographies_remain_structurally_unavailable`
-checks representative county keys in Alabama and Connecticut and a Connecticut
-state key. Connecticut planning regions are not a supported geography type in
-the accepted API contract; adding them would require a separate contract
-decision. These application tests establish origin behavior only.
+checks representative county keys in Alabama and Connecticut, the Connecticut
+Capitol Planning Region county-equivalent (`09110`), and a Connecticut state
+key. The route's county validator accepts this five-digit FIPS shape; no new
+geography type is needed. The Census identifies `09110` as Capitol Planning
+Region in its [Connecticut county-equivalent listing](https://tigerweb.geo.census.gov/tigerwebmain/Files/acs24/tigerweb_acs24_county_2024_bas24_ct.html).
+These application tests establish origin behavior only.
 
 Public-ingress acceptance remains blocked by the shared API #237 issue:
 production ingress has been observed replacing origin 503 responses with HTML

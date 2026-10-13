@@ -232,7 +232,7 @@ def test_canonical_problem_and_legacy_compatibility() -> None:
 
 @pytest.mark.parametrize(
     ("geography_type", "geography_id"),
-    [("county", "01001"), ("county", "09001"), ("state", "09")],
+    [("county", "01001"), ("county", "09001"), ("county", "09110"), ("state", "09")],
 )
 def test_valid_canonical_geographies_remain_structurally_unavailable(
     geography_type: str, geography_id: str
