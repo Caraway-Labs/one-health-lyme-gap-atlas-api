@@ -81,7 +81,12 @@ class SnowflakeAtlasRepository:
                           TO_JSON(GEOMETRY_JSON)
                    FROM {self._presentation_schema}.CURRENT_COUNTY_ATLAS_V ORDER BY FIPS"""
                 )
-                counties = [self._county(row) for row in cursor.fetchall()]
+                county_rows = cursor.fetchall()
+                if any(row[0] != release[0] for row in county_rows):
+                    raise AtlasDataUnavailableError(
+                        "County geography does not match the current Atlas release"
+                    )
+                counties = [self._county(row) for row in county_rows]
             states = sorted({(county.state, county.state_name) for county in counties})
             metadata = AtlasMetadata(
                 release_id=release[0],

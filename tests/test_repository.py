@@ -121,3 +121,20 @@ def test_invalid_configured_presentation_identifier_fails_closed() -> None:
 
     with pytest.raises(AtlasDataUnavailableError, match="unavailable"):
         SnowflakeAtlasRepository(settings).load_snapshot()
+
+
+def test_load_snapshot_rejects_counties_from_promoted_release(monkeypatch) -> None:
+    class PromotedCountyCursor(_Cursor):
+        def execute(self, statement: str) -> None:
+            super().execute(statement)
+            if "CURRENT_COUNTY_ATLAS_V" in statement:
+                self._result = [
+                    ("governed-2026-10-06", *row[1:]) for row in self._result
+                ]
+
+    cursor = PromotedCountyCursor()
+    connection = _Connection(cursor)
+    monkeypatch.setattr("lyme_gap_atlas_api.repository.connect", lambda _settings: connection)
+
+    with pytest.raises(AtlasDataUnavailableError, match="does not match"):
+        SnowflakeAtlasRepository(ApiSettings()).load_snapshot()
