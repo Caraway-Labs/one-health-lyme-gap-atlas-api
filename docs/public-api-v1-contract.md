@@ -197,6 +197,12 @@ owns the reviewed projection and mapping authority.
 
 ## Bounds and access
 
+CDC `scapularis_status` and `burgdorferi_status` use cumulative publisher status,
+not annual sampling. Use `start_date=end_date=2025-12-31` and omit `year`.
+Annual selectors or another date range return 400 `UNSUPPORTED_FILTER` before
+release or producer access. Every county still requires exact Data record
+admission; unavailable authority remains a fail-closed 503.
+
 `measure_id`, one or more typed `geography_id` values, and either `year` or a
 complete `start_date`/`end_date` pair are required. Conflicting time selectors,
 invalid FIPS, unsupported filters/strata, or unsupported measure grain fail

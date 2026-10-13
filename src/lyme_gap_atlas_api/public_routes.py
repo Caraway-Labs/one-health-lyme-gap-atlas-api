@@ -363,7 +363,8 @@ def observation_query(
         Query(
             ge=1900,
             le=2100,
-            description="Year or complete date range, not both; current published year is 2023.",
+            description="Annual year or complete date range, not both. CDC cumulative status "
+            "rejects year; use start_date=end_date=2025-12-31.",
             examples=[2023],
         ),
     ] = None,
@@ -466,7 +467,8 @@ def observation_service(request: Request) -> ObservationService:
     "Surveillance context is optional and requires an admitted Data delivery; "
     "normalized_state preserves Data semantics and the publisher value remains value. "
     "Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; "
-    "only scapularis_status/13081 and burgdorferi_status/19135,12047 are admitted. "
+    "scapularis_status and burgdorferi_status require exact Data record admission. "
+    "Annual year and other date ranges return 400 UNSUPPORTED_FILTER before data access. "
     "Missing context does not establish absence or temporal comparability. "
     "A measure and bounded county/time selection are required; no user sorting or aggregation.",
     operation_id="observations_v1_observations_get",

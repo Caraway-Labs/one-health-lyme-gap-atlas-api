@@ -224,12 +224,54 @@ def test_unavailable_producer_and_incorrect_identity():
     assert client(config=bad).get("/v1/observations", params=params()).status_code == 503
 
 
-def test_annual_coercion_rejected():
+@pytest.mark.parametrize("measure", list(IDENTITIES))
+@pytest.mark.parametrize("county", ["01001", "06001", "16001", "13081", "12047"])
+@pytest.mark.parametrize("year", [2023, 2025])
+def test_annual_coercion_rejected_without_data_access(measure, county, year):
+    query = params(measure, county)
+    query.pop("start_date")
+    query.pop("end_date")
+    query["year"] = year
+    repository = Mock()
+    producer = Mock()
+    api = create_app(settings=settings(), observation_repository=repository)
+    api.state.observation_service = ObservationService(
+        repository, cdc_adapter=CDCObservationAdapter(settings(), producer)
+    )
+    response = TestClient(api).get("/v1/observations", params=query)
+    assert response.status_code == 400
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["code"] == "UNSUPPORTED_FILTER"
+    assert "start_date=end_date=2025-12-31" in response.json()["detail"]
+    assert response.headers["x-request-id"] == response.json()["request_id"]
+    repository.current_release.assert_not_called()
+    producer.assert_not_called()
+
+
+@pytest.mark.parametrize("measure", list(IDENTITIES))
+def test_wrong_cumulative_period_is_client_error(measure):
+    producer = Mock()
+    response = client(producer).get(
+        "/v1/observations", params={**params(measure), "start_date": "2025-12-30"}
+    )
+    assert response.status_code == 400
+    assert response.json()["code"] == "UNSUPPORTED_FILTER"
+    producer.assert_not_called()
+
+
+def test_invalid_cdc_requests_still_consume_public_rate_budget():
+    api = client(config=settings(public_rate_limit_per_minute=2))
     query = params()
     query.pop("start_date")
     query.pop("end_date")
-    query["year"] = 2025
-    assert client().get("/v1/observations", params=query).status_code == 503
+    query["year"] = 2023
+    for _ in range(2):
+        assert api.get("/v1/observations", params=query).status_code == 400
+    response = api.get("/v1/observations", params=query)
+    assert response.status_code == 429
+    assert response.json()["code"] == "RATE_LIMITED"
+    assert 1 <= int(response.headers["retry-after"]) <= 60
+    assert response.headers["cache-control"] == "no-store"
 
 
 @pytest.mark.parametrize(

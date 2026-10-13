@@ -1,5 +1,15 @@
 # Public Atlas API guide
 
+CDC publisher status uses a cumulative period, not annual sampling. For
+`scapularis_status` or `burgdorferi_status`, omit `year` and request
+`start_date=end_date=2025-12-31`. Another period or an annual selector returns
+400 `UNSUPPORTED_FILTER` before data access. Published counties require exact
+Data admission; no records remains unknown, never biological absence.
+
+```sh
+curl -fsS 'https://api.onehealthatlas.org/v1/observations?measure_id=burgdorferi_status&geography_type=county&geography_id=06001&start_date=2025-12-31&end_date=2025-12-31'
+```
+
 Base URL: `https://api.onehealthatlas.org`. The canonical public API is V1 and
 serves anonymous, read-only JSON without an API key. Collections have `data`,
 `meta`, and `links`; details have `data`. Errors are RFC 9457
