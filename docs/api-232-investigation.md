@@ -49,9 +49,23 @@ public bucket. Invalid requests consume budget. 429 RATE_LIMITED is generated
 before data access when minute or concurrency capacity is exhausted, with
 Retry-After1..60 and no-store. Existing concurrency tests and new invalid-CDC
 budget regression verify this independently. Sequential positive samples had
-zero429. 1,139 total GETs alone cannot prove a specific sliding-window/concurrency
-violation. Audit raw timestamps, attempt counts, concurrency and Retry-After are
-not attached to GitHub; exact attribution of historical429 remains unverified.
+zero429. The owner supplied the audit folder during investigation. Raw JSONL
+has1,139 attempts:260 HTTP200,13 HTTP404,753 HTML504 and113 HTTP429.
+All113429 are observation RATE_LIMITED Problem Details;111 are CDC attempts
+(pathogen62, tick49). CDC504 attempt counts: pathogen226, tick239; these are
+465 retry attempts, not192 final county/measure errors. The audit client is
+serial (no internal concurrency), waits0.2s between calls, retries504 twice
+with0.5/1s backoff and caps parsed Retry-After at30s. Rapid rejected annual
+requests plus retries can exceed public60/min. Public limiter bodies confirm
+the configured rate-or-concurrency guard rejected attempts; for this serial
+client minute exhaustion is the supported explanation, with other concurrent
+traffic sharing its IP also possible. Raw log retains neither timestamps nor
+Retry-After, so exact sliding-window reconstruction is unavailable. The30s
+cap does not honor a longer server Retry-After; header lookup also uses a
+case-sensitive dict. Follow-up: audit client must retain timings/headers,
+normalize header names, obey full Retry-After and pace admitted public calls
+below60/min including retries. This is audit tooling, not a reason to relax API
+limits. No audit files or another agent's working tree were modified.
 No limiter changes or intentional production saturation test were performed.
 
 ## Unresolved acceptance / release gates
@@ -102,3 +116,13 @@ in api-232-production-samples.json. No raw response logs, cookies or credentials
 | 25025 | burgdorferi_status | 200 | 7.438 | No records | NO_RECORDS | unknown |
 | 53033 | scapularis_status | 200 | 7.147 | No records | NO_RECORDS | unknown |
 | 53033 | burgdorferi_status | 200 | 6.852 | No records | NO_RECORDS | unknown |
+
+## Validation receipts
+
+Implementation e9e9108: local full958 passed (257.26s), focused66 passed;
+independent temporal/rate subset23 passed/33 deselected. Ruff/mypy passed,
+public and first-party OpenAPI export/drift/schema checks passed. Hosted
+quality38331842288 SUCCESS:950 passed/8 skipped;33 real Typst tests passed,
+production Docker build and asset verification passed; gitleaks no leaks.
+This documentation follow-up adds audit attribution and validation receipts;
+no implementation changed. Required coordinator/human/ingress gates remain.
