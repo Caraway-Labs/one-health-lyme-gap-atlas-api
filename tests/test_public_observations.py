@@ -175,7 +175,7 @@ def test_time_county_measure_and_strata_filters() -> None:
 
 
 def test_profile_values_remain_available_when_public_observations_are_not_published() -> None:
-    profile_only_measures = (
+    fixture_unpublished_measures = (
         "population_2022",
         "svi_percentile_2022",
         "uninsured_percent_2022",
@@ -257,7 +257,7 @@ def test_profile_values_remain_available_when_public_observations_are_not_publis
     assert profile.json()["uninsured_percent"] == 0
     assert profile.json()["rucc_2023"] == 2
 
-    for measure_id in profile_only_measures:
+    for measure_id in fixture_unpublished_measures:
         response = api.get(
             "/v1/observations",
             params=params(measure_id=measure_id),

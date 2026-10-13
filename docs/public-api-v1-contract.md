@@ -158,14 +158,28 @@ Data [#191](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/issue
 owns applicability and quality metadata semantics; its machine-readable
 consumer projection is Data [#194](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/issues/194).
 See `atlas-semantic-domain-v1.md` and `atlas-semantic-consumer-v1.schema.json`.
-#54 reads only `PRESENTATION.CURRENT_COUNTY_OBSERVATIONS_V`. The current release
-publishes `human_status`, `case_count_floor_2023`, and `incidence_floor_2023`,
-each for the inclusive 2023 calendar year. There is one period per county and
-measure; a date range returns every governed period it contains without
-implying historical periods. No strata are currently governed. Unknown
-denominators and methodology resource IDs remain null; the response preserves
-the available source key, URL, vintage, retrieval time, method text and versions,
-and limitations. The observation ID is the stable compact provenance reference.
+The canonical county-observation adapter from API #54 reads only
+`PRESENTATION.CURRENT_COUNTY_OBSERVATIONS_V`. The current Data
+V138 projection retains `human_status`, `case_count_floor_2023`, and
+`incidence_floor_2023` for the inclusive 2023 calendar year, and adds seven
+bounded NLCD 2025 county measures for FIPS `09110` and `51013`:
+`nlcd_forest_area_share_county_year`,
+`nlcd_developed_area_share_county_year`,
+`nlcd_agriculture_area_share_county_year`,
+`nlcd_wetland_area_share_county_year`,
+`nlcd_open_water_area_share_county_year`,
+`nlcd_mean_impervious_fraction_county_year`, and
+`nlcd_changed_area_share_county_year`. The NLCD view branch pins its reviewed
+contract, source tuple, transformation, geography, period, and 14-row cohort.
+SVI and RUCC remain outside the view pending a reviewed public temporal/API
+contract for ACS `PERIOD` and RUCC `VINTAGE_YEAR` semantics. There is one period
+per county and measure; a date range returns every governed period it contains
+without implying historical periods. No strata are currently governed.
+Unknown denominators and methodology resource IDs remain null; the response
+preserves the available source key, URL, vintage, retrieval time, method text
+and versions, and limitations. The observation ID is the stable compact
+provenance reference. See Data migration V138 for the current projection
+allowlist.
 It must preserve future
 applicability and completeness/quality semantics separately when supplied by the
 governed layer and must not fabricate either dimension.
@@ -177,9 +191,9 @@ particular, `population`, `svi_percentile`, `uninsured_percentile`,
 observation row in `CURRENT_COUNTY_OBSERVATIONS_V`. The observation adapter
 does not fall back to the profile view. Data source-mapping and release
 evidence establish separate SVI and RUCC source-native semantic observations,
-but the current public view deliberately excludes them. It publishes only
-`human_status`, `case_count_floor_2023`, and `incidence_floor_2023` as annual
-2023 county observations. SVI fields describe the 2018–2022 ACS period, while
+but the current V138 public view excludes them. It publishes the three annual
+2023 human observations and seven bounded NLCD 2025 measures for two counties.
+SVI fields describe the 2018–2022 ACS period, while
 RUCC is a 2023 codebook vintage; neither can be relabeled as an annual value.
 A measure catalog entry describes a measure but does not assert that every
 geography or period has a published public observation. See the bounded API
