@@ -317,7 +317,7 @@ class CountyDetail(CountyScoreSummary):
 
 
 class ProblemDetails(BaseModel):
-    """RFC 9457 error. Canonical public resources add stable code; legacy routes may omit it."""
+    """RFC 9457 error. Stable codes are included when the response contract defines one."""
 
     type: str
     title: str

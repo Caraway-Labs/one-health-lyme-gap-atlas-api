@@ -74,7 +74,7 @@ PROBLEMS: dict[int | str, dict[str, Any]] = {
         },
     },
     503: {
-        "description": "Canonical data service unavailable; application/problem+json",
+        "description": "Service unavailable; application/problem+json",
         "content": {
             "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
         },
@@ -87,7 +87,7 @@ for _status, _code in {
     429: "RATE_LIMITED",
     413: "INVALID_REQUEST",
     414: "INVALID_REQUEST",
-    503: None,
+    503: "SERVICE_UNAVAILABLE",
 }.items():
     _documented = problem_response(_status, _code, str(PROBLEMS[_status]["description"]))
     PROBLEMS[_status]["content"] = _documented["content"]

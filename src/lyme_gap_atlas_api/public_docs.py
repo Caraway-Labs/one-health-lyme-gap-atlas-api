@@ -110,7 +110,7 @@ LEGACY_ERRORS: dict[int | str, dict[str, Any]] = {
     404: problem_response(404, None, "County or dataset release not found."),
     422: problem_response(422, None, "One or more request values are invalid."),
     429: problem_response(429, None, "Rate limit exceeded."),
-    503: problem_response(503, None, "Atlas data service is unavailable."),
+    503: problem_response(503, "SERVICE_UNAVAILABLE", "Atlas data service is unavailable."),
 }
 
 EMPTY_COLLECTION_EXAMPLE = {

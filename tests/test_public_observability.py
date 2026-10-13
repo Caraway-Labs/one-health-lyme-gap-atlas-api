@@ -15,6 +15,8 @@ def test_public_request_log_uses_route_template(caplog, monkeypatch) -> None:
     api = TestClient(create_app(settings=ApiSettings()))
     response = api.get("/v1/geographies/county/01001")
     assert response.status_code == 503
+    assert response.json()["code"] == "CANONICAL_DATA_UNAVAILABLE"
+    assert response.headers["x-request-id"] == response.json()["request_id"]
     events = [record.context for record in caplog.records if record.msg == "api_request_completed"]
     assert events[-1]["path"] == "/v1/geographies/{geography_type}/{geography_id}"
     assert "01001" not in str(events[-1])

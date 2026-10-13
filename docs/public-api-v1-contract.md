@@ -253,8 +253,11 @@ history and App Platform CPU/memory alerts supply backend pressure evidence.
 
 Public errors use RFC 9457 `application/problem+json` with stable `code`:
 `INVALID_REQUEST`, `RESOURCE_NOT_FOUND`, `UNSUPPORTED_FILTER`,
-`UNSUPPORTED_STRATIFICATION`, `QUERY_TOO_BROAD`. Existing error infrastructure
-is reused. `CANONICAL_DATA_UNAVAILABLE` denotes the #52 contract-only handlers.
+`UNSUPPORTED_STRATIFICATION`, `QUERY_TOO_BROAD`, or `SERVICE_UNAVAILABLE`.
+`CANONICAL_DATA_UNAVAILABLE` remains the more specific code for pending
+canonical geography delivery. A stable application error body does not imply
+that a hosting provider's ingress preserves origin 5xx responses; verify that
+separately through each public hostname.
 The first four client errors require the appropriate downstream service to
 classify semantics; #52 already enforces request shape and breadth.
 
