@@ -13,7 +13,7 @@ timeout as the cause of those samples.
 The tracked `.do/app.yaml` routes the service on port 8080 and sets 5-second
 health-check timeouts; those health-check values do not govern observation
 requests. It has no custom error page or ingress error-handling override. The
-current DigitalOcean App Spec documents ingress rules for path/authority
+published DigitalOcean App Spec documents ingress rules for path/authority
 matching, component routing, path rewrites, redirects, and CORS. It documents
 `custom_error_page_url` as an HTML page embedded when the app is unreachable,
 not as an origin-response passthrough. It does not document a control for
@@ -36,9 +36,10 @@ Other documented settings do not establish a safe response-fidelity fix:
   unreachable. HTML in an iframe cannot satisfy an API JSON response contract.
 
 Account-level provider configuration is outside this repository and was not
-changed or verified here. No documented, supported existing-topology setting
-currently establishes origin 5xx passthrough. Obtain provider confirmation of
-a supported control. If none exists, the minimum owner decision is to approve
+changed or verified here. No origin 5xx passthrough control is documented in
+the public App Spec. That does not establish whether a provider-managed
+control exists outside the published spec. Obtain provider confirmation of a
+supported control. If none exists, the minimum owner decision is to approve
 or reject a topology/contract change that can preserve HTTP semantics; do not
 invent an App Spec property or disguise unavailable results as successful.
 
@@ -59,9 +60,11 @@ changes.
 
 Failure-mode tests cover the origin contracts and ensure the existing CDC
 acceptance probe rejects an ingress 504 even when `x-do-orig-status` reports
-503. The probe reports status, content type, and origin-status metadata but
-never prints an HTML error page. These tests verify the application and probe;
-they do not demonstrate that production ingress has been corrected.
+503. The probe also rejects missing/wrong unavailable codes and absent or
+mismatched body/header request IDs. It reports status, content type, request ID,
+and origin-status metadata but never prints an HTML error page. These tests
+verify the application and probe; they do not demonstrate that production
+ingress has been corrected.
 
 ## Remaining approval and production gates
 
@@ -70,6 +73,36 @@ origin-error pass-through control, or the owner to record an approved
 topology/contract decision. If neither exists, the owner must decide how to
 proceed without falsifying HTTP semantics. Do not add an undocumented App Spec
 field or deploy an alternate proxy as a workaround.
+
+### Draft provider evidence packet
+
+The following text is prepared for the owner to send to DigitalOcean. No
+support request was sent by this task.
+
+> **Subject:** App Platform origin 503 is returned as HTML 504
+>
+> App/service: Atlas API, `api` service, SFO; active deployment
+> `7d618471-6f09-40b8-8f76-7599fd563c82`, source
+> `5674a0f28a48b45015e48d3a005143d32fd27179`.
+>
+> A completed origin 503 for
+> `GET /v1/observations?measure_id=scapularis_status&geography_type=county&geography_id=02122&start_date=2025-12-31&end_date=2025-12-31`
+> was returned by both public hostnames as HTML 504 with
+> `x-do-orig-status: 503`: `api.onehealthatlas.org` request
+> `69426fb9-9694-42f2-a28e-1817b3f88ccb` (6.364 s), and
+> `api.carawaylabs.com` request `4111fa69-f41e-4b6f-a567-1dcfa4f5a239`
+> (6.811 s). Earlier correlated application logs recorded the same class of
+> legitimate origin 503 in 5–6 ms, excluding a request-duration timeout for
+> those samples.
+>
+> Does App Platform or its managed ingress have a supported per-app or
+> account-level setting to preserve origin status 503, the
+> `application/problem+json` content type/body, request-correlation header,
+> and applicable `Retry-After`? Does `disable_edge_cache` affect this
+> response-substitution behavior beyond the documented CDN-cache behavior?
+> Please identify the exact supported control and rollback procedure, or
+> confirm none is available to this account. We will verify any approved
+> setting against both hostnames using read-only requests before accepting it.
 
 After that decision and any separately approved provider change, run the
 read-only negative and healthy-control requests against both public hostnames.

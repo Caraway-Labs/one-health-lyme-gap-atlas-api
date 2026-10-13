@@ -80,6 +80,9 @@ def main() -> None:
         assert unsupported.headers["content-type"].split(";")[0] == "application/problem+json"
         problem = unsupported.json()
         assert problem["status"] == 503
+        assert problem.get("code") == "SERVICE_UNAVAILABLE"
+        assert problem.get("request_id")
+        assert unsupported.headers.get("x-request-id") == problem["request_id"]
         assert problem["detail"] == "The governed Atlas data service is temporarily unavailable."
         assert "surveillance_context" not in unsupported.text
         assert not any(

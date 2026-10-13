@@ -95,6 +95,15 @@ for _status, _code in {
         PROBLEMS[_status]["headers"] = _documented["headers"]
 PROBLEMS[200] = {"description": "Successful current-release resource."}
 
+CANONICAL_GEOGRAPHY_PROBLEMS = {
+    **PROBLEMS,
+    503: problem_response(
+        503,
+        "CANONICAL_DATA_UNAVAILABLE",
+        "Canonical data delivery is not yet available.",
+    ),
+}
+
 
 DETAIL_RESPONSES = {
     **PROBLEMS,
@@ -319,7 +328,7 @@ def methodology(
 @router.get(
     "/v1/geographies/{geography_type}/{geography_id}",
     response_model=ResourceEnvelope[Geography],
-    responses=PROBLEMS,
+    responses=CANONICAL_GEOGRAPHY_PROBLEMS,
     operation_id="geography_v1_geographies__geography_type___geography_id__get",
     tags=["geographies"],
     summary="Get geography identity (delivery pending)",

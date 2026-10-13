@@ -1791,7 +1791,7 @@
             }
           },
           "503": {
-            "description": "Service unavailable; application/problem+json",
+            "description": "Canonical data delivery is not yet available.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1804,10 +1804,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Service unavailable; application/problem+json",
+                      "detail": "Canonical data delivery is not yet available.",
                       "instance": "/v1/observations",
                       "request_id": "example-request-id",
-                      "code": "SERVICE_UNAVAILABLE"
+                      "code": "CANONICAL_DATA_UNAVAILABLE"
                     }
                   }
                 }

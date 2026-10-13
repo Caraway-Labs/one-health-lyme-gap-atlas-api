@@ -47,6 +47,17 @@ def test_public_metadata_and_stable_operation_ids() -> None:
         assert name not in models
 
 
+def test_pending_geography_openapi_error_matches_specific_runtime_code() -> None:
+    schema = create_app(settings=ApiSettings()).openapi()
+    response = schema["paths"]["/v1/geographies/{geography_type}/{geography_id}"]["get"][
+        "responses"
+    ]["503"]
+    example = response["content"]["application/problem+json"]["examples"]["illustrative"][
+        "value"
+    ]
+    assert example["code"] == "CANONICAL_DATA_UNAVAILABLE"
+
+
 def test_internal_product_routes_remain_registered_and_callable() -> None:
     app = create_app(settings=ApiSettings(knowledge_chat_enabled=False))
     paths = {getattr(route, "path", "") for route in app.routes}
