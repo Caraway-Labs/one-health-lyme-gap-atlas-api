@@ -7,11 +7,12 @@ from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
+from lyme_gap_atlas_api.models import AtlasMetadata, CountyRecord, SourceMetadata
 from lyme_gap_atlas_api.public_observations import (
     ObservationService,
     SnowflakeObservationRepository,
 )
-from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
+from lyme_gap_atlas_api.repository import AtlasDataUnavailableError, Snapshot
 
 
 def row(fips: str, value: str | None, state: str, measure: str = "case_count_floor_2023") -> tuple:
@@ -171,6 +172,99 @@ def test_time_county_measure_and_strata_filters() -> None:
         assert response.status_code == status_code
         assert response.headers["content-type"] == "application/problem+json"
         assert response.json()["code"] == code
+
+
+def test_profile_values_remain_available_when_public_observations_are_not_published() -> None:
+    fixture_unpublished_measures = (
+        "population_2022",
+        "svi_percentile_2022",
+        "uninsured_percent_2022",
+        "uninsured_percentile_2022",
+        "rucc_2023",
+    )
+
+    class ProfileRepository:
+        def ready(self) -> bool:
+            return True
+
+        def load_snapshot(self) -> Snapshot:
+            metadata = AtlasMetadata(
+                release_id="release-1",
+                schema_version="1.0.0",
+                generated_at=datetime(2026, 10, 1, tzinfo=UTC),
+                loaded_at=datetime(2026, 10, 1, tzinfo=UTC),
+                scope="United States counties",
+                bundle_sha256="a" * 64,
+                score_defaults={},
+                methodology_version="method-v1",
+                limitations="Context only.",
+                sources=[
+                    SourceMetadata(
+                        key="context_svi",
+                        label="CDC/ATSDR SVI",
+                        vintage="2022 (2018-2022 ACS)",
+                        url="https://example.org/svi",
+                        note="Context only.",
+                    )
+                ],
+                states=[{"code": "AL", "name": "Alabama"}],
+            )
+            county = CountyRecord(
+                release_id="release-1",
+                fips="01001",
+                county="Autauga",
+                state="AL",
+                state_name="Alabama",
+                population=0,
+                in_contiguous_tick_scope=False,
+                human_status="no_county_linked_record",
+                case_count_floor_2023=None,
+                incidence_floor_2023=None,
+                state_unallocated_records_2023=None,
+                tick_status="Unknown",
+                scapularis_status=None,
+                pacificus_status=None,
+                burgdorferi_status="Unknown",
+                svi_percentile=0.0,
+                uninsured_percentile=0.0,
+                uninsured_percent=0.0,
+                rucc_2023=2,
+                evidence_completeness=0.0,
+                geometry={"type": "Polygon", "coordinates": []},
+            )
+            return Snapshot(metadata=metadata, counties=[county])
+
+    class UnpublishedObservationRepository(FixtureRepository):
+        def measure_exists(self, measure_id: str, release: str) -> bool:
+            assert release == self.release
+            return False
+
+        def query(self, query, release: str, offset: int) -> list[tuple]:
+            raise AssertionError("a measure without canonical rows must not be queried")
+
+    api = TestClient(
+        create_app(
+            settings=ApiSettings(),
+            repository=ProfileRepository(),
+            observation_repository=UnpublishedObservationRepository(),
+        )
+    )
+    profile = api.get("/v1/counties/01001")
+    assert profile.status_code == 200
+    assert profile.json()["population"] == 0
+    assert profile.json()["svi_percentile"] == 0
+    assert profile.json()["uninsured_percentile"] == 0
+    assert profile.json()["uninsured_percent"] == 0
+    assert profile.json()["rucc_2023"] == 2
+
+    for measure_id in fixture_unpublished_measures:
+        response = api.get(
+            "/v1/observations",
+            params=params(measure_id=measure_id),
+        )
+        assert response.status_code == 404
+        assert response.headers["content-type"] == "application/problem+json"
+        assert response.json()["code"] == "RESOURCE_NOT_FOUND"
 
 
 def test_repository_only_queries_projection_with_bound_parameters(monkeypatch) -> None:
