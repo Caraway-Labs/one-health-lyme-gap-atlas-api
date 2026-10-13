@@ -1,77 +1,87 @@
 # API #233 observation availability investigation
 
-Status: contract and adapter review only; production catalog, provenance, and
-reader verification are blocked by unavailable network access from this
-environment. No canonical source evidence was available to authorize an
-adapter change. This document does not claim that the live catalog or current
-production projection has been queried.
+## Finding
 
-## Evidence and adapter boundary
+The reports are not evidence of a missing SVI/RUCC source-admission decision
+or a SQL adapter defect. The public API's 404 is caused by a deliberate
+publication boundary: accepted SVI and RUCC measures have source-native
+semantic observations in the retained county release, but Data V127's public
+county-observation view explicitly allows only three 2023 human measures.
+County-profile fields are a separate projection of the same release and are
+not sufficient by themselves to manufacture canonical observations.
 
-The county detail adapter reads `CURRENT_COUNTY_ATLAS_V` and exposes summary
-fields including population, SVI percentile, uninsured percentage/percentile,
-and 2023 RUCC. The canonical observation repository reads only
-`CURRENT_COUNTY_OBSERVATIONS_V`; its SQL binds measure, county FIPS, requested
-period, and current release. The API does not join the profile view into an
-observation. The observation contract documents the currently published
-human-status, case-count-floor, and incidence-floor measures. These repository
-contracts show that profile values alone do not prove an observation-reader
-defect. The listed measures require source-native canonical records plus
-period, value-state, and release/provenance evidence before a serving fix can
-be justified.
+The public view's omission is intentional under the current temporal contract.
+It maps annual periods only. SVI population/percentiles/insurance refer to the
+ACS 2018–2022 survey period; RUCC is a 2023 codebook vintage, not an annual
+observation. The user's `year=2022` SVI query is also the wrong selector for
+that multi-year period. However, correcting only the request year cannot
+resolve the 404: these measures are absent from the published view for every
+year. The RUCC `year=2023` request would misstate a codebook vintage as a
+calendar-year observation.
 
-## Evidence-based availability matrix
+## Availability and vintage matrix
 
-| Measure/field | Profile representation in API code | Canonical observation evidence in this checkout | Assessment / query caveat |
-| --- | --- | --- | --- |
-| `population_2022` / `population` | `population` on county detail | No matching source-native observation fixture or producer contract found | Profile presence alone is insufficient. Verify catalog/provenance and governed period; do not assume 2022 from the identifier. |
-| `svi_percentile_2022` / `svi_percentile` | `svi_percentile` on county detail | No matching source-native observation fixture or producer contract found | Profile presence alone is insufficient. SVI 2022 display geometry does not establish an observation. |
-| `uninsured_percent_2022` / `uninsured_percent` | `uninsured_percent` on county detail | No matching source-native observation fixture or producer contract found | Profile presence alone is insufficient. Preserve publisher scale, denominator, and vintage if/when governed. |
-| `uninsured_percentile_2022` / `uninsured_percentile` | `uninsured_percentile` on county detail | No matching source-native observation fixture or producer contract found | Profile presence alone is insufficient. Preserve percentile universe and vintage if/when governed. |
-| `rucc_2023` | `rucc_2023` on county detail | No matching source-native observation fixture or producer contract found | Profile presence alone is insufficient. Verify actual period/vintage and coding method. |
-| `state_unallocated_records_2023` | County response field (semantically state-scoped per issue) | No per-county observation contract or source-native record evidence found | Do not publish as county observations; state scope needs an approved distinct contract. |
-| `pacificus_status` | County response field | Existing CDC observation identity is not part of the two-measure API #88 admission | Do not widen CDC source/measure admission based on these audit rows. |
+| Measure | Source/semantic status | Retained release evidence | County-profile field | Public observation view/API status | Correct temporal semantics / next action |
+| --- | --- | --- | --- | --- | --- |
+| `population_2022` | CDC/ATSDR SVI 2022 accepted source; `E_TOTPOP` → `population_2022` mapping is `EXISTING_REUSED` | Human-run PROD evidence for release `governed-2026-09-18-unknown-coverage`: 3,144 `OBSERVED`; same SVI source version/run/artifact is listed in the 2026-10-06 release manifest. This is retained evidence, not a new query of the 2026-10-06 release. | `population` | Profile is reported in the issue audit; API observation 404 follows V127's allowlist omission. | ACS estimate period 2018-01-01 through 2022-12-31; use an explicit `PERIOD` representation and date-range selector. Data/API owners must govern projection and public exposure. |
+| `svi_percentile_2022` | CDC/ATSDR SVI 2022 accepted source; `RPL_THEMES` → `svi_percentile_2022`, percentile 0–1 | Same retained PROD evidence: 3,143 `OBSERVED`, 1 `ZERO`; same source tuple in 2026-10-06 manifest. | `svi_percentile` | Profile is reported in all 300 audit counties; not projected by V127. | ACS 2018–2022 `PERIOD`; preserve national county percentile meaning and zero. Do not query as a single 2022 annual observation. |
+| `uninsured_percentile_2022` | CDC/ATSDR SVI 2022 accepted source; `EPL_UNINSUR` → `uninsured_percentile_2022`, distinct from percent | Same retained PROD evidence: 3,143 `OBSERVED`, 1 `ZERO`; same source tuple in 2026-10-06 manifest. | `uninsured_percentile` | Not projected by V127. | ACS 2018–2022 `PERIOD`; retain percentile reference population and zero. |
+| `uninsured_percent_2022` | CDC/ATSDR SVI 2022 accepted source; `EP_UNINSUR` → `uninsured_percent_2022`, percent of civilian noninstitutionalized population | Same retained PROD evidence: 3,143 `OBSERVED`, 1 `ZERO`; same source tuple in 2026-10-06 manifest. | `uninsured_percent` | Profile is reported in all 300 audit counties; not projected by V127. | ACS 2018–2022 `PERIOD`; preserve its civilian noninstitutionalized denominator, distinct from `E_TOTPOP`. |
+| `rucc_2023` | USDA ERS RUCC 2023 accepted source; `RUCC_2023` attribute mapping exists. Reviewed semantic v2 uses `VINTAGE_YEAR`. | Human-run PROD evidence for release `governed-2026-09-18-unknown-coverage`: 3,144 `OBSERVED`; same RUCC source version/run/artifact is listed in the 2026-10-06 release manifest. This is retained evidence, not a new query of the 2026-10-06 release. | `rucc_2023` | Profile is reported in all 300 audit counties; not projected by V127. | `VINTAGE_YEAR=2023`; never encode as a 2023 annual period or invent a day. Requires a reviewed additive public temporal representation. |
+| `state_unallocated_records_2023` | County release slot, but state-scoped meaning; not a county-native observation admission | No county-native measure contract in the V127 view. | Present on county profile | Do not promise as a county observation. | Requires a separately reviewed state-grain semantic/API contract, not a county adapter extension. |
+| `pacificus_status` | Tick source field, but API #88's observation admission is limited to its reviewed measure identities | Current API #88 contract admits `scapularis_status` and `burgdorferi_status`; it does not admit `pacificus_status`. | Present on county profile | Not a currently admitted canonical CDC measure. | Do not widen the CDC allowlist from audit failures; source/measure admission needs its existing owner decision. |
 
-“No evidence in this checkout” is not proof that a production catalog entry or
-producer row does not exist. A catalog entry alone also does not prove a row is
-available for a requested county and period. At this stage no adapter defect
-has been demonstrated, and no admission or query mapping is changed.
+The SVI/RUCC source contracts and historical release evidence are in Data
+commit [`93085a2`](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/tree/93085a246b7962a9bad1a3f095fb5630bdc1f08d):
+[source-mapping matrix](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/blob/93085a246b7962a9bad1a3f095fb5630bdc1f08d/docs/contracts/semantic-domain/story-192-source-mapping-matrix-2026-09-24.md),
+[V127 observation projection contract](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/blob/93085a246b7962a9bad1a3f095fb5630bdc1f08d/docs/contracts/semantic-release/current-county-observations-v1.md),
+[DATA #199/#200 PROD reconciliation](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/blob/93085a246b7962a9bad1a3f095fb5630bdc1f08d/docs/contracts/semantic-domain/data-199-200-prod-authority-reconciliation-2026-10-03.md),
+[reviewed metadata handoff](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/blob/93085a246b7962a9bad1a3f095fb5630bdc1f08d/docs/contracts/semantic-domain/data-199-200-metadata-review-handoff-2026-10-04.md),
+and the [2026-10-06 release manifest](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/blob/93085a246b7962a9bad1a3f095fb5630bdc1f08d/docs/contracts/semantic-release/governed-2026-10-06-nlcd-demo-cohort-manifest.json).
+The historical PROD counts are operator-run, read-only evidence for the pinned
+2026-09-18 release. The newer manifest shows the same approved source tuples
+in a later release; it is not itself a fresh per-measure aggregate or API
+response. The issue's 300-county audit summary is separately owner-supplied;
+its raw CSV/JSONL were not attached and were not independently inspected here.
 
-Additional retained audit summary supplied for this investigation reports that
-a 300-county audit found SVI, uninsured percentage, and RUCC in all 300 county
-profiles but marked them `NOT_EXPOSED` through observations in all 300. It also
-reports 19,200 result rows over 927 requests, no cross-endpoint mismatches in
-that sample, and separate geography-gateway and observation-publication
-defects. This is owner-supplied audit evidence, not a fresh reproduction; the
-raw CSV/JSONL/summary are not attached here and the linked workbook was not
-independently inspected in this environment. It strengthens the profile-only
-classification but does not establish source-native observation rows or their
-contractual periods/provenance. Population remains separately unverified in
-the available checkout. The same summary reports 92/300 incidence observations
-and 179/300 tick plus 86/300 pathogen evidence results, with corresponding
-missing/NO_DATA states and timeouts; those are outside this scoped adapter
-review. Score/completeness have distinct retired-model lineage and
-unpublished-method caveats and are also out of scope.
+All five #191 metadata envelopes remain `INTERNAL` in the reviewed packet.
+The Data #194 consumer contract says a reviewed `CONSUMER_SAFE` or `PUBLIC`
+classification is necessary but never by itself grants HTTP publication. Data
+#194 and API #52/#53 coordination own any later approved consumer projection
+and discovery/API contract. The exact next action is for the Data semantic
+release/publication owner and API contract owner to approve a bounded V127 (or
+successor) projection with SVI `PERIOD` and RUCC `VINTAGE_YEAR` semantics,
+then review whether/how these measures transition from `INTERNAL` to
+consumer-safe/public visibility. Until that decision and least-privilege
+presentation view exist, API #233 should report intentional public
+non-exposure, not add a profile fallback. The upstream source registrations
+and observations already exist; source-admission change is not the needed
+action.
 
-## Regression guard
+## API contract and regression boundary
 
-`tests/test_public_observations.py` covers the canonical read boundary: an
-unknown measure is a typed 404, while admitted rows preserve observed, zero,
-and missing states, requested geography, period, release, and provenance. The
-measure-presence probe uses the canonical observation projection and does not
-read county-profile fields. This is a repository-level regression check, not a
-production observation or UAT result.
+The observation repository probes and queries only
+`PRESENTATION.CURRENT_COUNTY_OBSERVATIONS_V`. Its SQL has no county-profile
+fallback. V127's contract allows `human_status`, `case_count_floor_2023`, and
+`incidence_floor_2023` only, with annual 2023 periods. The API measure catalog
+may describe known measure metadata; catalog membership does not assert public
+observation availability. A 404 from the observation endpoint is therefore
+the expected result when the requested measure has no row in the current
+public observation view.
 
-## Remaining gates
+The public V1 observation model currently requires a start/end period. It can
+represent the SVI survey window with the exact dates once a governed public
+projection exists. RUCC needs an additive, explicit vintage-year semantic; a
+calendar-year date pair would be false precision. Any public schema/view
+extension needs OpenAPI, compatibility, and Web client review. No adapter SQL,
+source admission, or public contract change is made in this evidence update.
 
-Complete the requested measure-by-measure validation against the current
-production measure catalog, canonical view/provenance, exact valid periods,
-and the least-privilege production reader. Compare profile and observation
-releases without treating profile values as proof of publication. Record
-representative positive, null, unsupported, wrong-vintage, and valid-vintage
-responses with sanitized provenance. If canonical rows exist and the current
-reader misses them, add a bounded adapter fix and regression fixture that
-preserves valid zero, missing state, geography, and release lineage. If the
-producer lacks those rows, keep them unavailable and resolve discovery
-metadata semantics through the governed data owner. Production credentials,
-service role grants, source admission, and production mutation were not used.
+## Remaining production gate
+
+The original task requested a live production verification. This environment
+could not reach the public API or GitHub REST/GraphQL through its network proxy,
+so no fresh catalog, source view, production reader, or HTTP response was
+queried. Existing retained evidence establishes approved source tuples and
+historical semantic rows, but not the live API's exact current release response
+or whether a new public temporal contract has been approved. Do not claim
+production UAT from fixtures or manifests.
