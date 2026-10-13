@@ -69,18 +69,38 @@ for that same release/bundle. These establish the governed release promotion,
 not a public API view publication or current-head HTTP check.
 
 All five #191 metadata envelopes remain `INTERNAL` in the reviewed packet.
-The Data #194 consumer contract says a reviewed `CONSUMER_SAFE` or `PUBLIC`
-classification is necessary but never by itself grants HTTP publication. Data
-#194 and API #52/#53 coordination own any later approved consumer projection
-and discovery/API contract. The exact next action is for the Data semantic
-release/publication owner and API contract owner to approve a bounded V127 (or
-successor) projection with SVI `PERIOD` and RUCC `VINTAGE_YEAR` semantics,
-then review whether/how these measures transition from `INTERNAL` to
-consumer-safe/public visibility. Until that decision and least-privilege
-presentation view exist, API #233 should report intentional public
-non-exposure, not add a profile fallback. The upstream source registrations
-and observations already exist; source-admission change is not the needed
-action.
+Here `INTERNAL` means the measure is restricted to internal governed
+consumption: it is not eligible for `project_consumer()` or HTTP publication.
+The Data #194 consumer contract requires reviewed `CONSUMER_SAFE` lineage and
+`CONSUMER_SAFE` or `PUBLIC` metadata; classification alone never grants HTTP
+publication.
+
+### Smallest bounded publication proposal (for owner decision)
+
+Ask the Data semantic release/publication owner and API contract owner to
+decide whether to publish exactly these existing measures, without changing
+source admission:
+
+| Measure | Existing source identity | Proposed time representation |
+| --- | --- | --- |
+| `population_2022` | `cdc_atsdr_svi`; dataset `atsdr-svi-2022-county-layer`; `E_TOTPOP`; SVI 2022 | `PERIOD` 2018-01-01 through 2022-12-31 |
+| `svi_percentile_2022` | `cdc_atsdr_svi`; dataset `atsdr-svi-2022-county-layer`; `RPL_THEMES`; SVI 2022 | Same `PERIOD` |
+| `uninsured_percent_2022` | `cdc_atsdr_svi`; dataset `atsdr-svi-2022-county-layer`; `EP_UNINSUR`; SVI 2022 | Same `PERIOD` |
+| `uninsured_percentile_2022` | `cdc_atsdr_svi`; dataset `atsdr-svi-2022-county-layer`; `EPL_UNINSUR`; SVI 2022 | Same `PERIOD` |
+| `rucc_2023` | `usda_ers`; dataset `rural-urban-continuum-codes-2023`; `RUCC_2023`; RUCC 2023 | `VINTAGE_YEAR=2023`, never an annual date interval |
+
+The Data owners would approve consumer-safe/public visibility and a narrowly
+allowlisted successor presentation view over already retained canonical
+observations, preserving the source version, run, artifact, source record,
+county FIPS, value (including valid zero), and status. The API owners would
+approve discovery and an additive contract that represents SVI's date range
+and RUCC's vintage year explicitly, then adapt only to that view. The source
+records and approved source registrations already exist, so this proposal
+requires no new ingestion or source admission; it does require the human
+publication and temporal-contract decisions above. Until those decisions and
+the view exist, keep the current 404 behavior and do not read profile values
+as observations. Data #194 and API #52/#53 are the coordination path; this
+proposal does not assert that the owners have approved it.
 
 ## API contract and regression boundary
 
