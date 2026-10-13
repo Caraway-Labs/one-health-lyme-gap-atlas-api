@@ -2733,7 +2733,7 @@
           "observations"
         ],
         "summary": "Query county observations",
-        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. Surveillance context is optional and requires an admitted Data delivery; normalized_state preserves Data semantics and the publisher value remains value. Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; only scapularis_status/13081 and burgdorferi_status/19135,12047 are admitted. Missing context does not establish absence or temporal comparability. A measure and bounded county/time selection are required; no user sorting or aggregation.",
+        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. Surveillance context is optional and requires an admitted Data delivery; normalized_state preserves Data semantics and the publisher value remains value. Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; scapularis_status and burgdorferi_status require exact Data record admission. Annual year and other date ranges return 400 UNSUPPORTED_FILTER before data access. Missing context does not establish absence or temporal comparability. A measure and bounded county/time selection are required; no user sorting or aggregation.",
         "operationId": "observations_v1_observations_get",
         "parameters": [
           {
@@ -2795,13 +2795,13 @@
                   "type": "null"
                 }
               ],
-              "description": "Year or complete date range, not both; current published year is 2023.",
+              "description": "Annual year or complete date range, not both. CDC cumulative status rejects year; use start_date=end_date=2025-12-31.",
               "examples": [
                 2023
               ],
               "title": "Year"
             },
-            "description": "Year or complete date range, not both; current published year is 2023."
+            "description": "Annual year or complete date range, not both. CDC cumulative status rejects year; use start_date=end_date=2025-12-31."
           },
           {
             "name": "start_date",

@@ -1,5 +1,15 @@
 # Public Atlas API guide
 
+CDC publisher status uses a cumulative period, not annual sampling. For
+`scapularis_status` or `burgdorferi_status`, omit `year` and request
+`start_date=end_date=2025-12-31`. Another period or an annual selector returns
+400 `UNSUPPORTED_FILTER` before data access. Published counties require exact
+Data admission; no records remains unknown, never biological absence.
+
+```sh
+curl -fsS 'https://api.onehealthatlas.org/v1/observations?measure_id=burgdorferi_status&geography_type=county&geography_id=06001&start_date=2025-12-31&end_date=2025-12-31'
+```
+
 Base URL: `https://api.onehealthatlas.org`. The canonical public API is V1 and
 serves anonymous, read-only JSON without an API key. Collections have `data`,
 `meta`, and `links`; details have `data`. Errors are RFC 9457
@@ -31,8 +41,9 @@ incidence. Discovery may include measures without published county rows.
 County FIPS must be five-character strings, preserving leading zeros.
 
 Compare counties by repeating `geography_id`; use either `year` or a complete
-`start_date`/`end_date` pair. The currently published county observations
-contain **only the annual 2023 period**. A date range selects available periods;
+`start_date`/`end_date` pair for the human-surveillance measure shown here.
+Its published county observations contain **only the annual 2023 period**.
+CDC status uses the cumulative period described above. A date range selects available periods;
 it does not imply historical depth. No strata are governed in this release.
 
 ```sh
@@ -109,6 +120,7 @@ Read `value_state` with `value` and `unit`:
 | `SUPPRESSED` | Value withheld under source or governance rules; do not infer it. |
 | `UNAVAILABLE` | Value unavailable; do not infer zero. |
 | `NO_COUNTY_LINKED_RECORD` | Literal `no_county_linked_record`; no linked record is not evidence of absence. |
+| `NO_RECORDS` | CDC publisher `No records`; normalized state is unknown, never biological absence or a sampled negative. |
 
 These are the public schema states; not every measure exhibits each one.
 The API does not coerce other internal states into this enum. A published
@@ -119,7 +131,7 @@ or individual risk estimate.
 
 | Field | Meaning |
 | --- | --- |
-| `period_start`, `period_end` | Observation period, presently annual 2023. |
+| `period_start`, `period_end` | Measure-specific observation period: annual 2023 for the human-surveillance example; cumulative through 2025-12-31 for CDC status. |
 | `source_published_at`, source `upstream_updated_at` | Upstream publication or update time when governed. |
 | `atlas_acquired_at`, source `source_retrieved_at` | Atlas acquisition or source retrieval time when governed. |
 | `atlas_processed_at` | Atlas processing time when governed. |

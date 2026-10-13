@@ -6,6 +6,9 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from lyme_gap_atlas_api.cdc_surveillance import IDENTITIES, PERIOD
+from lyme_gap_atlas_api.public_contract import ValueState
+
 ROOT = Path(__file__).resolve().parents[1]
 GUIDE = (ROOT / "docs/public-api-guide.md").read_text(encoding="utf-8")
 SCHEMA = json.loads((ROOT / "openapi.json").read_text(encoding="utf-8"))
@@ -35,3 +38,16 @@ def test_python_example_is_valid_and_uses_documented_query() -> None:
     ast.parse(code.group(1))
     assert '"page_token"' in code.group(1)
     assert '"case_count_floor_2023"' in code.group(1)
+
+
+def test_guide_documents_all_value_states_and_cumulative_cdc_selector() -> None:
+    states = set(re.findall(r"^\| `([A-Z_]+)` \|", GUIDE, re.MULTILINE))
+    assert states == {state.value for state in ValueState}
+    assert "normalized state is unknown, never biological absence" in GUIDE
+    urls = re.findall(r"curl -fsS '([^']+)'", GUIDE)
+    cdc = [parse_qs(urlsplit(url).query) for url in urls
+           if parse_qs(urlsplit(url).query).get("measure_id", [None])[0] in IDENTITIES]
+    assert cdc
+    for query in cdc:
+        assert "year" not in query
+        assert query["start_date"] == query["end_date"] == [PERIOD.isoformat()]

@@ -12,6 +12,7 @@ from .public_contract import (
     GeographyType,
     Observation,
     ObservationQuery,
+    PublicQueryError,
     ValueState,
 )
 from .repository import AtlasDataUnavailableError
@@ -135,7 +136,12 @@ class CDCObservationAdapter:
         """Reject unsupported requests before any repository or producer read."""
         _require(query.measure_id in IDENTITIES)
         # Cumulative evidence must not be represented as an annual sampling bucket.
-        _require(query.year is None and query.start_date == PERIOD and query.end_date == PERIOD)
+        if query.year is not None or query.start_date != PERIOD or query.end_date != PERIOD:
+            raise PublicQueryError(
+                "UNSUPPORTED_FILTER",
+                "CDC status is cumulative as published; omit year and use "
+                "start_date=end_date=2025-12-31.",
+            )
         _require(
             self.settings.snowflake_auth_method == "key_pair"
             and self.settings.snowflake_user == "OH_LYME_API_SVC"
