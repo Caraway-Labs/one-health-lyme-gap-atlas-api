@@ -74,7 +74,7 @@ PROBLEMS: dict[int | str, dict[str, Any]] = {
         },
     },
     503: {
-        "description": "Canonical data service unavailable; application/problem+json",
+        "description": "Service unavailable; application/problem+json",
         "content": {
             "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
         },
@@ -87,13 +87,22 @@ for _status, _code in {
     429: "RATE_LIMITED",
     413: "INVALID_REQUEST",
     414: "INVALID_REQUEST",
-    503: None,
+    503: "SERVICE_UNAVAILABLE",
 }.items():
     _documented = problem_response(_status, _code, str(PROBLEMS[_status]["description"]))
     PROBLEMS[_status]["content"] = _documented["content"]
     if "headers" in _documented:
         PROBLEMS[_status]["headers"] = _documented["headers"]
 PROBLEMS[200] = {"description": "Successful current-release resource."}
+
+CANONICAL_GEOGRAPHY_PROBLEMS = {
+    **PROBLEMS,
+    503: problem_response(
+        503,
+        "CANONICAL_DATA_UNAVAILABLE",
+        "Canonical data delivery is not yet available.",
+    ),
+}
 
 
 DETAIL_RESPONSES = {
@@ -319,7 +328,7 @@ def methodology(
 @router.get(
     "/v1/geographies/{geography_type}/{geography_id}",
     response_model=ResourceEnvelope[Geography],
-    responses=PROBLEMS,
+    responses=CANONICAL_GEOGRAPHY_PROBLEMS,
     operation_id="geography_v1_geographies__geography_type___geography_id__get",
     tags=["geographies"],
     summary="Get geography identity (delivery pending)",

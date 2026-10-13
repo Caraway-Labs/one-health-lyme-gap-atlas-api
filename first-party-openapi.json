@@ -238,7 +238,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -251,9 +251,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -440,7 +441,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -453,9 +454,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -725,7 +727,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -738,9 +740,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -927,7 +930,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -940,9 +943,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -1164,7 +1168,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1177,9 +1181,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -1366,7 +1371,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1379,9 +1384,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -1571,7 +1577,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1584,9 +1590,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -1784,7 +1791,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Canonical data delivery is not yet available.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1797,9 +1804,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Canonical data delivery is not yet available.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "CANONICAL_DATA_UNAVAILABLE"
                     }
                   }
                 }
@@ -2207,7 +2215,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2220,9 +2228,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -2480,7 +2489,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2493,9 +2502,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -2702,7 +2712,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2715,9 +2725,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -2975,7 +2986,7 @@
             }
           },
           "503": {
-            "description": "Canonical data service unavailable; application/problem+json",
+            "description": "Service unavailable; application/problem+json",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2988,9 +2999,10 @@
                       "type": "https://carawaylabs.com/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
-                      "detail": "Canonical data service unavailable; application/problem+json",
+                      "detail": "Service unavailable; application/problem+json",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -3745,7 +3757,8 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -3893,7 +3906,8 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -4041,7 +4055,8 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -4230,7 +4245,8 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -4426,7 +4442,8 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -4568,7 +4585,8 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -4836,7 +4854,8 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -5094,7 +5113,8 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -5328,7 +5348,8 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/observations",
-                      "request_id": "example-request-id"
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
                     }
                   }
                 }
@@ -9594,7 +9615,7 @@
         "title": "PrivacyRequestStatus"
       },
       "ProblemDetails": {
-        "description": "RFC 9457 error. Canonical public resources add stable code; legacy routes may omit it.",
+        "description": "RFC 9457 error. Stable codes are included when the response contract defines one.",
         "properties": {
           "type": {
             "title": "Type",

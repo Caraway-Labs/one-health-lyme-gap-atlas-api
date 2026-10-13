@@ -69,15 +69,20 @@ def main() -> None:
                 "elapsed_ms": elapsed_ms,
                 "content_type": unsupported.headers.get("content-type"),
                 "upstream_status": unsupported.headers.get("x-do-orig-status"),
+                "request_id": unsupported.headers.get("x-request-id"),
             }}, indent=2))
             raise SystemExit(
                 f"FAIL burgdorferi_status/08013: HTTP {unsupported.status_code}; "
-                f"{elapsed_ms}ms; upstream status "
+                f"{elapsed_ms}ms; content type "
+                f"{unsupported.headers.get('content-type', 'unknown')}; upstream status "
                 f"{unsupported.headers.get('x-do-orig-status', 'unknown')}"
             )
         assert unsupported.headers["content-type"].split(";")[0] == "application/problem+json"
         problem = unsupported.json()
         assert problem["status"] == 503
+        assert problem.get("code") == "SERVICE_UNAVAILABLE"
+        assert problem.get("request_id")
+        assert unsupported.headers.get("x-request-id") == problem["request_id"]
         assert problem["detail"] == "The governed Atlas data service is temporarily unavailable."
         assert "surveillance_context" not in unsupported.text
         assert not any(
@@ -86,6 +91,9 @@ def main() -> None:
         )
     print(json.dumps({"accepted": results, "unapproved_http_status": 503,
                       "unapproved": {"request": params, "elapsed_ms": elapsed_ms,
+                                     "content_type": unsupported.headers.get("content-type"),
+                                     "upstream_status": unsupported.headers.get("x-do-orig-status"),
+                                     "request_id": unsupported.headers.get("x-request-id"),
                                      "response": problem}}, indent=2))
 
 

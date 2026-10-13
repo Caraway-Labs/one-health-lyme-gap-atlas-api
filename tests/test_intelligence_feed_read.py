@@ -60,6 +60,8 @@ def test_disabled_has_no_query_and_does_not_claim_empty() -> None:
     assert response.status_code == 503
     assert repository.calls == []
     assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["code"] == "SERVICE_UNAVAILABLE"
+    assert response.headers["x-request-id"] == response.json()["request_id"]
 
 
 def test_enabled_empty_items_and_sources_are_honest() -> None:
