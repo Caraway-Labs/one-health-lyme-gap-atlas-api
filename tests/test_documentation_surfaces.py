@@ -54,7 +54,7 @@ def test_canonical_documentation_urls_and_cross_link() -> None:
     assert schema["servers"] == [
         {"url": "https://api.onehealthatlas.org", "description": "Production"}
     ]
-    assert len(schema["paths"]) == 18
+    assert len(schema["paths"]) == 19
     for path in ("/docs", "/redoc"):
         page = client.get(path, follow_redirects=False)
         assert page.status_code == 200
@@ -76,12 +76,12 @@ def test_atlas_branding_and_standard_swagger_interaction() -> None:
     swagger = client.get("/docs").text
     assert "SwaggerUIBundle" in swagger
     for key, value in SWAGGER_PARAMETERS.items():
-
         assert f'"{key}": {json.dumps(value)}' in swagger
     assert LOGO["url"] not in schema["info"]["description"]
     assert "![" not in schema["info"]["description"]
     assert schema["info"]["contact"] == {
-        "name": "One Health Atlas", "url": "https://onehealthatlas.org/"
+        "name": "One Health Atlas",
+        "url": "https://onehealthatlas.org/",
     }
     assert client.app.first_party_openapi()["info"]["contact"] == schema["info"]["contact"]
     themes = []

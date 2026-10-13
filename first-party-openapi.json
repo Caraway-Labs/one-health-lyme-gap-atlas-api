@@ -4604,6 +4604,150 @@
         }
       }
     },
+    "/v1/counties/{fips}/tier1-surveillance-priority/availability": {
+      "get": {
+        "tags": [
+          "counties"
+        ],
+        "summary": "Get Tier 1 result availability and persisted data",
+        "description": "Additive availability contract for current supported county geographies. A successful lookup returns AVAILABLE with the exact persisted result, or UNAVAILABLE with reason NO_PUBLISHED_MODEL and null data after the current geography release and Tier 1 projection have both been read successfully. geography_release_id identifies the release used to validate the FIPS. This endpoint does not turn null into zero or synthesize model output. NOT_ESTIMABLE is a persisted result state and is distinct from no published model result. Malformed FIPS returns 422; an identity outside the current geography release returns typed 404; dependency or malformed-data failures return 503. Public cache TTL 60 seconds.",
+        "operationId": "county_tier1_surveillance_priority_availability_get",
+        "parameters": [
+          {
+            "name": "fips",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{5}$",
+              "title": "Fips"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tier1CountyPriorityAvailability"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "County is not in the current geography release.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-404",
+                      "title": "Request failed",
+                      "status": 404,
+                      "detail": "County is not in the current geography release.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "RESOURCE_NOT_FOUND"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more request values are invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-422",
+                      "title": "Request failed",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-429",
+                      "title": "Request failed",
+                      "status": 429,
+                      "detail": "Rate limit exceeded.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Atlas data service is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-503",
+                      "title": "Request failed",
+                      "status": 503,
+                      "detail": "Atlas data service is unavailable.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/counties/{fips}/report.pdf": {
       "get": {
         "tags": [
@@ -11277,6 +11421,58 @@
             "tier_policy_version": "tier1-review-percentile-v1"
           }
         ]
+      },
+      "Tier1CountyPriorityAvailability": {
+        "properties": {
+          "availability": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ],
+            "title": "Availability",
+            "description": "Whether a persisted Tier 1 result exists for this supported current geography."
+          },
+          "geography_release_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Geography Release Id",
+            "description": "Current governed geography release used to validate the requested FIPS."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "NO_PUBLISHED_MODEL"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Stable reason when no persisted result is published; null when data is available."
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Tier1CountyPriority"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The exact persisted Tier 1 result, or null when none is published."
+          }
+        },
+        "type": "object",
+        "required": [
+          "availability",
+          "geography_release_id",
+          "reason",
+          "data"
+        ],
+        "title": "Tier1CountyPriorityAvailability",
+        "description": "Availability lookup that separates confirmed absence from request failure."
       },
       "ToolResult": {
         "properties": {

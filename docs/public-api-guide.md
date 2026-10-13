@@ -40,6 +40,38 @@ The `human_disease_burden` indicator lists `case_count_floor_2023` in
 incidence. Discovery may include measures without published county rows.
 County FIPS must be five-character strings, preserving leading zeros.
 
+## Tier 1 result availability
+
+The existing direct-result route remains compatible: it returns the persisted
+Tier 1 result on 200 and 404 when no county result is present. For a confirmed
+no-result state, use the additive availability route:
+
+```sh
+curl -fsS 'https://api.onehealthatlas.org/v1/counties/09110/tier1-surveillance-priority/availability'
+```
+
+For a current supported geography, a 200 response has one of these shapes:
+
+```json
+{"availability":"AVAILABLE","geography_release_id":"current-release-id","reason":null,"data":{"county_fips":"09110","priority_tier":"HIGH"}}
+{"availability":"UNAVAILABLE","geography_release_id":"current-release-id","reason":"NO_PUBLISHED_MODEL","data":null}
+```
+
+The available example is abbreviated; use the returned persisted result and its
+lineage fields as supplied. Do not calculate tiers or reasons in the client.
+`NOT_ESTIMABLE` is still a persisted result and is not the same as no published
+model output. Do not render null data as LOW or zero. A valid FIPS outside the
+current release returns 404 `RESOURCE_NOT_FOUND`; malformed FIPS returns 422;
+dependency, duplicate-row, and malformed-data failures remain 503. Only show
+the no-model state when the route returns the typed 200 envelope.
+
+Connecticut's supported current planning-region IDs are `09110`–`09190`.
+Historical county IDs `09001` and `09003` are not mapped to those regions; the
+API has no approved equivalence crosswalk. Web integrations should regenerate
+their OpenAPI client and Zod schemas from the additive first-party contract,
+then consume the explicit `availability` discriminant. See the
+[Tier 1 contract](public-api-v1-contract.md#tier-1-county-surveillance-review-priority-api-10).
+
 Compare counties by repeating `geography_id`; use either `year` or a complete
 `start_date`/`end_date` pair for the human-surveillance measure shown here.
 Its published county observations contain **only the annual 2023 period**.

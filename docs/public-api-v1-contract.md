@@ -56,6 +56,29 @@ runtime proof. The Web client must regenerate from committed `openapi.json`.
 The [model release history](tier1-model-release-history.md) records the shipped
 API contract separately from production data availability.
 
+Additive `GET /v1/counties/{fips}/tier1-surveillance-priority/availability`
+supports consumers that need to distinguish confirmed absence from a missing
+resource. It first checks the exact FIPS against the current governed county
+release, then reads the current Tier 1 projection. A successfully confirmed
+current geography without a persisted result returns HTTP 200 with
+`availability=UNAVAILABLE`, the checked `geography_release_id`,
+`reason=NO_PUBLISHED_MODEL`, and `data=null`. A persisted result returns
+`availability=AVAILABLE`, the checked `geography_release_id`, `reason=null`,
+and the exact result under `data`, including producer lineage. `NOT_ESTIMABLE` remains an
+available persisted result with null score fields; it does not mean no model
+record exists. A missing current geography returns typed 404
+`RESOURCE_NOT_FOUND`; malformed FIPS returns 422. An unavailable geography
+release or Tier 1 projection, duplicate rows, and malformed producer values
+remain 503. Failures are never converted into the no-model response.
+
+The legacy direct-result operation above keeps its existing response and
+missing-result semantics. New UI integrations should use the additive
+availability operation. The current canonical release contains 3,144 county
+identities; Connecticut is represented by current planning-region FIPS
+`09110`–`09190`. Retired legacy county IDs such as `09001` and `09003` are not
+members of that current identity set. No approved historical-county-to-planning
+region crosswalk exists, so the API does not map them or infer county ML output.
+
 ## State county Review (API #93)
 
 `GET /v1/states/{state}/review` is a read-only, anonymous state result over the

@@ -26,6 +26,8 @@ ROUTES = frozenset(
         "/v1/assistant/mixed",
         "/v1/assistant/structured",
         "/v1/counties/{fips}",
+        "/v1/counties/{fips}/tier1-surveillance-priority",
+        "/v1/counties/{fips}/tier1-surveillance-priority/availability",
         "/v1/counties/{fips}/report.pdf",
         "/v1/feedback",
         "/v1/geographies/{geography_type}/{geography_id}",

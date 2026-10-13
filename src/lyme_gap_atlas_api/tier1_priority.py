@@ -5,7 +5,14 @@ from datetime import datetime
 from math import isfinite
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from .config import ApiSettings
 from .dependency_telemetry import connect
@@ -118,6 +125,37 @@ class Tier1CountyPriority(BaseModel):
         return self
 
 
+class Tier1CountyPriorityAvailability(BaseModel):
+    """Availability lookup that separates confirmed absence from request failure."""
+
+    availability: Literal["AVAILABLE", "UNAVAILABLE"] = Field(
+        description=(
+            "Whether a persisted Tier 1 result exists for this supported current geography."
+        )
+    )
+    geography_release_id: str = Field(
+        min_length=1,
+        description="Current governed geography release used to validate the requested FIPS.",
+    )
+    reason: Literal["NO_PUBLISHED_MODEL"] | None = Field(
+        description=(
+            "Stable reason when no persisted result is published; null when data is available."
+        )
+    )
+    data: Tier1CountyPriority | None = Field(
+        description="The exact persisted Tier 1 result, or null when none is published."
+    )
+
+    @model_validator(mode="after")
+    def availability_matches_payload(self) -> "Tier1CountyPriorityAvailability":
+        if self.availability == "AVAILABLE":
+            if self.reason is not None or self.data is None:
+                raise ValueError("AVAILABLE requires data and a null reason")
+        elif self.reason != "NO_PUBLISHED_MODEL" or self.data is not None:
+            raise ValueError("UNAVAILABLE requires NO_PUBLISHED_MODEL and null data")
+        return self
+
+
 class Tier1PriorityRepository(Protocol):
     def county(self, fips: str) -> tuple[Any, ...] | None: ...
 
@@ -173,6 +211,8 @@ class Tier1PriorityService:
         if row is None:
             return None
         try:
+            if row[0] != fips:
+                raise ValueError("Tier 1 county identity does not match request")
             reasons = json.loads(row[11]) if isinstance(row[11], str) else row[11]
             if not isinstance(reasons, list):
                 raise ValueError("Reasons must be a list")
