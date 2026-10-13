@@ -228,3 +228,23 @@ def test_canonical_problem_and_legacy_compatibility() -> None:
     assert client.get("/v1/geographies/county/08").json()["code"] == "INVALID_REQUEST"
     assert client.get("/v1/me/profile").status_code in {401, 503}
     assert client.get("/v1/atlas/scores?ecological_share=41").status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("geography_type", "geography_id"),
+    [("county", "01001"), ("county", "09001"), ("county", "09110"), ("state", "09")],
+)
+def test_valid_canonical_geographies_remain_structurally_unavailable(
+    geography_type: str, geography_id: str
+) -> None:
+    """Pending identity delivery is explicit for supported county and state keys."""
+    client = TestClient(create_app(settings=ApiSettings()))
+    response = client.get(f"/v1/geographies/{geography_type}/{geography_id}")
+
+    assert response.status_code == 503
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.headers["x-request-id"] == response.json()["request_id"]
+    assert response.json()["status"] == 503
+    assert response.json()["code"] == "CANONICAL_DATA_UNAVAILABLE"
+    assert "data" not in response.json()
+    assert "geometry" not in response.json()
