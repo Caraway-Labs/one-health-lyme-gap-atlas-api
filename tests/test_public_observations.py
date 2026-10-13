@@ -173,6 +173,36 @@ def test_time_county_measure_and_strata_filters() -> None:
         assert response.json()["code"] == code
 
 
+def test_county_profile_fields_do_not_synthesize_canonical_observations() -> None:
+    profile_only_measures = (
+        "population_2022",
+        "svi_percentile_2022",
+        "uninsured_percent_2022",
+        "uninsured_percentile_2022",
+        "rucc_2023",
+        "state_unallocated_records_2023",
+        "pacificus_status",
+    )
+
+    class ProfileOnlyRepository(FixtureRepository):
+        def measure_exists(self, measure_id: str, release: str) -> bool:
+            assert release == self.release
+            return False
+
+        def query(self, query, release: str, offset: int) -> list[tuple]:
+            raise AssertionError("a measure without canonical rows must not be queried")
+
+    api = client(ProfileOnlyRepository())
+    for measure_id in profile_only_measures:
+        response = api.get(
+            "/v1/observations",
+            params=params(measure_id=measure_id),
+        )
+        assert response.status_code == 404
+        assert response.headers["content-type"] == "application/problem+json"
+        assert response.json()["code"] == "RESOURCE_NOT_FOUND"
+
+
 def test_repository_only_queries_projection_with_bound_parameters(monkeypatch) -> None:
     statements = []
     bindings = []

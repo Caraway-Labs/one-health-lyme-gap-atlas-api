@@ -170,6 +170,21 @@ It must preserve future
 applicability and completeness/quality semantics separately when supplied by the
 governed layer and must not fabricate either dimension.
 
+County-profile summary fields are a separate legacy representation. In
+particular, `population`, `svi_percentile`, `uninsured_percentile`,
+`uninsured_percent`, and `rucc_2023` on `/v1/counties/{fips}` are read from
+`CURRENT_COUNTY_ATLAS_V`; their presence there does not establish a canonical
+observation, period, unit, denominator, source, or methodology in
+`CURRENT_COUNTY_OBSERVATIONS_V`. The observation adapter does not fall back to
+the profile view. A profile-only value therefore does not create an
+observation; an absent canonical observation remains unavailable and is not
+reconstructed from a summary field. A measure catalog entry describes a
+measure but does not assert that every geography or period has a published
+observation. Select a year only when it matches the governed observation
+period; source vintages and “as published” values must not be relabeled as an
+annual observation. See the bounded API #233 investigation for the evidence
+matrix and remaining production verification gate.
+
 ## Source and methodology resources (#55)
 
 `/v1/sources` and `/v1/sources/{source_id}` read only
