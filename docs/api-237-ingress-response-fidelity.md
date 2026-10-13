@@ -13,12 +13,34 @@ timeout as the cause of those samples.
 The tracked `.do/app.yaml` routes the service on port 8080 and sets 5-second
 health-check timeouts; those health-check values do not govern observation
 requests. It has no custom error page or ingress error-handling override. The
-current DigitalOcean App Spec documents ingress path rules and
-`custom_error_page_url`, which supplies an HTML error page; it does not document
-a control for passing through origin 5xx status, headers, and body unchanged.
-See the [App Spec reference](https://docs.digitalocean.com/products/app-platform/reference/app-spec/).
+current DigitalOcean App Spec documents ingress rules for path/authority
+matching, component routing, path rewrites, redirects, and CORS. It documents
+`custom_error_page_url` as an HTML page embedded when the app is unreachable,
+not as an origin-response passthrough. It does not document a control for
+passing through origin 5xx status, headers, and body unchanged. See the
+[App Spec reference](https://docs.digitalocean.com/products/app-platform/reference/app-spec/)
+(last verified there on 2026-09-01).
+
+Other documented settings do not establish a safe response-fidelity fix:
+
+- `disable_edge_cache` disables the CDN cache. The spec does not say that it
+  bypasses the ingress/Cloudflare response path or changes 5xx substitution.
+  Ask DigitalOcean whether that setting changes this exact behavior before
+  treating it as a candidate; any trial still needs approval and real
+  multi-host verification.
+- `maintenance` displays an app-wide maintenance message; it cannot preserve
+  per-request API problem details.
+- `secure_header` blocks requests without a required incoming header; it is an
+  access control, not an origin-response setting.
+- `custom_error_page_url` changes the displayed error page when the app is
+  unreachable. HTML in an iframe cannot satisfy an API JSON response contract.
+
 Account-level provider configuration is outside this repository and was not
-changed or verified here.
+changed or verified here. No documented, supported existing-topology setting
+currently establishes origin 5xx passthrough. Obtain provider confirmation of
+a supported control. If none exists, the minimum owner decision is to approve
+or reject a topology/contract change that can preserve HTTP semantics; do not
+invent an App Spec property or disguise unavailable results as successful.
 
 The defect therefore cannot be repaired by changing the FastAPI response
 handler alone. Changing a correct origin 503 to 200 or another status would
