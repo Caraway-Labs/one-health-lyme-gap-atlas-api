@@ -44,6 +44,30 @@ in a later release; it is not itself a fresh per-measure aggregate or API
 response. The issue's 300-county audit summary is separately owner-supplied;
 its raw CSV/JSONL were not attached and were not independently inspected here.
 
+The retained 2026-09-18 bundle SHA-256 is
+`038aa3f8c383a70699aff92c752f2bbcc6687a726d0c2f142c9f368841b42026`. Its
+source tuples are SVI version `b8b6bf61-c6a3-4538-b0df-1b88c61720b1`, run
+`331f367d-9282-4936-9b49-a4807377fa7`, artifact
+`cdc_atsdr_svi_2022_county:dc042342a2e5abc108af67b439ec04c8` (SHA-256
+`dc042342a2e5abc108af67b439ec04c86da8b61f9bdd1cf1b1e5ee0462dea7b2`), and
+RUCC version `87872b36-93ab-4a34-b70e-29569192cb48`, run
+`f65bd68a-27de-4ad4-81a5-424ee24af3b6`, artifact
+`usda_ers_rucc_2023:ec455ee2a8bc5fc8e070575ea5bee7dc` (SHA-256
+`ec455ee2a8bc5fc8e070575ea5bee7dce46fc6037f8c3449cbf56e8b45331fa7`). The
+source/record reconciliation reports exact manifest, completed-run, artifact,
+and historical conformed-record correspondence for the 15,720 selected
+semantic observation links. Separate reviewed metadata evidence classifies
+all five measure envelopes `INTERNAL`. #193 end-to-end validation remains
+unaccepted because representative live authority rows were unavailable to the
+authorized audit role; do not treat source/record correspondence as a #193
+PASS.
+
+The Data handoff records historical [release build
+receipt](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/actions/runs/35328355391)
+and [PROD publication receipt](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data/actions/runs/35362701191)
+for that same release/bundle. These establish the governed release promotion,
+not a public API view publication or current-head HTTP check.
+
 All five #191 metadata envelopes remain `INTERNAL` in the reviewed packet.
 The Data #194 consumer contract says a reviewed `CONSUMER_SAFE` or `PUBLIC`
 classification is necessary but never by itself grants HTTP publication. Data
