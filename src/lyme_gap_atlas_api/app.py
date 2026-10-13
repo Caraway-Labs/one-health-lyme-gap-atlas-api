@@ -509,6 +509,8 @@ def create_app(
                 else "CANONICAL_DATA_UNAVAILABLE"
                 if exc.status_code == 503
                 and str(exc.detail) == "Canonical data delivery is not yet available."
+                else "SERVICE_UNAVAILABLE"
+                if exc.status_code == 503
                 else None
             ),
         )

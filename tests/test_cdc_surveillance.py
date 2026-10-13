@@ -114,6 +114,7 @@ def test_unadmitted_counties_reach_producer_and_fail_closed(counties):
         "The governed Atlas data service is temporarily unavailable."
     )
     assert response.json()["status"] == 503
+    assert response.json()["code"] == "SERVICE_UNAVAILABLE"
     assert response.headers["x-request-id"] == response.json()["request_id"]
     repository.current_release.assert_called_once_with()
     repository.measure_exists.assert_not_called()
