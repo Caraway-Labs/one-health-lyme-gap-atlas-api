@@ -109,9 +109,8 @@ metadata packet was found in the cited evidence.
 
 ### Smallest bounded implementation proposal (API #212)
 
-Ask the Data semantic release/publication owner and API contract owner to
-decide whether to publish exactly these existing measures, without changing
-source admission:
+This is the already-approved, narrowly bounded measure set for the API #212
+implementation; it adds no source admission:
 
 | Measure | Existing source identity | Proposed time representation |
 | --- | --- | --- |
@@ -122,9 +121,10 @@ source admission:
 | `rucc_2023` | `usda_ers`; dataset `rural-urban-continuum-codes-2023`; `RUCC_2023`; RUCC 2023 | `VINTAGE_YEAR=2023`, never an annual date interval |
 
 The missing deliverable is the bounded consumer projection and API contract,
-not a new source-admission decision. DATA #496's accepted handoff points to
-[API #212](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-api/issues/212)
-as the implementation owner for these five measures; DATA #199/#200 and the
+not a new source-admission decision. DATA #496's October 5 handoff names WEB
+#414/#210 for context consumption and API #84 for the reusable API context
+contract. API #212 was opened October 8 and subsequently assigned the concrete
+five-measure rurality/socioeconomic API implementation; DATA #199/#200 and the
 general PROD→API product direction are already accepted. API #212 requires the
 reusable context contract from
 [API #84](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-api/issues/84)
