@@ -195,3 +195,43 @@ def test_app_construction_and_exports_are_inert_and_startup_dispatches_once(monk
             assert len(calls) == 1
 
     asyncio.run(exercise())
+
+
+def test_observation_probe_uses_accepted_january_point_without_relaxing_limits(monkeypatch):
+    session = Session(
+        metadata=[("release", measure) for measure in MEASURES], observations=[("release",)]
+    )
+    monkeypatch.setattr(module, "connect", lambda supplied: session)
+    report = module.probe_reader(settings())
+    assert report["publication_matches"]
+    assert len(session.calls) == 3
+    query = session.calls[-1]
+    assert "CURRENT_CLIMATE_COUNTY_DAY_OBSERVATIONS_V" in query
+    assert "measure_id='nclimgrid_prcp_county_day'" in query
+    assert "county_fips='48277'" in query
+    assert "period_start=DATE '2025-01-17'" in query
+    assert "period_end=DATE '2025-01-17' LIMIT 1" in query
+    assert "GOVERNANCE" not in query and "RAW." not in query
+
+
+def test_snowflake_cancellation_is_distinct_and_never_retried_or_exposed(monkeypatch, caplog):
+    from snowflake.connector.errors import ProgrammingError
+
+    class CanceledSession(Session):
+        def execute(self, query, *, timeout):
+            super().execute(query, timeout=timeout)
+            if "OBSERVATIONS_V" in query:
+                raise ProgrammingError(msg=SECRET, errno=604, sqlstate="57014")
+
+    session = CanceledSession(metadata=[("release", measure) for measure in MEASURES])
+    monkeypatch.setattr(module, "connect", lambda supplied: session)
+    with caplog.at_level(logging.INFO):
+        module.log_reader_probe(settings())
+    report = caplog.records[-1].context
+    assert report["identity_status"] == "verified"
+    assert report["metadata_read"] == "readable_nonempty"
+    assert report["observations_read"] == "query_canceled"
+    assert not report["publication_matches"] and len(session.calls) == 3
+    assert SECRET not in caplog.text and SECRET not in str(report)
+    assert {"errno", "sqlstate", "error_message", "query_id"}.isdisjoint(report)
+    assert not caplog.records[-1].exc_info

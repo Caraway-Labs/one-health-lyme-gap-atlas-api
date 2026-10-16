@@ -26,6 +26,8 @@ def _failure(error: Exception) -> str:
     # Never copy SDK text, SQL, endpoint, errno outside this closed vocabulary.
     if getattr(error, "errno", None) == 2003:
         return "object_or_access_unavailable"
+    if getattr(error, "errno", None) == 604:
+        return "query_canceled"
     if isinstance(error, TimeoutError):
         return "timeout"
     return "dependency_unavailable"
@@ -91,7 +93,11 @@ def probe_reader(settings: ApiSettings) -> dict[str, Any]:
                 (
                     "observations_read",
                     f"SELECT release_id FROM {schema}."
-                    "CURRENT_CLIMATE_COUNTY_DAY_OBSERVATIONS_V LIMIT 1",
+                    "CURRENT_CLIMATE_COUNTY_DAY_OBSERVATIONS_V "
+                    "WHERE measure_id='nclimgrid_prcp_county_day' "
+                    "AND county_fips='48277' "
+                    "AND period_start=DATE '2025-01-17' "
+                    "AND period_end=DATE '2025-01-17' LIMIT 1",
                 ),
             ):
                 try:
