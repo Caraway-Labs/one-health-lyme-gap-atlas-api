@@ -63,3 +63,42 @@ handoff, not a completed Web validation claim. Keep #84 open until a published
 source-backed county request and actual production behavior are independently
 accepted. Disable the flag to withdraw climate consumption without changing the
 annual endpoint; the existing DATA pointer rollback controls published membership.
+
+## API service probe cancellation — October 15, 2026
+
+The Data publication and scientific readback passed in DATA workflow
+38812216717. Actual API deployment `ec0a37cd-025e-43ba-9b55-0511e254b592`
+verified its configured service identity and read four climate metadata rows, but
+its observation read failed. Environmental context remains disabled.
+
+The owner supplied the retained query-history record:
+`01c7c212-030c-3282-0064-2d0701259d06`, error `000604`, `SQL execution canceled`,
+start `2026-10-16T01:22:15.013Z`, end `2026-10-16T01:22:20.138Z`, total 5,125ms,
+execution 4,525ms, queue 0ms, warehouse `COMPUTE_WH`. These are server records for
+an already-executed query, not a new diagnostic run. The timing matches the
+probe's five-second cancellation ceiling; it is not evidence of absent objects,
+a missing grant, or insufficient warehouse capacity.
+
+The existing three-SELECT probe retains its five-second-or-lower configured
+statement limit, one-row observation cap, all primary-identity assertions and
+same-release/four-measure checks. Its observation SELECT now uses the previously
+accepted January point: `nclimgrid_prcp_county_day`, county `48277`, labeled day
+`2025-01-17`. It reads the same governed current view; no RAW/revision-table or
+lineage bypass is introduced. The prior unfiltered LIMIT bounded returned rows,
+not the candidate scan. This correction narrows the query to a real consumer
+shape; it does not prove a runtime improvement until a fresh authorized service
+attempt passes. Later public HTTP decoding remains a separate gate.
+
+Snowflake cancellation code 604 is reported as the closed category
+`query_canceled`, distinct from an unavailable object or generic dependency
+failure. The category does not assert whether cancellation came from a client,
+server timeout or explicit cancellation. SDK text, SQL and error codes are not
+copied into operational output. No retry is added.
+
+The failed attempt remains consumed. Human merge is required under
+`AGENTS.md` and `docs/ci-and-production-deploy.md`; merging green main triggers
+the existing production deployment and a fresh startup probe. A new one-attempt
+execution authorization must cover that startup before merge. Keep the feature
+flag disabled until the actual service probe passes on the intended published
+release. Use only the existing flag/configuration and canonical HTTP resources
+for subsequent acceptance; do not create another reader or endpoint.
