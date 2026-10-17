@@ -391,6 +391,15 @@ def test_packaged_producer_preserves_configured_timeout_on_identity_and_authorit
     from test_cdc_reader_probe import Connection, ProducerCursor
 
     cursor = ProducerCursor()
+    original_execute = cursor.execute
+    parameters = []
+
+    def execute(sql, *args, **kwargs):
+        if sql == cdc_consumer_runtime.AUTHORITY_SQL:
+            parameters.append(args[0])
+        return original_execute(sql, *args, **kwargs)
+
+    cursor.execute = execute
     monkeypatch.setattr("lyme_gap_atlas_api.cdc_surveillance.connect", lambda _: Connection(cursor))
     with pytest.raises(AtlasDataUnavailableError):
         _read("burgdorferi_status", county, settings=settings(public_query_timeout_seconds=5))
@@ -404,6 +413,9 @@ def test_packaged_producer_preserves_configured_timeout_on_identity_and_authorit
         cdc_consumer_runtime.AUTHORITY_SQL,
     ]
     assert all(kwargs == {"timeout": 5} for _, kwargs in cursor.statements)
+    assert parameters == [
+        (RELEASE, "burgdorferi_status", county, IDENTITIES["burgdorferi_status"][1])
+    ]
 
 
 @pytest.mark.parametrize("county", ["12047", "19135"])
@@ -431,7 +443,9 @@ def test_historical_release_is_never_an_automatic_fallback():
     producer = Mock(side_effect=envelope)
     adapter = CDCObservationAdapter(settings(), producer)
     with pytest.raises(AtlasDataUnavailableError):
-        adapter.search(ObservationQuery(**params()), "governed-2026-10-06-nlcd-demo-cohort", 0)
+        adapter.search(
+            ObservationQuery(**params(county=["13081"])), "governed-2026-10-06-nlcd-demo-cohort", 0
+        )
     producer.assert_not_called()
 
 
