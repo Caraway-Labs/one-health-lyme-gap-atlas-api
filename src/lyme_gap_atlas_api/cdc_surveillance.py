@@ -26,25 +26,25 @@ from .surveillance_delivery import (
     resolve_context,
 )
 
-RELEASE = "governed-2026-10-06-nlcd-demo-cohort"
-BUNDLE = "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9"
+RELEASE = "governed-2026-10-15-january-climate-prod"
+BUNDLE = "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d"
 PERIOD = date(2025, 12, 31)
 SOURCE = "cdc_arbonet_tick_module"
 IDENTITIES = {
     "scapularis_status": (
         "cdc-ixodes-county-status-2025",
         "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
-        "metadata-revision:v1:c60fb91162b5ed33d34a01d3fef24e0a4a2ef8976bbd07ac1082fd783adfb509",
+        "metadata-revision:v1:3300365cfd0af87dcc80afdd94aa4b35f8651b2ab5ba898edb8a282f562016fd",
         "tick",
     ),
     "burgdorferi_status": (
         "cdc-ixodes-pathogen-status-2025",
         "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
-        "metadata-revision:v1:01b6eaf0d3f6e96ebf8ac9020e31584f55175c95d676e40d3da7d430b9b08522",
+        "metadata-revision:v1:f864fe95d98836fcc030e5b2a15d3a63c2bec50011cde1de59318b34219188f0",
         "pathogen",
     ),
 }
-BINDING = BundleBinding(RELEASE, BUNDLE, "Data #429 retained CDC admission / PR #676")
+BINDING = BundleBinding(RELEASE, BUNDLE, "API #246 reviewed unchanged CDC carry-forward")
 Producer = Callable[[str, str], dict[str, Any]]
 
 
@@ -72,7 +72,12 @@ def _read(measure: str, county: str, *, settings: ApiSettings | None = None) -> 
                 return [dict(zip(columns, row, strict=True)) for row in cursor.fetchmany(2)]
 
             return cdc_consumer_runtime._project(
-                query, cdc_consumer_runtime._resources(), measure, county, "prod"
+                query,
+                cdc_consumer_runtime._resources(),
+                measure,
+                county,
+                "prod",
+                release_id=RELEASE,
             )
     except Exception:
         raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable") from None
@@ -184,7 +189,7 @@ class CDCObservationAdapter:
         item, metadata, lineage = (semantic[k] for k in ("observation", "measure", "lineage"))
         dataset, version, revision, public_source_key = IDENTITIES[measure]
         _require(metadata["metadata_revision_id"] == lineage["metadata_revision_id"] == revision)
-        _require(metadata["metadata_revision"] == 2 and metadata["semantic_version"] == "1.0.0")
+        _require(metadata["metadata_revision"] == 3 and metadata["semantic_version"] == "1.0.0")
         _require(lineage["dataset_id"] == dataset and lineage["source_version_id"] == version)
         _require(
             semantic["provenance"]["source_version_id"] == {"state": "KNOWN", "value": version}
