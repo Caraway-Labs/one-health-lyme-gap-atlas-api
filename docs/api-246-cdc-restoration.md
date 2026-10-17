@@ -24,8 +24,12 @@ annual filters remain structured 400; unavailable authority remains sanitized
 Follow Data's `docs/operations/api246-cdc-restoration.md`: exact reviewed Data
 image, protected migration/admission, actual production consumer readback, then
 human-authorized API merge/deployment. API merge triggers existing deployment.
-Green fixtures and packaging do not prove production restoration. Independent
-OpenAI `.agent` coordinator review and explicit human merge remain required.
+Green fixtures and packaging do not prove production restoration. For API #246,
+the owner's final direction requires available independent source review followed
+by explicit human owner review. The unavailable `.agent` coordinator was not
+invoked and is not recorded as completed. This task-specific direction does not
+alter GitHub protections or establish a general review-policy exception. Required
+checks, resolved conversations and explicit human merge remain required.
 
 Use at most 30 anonymous serial requests, at least 0.3 seconds after completion;
 no automatic retries, stop escalation on repeated 5xx or any rate limit. Begin
