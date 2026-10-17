@@ -2,13 +2,17 @@
 
 import hashlib
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import date
 from typing import TYPE_CHECKING, Any, Protocol
 
+from snowflake.connector import SnowflakeConnection
+from snowflake.connector.cursor import SnowflakeCursor
+
 if TYPE_CHECKING:
     from .cdc_surveillance import CDCObservationAdapter
-
+from .climate_timing import phase
 from .config import ApiSettings
 from .dependency_telemetry import connect
 from .environmental_context import MEASURES, EnvironmentalRepository, environmental_observation
@@ -37,8 +41,38 @@ class ObservationRepository(Protocol):
 
 
 class SnowflakeObservationRepository:
-    def __init__(self, settings: ApiSettings) -> None:
+    def __init__(
+        self, settings: ApiSettings, *, _connection: SnowflakeConnection | None = None
+    ) -> None:
         self.settings = settings
+        self._connection = _connection
+
+    @contextmanager
+    def climate_request(self) -> Iterator["SnowflakeObservationRepository"]:
+        """One exclusively owned session for one synchronous request, never a pool."""
+        body_error: BaseException | None = None
+        try:
+            with connect(self.settings) as connection:
+                try:
+                    yield SnowflakeObservationRepository(self.settings, _connection=connection)
+                except BaseException as error:
+                    body_error = error
+                    raise
+        except Exception as exc:
+            if body_error is not None:
+                if exc is body_error:
+                    raise
+                raise body_error from None
+            raise AtlasDataUnavailableError("Governed observations are unavailable") from exc
+
+    @contextmanager
+    def _cursor(self) -> Iterator[SnowflakeCursor]:
+        if self._connection is not None:
+            with self._connection.cursor() as cursor:
+                yield cursor
+        else:
+            with connect(self.settings) as connection, connection.cursor() as cursor:
+                yield cursor
 
     @property
     def view(self) -> str:
@@ -54,7 +88,7 @@ class SnowflakeObservationRepository:
             f"{_sql_identifier(self.settings.snowflake_presentation_schema)}"
         )
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with self._cursor() as cursor:
                 cursor.execute(
                     f"SELECT RELEASE_ID FROM {schema}.CURRENT_RELEASE_V",
                     timeout=self.settings.public_query_timeout_seconds,
@@ -70,9 +104,11 @@ class SnowflakeObservationRepository:
 
     def measure_exists(self, measure_id: str, release: str) -> bool:
         if measure_id in MEASURES:
-            return EnvironmentalRepository(self.settings).measure_exists(measure_id, release)
+            return EnvironmentalRepository(
+                self.settings, _connection=self._connection
+            ).measure_exists(measure_id, release)
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with self._cursor() as cursor:
                 cursor.execute(
                     f"SELECT 1 FROM {self.view} "
                     "WHERE MEASURE_ID = %s AND RELEASE_VERSION = %s LIMIT 1",
@@ -85,7 +121,9 @@ class SnowflakeObservationRepository:
 
     def query(self, query: ObservationQuery, release: str, offset: int) -> list[tuple[Any, ...]]:
         if query.measure_id in MEASURES:
-            return EnvironmentalRepository(self.settings).query(query, release, offset)
+            return EnvironmentalRepository(self.settings, _connection=self._connection).query(
+                query, release, offset
+            )
         fips = sorted(query.geography_id)
         placeholders = ", ".join(["%s"] * len(fips))
         start = date(query.year, 1, 1) if query.year is not None else query.start_date
@@ -105,7 +143,7 @@ class SnowflakeObservationRepository:
         )
         params = (query.measure_id, *fips, start, end, release, query.page_size + 1, offset)
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with self._cursor() as cursor:
                 cursor.execute(
                     statement, params, timeout=self.settings.public_query_timeout_seconds
                 )
@@ -135,6 +173,19 @@ class ObservationService:
             raise PublicQueryError(
                 "UNSUPPORTED_STRATIFICATION", "This release has no governed strata."
             )
+        if (
+            query.measure_id in MEASURES
+            and isinstance(self.repository, SnowflakeObservationRepository)
+            and self.repository.settings.environmental_context_enabled
+        ):
+            check()
+            with self.repository.climate_request() as repository:
+                return self._search(query, repository, check)
+        return self._search(query, self.repository, check)
+
+    def _search(
+        self, query: ObservationQuery, repository: ObservationRepository, check: Callable[[], None]
+    ) -> CollectionEnvelope[Observation]:
         check()
         from .cdc_surveillance import IDENTITIES
 
@@ -142,9 +193,12 @@ class ObservationService:
         if cdc:
             assert self.cdc_adapter is not None
             self.cdc_adapter.validate_query(query)
-        release = self.repository.current_release()
+        with phase("release_lookup"):
+            release = repository.current_release()
         check()
-        if not cdc and not self.repository.measure_exists(query.measure_id, release):
+        with phase("measure_lookup"):
+            measure_exists = cdc or repository.measure_exists(query.measure_id, release)
+        if not measure_exists:
             raise PublicQueryError(
                 "RESOURCE_NOT_FOUND", "Measure has no published county observations."
             )
@@ -161,12 +215,14 @@ class ObservationService:
             more = len(items) > query.page_size
             items = items[: query.page_size]
         else:
-            rows = self.repository.query(query, release, offset)
+            with phase("observation_query"):
+                rows = repository.query(query, release, offset)
             more = len(rows) > query.page_size
             mapper = (
                 environmental_observation if query.measure_id in MEASURES else self._observation
             )
-            items = [mapper(row) for row in rows[: query.page_size]]
+            with phase("mapping"):
+                items = [mapper(row) for row in rows[: query.page_size]]
         check()
         if not cdc and self.surveillance_resolver is not None:
             for item in items:

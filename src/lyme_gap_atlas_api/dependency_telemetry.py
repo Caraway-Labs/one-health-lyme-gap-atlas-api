@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext, suppress
+from time import perf_counter
 from typing import Any, cast
 
 import httpx
@@ -11,6 +12,8 @@ from lyme_gap_atlas_shared.snowflake import connect as shared_connect
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from snowflake.connector import SnowflakeConnection
+
+from .climate_timing import CURRENT
 
 DEPENDENCIES = frozenset({"snowflake", "supabase"})
 OPERATIONS = frozenset(
@@ -47,6 +50,7 @@ def failure_class(error: BaseException) -> str:
 def dependency_span(system: str, operation: str) -> Iterator[None]:
     system = system if system in DEPENDENCIES else "other"
     operation = operation if operation in OPERATIONS else "other"
+    started = perf_counter()
     span = None
     with suppress(Exception):
         span = trace.get_tracer(__name__).start_span(
@@ -80,6 +84,10 @@ def dependency_span(system: str, operation: str) -> Iterator[None]:
                         span.set_attribute("atlas.dependency.outcome", "success")
                         span.set_attribute("atlas.dependency.failure_class", "none")
     finally:
+        with suppress(Exception):
+            timing = CURRENT.get()
+            if timing is not None and system == "snowflake":
+                timing.record(operation, perf_counter() - started)
         with suppress(Exception):
             if span is not None:
                 span.end()

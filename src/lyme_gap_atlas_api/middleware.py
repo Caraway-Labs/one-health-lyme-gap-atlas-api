@@ -253,9 +253,27 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 "failure_type": failure_type,
             })
             return response
+        climate_timing = getattr(request.state, "climate_timing", None)
+        climate_bounds = {}
+        if climate_timing is not None and climate_timing.finished is not None:
+            climate_bounds = {
+                "climate_before_service_ms": max(
+                    0, (climate_timing.started - started_at) * 1000
+                ),
+                "climate_after_service_ms": max(
+                    0, (time.perf_counter() - climate_timing.finished) * 1000
+                ),
+            }
         emit_completion(
             logger, "api_request_completed", {
                     "request_id": request_id,
+                    **climate_bounds,
+                    "climate_timing_ms": getattr(
+                        getattr(request.state, "climate_timing", None), "durations", {}
+                    ),
+                    "climate_operation_counts": getattr(
+                        getattr(request.state, "climate_timing", None), "counts", {}
+                    ),
                     **dimensions,
                     "duration_ms": round((time.perf_counter() - started_at) * 1000),
             },

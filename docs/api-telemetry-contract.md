@@ -122,3 +122,19 @@ quality checks. Use the existing deployment workflow and API162 natural-traffic
 validation; record observed/not-observed/mock/blocked categories separately.
 Do not generate paid inference to populate panels. Roll back through a reviewed
 revert using the same quality/deployment path; never weaken privacy for debugging.
+
+## Climate request timings (API #243)
+
+The existing completion event may include `climate_timing_ms` and
+`climate_operation_counts` for canonical climate observations. Keys are limited
+to `service`, `release_lookup`, `measure_lookup`, `observation_query`, `mapping`,
+`connect`, `execute`, `fetchone`, `fetchall`, `cursor_teardown` and
+`connection_teardown`. Durations are finite nonnegative milliseconds capped at
+one day; counts cap at 10000. Unknown names and values are omitted.
+`climate_before_service_ms` / `climate_after_service_ms` bound the handler service
+within middleware processing. They do not isolate authentication or network.
+No identifiers, SQL or records are added. Existing sampling/exporter/retention
+remain unchanged; this is one bounded addition to the existing event, not a
+second log stream. Logical phase spans use `atlas.climate.<closed phase>`.
+Intervals overlap; do not sum service, phase and I/O durations. See
+[measurement boundaries and controlled acceptance](climate-http-latency.md).
