@@ -39,7 +39,7 @@ def envelope(measure, county):
     dataset, version, revision, _ = IDENTITIES[measure]
     s["measure"].update(
         id=measure,
-        metadata_revision=2,
+        metadata_revision=3,
         metadata_revision_id=revision,
         allowed_value_states=["OBSERVED", "NO_RECORDS"],
     )
@@ -306,13 +306,14 @@ def test_published_record_without_exact_data_packet_binding_is_unavailable():
     from lyme_gap_atlas_data import cdc_consumer_runtime
 
     metadata = cdc_consumer_runtime._metadata(
-        cdc_consumer_runtime._resources(), "scapularis_status"
+        cdc_consumer_runtime._resources(), "scapularis_status", RELEASE
     )
     packet = {
         "release_id": RELEASE,
         "bundle_sha256": BUNDLE,
         "scope": cdc_consumer_runtime.SLICES["scapularis_status"],
         "metadata_revision_id": metadata["revision_id"],
+        "reviewed_at": "2026-10-17",
         "decision_reference": "retained-steward-decision",
         "observation_bindings": {"different-observation": {"record_id": "13081"}},
     }
@@ -333,7 +334,9 @@ def test_published_record_without_exact_data_packet_binding_is_unavailable():
     }
 
     def producer(*_):
-        return cdc_consumer_runtime._packet(facts, metadata, {"observation_id": "unadmitted"})
+        return cdc_consumer_runtime._packet(
+            facts, metadata, {"release_id": RELEASE, "observation_id": "unadmitted"}
+        )
 
     with pytest.raises(
         cdc_consumer_runtime.CDCConsumerUnavailable,
@@ -422,6 +425,21 @@ def test_wrong_release_fails_before_producer():
     adapter = CDCObservationAdapter(settings(), lambda *_: pytest.fail("must not query"))
     with pytest.raises(AtlasDataUnavailableError):
         adapter.search(ObservationQuery(**params(county=["13081"])), "wrong", 0)
+
+
+def test_historical_release_is_never_an_automatic_fallback():
+    producer = Mock(side_effect=envelope)
+    adapter = CDCObservationAdapter(settings(), producer)
+    with pytest.raises(AtlasDataUnavailableError):
+        adapter.search(ObservationQuery(**params()), "governed-2026-10-06-nlcd-demo-cohort", 0)
+    producer.assert_not_called()
+
+
+def test_prior_metadata_revision_cannot_serve_current_release():
+    result = envelope("scapularis_status", "01001")
+    result["semantic"]["measure"]["metadata_revision"] = 2
+    response = client(lambda *_: result).get("/v1/observations", params=params(county="01001"))
+    assert response.status_code == 503
 
 
 @pytest.mark.parametrize(

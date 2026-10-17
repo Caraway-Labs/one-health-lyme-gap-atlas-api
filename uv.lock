@@ -942,7 +942,7 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.23,<5" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14,<2" },
     { name = "neo4j", specifier = ">=6,<7" },
-    { name = "one-health-lyme-gap-atlas-data", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data.git?rev=8ce5d47d518161986d20954f3ddceb8f66504c92" },
+    { name = "one-health-lyme-gap-atlas-data", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data.git?rev=fa901b6b7531b28d6bca4ca40a17b72213254b39" },
     { name = "one-health-lyme-gap-atlas-knowledge-graph", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph.git?rev=kg-v1.0.0" },
     { name = "one-health-lyme-gap-atlas-shared", extras = ["snowflake", "observability"], git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=83ccbe76047185f6aacaff551afd8b03d88aa5cf" },
     { name = "openai", specifier = ">=2.8,<3" },
@@ -960,7 +960,7 @@ provides-extras = ["dev"]
 [[package]]
 name = "one-health-lyme-gap-atlas-data"
 version = "0.1.0"
-source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data.git?rev=8ce5d47d518161986d20954f3ddceb8f66504c92#8ce5d47d518161986d20954f3ddceb8f66504c92" }
+source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data.git?rev=fa901b6b7531b28d6bca4ca40a17b72213254b39#fa901b6b7531b28d6bca4ca40a17b72213254b39" }
 dependencies = [
     { name = "boto3" },
     { name = "h5netcdf" },
