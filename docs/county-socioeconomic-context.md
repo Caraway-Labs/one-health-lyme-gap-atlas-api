@@ -117,7 +117,7 @@ accessible non-map parity; no Web implementation is included here.
 Rollback is a reviewed API revert through the existing deployment workflow. It
 does not rewrite Data migrations, source history, or production grants.
 
-### Generated-client verification and pending compatibility decision
+### Generated-client verification and accepted migration
 
 A scratch checkout of Web main `b7d90a6` regenerated React Query and Zod clients
 successfully with Orval 8.24.0. Generated validators retained all ten production
@@ -128,10 +128,7 @@ The widened operation return type requires consumers to narrow the dated/context
 collection before using dates or passing results to dated-only helpers. Direct
 TypeScript checking identifies new errors at existing compare, explore,
 investigate and PDF callers/tests. This is a generated-client source compatibility
-change despite unchanged legacy HTTP payloads and schema components. Independent
-review has requested changes; do not treat schema-floor tests as proof of client
-compatibility. Owner review and a recorded migration decision are pending before
-merge. Web #474 must account for this if the additive operation is approved.
+change despite unchanged legacy HTTP payloads and schema components. Do not treat schema-floor tests as proof of generated-client source compatibility. The owner approved the additive contract and Web #474 migration on 2026-10-17; [ADR 0018](adr/0018-vintage-aware-county-context-observations.md) records the decision. Independent exact-commit re-review remains required.
 
 Web main also has six pre-existing NO_RECORDS exhaustiveness errors and a public
 documentation checksum mismatch; those are baseline findings, not API acceptance.
