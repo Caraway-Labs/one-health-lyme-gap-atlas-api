@@ -161,6 +161,9 @@ def test_http_union_preserves_zero_and_missing_context(state, value):
         {"semantic_version": "1.0.0"},
         {"context_contract_version": "unreviewed"},
         {"context_limitations": "[]"},
+        {"context_limitations": '[{"text":""}]'},
+        {"allowed_value_states": '["OBSERVED","ZERO"]'},
+        {"unit": "percentile"},
     ],
 )
 def test_malformed_context_fails_closed(changes):
@@ -175,6 +178,7 @@ def test_malformed_context_fails_closed(changes):
         ("uninsured_percent_2022", {"value_json": "101"}),
         ("population_2022", {"value_json": "3.5"}),
         ("population_2022", {"value_json": "-1"}),
+        ("svi_percentile_2022", {"period_start": date(2022, 1, 1)}),
     ],
 )
 def test_quantities_are_not_percentiles_or_categories(mid, changes):
