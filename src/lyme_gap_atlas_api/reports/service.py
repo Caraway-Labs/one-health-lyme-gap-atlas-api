@@ -7,7 +7,7 @@ from statistics import fmean
 from lyme_gap_atlas_shared.domain import ScoreSettings
 
 from ..models import AtlasMetadata, CountyDetail, CountyScoreSummary
-from ..public_contract import GeographyType, ObservationQuery
+from ..public_contract import GeographyType, Observation, ObservationQuery
 from ..public_observations import ObservationService
 from ..repository import AtlasDataUnavailableError
 from ..service import AtlasService
@@ -99,7 +99,7 @@ class ReportService:
         period_start: date,
         period_end: date,
     ) -> CountyReport:
-        items = []
+        items: list[Observation] = []
         for measure_id in sorted(measure_ids):
             query = ObservationQuery(
                 measure_id=measure_id,
@@ -114,6 +114,8 @@ class ReportService:
             if not result.data or result.meta.next_page_token:
                 raise AtlasDataUnavailableError("Report observation context unavailable")
             for item in result.data:
+                if not isinstance(item, Observation):
+                    raise AtlasDataUnavailableError("Report requires dated observations")
                 if (
                     item.release_id != report.provenance.dataset_version
                     or item.geography.geography_id != report.geography.identifier

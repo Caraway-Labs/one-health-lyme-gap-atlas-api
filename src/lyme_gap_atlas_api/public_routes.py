@@ -17,7 +17,7 @@ from .public_contract import (
     Indicator,
     Measure,
     Methodology,
-    Observation,
+    ObservationCollection,
     ObservationQuery,
     PublicQueryError,
     ResourceEnvelope,
@@ -368,6 +368,15 @@ def observation_query(
             examples=[["08001"]],
         ),
     ],
+    vintage_year: Annotated[
+        int | None,
+        Query(
+            ge=1900,
+            le=2100,
+            description="Required for county context: 2022 for SVI/ACS, 2023 for RUCC. "
+            "Excludes year/date filters.",
+        ),
+    ] = None,
     year: Annotated[
         int | None,
         Query(
@@ -416,6 +425,7 @@ def observation_query(
         "geography_type",
         "geography_id",
         "year",
+        "vintage_year",
         "start_date",
         "end_date",
         "stratification",
@@ -433,6 +443,7 @@ def observation_query(
         geography_type=geography_type,
         geography_id=geography_id,
         year=year,
+        vintage_year=vintage_year,
         start_date=start_date,
         end_date=end_date,
         stratification=stratification or [],
@@ -453,7 +464,7 @@ def observation_service(request: Request) -> ObservationService:
 
 @router.get(
     "/v1/observations",
-    response_model=CollectionEnvelope[Observation],
+    response_model=ObservationCollection,
     responses={
         **PROBLEMS,
         200: {
@@ -480,6 +491,10 @@ def observation_service(request: Request) -> ObservationService:
     "scapularis_status and burgdorferi_status require exact Data record admission. "
     "Annual year and other date ranges return 400 UNSUPPORTED_FILTER before data access. "
     "Missing context does not establish absence or temporal comparability. "
+    "County SVI/population/insurance context requires vintage_year=2022 "
+    "and retains ACS 2018-2022 periods. "
+    "RUCC requires vintage_year=2023 and returns categorical codes/labels with null period dates. "
+    "These measures reject annual/day filters; absent rows are unavailable evidence, never zero. "
     "A measure and bounded county/time selection are required; no user sorting or aggregation.",
     operation_id="observations_v1_observations_get",
     tags=["observations"],
@@ -489,7 +504,7 @@ def observations(
     request: Request,
     query: Annotated[ObservationQuery, Depends(observation_query)],
     service: Annotated[ObservationService, Depends(observation_service)],
-) -> CollectionEnvelope[Observation]:
+) -> ObservationCollection:
     if query.measure_id in MEASURES:
         timing = ClimateTiming()
         request.state.climate_timing = timing

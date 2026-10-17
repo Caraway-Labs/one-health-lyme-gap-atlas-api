@@ -43,6 +43,7 @@ from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
 from .briefings import add_briefing_openapi
 from .cdc_surveillance import CDCObservationAdapter
 from .config import ApiSettings, get_settings
+from .county_context_probe import start_county_context_probe
 from .county_review import CountyEvidence, StateReview, aggregate_state, load_config
 from .documentation import LOGO, install_documentation
 from .environmental_reader_probe import start_reader_probe
@@ -336,6 +337,7 @@ def create_app(
         ):
             probe_started = True
             start_reader_probe(config)
+            start_county_context_probe(config)
         yield
 
     app = AtlasFastAPI(

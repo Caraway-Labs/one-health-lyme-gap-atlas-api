@@ -260,7 +260,13 @@ def test_profile_values_remain_available_when_public_observations_are_not_publis
     for measure_id in fixture_unpublished_measures:
         response = api.get(
             "/v1/observations",
-            params=params(measure_id=measure_id),
+            params={
+                k: v
+                for k, v in params(
+                    measure_id=measure_id, vintage_year=2023 if measure_id == "rucc_2023" else 2022
+                ).items()
+                if k != "year"
+            },
         )
         assert response.status_code == 404
         assert response.headers["content-type"] == "application/problem+json"

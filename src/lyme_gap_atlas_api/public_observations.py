@@ -14,17 +14,22 @@ if TYPE_CHECKING:
     from .cdc_surveillance import CDCObservationAdapter
 from .climate_timing import phase
 from .config import ApiSettings
+from .county_context import context_observation, context_query
+from .county_context_ids import CONTEXT_CONTRACT, CONTEXT_FIELDS
 from .dependency_telemetry import connect
 from .environmental_context import MEASURES, EnvironmentalRepository, environmental_observation
 from .public_contract import (
     CollectionEnvelope,
     CollectionLinks,
     CollectionMeta,
+    CountyContextObservation,
     EvidenceReference,
     GeographyIdentity,
     GeographyType,
     Observation,
+    ObservationCollection,
     ObservationQuery,
+    PublicObservation,
     PublicQueryError,
 )
 from .public_tokens import decode, encode
@@ -111,8 +116,12 @@ class SnowflakeObservationRepository:
             with self._cursor() as cursor:
                 cursor.execute(
                     f"SELECT 1 FROM {self.view} "
-                    "WHERE MEASURE_ID = %s AND RELEASE_VERSION = %s LIMIT 1",
-                    (measure_id, release),
+                    "WHERE MEASURE_ID = %s AND RELEASE_VERSION = %s "
+                    + ("AND context_contract_version=%s " if measure_id in CONTEXT_FIELDS else "")
+                    + "LIMIT 1",
+                    (measure_id, release, CONTEXT_CONTRACT)
+                    if measure_id in CONTEXT_FIELDS
+                    else (measure_id, release),
                     timeout=self.settings.public_query_timeout_seconds,
                 )
                 return cursor.fetchone() is not None
@@ -124,6 +133,16 @@ class SnowflakeObservationRepository:
             return EnvironmentalRepository(self.settings, _connection=self._connection).query(
                 query, release, offset
             )
+        if query.measure_id in CONTEXT_FIELDS:
+            statement, params = context_query(self.view, query, release, offset)
+            try:
+                with self._cursor() as cursor:
+                    cursor.execute(
+                        statement, params, timeout=self.settings.public_query_timeout_seconds
+                    )
+                    return cursor.fetchall()
+            except Exception as exc:
+                raise AtlasDataUnavailableError("Governed county context is unavailable") from exc
         fips = sorted(query.geography_id)
         placeholders = ", ".join(["%s"] * len(fips))
         start = date(query.year, 1, 1) if query.year is not None else query.start_date
@@ -165,7 +184,7 @@ class ObservationService:
 
     def search(
         self, query: ObservationQuery, *, checkpoint: Callable[[], None] | None = None
-    ) -> CollectionEnvelope[Observation]:
+    ) -> ObservationCollection:
         check = checkpoint or (lambda: None)
         if query.geography_type != GeographyType.county:
             raise PublicQueryError("UNSUPPORTED_FILTER", "Only county geography is supported.")
@@ -173,10 +192,12 @@ class ObservationService:
             raise PublicQueryError(
                 "UNSUPPORTED_STRATIFICATION", "This release has no governed strata."
             )
-        if (
-            query.measure_id in MEASURES
-            and isinstance(self.repository, SnowflakeObservationRepository)
-            and self.repository.settings.environmental_context_enabled
+        if isinstance(self.repository, SnowflakeObservationRepository) and (
+            query.measure_id in CONTEXT_FIELDS
+            or (
+                query.measure_id in MEASURES
+                and self.repository.settings.environmental_context_enabled
+            )
         ):
             check()
             with self.repository.climate_request() as repository:
@@ -185,7 +206,7 @@ class ObservationService:
 
     def _search(
         self, query: ObservationQuery, repository: ObservationRepository, check: Callable[[], None]
-    ) -> CollectionEnvelope[Observation]:
+    ) -> ObservationCollection:
         check()
         from .cdc_surveillance import IDENTITIES
 
@@ -204,36 +225,75 @@ class ObservationService:
             )
         fingerprint = hashlib.sha256(
             json.dumps(
-                query.model_dump(mode="json", exclude={"page_token", "page_size"}), sort_keys=True
+                query.model_dump(
+                    mode="json",
+                    exclude={"page_token", "page_size"}
+                    | ({"vintage_year"} if query.vintage_year is None else set()),
+                ),
+                sort_keys=True,
             ).encode()
         ).hexdigest()
         offset = self._offset(query.page_token, fingerprint, release)
         check()
+        items: list[PublicObservation]
         if cdc:
             assert self.cdc_adapter is not None
-            items = self.cdc_adapter.search(query, release, offset, checkpoint=check)
+            items = [
+                item for item in self.cdc_adapter.search(query, release, offset, checkpoint=check)
+            ]
             more = len(items) > query.page_size
             items = items[: query.page_size]
         else:
             with phase("observation_query"):
                 rows = repository.query(query, release, offset)
             more = len(rows) > query.page_size
+            if query.measure_id in CONTEXT_FIELDS and not rows and offset == 0:
+                raise PublicQueryError(
+                    "RESOURCE_NOT_FOUND", "No admitted county context for this selection."
+                )
             mapper = (
-                environmental_observation if query.measure_id in MEASURES else self._observation
+                context_observation
+                if query.measure_id in CONTEXT_FIELDS
+                else environmental_observation
+                if query.measure_id in MEASURES
+                else self._observation
             )
             with phase("mapping"):
                 items = [mapper(row) for row in rows[: query.page_size]]
+                if query.measure_id in CONTEXT_FIELDS:
+                    pairs = {(item.measure_id, item.geography.geography_id) for item in items}
+                    if len(pairs) != len(items) or any(
+                        item.measure_id != query.measure_id
+                        or item.release_id != release
+                        or item.geography.geography_id not in query.geography_id
+                        for item in items
+                    ):
+                        raise AtlasDataUnavailableError("Inconsistent governed county context")
         check()
         if not cdc and self.surveillance_resolver is not None:
             for item in items:
                 check()
-                item.surveillance_context = resolve_context(item, self.surveillance_resolver)
+                if isinstance(item, Observation):
+                    item.surveillance_context = resolve_context(item, self.surveillance_resolver)
         token = None
         if more:
             token = self._token(fingerprint, release, offset + query.page_size)
-        return CollectionEnvelope(
-            data=items, meta=CollectionMeta(next_page_token=token), links=CollectionLinks()
-        )
+        meta = CollectionMeta(next_page_token=token)
+        if query.measure_id in CONTEXT_FIELDS:
+            context_items: list[CountyContextObservation] = []
+            for item in items:
+                if not isinstance(item, CountyContextObservation):
+                    raise AtlasDataUnavailableError("Unexpected context collection shape")
+                context_items.append(item)
+            return CollectionEnvelope[CountyContextObservation](
+                data=context_items, meta=meta, links=CollectionLinks()
+            )
+        dated_items: list[Observation] = []
+        for item in items:
+            if not isinstance(item, Observation):
+                raise AtlasDataUnavailableError("Unexpected dated collection shape")
+            dated_items.append(item)
+        return CollectionEnvelope[Observation](data=dated_items, meta=meta, links=CollectionLinks())
 
     @staticmethod
     def _token(fingerprint: str, release: str, offset: int) -> str:

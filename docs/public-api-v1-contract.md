@@ -372,3 +372,13 @@ standards mapping, domain, category, and measure definition remain null.
 No observation rows are scanned to fill them. Data #499's V123/V124 views and
 read grants reached PROD for #53; #54 and #55 delivered the observation,
 source, and methodology routes.
+
+
+## County socioeconomic and rurality context (API #212)
+
+The existing observations collection also accepts the admitted five county context
+measures with explicit vintage_year. Its typed CountyContextObservation alternative
+retains ACS reference periods and permits null dates for RUCC VINTAGE_YEAR only.
+The original dated Observation schema and operation IDs remain unchanged. See the
+[county context contract](county-socioeconomic-context.md) for the support matrix,
+exact numeric transport, unavailable states, provenance, bounds and rollout gates.
