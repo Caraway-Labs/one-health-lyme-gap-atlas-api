@@ -31,7 +31,10 @@ def test_public_operations_and_problem_responses_remain_available() -> None:
     for path, floor in FLOOR["paths"].items():
         operation = paths[path][floor["method"]]
         response = operation["responses"]["200"]["content"]["application/json"]["schema"]
-        assert response["$ref"].split("/")[-1] == floor["response"]
+        # API212 adds a context collection alternative. The original response
+        # component remains present and unchanged for all existing dated requests.
+        alternatives = response.get("anyOf", [response])
+        assert floor["response"] in {branch["$ref"].split("/")[-1] for branch in alternatives}
         required_params = {
             param["name"] for param in operation.get("parameters", []) if param.get("required")
         }

@@ -2890,7 +2890,7 @@
           "observations"
         ],
         "summary": "Query county observations",
-        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. Surveillance context is optional and requires an admitted Data delivery; normalized_state preserves Data semantics and the publisher value remains value. Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; scapularis_status and burgdorferi_status require exact Data record admission. Annual year and other date ranges return 400 UNSUPPORTED_FILTER before data access. Missing context does not establish absence or temporal comparability. A measure and bounded county/time selection are required; no user sorting or aggregation.",
+        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. Surveillance context is optional and requires an admitted Data delivery; normalized_state preserves Data semantics and the publisher value remains value. Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; scapularis_status and burgdorferi_status require exact Data record admission. Annual year and other date ranges return 400 UNSUPPORTED_FILTER before data access. Missing context does not establish absence or temporal comparability. County SVI/population/insurance context requires vintage_year=2022 and retains ACS 2018-2022 periods. RUCC requires vintage_year=2023 and returns categorical codes/labels with null period dates. These measures reject annual/day filters; absent rows are unavailable evidence, never zero. A measure and bounded county/time selection are required; no user sorting or aggregation.",
         "operationId": "observations_v1_observations_get",
         "parameters": [
           {
@@ -2936,6 +2936,26 @@
               "title": "Geography Id"
             },
             "description": "Repeat for 1-500 county FIPS strings; preserve leading zeros."
+          },
+          {
+            "name": "vintage_year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2100,
+                  "minimum": 1900
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required for county context: 2022 for SVI/ACS, 2023 for RUCC. Excludes year/date filters.",
+              "title": "Vintage Year"
+            },
+            "description": "Required for county context: 2022 for SVI/ACS, 2023 for RUCC. Excludes year/date filters."
           },
           {
             "name": "year",
@@ -3073,7 +3093,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CollectionEnvelope_Observation_"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionEnvelope_CountyContextObservation_"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CollectionEnvelope_Observation_"
+                    }
+                  ],
+                  "title": "Response Observations V1 Observations Get"
                 },
                 "examples": {
                   "empty": {
@@ -5589,11 +5617,11 @@
         ],
         "title": "Methodology"
       },
-      "CollectionEnvelope_Observation_": {
+      "CollectionEnvelope_CountyContextObservation_": {
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/Observation"
+              "$ref": "#/components/schemas/CountyContextObservation"
             },
             "type": "array",
             "title": "Data"
@@ -5611,9 +5639,9 @@
           "meta",
           "links"
         ],
-        "title": "CollectionEnvelope[Observation]"
+        "title": "CollectionEnvelope[CountyContextObservation]"
       },
-      "Observation": {
+      "CountyContextObservation": {
         "properties": {
           "metadata_revision_id": {
             "anyOf": [
@@ -5639,26 +5667,18 @@
           "geography": {
             "$ref": "#/components/schemas/GeographyIdentity"
           },
-          "period_start": {
-            "type": "string",
-            "format": "date",
-            "title": "Period Start",
-            "description": "Inclusive start of the governed observation period."
-          },
-          "period_end": {
-            "type": "string",
-            "format": "date",
-            "title": "Period End",
-            "description": "Inclusive end of the governed observation period."
-          },
           "temporal_grain": {
             "type": "string",
+            "enum": [
+              "PERIOD",
+              "VINTAGE_YEAR"
+            ],
             "title": "Temporal Grain"
           },
           "value": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "integer"
               },
               {
                 "type": "string"
@@ -5668,7 +5688,7 @@
               }
             ],
             "title": "Value",
-            "description": "Read with value_state and unit; null never means zero."
+            "description": "Integer population/category or exact nonzero decimal text; ZERO is integer 0."
           },
           "value_state": {
             "$ref": "#/components/schemas/ValueState",
@@ -5882,6 +5902,35 @@
               }
             ],
             "description": "Only supplied through an admitted Data release/bundle and supported slice. Omitted or null carries no evidence-state, comparability or lag claim. Comparison is case-definition scope only; alignment is descriptive, not causal."
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start",
+            "description": "ACS reference-period start; null for RUCC vintage."
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End",
+            "description": "ACS reference-period end; null for RUCC vintage."
+          },
+          "county_context": {
+            "$ref": "#/components/schemas/CountyContext"
           }
         },
         "type": "object",
@@ -5889,8 +5938,6 @@
           "observation_id",
           "measure_id",
           "geography",
-          "period_start",
-          "period_end",
           "temporal_grain",
           "value",
           "value_state",
@@ -5903,9 +5950,12 @@
           "release_id",
           "provenance_ref",
           "limitations",
-          "evidence"
+          "evidence",
+          "period_start",
+          "period_end",
+          "county_context"
         ],
-        "title": "Observation"
+        "title": "CountyContextObservation"
       },
       "EvidenceReference": {
         "properties": {
@@ -6629,6 +6679,389 @@
           "source_vintage"
         ],
         "title": "TemporalReferencePeriodContext"
+      },
+      "CountyContext": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "atlas-county-context-consumer/1",
+            "title": "Contract Version"
+          },
+          "vintage_year": {
+            "type": "integer",
+            "title": "Vintage Year",
+            "description": "Source product/classification vintage, not an annual date."
+          },
+          "source_field": {
+            "type": "string",
+            "title": "Source Field"
+          },
+          "value_type": {
+            "type": "string",
+            "enum": [
+              "integer",
+              "number"
+            ],
+            "title": "Value Type"
+          },
+          "category_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Label",
+            "description": "Authoritative category label; null for quantities."
+          },
+          "definition": {
+            "type": "string",
+            "title": "Definition"
+          },
+          "allowed_value_states": {
+            "items": {
+              "$ref": "#/components/schemas/ValueState"
+            },
+            "type": "array",
+            "title": "Allowed Value States"
+          },
+          "metadata_methodology_version": {
+            "type": "string",
+            "title": "Metadata Methodology Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contract_version",
+          "vintage_year",
+          "source_field",
+          "value_type",
+          "category_label",
+          "definition",
+          "allowed_value_states",
+          "metadata_methodology_version"
+        ],
+        "title": "CountyContext"
+      },
+      "CollectionEnvelope_Observation_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Observation"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/CollectionMeta"
+          },
+          "links": {
+            "$ref": "#/components/schemas/CollectionLinks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "CollectionEnvelope[Observation]"
+      },
+      "Observation": {
+        "properties": {
+          "metadata_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Revision Id",
+            "description": "Reviewed consumer-safe metadata revision; not private lineage."
+          },
+          "observation_id": {
+            "type": "string",
+            "title": "Observation Id",
+            "description": "Stable observation identity and compact provenance reference."
+          },
+          "measure_id": {
+            "type": "string",
+            "title": "Measure Id"
+          },
+          "geography": {
+            "$ref": "#/components/schemas/GeographyIdentity"
+          },
+          "temporal_grain": {
+            "type": "string",
+            "title": "Temporal Grain"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "Read with value_state and unit; null never means zero."
+          },
+          "value_state": {
+            "$ref": "#/components/schemas/ValueState",
+            "description": "OBSERVED is nonzero; ZERO is numeric zero; MISSING/SUPPRESSED/UNAVAILABLE require null; NO_COUNTY_LINKED_RECORD retains the literal no_county_linked_record; NO_RECORDS retains CDC's No records. Neither establishes biological absence."
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "denominator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Denominator",
+            "description": "Governed denominator; null means it is not supplied and must not be inferred."
+          },
+          "strata": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Strata"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id",
+            "description": "Public source resource key; distinct from lineage_source_id and dataset_id."
+          },
+          "lineage_source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lineage Source Id"
+          },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id"
+          },
+          "methodology_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology Id",
+            "description": "Exact governed methodology resource ID; null when not governed."
+          },
+          "methodology": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology"
+          },
+          "release_methodology_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Methodology Version"
+          },
+          "methodology_version": {
+            "type": "string",
+            "title": "Methodology Version",
+            "description": "Transformation version, distinct from methodology resource version."
+          },
+          "semantic_version": {
+            "type": "string",
+            "title": "Semantic Version",
+            "description": "Governed semantic contract version, separate from HTTP V1 and application version."
+          },
+          "release_id": {
+            "type": "string",
+            "title": "Release Id",
+            "description": "Governed release identity for reproducibility."
+          },
+          "provenance_ref": {
+            "type": "string",
+            "title": "Provenance Ref",
+            "description": "Structured observation provenance identity; not a literature citation."
+          },
+          "source_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Label"
+          },
+          "source_vintage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Vintage"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "source_published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Published At",
+            "description": "Publisher timestamp when governed; null is not inferred freshness."
+          },
+          "atlas_acquired_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Atlas Acquired At",
+            "description": "Atlas acquisition time when governed; distinct from source publication and processing."
+          },
+          "atlas_processed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Atlas Processed At",
+            "description": "Atlas processing time when governed; distinct from response time."
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations",
+            "description": "Governed interpretation limitations; preserve alongside values and versions."
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidenceReference"
+          },
+          "environmental_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentalContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only for reviewed environmental context. DECIMAL quantities may use exact numeric strings; native DOUBLE remains a JSON number."
+          },
+          "surveillance_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SurveillanceContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only supplied through an admitted Data release/bundle and supported slice. Omitted or null carries no evidence-state, comparability or lag claim. Comparison is case-definition scope only; alignment is descriptive, not causal."
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start",
+            "description": "Inclusive start of the governed observation period."
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date",
+            "title": "Period End",
+            "description": "Inclusive end of the governed observation period."
+          }
+        },
+        "type": "object",
+        "required": [
+          "observation_id",
+          "measure_id",
+          "geography",
+          "temporal_grain",
+          "value",
+          "value_state",
+          "unit",
+          "denominator",
+          "source_id",
+          "methodology_id",
+          "methodology_version",
+          "semantic_version",
+          "release_id",
+          "provenance_ref",
+          "limitations",
+          "evidence",
+          "period_start",
+          "period_end"
+        ],
+        "title": "Observation"
       },
       "CollectionEnvelope_Source_": {
         "properties": {

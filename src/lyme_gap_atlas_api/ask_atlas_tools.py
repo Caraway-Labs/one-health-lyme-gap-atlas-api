@@ -461,7 +461,11 @@ class StructuredTools:
             (geo, year): None for geo in args.geography_ids for year in years
         }
         seen_ids: set[str] = set()
+        dated_observations: list[Observation] = []
         for observation in envelope.data:
+            if not isinstance(observation, Observation):
+                raise AtlasDataUnavailableError("Annual tools require dated observations.")
+            dated_observations.append(observation)
             key = (observation.geography.geography_id, observation.period_start.year)
             if (
                 key not in slots
@@ -504,7 +508,7 @@ class StructuredTools:
             tool="get_observations",
             status="ok",
             release_id=release,
-            observations=envelope.data,
+            observations=dated_observations,
             coverage=coverage,
         )
 

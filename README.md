@@ -13,6 +13,8 @@ On a future coordinated refresh, copy that full artifact to Web's existing
 `contracts/openapi.json` before running its unchanged `generate:api` command.
 Do not replace that Web input with the public projection. No full-schema HTTP
 endpoint is provided; current checked-in Web inputs remain untouched.
+County SVI, population, insurance and RUCC observations use the existing observation
+resource with explicit vintage selection; see the [county context contract](docs/county-socioeconomic-context.md).
 Start with the [public API guide](docs/public-api-guide.md) for tested requests,
 interpretation, pagination, errors, and reproducibility.
 The [OpenAPI quality gate](docs/openapi-quality.md) documents semantic review

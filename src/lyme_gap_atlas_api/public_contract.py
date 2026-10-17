@@ -278,7 +278,7 @@ class SurveillanceContext(BaseModel):
     temporal_alignment: TemporalAlignmentContext | None = None
 
 
-class Observation(BaseModel):
+class ObservationFields(BaseModel):
     metadata_revision_id: str | None = Field(
         default=None, description="Reviewed consumer-safe metadata revision; not private lineage."
     )
@@ -287,8 +287,6 @@ class Observation(BaseModel):
     )
     measure_id: str
     geography: GeographyIdentity
-    period_start: date = Field(description="Inclusive start of the governed observation period.")
-    period_end: date = Field(description="Inclusive end of the governed observation period.")
     temporal_grain: str
     value: float | str | None = Field(
         description="Read with value_state and unit; null never means zero."
@@ -362,11 +360,9 @@ class Observation(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_value_state(self) -> "Observation":
+    def validate_value_state(self) -> "ObservationFields":
         if self.value_state == ValueState.NO_RECORDS and self.value != "No records":
             raise ValueError("NO_RECORDS requires the original CDC publisher value")
-        if self.period_end < self.period_start:
-            raise ValueError("period_end precedes period_start")
         if self.value_state == ValueState.ZERO and (
             isinstance(self.value, bool) or self.value != 0
         ):
@@ -402,6 +398,60 @@ class Geography(BaseModel):
     label: str
     parent: GeographyIdentity | None = None
     # Geometry is a separately governed display resource and is never implied here.
+
+
+class Observation(ObservationFields):
+    period_start: date = Field(description="Inclusive start of the governed observation period.")
+    period_end: date = Field(description="Inclusive end of the governed observation period.")
+
+    @model_validator(mode="after")
+    def validate_period(self) -> "Observation":
+        if self.period_end < self.period_start:
+            raise ValueError("period_end precedes period_start")
+        return self
+
+
+class CountyContext(BaseModel):
+    contract_version: Literal["atlas-county-context-consumer/1"]
+    vintage_year: int = Field(
+        description="Source product/classification vintage, not an annual date."
+    )
+    source_field: str
+    value_type: Literal["integer", "number"]
+    category_label: str | None = Field(
+        description="Authoritative category label; null for quantities."
+    )
+    definition: str
+    allowed_value_states: list[ValueState]
+    metadata_methodology_version: str
+
+
+class CountyContextObservation(ObservationFields):
+    value: int | str | None = Field(
+        description="Integer population/category or exact nonzero decimal text; ZERO is integer 0."
+    )
+    period_start: date | None = Field(
+        description="ACS reference-period start; null for RUCC vintage."
+    )
+    period_end: date | None = Field(description="ACS reference-period end; null for RUCC vintage.")
+    temporal_grain: Literal["PERIOD", "VINTAGE_YEAR"]
+    county_context: CountyContext
+
+    @model_validator(mode="after")
+    def validate_context_time(self) -> "CountyContextObservation":
+        if self.temporal_grain == "VINTAGE_YEAR":
+            if self.period_start is not None or self.period_end is not None:
+                raise ValueError("Vintage classifications have no observation dates")
+        elif (
+            self.period_start is None
+            or self.period_end is None
+            or self.period_end < self.period_start
+        ):
+            raise ValueError("Reference period requires ordered dates")
+        return self
+
+
+PublicObservation = CountyContextObservation | Observation
 
 
 class Source(BaseModel):
@@ -496,6 +546,11 @@ class PublicQueryError(ValueError):
         super().__init__(detail)
 
 
+ObservationCollection = (
+    CollectionEnvelope[CountyContextObservation] | CollectionEnvelope[Observation]
+)
+
+
 class ObservationQuery(BaseModel):
     measure_id: str = Field(min_length=1)
     geography_type: GeographyType
@@ -504,6 +559,7 @@ class ObservationQuery(BaseModel):
         max_length=500,
         description="FIPS string with leading zeros: five digits for counties, two for states.",
     )
+    vintage_year: int | None = Field(default=None, ge=1900, le=2100)
     year: int | None = Field(default=None, ge=1900, le=2100)
     start_date: date | None = None
     end_date: date | None = None
@@ -512,6 +568,35 @@ class ObservationQuery(BaseModel):
     page_token: str | None = None
 
     def validate_bounds(self, *, ceiling: int, annual: bool = False) -> None:
+        for geography_id in self.geography_id:
+            try:
+                GeographyIdentity(geography_type=self.geography_type, geography_id=geography_id)
+            except ValueError as exc:
+                raise PublicQueryError("INVALID_REQUEST", str(exc)) from exc
+        if len(set(self.geography_id)) != len(self.geography_id):
+            raise PublicQueryError("INVALID_REQUEST", "Duplicate geography_id is invalid.")
+        from .county_context_ids import CONTEXT_FIELDS
+
+        if self.measure_id in CONTEXT_FIELDS:
+            expected = 2023 if self.measure_id == "rucc_2023" else 2022
+            if self.vintage_year is None:
+                raise PublicQueryError("INVALID_REQUEST", "Supply vintage_year for county context.")
+            if (
+                self.vintage_year != expected
+                or self.year is not None
+                or self.start_date is not None
+                or self.end_date is not None
+            ):
+                raise PublicQueryError(
+                    "UNSUPPORTED_FILTER", "Unsupported county context time selection."
+                )
+            if len(self.geography_id) > ceiling:
+                raise PublicQueryError("QUERY_TOO_BROAD", "Narrow the county selection.")
+            return
+        if self.vintage_year is not None:
+            raise PublicQueryError(
+                "UNSUPPORTED_FILTER", "This measure does not support vintage_year."
+            )
         if self.year is not None and (self.start_date is not None or self.end_date is not None):
             raise PublicQueryError("INVALID_REQUEST", "Use year or a date range, not both.")
         if self.year is None and (self.start_date is None or self.end_date is None):
@@ -524,13 +609,6 @@ class ObservationQuery(BaseModel):
             and self.end_date < self.start_date
         ):
             raise PublicQueryError("INVALID_REQUEST", "end_date must not precede start_date.")
-        for geography_id in self.geography_id:
-            try:
-                GeographyIdentity(geography_type=self.geography_type, geography_id=geography_id)
-            except ValueError as exc:
-                raise PublicQueryError("INVALID_REQUEST", str(exc)) from exc
-        if len(set(self.geography_id)) != len(self.geography_id):
-            raise PublicQueryError("INVALID_REQUEST", "Duplicate geography_id is invalid.")
         # The current projection has at most one row per county and annual bucket.
         # Keep the day-level fallback for callers without a governed annual grain.
         if self.year is not None:
