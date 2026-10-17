@@ -7,7 +7,7 @@ name = "one-health-lyme-gap-atlas-api"
 version = "0.1.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-  "one-health-lyme-gap-atlas-data @ git+https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data.git@1cb120397bdeaf94004a99acec693b94643c0ff6",
+  "one-health-lyme-gap-atlas-data @ git+https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data.git@fdcff240056e99768efecf7635f98807e9f78856",
   "fastapi>=0.115,<1",
   "httpx>=0.28,<1",
   "jsonschema>=4.23,<5",
