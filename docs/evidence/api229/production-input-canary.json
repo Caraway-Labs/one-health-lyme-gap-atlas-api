@@ -1,0 +1,718 @@
+{
+  "evidence_kind": "candidate_route_over_captured_real_PROD_inputs_not_deployed_candidate",
+  "receipts": [
+    {
+      "state": "AL",
+      "status": 200,
+      "coverage": {
+        "assessed_counties": 67,
+        "eligible_counties": 67,
+        "abstained_counties": 67,
+        "evaluated_counties": 36,
+        "rule_coverage": {
+          "human_emerging": "enabled",
+          "vector_transition": "enabled",
+          "human_vector_discordance": "enabled",
+          "pathogen_present_vector_reported": "enabled"
+        }
+      },
+      "rule_evaluation_counts": {
+        "human_emerging": {
+          "assessed_counties": 67,
+          "eligible_counties": 67,
+          "evaluated_counties": 0,
+          "abstained_counties": 67,
+          "candidate_counties": 0
+        },
+        "vector_transition": {
+          "assessed_counties": 67,
+          "eligible_counties": 67,
+          "evaluated_counties": 0,
+          "abstained_counties": 67,
+          "candidate_counties": 0
+        },
+        "human_vector_discordance": {
+          "assessed_counties": 67,
+          "eligible_counties": 67,
+          "evaluated_counties": 0,
+          "abstained_counties": 67,
+          "candidate_counties": 0
+        },
+        "pathogen_present_vector_reported": {
+          "assessed_counties": 67,
+          "eligible_counties": 67,
+          "evaluated_counties": 36,
+          "abstained_counties": 31,
+          "candidate_counties": 0
+        }
+      },
+      "methodology_version": "2.0.0",
+      "configuration_sha256": "b4856baa05222acc4f7fa49aa918a9782fe38544dfa924f93ec2ad57c09a0e7e",
+      "result_state": "insufficient_evidence",
+      "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+      "source": "Candidate TestClient route over freshly captured PROD READ/public HTTP inputs",
+      "captured_at": "2026-10-12T03:52:51.681055+00:00"
+    },
+    {
+      "state": "GA",
+      "status": 200,
+      "coverage": {
+        "assessed_counties": 159,
+        "eligible_counties": 159,
+        "abstained_counties": 159,
+        "evaluated_counties": 39,
+        "rule_coverage": {
+          "human_emerging": "enabled",
+          "vector_transition": "enabled",
+          "human_vector_discordance": "enabled",
+          "pathogen_present_vector_reported": "enabled"
+        }
+      },
+      "rule_evaluation_counts": {
+        "human_emerging": {
+          "assessed_counties": 159,
+          "eligible_counties": 159,
+          "evaluated_counties": 0,
+          "abstained_counties": 159,
+          "candidate_counties": 0
+        },
+        "vector_transition": {
+          "assessed_counties": 159,
+          "eligible_counties": 159,
+          "evaluated_counties": 0,
+          "abstained_counties": 159,
+          "candidate_counties": 0
+        },
+        "human_vector_discordance": {
+          "assessed_counties": 159,
+          "eligible_counties": 159,
+          "evaluated_counties": 0,
+          "abstained_counties": 159,
+          "candidate_counties": 0
+        },
+        "pathogen_present_vector_reported": {
+          "assessed_counties": 159,
+          "eligible_counties": 159,
+          "evaluated_counties": 39,
+          "abstained_counties": 120,
+          "candidate_counties": 0
+        }
+      },
+      "methodology_version": "2.0.0",
+      "configuration_sha256": "b4856baa05222acc4f7fa49aa918a9782fe38544dfa924f93ec2ad57c09a0e7e",
+      "result_state": "insufficient_evidence",
+      "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+      "source": "Candidate TestClient route over freshly captured PROD READ/public HTTP inputs",
+      "captured_at": "2026-10-12T03:52:52.309255+00:00"
+    }
+  ],
+  "representative_county_evaluations": [
+    {
+      "county_fips": "01001",
+      "rules": [
+        {
+          "rule_id": "human_emerging",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "MISSING_HUMAN_SURVEILLANCE"
+          ],
+          "detail": "No usable published county human value; missing and suppression are not zero.",
+          "evidence": [
+            {
+              "source_id": "human",
+              "source_label": "CDC Lyme surveillance",
+              "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+              "source_vintage": "2023",
+              "measure_id": "case_count_floor_2023",
+              "county_fips": "01001",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "065da804afb8afec6cd0e6c2498a6816a006712a7f94ee6855b29bdddb84e26b",
+              "value": null,
+              "value_state": "MISSING",
+              "period_start": "2023-01-01",
+              "period_end": "2023-12-31",
+              "temporal_grain": "YEAR",
+              "retrieved_at": "2026-09-07T17:21:14.768948-07:00",
+              "methodology_version": "semantic_county_assembly_v1",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Published surveillance values are privacy-protected floors, not complete incidence estimates.",
+                "Privacy-protected floor.",
+                "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+              ]
+            }
+          ]
+        },
+        {
+          "rule_id": "vector_transition",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "NO_COMPARABLE_NATIVE_SNAPSHOTS"
+          ],
+          "detail": "A current cumulative classification is not a historical transition. No admitted same-taxon/target snapshot pair is available.",
+          "evidence": [
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "scapularis_status",
+              "county_fips": "01001",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/01001?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "Established",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            },
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "pacificus_status",
+              "county_fips": "01001",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/01001?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "No records",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            }
+          ]
+        },
+        {
+          "rule_id": "human_vector_discordance",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "INSUFFICIENT_PAIRED_EVIDENCE"
+          ],
+          "detail": "Both observed human and admitted vector/pathogen inputs are required; No records and missing values are not negative comparators.",
+          "evidence": [
+            {
+              "source_id": "human",
+              "source_label": "CDC Lyme surveillance",
+              "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+              "source_vintage": "2023",
+              "measure_id": "case_count_floor_2023",
+              "county_fips": "01001",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "065da804afb8afec6cd0e6c2498a6816a006712a7f94ee6855b29bdddb84e26b",
+              "value": null,
+              "value_state": "MISSING",
+              "period_start": "2023-01-01",
+              "period_end": "2023-12-31",
+              "temporal_grain": "YEAR",
+              "retrieved_at": "2026-09-07T17:21:14.768948-07:00",
+              "methodology_version": "semantic_county_assembly_v1",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Published surveillance values are privacy-protected floors, not complete incidence estimates.",
+                "Privacy-protected floor.",
+                "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+              ]
+            }
+          ]
+        },
+        {
+          "rule_id": "pathogen_present_vector_reported",
+          "eligible": true,
+          "evaluated": true,
+          "abstained": false,
+          "candidate": false,
+          "reason_codes": [
+            "VECTOR_ESTABLISHED_PAIRING_NOT_MET"
+          ],
+          "detail": "Published species status is Established, so the neither-species-Established predicate is false. This does not evaluate emergence or risk.",
+          "evidence": [
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "scapularis_status",
+              "county_fips": "01001",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/01001?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "Established",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "county_fips": "01003",
+      "rules": [
+        {
+          "rule_id": "human_emerging",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "NO_COMPARABLE_HISTORY"
+          ],
+          "detail": "Published 2023 floor is available; no admitted within-county baseline.",
+          "evidence": [
+            {
+              "source_id": "human",
+              "source_label": "CDC Lyme surveillance",
+              "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+              "source_vintage": "2023",
+              "measure_id": "case_count_floor_2023",
+              "county_fips": "01003",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "d0fe8ec8fae25105bc1b2e590ed4e2018262cf57a9ffe1d019085f7cbe3b8b61",
+              "value": 5.0,
+              "value_state": "OBSERVED",
+              "period_start": "2023-01-01",
+              "period_end": "2023-12-31",
+              "temporal_grain": "YEAR",
+              "retrieved_at": "2026-09-07T17:21:14.768948-07:00",
+              "methodology_version": "semantic_county_assembly_v1",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Published surveillance values are privacy-protected floors, not complete incidence estimates.",
+                "Privacy-protected floor.",
+                "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+              ]
+            }
+          ]
+        },
+        {
+          "rule_id": "vector_transition",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "NO_COMPARABLE_NATIVE_SNAPSHOTS"
+          ],
+          "detail": "A current cumulative classification is not a historical transition. No admitted same-taxon/target snapshot pair is available.",
+          "evidence": [
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "scapularis_status",
+              "county_fips": "01003",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/01003?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "Established",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            },
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "pacificus_status",
+              "county_fips": "01003",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/01003?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "No records",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            }
+          ]
+        },
+        {
+          "rule_id": "human_vector_discordance",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "INSUFFICIENT_PAIRED_EVIDENCE"
+          ],
+          "detail": "Both observed human and admitted vector/pathogen inputs are required; No records and missing values are not negative comparators.",
+          "evidence": [
+            {
+              "source_id": "human",
+              "source_label": "CDC Lyme surveillance",
+              "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+              "source_vintage": "2023",
+              "measure_id": "case_count_floor_2023",
+              "county_fips": "01003",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "d0fe8ec8fae25105bc1b2e590ed4e2018262cf57a9ffe1d019085f7cbe3b8b61",
+              "value": 5.0,
+              "value_state": "OBSERVED",
+              "period_start": "2023-01-01",
+              "period_end": "2023-12-31",
+              "temporal_grain": "YEAR",
+              "retrieved_at": "2026-09-07T17:21:14.768948-07:00",
+              "methodology_version": "semantic_county_assembly_v1",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Published surveillance values are privacy-protected floors, not complete incidence estimates.",
+                "Privacy-protected floor.",
+                "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+              ]
+            }
+          ]
+        },
+        {
+          "rule_id": "pathogen_present_vector_reported",
+          "eligible": true,
+          "evaluated": true,
+          "abstained": false,
+          "candidate": false,
+          "reason_codes": [
+            "VECTOR_ESTABLISHED_PAIRING_NOT_MET"
+          ],
+          "detail": "Published species status is Established, so the neither-species-Established predicate is false. This does not evaluate emergence or risk.",
+          "evidence": [
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "scapularis_status",
+              "county_fips": "01003",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/01003?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "Established",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "county_fips": "13081",
+      "rules": [
+        {
+          "rule_id": "human_emerging",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "MISSING_HUMAN_SURVEILLANCE"
+          ],
+          "detail": "No usable published county human value; missing and suppression are not zero.",
+          "evidence": [
+            {
+              "source_id": "human",
+              "source_label": "CDC Lyme surveillance",
+              "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+              "source_vintage": "2023",
+              "measure_id": "case_count_floor_2023",
+              "county_fips": "13081",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "fda4802dad5dcbbb264098fcb4c4c2bb04b86369450602aceee18e414fc75654",
+              "value": null,
+              "value_state": "MISSING",
+              "period_start": "2023-01-01",
+              "period_end": "2023-12-31",
+              "temporal_grain": "YEAR",
+              "retrieved_at": "2026-09-07T17:21:14.768948-07:00",
+              "methodology_version": "semantic_county_assembly_v1",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Published surveillance values are privacy-protected floors, not complete incidence estimates.",
+                "Privacy-protected floor.",
+                "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+              ]
+            }
+          ]
+        },
+        {
+          "rule_id": "vector_transition",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "NO_COMPARABLE_NATIVE_SNAPSHOTS"
+          ],
+          "detail": "A current cumulative classification is not a historical transition. No admitted same-taxon/target snapshot pair is available.",
+          "evidence": [
+            {
+              "source_id": "tick",
+              "source_label": null,
+              "source_url": null,
+              "source_vintage": "2025",
+              "measure_id": "scapularis_status",
+              "county_fips": "13081",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "observation:v1:9610f9b806e4abf8fa8cc5a15cbecb2697f92cef85b7ffb633a6e2497eb0014c",
+              "value": "Reported",
+              "value_state": "OBSERVED",
+              "period_start": "2025-12-31",
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "tick-surveillance-v1",
+              "metadata_revision_id": "metadata-revision:v1:c60fb91162b5ed33d34a01d3fef24e0a4a2ef8976bbd07ac1082fd783adfb509",
+              "limitations": [
+                "Raw workbook, private lineage, runs, artifacts and hashes remain restricted; only the reviewed allowlisted semantic projection may reach consumers.",
+                "No records, missing evidence and UNKNOWN_SOURCE_COVERAGE placeholders are unknown, never biological absence or a sampled negative.",
+                "County source status does not establish prevalence, density, individual human risk or establishment thresholds.",
+                "County-native publisher status does not establish sampling completeness, effort or representativeness of all habitats.",
+                "Cumulative through 2025-12-31 is not an annual collection event or a current ecological conclusion.",
+                "Source vintage and cumulative period are known; exact publisher publication date and retained retrieval timestamp are not asserted by this package."
+              ]
+            },
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "scapularis_status",
+              "county_fips": "13081",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/13081?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "Reported",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            },
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "pacificus_status",
+              "county_fips": "13081",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/13081?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "No records",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            }
+          ]
+        },
+        {
+          "rule_id": "human_vector_discordance",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "INSUFFICIENT_PAIRED_EVIDENCE"
+          ],
+          "detail": "Both observed human and admitted vector/pathogen inputs are required; No records and missing values are not negative comparators.",
+          "evidence": [
+            {
+              "source_id": "human",
+              "source_label": "CDC Lyme surveillance",
+              "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+              "source_vintage": "2023",
+              "measure_id": "case_count_floor_2023",
+              "county_fips": "13081",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "fda4802dad5dcbbb264098fcb4c4c2bb04b86369450602aceee18e414fc75654",
+              "value": null,
+              "value_state": "MISSING",
+              "period_start": "2023-01-01",
+              "period_end": "2023-12-31",
+              "temporal_grain": "YEAR",
+              "retrieved_at": "2026-09-07T17:21:14.768948-07:00",
+              "methodology_version": "semantic_county_assembly_v1",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Published surveillance values are privacy-protected floors, not complete incidence estimates.",
+                "Privacy-protected floor.",
+                "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+              ]
+            },
+            {
+              "source_id": "tick",
+              "source_label": null,
+              "source_url": null,
+              "source_vintage": "2025",
+              "measure_id": "scapularis_status",
+              "county_fips": "13081",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "observation:v1:9610f9b806e4abf8fa8cc5a15cbecb2697f92cef85b7ffb633a6e2497eb0014c",
+              "value": "Reported",
+              "value_state": "OBSERVED",
+              "period_start": "2025-12-31",
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "tick-surveillance-v1",
+              "metadata_revision_id": "metadata-revision:v1:c60fb91162b5ed33d34a01d3fef24e0a4a2ef8976bbd07ac1082fd783adfb509",
+              "limitations": [
+                "Raw workbook, private lineage, runs, artifacts and hashes remain restricted; only the reviewed allowlisted semantic projection may reach consumers.",
+                "No records, missing evidence and UNKNOWN_SOURCE_COVERAGE placeholders are unknown, never biological absence or a sampled negative.",
+                "County source status does not establish prevalence, density, individual human risk or establishment thresholds.",
+                "County-native publisher status does not establish sampling completeness, effort or representativeness of all habitats.",
+                "Cumulative through 2025-12-31 is not an annual collection event or a current ecological conclusion.",
+                "Source vintage and cumulative period are known; exact publisher publication date and retained retrieval timestamp are not asserted by this package."
+              ]
+            }
+          ]
+        },
+        {
+          "rule_id": "pathogen_present_vector_reported",
+          "eligible": true,
+          "evaluated": false,
+          "abstained": true,
+          "candidate": false,
+          "reason_codes": [
+            "MISSING_SOURCE_EVIDENCE"
+          ],
+          "detail": "Required source-native county status or lineage is unavailable.",
+          "evidence": [
+            {
+              "source_id": "tick",
+              "source_label": null,
+              "source_url": null,
+              "source_vintage": "2025",
+              "measure_id": "scapularis_status",
+              "county_fips": "13081",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "observation:v1:9610f9b806e4abf8fa8cc5a15cbecb2697f92cef85b7ffb633a6e2497eb0014c",
+              "value": "Reported",
+              "value_state": "OBSERVED",
+              "period_start": "2025-12-31",
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "tick-surveillance-v1",
+              "metadata_revision_id": "metadata-revision:v1:c60fb91162b5ed33d34a01d3fef24e0a4a2ef8976bbd07ac1082fd783adfb509",
+              "limitations": [
+                "Raw workbook, private lineage, runs, artifacts and hashes remain restricted; only the reviewed allowlisted semantic projection may reach consumers.",
+                "No records, missing evidence and UNKNOWN_SOURCE_COVERAGE placeholders are unknown, never biological absence or a sampled negative.",
+                "County source status does not establish prevalence, density, individual human risk or establishment thresholds.",
+                "County-native publisher status does not establish sampling completeness, effort or representativeness of all habitats.",
+                "Cumulative through 2025-12-31 is not an annual collection event or a current ecological conclusion.",
+                "Source vintage and cumulative period are known; exact publisher publication date and retained retrieval timestamp are not asserted by this package."
+              ]
+            },
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "scapularis_status",
+              "county_fips": "13081",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/13081?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "Reported",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            },
+            {
+              "source_id": "tick",
+              "source_label": "CDC ArboNET county tick status",
+              "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+              "source_vintage": "through 2025-12-31",
+              "measure_id": "pacificus_status",
+              "county_fips": "13081",
+              "release_id": "governed-2026-10-06-nlcd-demo-cohort",
+              "public_record_ref": "/v1/counties/13081?dataset_version=governed-2026-10-06-nlcd-demo-cohort",
+              "value": "No records",
+              "value_state": "PUBLISHED_STATUS",
+              "period_start": null,
+              "period_end": "2025-12-31",
+              "temporal_grain": "CUMULATIVE",
+              "retrieved_at": null,
+              "methodology_version": "semantic-1.0.0",
+              "metadata_revision_id": null,
+              "limitations": [
+                "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "Published county fact, not an admitted native observation. May exclude the current pairing; cannot qualify a candidate or trend."
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

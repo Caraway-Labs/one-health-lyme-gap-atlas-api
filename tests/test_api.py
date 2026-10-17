@@ -2,6 +2,7 @@ import json
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
@@ -16,6 +17,7 @@ from lyme_gap_atlas_shared.domain import (
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
+from lyme_gap_atlas_api.county_review_active import EvidenceInputs
 from lyme_gap_atlas_api.knowledge_chat import Evidence, KnowledgeChatService
 from lyme_gap_atlas_api.models import (
     AtlasMetadata,
@@ -88,17 +90,23 @@ class FakeRepository:
         return Snapshot(metadata=metadata, counties=[county])
 
 
-def test_state_review_disabled_method_contract() -> None:
+def test_state_review_active_method_contract() -> None:
     api = client()
+    api.app.state.review_evidence_loader = SimpleNamespace(
+        load=lambda state, snapshot: [
+            EvidenceInputs(c) for c in snapshot.counties if c.state == state
+        ]
+    )
     response = api.get("/v1/states/CO/review?observation_context=2025")
     assert response.status_code == 200
     body = response.json()
-    assert body["result_state"] == "unsupported"
+    assert body["result_state"] == "insufficient_evidence"
     assert body["review_candidates"] == []
     assert body["coverage"]["assessed_counties"] == 1
-    assert body["data_gaps"][0]["code"] == "SOURCE_NATIVE_LINEAGE_UNAVAILABLE"
+    assert body["data_gaps"][0]["code"] == "MISSING_HUMAN_SURVEILLANCE"
     assert body["requested_observation_context"] == "2025"
-    assert body["methodology_version"] == "1.0.0"
+    assert body["methodology_version"] == "2.0.0"
+    assert set(body["coverage"]["rule_coverage"].values()) == {"enabled"}
     assert len(body["configuration_sha256"]) == 64
     assert api.get("/v1/states/CO/review?dataset_version=other").status_code == 404
 

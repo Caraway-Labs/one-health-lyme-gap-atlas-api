@@ -3990,7 +3990,7 @@
           "states"
         ],
         "summary": "Review a state's county evidence",
-        "description": "Versioned county Review result. Current rules are disabled. Lineage gaps are separate. Public cache TTL is 60 seconds.",
+        "description": "Versioned county Review result with four enabled input-assessment rules. Incomplete history and unapproved comparison criteria cause explicit abstention. Published Established species facts may exclude the current D pairing; candidates require admitted native evidence. Public cache TTL is 60 seconds.",
         "operationId": "state_review_v1_states__state__review_get",
         "parameters": [
           {
@@ -4153,6 +4153,78 @@
                 "description": "Seconds before retry when supplied by the service.",
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Repeated query parameters are unsupported.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-400",
+                      "title": "Request failed",
+                      "status": 400,
+                      "detail": "Repeated query parameters are unsupported.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "GET request bodies are unsupported.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-413",
+                      "title": "Request failed",
+                      "status": 413,
+                      "detail": "GET request bodies are unsupported.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string is too long.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-414",
+                      "title": "Request failed",
+                      "status": 414,
+                      "detail": "Query string is too long.",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
                 }
               }
             }
@@ -6888,6 +6960,20 @@
             },
             "type": "array",
             "title": "Limitations"
+          },
+          "county_evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/CountyRuleResults"
+            },
+            "type": "array",
+            "title": "County Evaluations"
+          },
+          "rule_evaluation_counts": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RuleCounts"
+            },
+            "type": "object",
+            "title": "Rule Evaluation Counts"
           }
         },
         "type": "object",
@@ -7109,6 +7195,271 @@
           "rule_coverage"
         ],
         "title": "ReviewCoverage"
+      },
+      "CountyRuleResults": {
+        "properties": {
+          "county_fips": {
+            "type": "string",
+            "title": "County Fips"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleResult"
+            },
+            "type": "array",
+            "title": "Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "county_fips",
+          "rules"
+        ],
+        "title": "CountyRuleResults"
+      },
+      "RuleResult": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible",
+            "default": false
+          },
+          "evaluated": {
+            "type": "boolean",
+            "title": "Evaluated",
+            "default": false
+          },
+          "abstained": {
+            "type": "boolean",
+            "title": "Abstained",
+            "default": false
+          },
+          "candidate": {
+            "type": "boolean",
+            "title": "Candidate",
+            "default": false
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewInput"
+            },
+            "type": "array",
+            "title": "Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "reason_codes",
+          "detail"
+        ],
+        "title": "RuleResult"
+      },
+      "ReviewInput": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "source_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Label"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "source_vintage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Vintage"
+          },
+          "measure_id": {
+            "type": "string",
+            "title": "Measure Id"
+          },
+          "county_fips": {
+            "type": "string",
+            "title": "County Fips"
+          },
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "public_record_ref": {
+            "type": "string",
+            "title": "Public Record Ref"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "value_state": {
+            "type": "string",
+            "title": "Value State"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "temporal_grain": {
+            "type": "string",
+            "title": "Temporal Grain"
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          },
+          "methodology_version": {
+            "type": "string",
+            "title": "Methodology Version"
+          },
+          "metadata_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Revision Id"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_id",
+          "source_label",
+          "source_url",
+          "source_vintage",
+          "measure_id",
+          "county_fips",
+          "release_id",
+          "public_record_ref",
+          "value",
+          "value_state",
+          "period_start",
+          "period_end",
+          "temporal_grain",
+          "retrieved_at",
+          "methodology_version",
+          "limitations"
+        ],
+        "title": "ReviewInput",
+        "description": "Existing public observation fields, or a published current county fact."
+      },
+      "RuleCounts": {
+        "properties": {
+          "assessed_counties": {
+            "type": "integer",
+            "title": "Assessed Counties"
+          },
+          "eligible_counties": {
+            "type": "integer",
+            "title": "Eligible Counties"
+          },
+          "evaluated_counties": {
+            "type": "integer",
+            "title": "Evaluated Counties"
+          },
+          "abstained_counties": {
+            "type": "integer",
+            "title": "Abstained Counties"
+          },
+          "candidate_counties": {
+            "type": "integer",
+            "title": "Candidate Counties"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assessed_counties",
+          "eligible_counties",
+          "evaluated_counties",
+          "abstained_counties",
+          "candidate_counties"
+        ],
+        "title": "RuleCounts"
       }
     }
   }

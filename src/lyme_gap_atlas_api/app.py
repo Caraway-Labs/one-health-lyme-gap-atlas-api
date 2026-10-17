@@ -43,7 +43,12 @@ from .auth_admin import AuthAdmin, AuthAdminError, SupabaseAuthAdmin
 from .briefings import add_briefing_openapi
 from .cdc_surveillance import CDCObservationAdapter
 from .config import ApiSettings, get_settings
-from .county_review import CountyEvidence, StateReview, aggregate_state, load_config
+from .county_review_active import (
+    ActiveStateReview,
+    ReviewEvidenceLoader,
+    evaluate_state,
+    load_active_config,
+)
 from .documentation import LOGO, install_documentation
 from .environmental_reader_probe import start_reader_probe
 from .feedback import (
@@ -818,25 +823,35 @@ def create_app(
             },
         )
 
-    review_config, review_hash = load_config()
+    review_config, review_hash = load_active_config()
+    app.state.review_evidence_loader = ReviewEvidenceLoader(app.state.observation_service)
 
     @app.get(
         "/v1/states/{state}/review",
-        response_model=StateReview,
+        response_model=ActiveStateReview,
         tags=["states"],
         summary="Review a state's county evidence",
         description=(
-            "Versioned county Review result. Current rules are disabled. "
-            "Lineage gaps are separate. Public cache TTL is 60 seconds."
+            "Versioned county Review result with four enabled input-assessment rules. "
+            "Incomplete history and unapproved comparison criteria cause explicit abstention. "
+            "Published Established species facts may exclude the current D pairing; "
+            "candidates require admitted native evidence. Public cache TTL is 60 seconds."
         ),
-        responses=LEGACY_ERRORS,
+        responses={
+            **LEGACY_ERRORS,
+            400: problem_response(
+                400, "INVALID_REQUEST", "Repeated query parameters are unsupported."
+            ),
+            413: problem_response(413, "INVALID_REQUEST", "GET request bodies are unsupported."),
+            414: problem_response(414, "INVALID_REQUEST", "Query string is too long."),
+        },
     )
     def state_review(
         state: Annotated[str, Path(pattern=r"^[A-Z]{2}$")],
         response: Response,
         observation_context: Annotated[str | None, Query(max_length=80)] = None,
         dataset_version: str | None = None,
-    ) -> StateReview:
+    ) -> ActiveStateReview:
         started = time.perf_counter()
         snapshot = service.snapshot()
         if dataset_version is not None and dataset_version != snapshot.metadata.release_id:
@@ -844,10 +859,10 @@ def create_app(
         if state not in {item.state for item in snapshot.counties}:
             raise HTTPException(status_code=404, detail="State not found in current release")
         response.headers["Cache-Control"] = "public, max-age=60, must-revalidate"
-        result = aggregate_state(
+        result = evaluate_state(
             state,
             snapshot,
-            [CountyEvidence(county=item) for item in snapshot.counties if item.state == state],
+            app.state.review_evidence_loader.load(state, snapshot),
             review_config,
             review_hash,
             observation_context,
