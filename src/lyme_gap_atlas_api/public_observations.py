@@ -259,7 +259,12 @@ class ObservationService:
                 else self._observation
             )
             with phase("mapping"):
-                items = [mapper(row) for row in rows[: query.page_size]]
+                # Context identity checks include the lookahead row so duplicate
+                # county observations cannot straddle a public page boundary.
+                mapped_rows = (
+                    rows if query.measure_id in CONTEXT_FIELDS else rows[: query.page_size]
+                )
+                items = [mapper(row) for row in mapped_rows]
                 if query.measure_id in CONTEXT_FIELDS:
                     pairs = {(item.measure_id, item.geography.geography_id) for item in items}
                     if len(pairs) != len(items) or any(
@@ -269,6 +274,7 @@ class ObservationService:
                         for item in items
                     ):
                         raise AtlasDataUnavailableError("Inconsistent governed county context")
+                    items = items[: query.page_size]
         check()
         if not cdc and self.surveillance_resolver is not None:
             for item in items:

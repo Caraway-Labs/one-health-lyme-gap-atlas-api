@@ -223,6 +223,19 @@ def test_context_pagination_is_query_and_release_bound():
     )
 
 
+@pytest.mark.parametrize("page_size", [1, 2])
+def test_duplicate_context_including_lookahead_fails_closed(page_size):
+    class DuplicateRepository(Repository):
+        def query(self, query, release, offset):
+            return [row(), row()]
+
+    response = client(DuplicateRepository()).get(
+        "/v1/observations", params=params(page_size=page_size)
+    )
+    assert response.status_code == 503
+    assert "fixture-rucc" not in response.text
+
+
 def test_context_query_is_bounded_parameterized_and_marker_filtered():
     cursor = MagicMock()
     cursor.__enter__.return_value = cursor
