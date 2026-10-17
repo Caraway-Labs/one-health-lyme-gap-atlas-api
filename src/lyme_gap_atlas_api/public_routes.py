@@ -5,6 +5,7 @@ from typing import Annotated, Any, NoReturn, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
+from .climate_timing import ClimateTiming, climate_request_timing
 from .config import ApiSettings
 from .environmental_context import MEASURES
 from .public_contract import (
@@ -485,7 +486,13 @@ def observation_service(request: Request) -> ObservationService:
     summary="Query county observations",
 )
 def observations(
+    request: Request,
     query: Annotated[ObservationQuery, Depends(observation_query)],
     service: Annotated[ObservationService, Depends(observation_service)],
 ) -> CollectionEnvelope[Observation]:
+    if query.measure_id in MEASURES:
+        timing = ClimateTiming()
+        request.state.climate_timing = timing
+        with climate_request_timing(timing):
+            return service.search(query)
     return service.search(query)

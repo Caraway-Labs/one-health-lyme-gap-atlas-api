@@ -3,10 +3,14 @@
 import hashlib
 import json
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 from typing import Any
+
+from snowflake.connector import SnowflakeConnection
+from snowflake.connector.cursor import SnowflakeCursor
 
 from .config import ApiSettings
 from .dependency_telemetry import connect
@@ -124,8 +128,20 @@ def decode_numerics(row: dict[str, Any]) -> dict[str, Any]:
 
 
 class EnvironmentalRepository:
-    def __init__(self, settings: ApiSettings) -> None:
+    def __init__(
+        self, settings: ApiSettings, *, _connection: SnowflakeConnection | None = None
+    ) -> None:
         self.settings = settings
+        self._connection = _connection
+
+    @contextmanager
+    def _cursor(self) -> Iterator[SnowflakeCursor]:
+        if self._connection is not None:
+            with self._connection.cursor() as cursor:
+                yield cursor
+        else:
+            with connect(self.settings) as connection, connection.cursor() as cursor:
+                yield cursor
 
     @property
     def schema(self) -> str:
@@ -145,7 +161,7 @@ class EnvironmentalRepository:
         try:
             if checkpoint is not None:
                 checkpoint()
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with self._cursor() as cursor:
                 if checkpoint is not None:
                     checkpoint()
                 cursor.execute(sql, params, timeout=self.settings.public_query_timeout_seconds)
