@@ -339,6 +339,10 @@ def test_repository_uses_current_release_and_bound_measure_lookup(monkeypatch) -
         def fetchone(self):
             return ("release-1",) if "CURRENT_RELEASE_V" in statements[-1] else (1,)
 
+        def fetchmany(self, limit):
+            assert limit == 2
+            return [("release-1",)]
+
     class Connection:
         def __enter__(self):
             return self

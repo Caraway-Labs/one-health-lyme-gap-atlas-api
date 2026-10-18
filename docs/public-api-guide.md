@@ -225,3 +225,18 @@ Practical attribution: “One Health Lyme Gap Atlas, public API V1,
 `x5j9-wybp` (2023 vintage), [source URL], with Atlas limitations.” Replace
 these examples with values from your response. This is traceability guidance,
 not a legal citation requirement.
+# Typed availability for empty observation selections
+
+For `/v1/observations`, HTTP200 can report a successful selection lookup with no
+published rows. Inspect `meta.availability`: UNAVAILABLE with reason
+NO_PUBLISHED_RESULTS means the initial non-CDC query completed successfully;
+`data` is empty, `release_id` is the checked release and `limitations` qualify
+the result. It does not mean negative evidence or confirm geography membership.
+Do not cache these no-store responses. AVAILABLE means published records/page
+are delivered; records can themselves contain missing or unknown values. An
+empty continuation is exhaustion, not an unavailable initial selection.
+
+CDC unknown coverage and missing admission remain errors until Data publishes a
+reviewed availability contract. Dependency, authority, query, auth and limiter
+errors retain their existing non-2xx contracts. See
+[implementation boundaries](api-237-typed-availability.md).

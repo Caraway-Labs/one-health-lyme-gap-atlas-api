@@ -521,6 +521,48 @@ class CollectionMeta(BaseModel):
         default_factory=lambda: datetime.now(UTC),
         description="UTC response construction time; not source freshness or observation time.",
     )
+    availability: Literal["AVAILABLE", "UNAVAILABLE"] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description=(
+            "Observation selection availability, not biological presence. Omitted on other "
+            "collections. An exhausted continuation remains AVAILABLE."
+        ),
+    )
+    reason: Literal["NO_PUBLISHED_RESULTS"] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description=(
+            "No published rows after a successful initial non-CDC query; otherwise omitted."
+        ),
+    )
+    release_id: str | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="Current governed release actually read for this query.",
+    )
+    limitations: list[str] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="Selection availability caveats; observations only.",
+    )
+
+    @model_validator(mode="after")
+    def validate_availability(self) -> "CollectionMeta":
+        if self.availability == "AVAILABLE":
+            if self.reason is not None:
+                raise ValueError("AVAILABLE requires a null reason")
+        elif self.availability == "UNAVAILABLE" and (
+            self.reason != "NO_PUBLISHED_RESULTS"
+            or not self.release_id
+            or not self.release_id.strip()
+            or self.next_page_token is not None
+            or not self.limitations
+        ):
+            raise ValueError(
+                "UNAVAILABLE requires a release, reason, limitations and no continuation"
+            )
+        return self
 
 
 class CollectionLinks(BaseModel):
@@ -534,6 +576,12 @@ class CollectionEnvelope(BaseModel, Generic[T]):
     data: list[T]
     meta: CollectionMeta
     links: CollectionLinks
+
+    @model_validator(mode="after")
+    def validate_unavailable_data(self) -> "CollectionEnvelope[T]":
+        if self.meta.availability == "UNAVAILABLE" and self.data:
+            raise ValueError("UNAVAILABLE must not fabricate observation records")
+        return self
 
 
 class ResourceEnvelope(BaseModel, Generic[T]):

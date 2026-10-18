@@ -112,13 +112,18 @@ class SnowflakeObservationRepository:
         try:
             with self._cursor() as cursor:
                 cursor.execute(
-                    f"SELECT RELEASE_ID FROM {schema}.CURRENT_RELEASE_V",
+                    f"SELECT RELEASE_ID FROM {schema}.CURRENT_RELEASE_V LIMIT 2",
                     timeout=self.settings.public_query_timeout_seconds,
                 )
-                row = cursor.fetchone()
-            if row is None:
+                rows = cursor.fetchmany(2)
+            if (
+                len(rows) != 1
+                or len(rows[0]) != 1
+                or not isinstance(rows[0][0], str)
+                or not rows[0][0].strip()
+            ):
                 raise AtlasDataUnavailableError("No current governed release")
-            return str(row[0])
+            return rows[0][0]
         except AtlasDataUnavailableError:
             raise
         except Exception as exc:
@@ -252,6 +257,8 @@ class ObservationService:
             adapter.validate_query(query)
         with phase("release_lookup"), cdc_phase("release_lookup"):
             release = repository.current_release()
+        if not isinstance(release, str) or not release.strip():
+            raise AtlasDataUnavailableError("No current governed release")
         check()
         with phase("measure_lookup"):
             measure_exists = cdc or repository.measure_exists(query.measure_id, release)
@@ -318,7 +325,29 @@ class ObservationService:
         token = None
         if more:
             token = self._token(fingerprint, release, offset + query.page_size)
-        meta = CollectionMeta(next_page_token=token)
+        # Only a successful initial non-CDC query establishes an empty published
+        # selection. CDC admission errors never reach this branch as empty data.
+        unavailable = query.measure_id not in IDENTITIES and not items and offset == 0
+        if unavailable:
+            # A current-view pointer switch can make an old-release filter empty.
+            # Revalidate before asserting a successful absence of published rows.
+            check()
+            if repository.current_release() != release:
+                raise AtlasDataUnavailableError("Current observation release changed")
+            check()
+        meta = CollectionMeta(
+            next_page_token=token,
+            availability="UNAVAILABLE" if unavailable else "AVAILABLE",
+            reason="NO_PUBLISHED_RESULTS" if unavailable else None,
+            release_id=release,
+            limitations=[
+                "No published observations match this selection in the checked release. "
+                "This does not establish biological absence, source coverage, "
+                "or geography membership."
+            ]
+            if unavailable
+            else [],
+        )
         if query.measure_id in CONTEXT_FIELDS:
             context_items: list[CountyContextObservation] = []
             for item in items:

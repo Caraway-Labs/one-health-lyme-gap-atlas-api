@@ -74,6 +74,10 @@ class Cursor:
             raise RuntimeError("private release error")
         return ("fixture-release",)
 
+    def fetchmany(self, limit):
+        assert limit == 2
+        return [self.fetchone()]
+
     def fetchall(self):
         if self.session.fail == "fetch":
             raise RuntimeError("private fetch error")
@@ -214,6 +218,9 @@ def test_real_adapter_http_scientific_contract_with_one_session(monkeypatch, mea
     data = response.json()["data"]
     if state == "no_data":
         assert data == []
+        assert response.json()["meta"]["reason"] == "NO_PUBLISHED_RESULTS"
+        assert response.headers["cache-control"] == "no-store"
+        assert "CURRENT_RELEASE_V" in session.calls[3][0]
     else:
         assert data[0]["value"] == (None if unavailable else (0 if measure == "prcp" else -2.5))
         assert data[0]["measure_id"] == query(measure).measure_id
@@ -223,7 +230,8 @@ def test_real_adapter_http_scientific_contract_with_one_session(monkeypatch, mea
             "OUT_OF_SOURCE_COVERAGE" if unavailable else "COMPLETE"
         )
         assert "artifact_id" not in data[0]
-    assert session.closes == 1 and len(session.calls) == session.cursor_closes == 3
+    expected_queries = 4 if state == "no_data" else 3
+    assert session.closes == 1 and len(session.calls) == session.cursor_closes == expected_queries
 
 
 def test_simulated_handshake_budget_compares_identical_queries(monkeypatch):

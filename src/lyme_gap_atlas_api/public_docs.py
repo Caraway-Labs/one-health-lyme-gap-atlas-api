@@ -1,5 +1,6 @@
 """Framework-native documentation metadata; no request or data behavior."""
 
+from copy import deepcopy
 from typing import Any
 
 API_SUMMARY = "Governed Atlas analytics, metadata, and provenance"
@@ -152,5 +153,49 @@ MISSING_OBSERVATION_EXAMPLE = {
         ],
         "meta": {"next_page_token": None, "response_at": "2026-01-01T00:00:00Z"},
         "links": {"self": None},
+    },
+}
+
+KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE = {
+    "summary": "Successful initial query with no published results; not negative evidence",
+    "value": {
+        "data": [],
+        "meta": {
+            "next_page_token": None,
+            "response_at": "2026-01-01T00:00:00Z",
+            "availability": "UNAVAILABLE",
+            "reason": "NO_PUBLISHED_RESULTS",
+            "release_id": "example-release",
+            "limitations": [
+                "No published observations match this selection in the checked release. "
+                "This does not establish biological absence, source coverage, "
+                "or geography membership."
+            ],
+        },
+        "links": {"self": None},
+    },
+}
+
+AVAILABLE_OBSERVATION_EXAMPLE: dict[str, Any] = deepcopy(MISSING_OBSERVATION_EXAMPLE)
+AVAILABLE_OBSERVATION_EXAMPLE["summary"] = "Synthetic available published observation example"
+AVAILABLE_OBSERVATION_EXAMPLE["value"]["data"][0].update(value=12, value_state="OBSERVED")
+AVAILABLE_OBSERVATION_EXAMPLE["value"]["meta"].update(
+    availability="AVAILABLE", release_id="example-release", limitations=[]
+)
+
+EXHAUSTED_OBSERVATIONS_EXAMPLE: dict[str, Any] = deepcopy(EMPTY_COLLECTION_EXAMPLE)
+EXHAUSTED_OBSERVATIONS_EXAMPLE["summary"] = "Empty continuation page; not an unavailable selection"
+EXHAUSTED_OBSERVATIONS_EXAMPLE["value"]["meta"].update(
+    availability="AVAILABLE", release_id="example-release", limitations=[]
+)
+
+PENDING_GEOGRAPHY_EXAMPLE: dict[str, Any] = {
+    "summary": "Confirmed county identity; canonical geography publication pending",
+    "value": {
+        "availability": "UNAVAILABLE",
+        "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+        "data": None,
+        "release_id": "example-release",
+        "limitations": ["Illustrative checked county directory; no geometry is delivered."],
     },
 }

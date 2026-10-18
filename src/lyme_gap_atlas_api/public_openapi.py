@@ -16,6 +16,7 @@ PUBLIC_PATHS = frozenset(
         "/v1/sources/{source_id}",
         "/v1/methodologies/{methodology_id}",
         "/v1/geographies/{geography_type}/{geography_id}",
+        "/v1/geographies/{geography_type}/{geography_id}/availability",
         "/v1/atlas/metadata",
         "/v1/atlas/geometry",
         "/v1/atlas/scores",
