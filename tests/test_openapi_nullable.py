@@ -65,6 +65,67 @@ def test_nullable_normalization_is_idempotent_and_preserves_unflattenable_refs()
             assert any(isinstance(branch, dict) and "$ref" in branch for branch in schema["anyOf"])
 
 
+def test_schema_shaped_literal_data_is_opaque_but_nested_schemas_are_normalized() -> None:
+    literal = {"anyOf": [{"type": "string"}, {"type": "null"}]}
+    before = {
+        "type": "object",
+        "enum": [literal],
+        "default": {"schema": literal},
+        "examples": [{"anyOf": [{"type": "string"}, {"type": "null"}]}],
+        "properties": {
+            "actual": {"anyOf": [{"type": "string", "maxLength": 5}, {"type": "null"}]}
+        },
+        "items": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+    }
+    after = copy.deepcopy(before)
+    assert normalize_nullable_types(after) == 2
+    assert after["enum"] == [literal]
+    assert after["default"] == {"schema": literal}
+    assert after["examples"] == [{"anyOf": [{"type": "string"}, {"type": "null"}]}]
+    assert after["properties"]["actual"]["type"] == ["string", "null"]
+    assert after["items"]["type"] == ["integer", "null"]
+    instance = literal
+    assert OAS31Validator(before).is_valid(instance)
+    assert OAS31Validator(after).is_valid(instance)
+
+
+def test_openapi_examples_are_opaque_and_component_schemas_are_normalized() -> None:
+    literal = {"anyOf": [{"type": "string"}, {"type": "null"}]}
+    document = {
+        "openapi": "3.1.0",
+        "components": {
+            "schemas": {
+                "Value": {"anyOf": [{"type": "integer"}, {"type": "null"}]}
+            }
+        },
+        "x-example": {"schema": literal},
+        "paths": {
+            "/x": {
+                "get": {
+                    "responses": {
+                        "200": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {"enum": [literal], "type": "object"},
+                                    "examples": {"sample": {"value": literal}},
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    }
+    assert normalize_nullable_types(document) == 1
+    assert document["x-example"]["schema"] == literal
+    assert document["components"]["schemas"]["Value"]["type"] == ["integer", "null"]
+    media = document["paths"]["/x"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]
+    assert media["schema"]["enum"] == [literal]
+    assert media["examples"]["sample"]["value"] == literal
+
+
 @pytest.mark.parametrize(
     ("before", "instances"),
     [

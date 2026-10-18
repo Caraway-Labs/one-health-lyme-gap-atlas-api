@@ -52,6 +52,29 @@ _TYPE_KEYWORDS = {
         "pattern",
     },
 }
+_SCHEMA_MAP_KEYWORDS = {
+    "$defs",
+    "definitions",
+    "dependentSchemas",
+    "patternProperties",
+    "properties",
+}
+_SCHEMA_SINGLE_KEYWORDS = {
+    "additionalItems",
+    "additionalProperties",
+    "contentSchema",
+    "contains",
+    "else",
+    "if",
+    "items",
+    "not",
+    "propertyNames",
+    "then",
+    "unevaluatedItems",
+    "unevaluatedProperties",
+}
+_SCHEMA_ARRAY_KEYWORDS = {"allOf", "anyOf", "oneOf", "prefixItems"}
+_OPAQUE_KEYWORDS = {"default", "enum", "example", "examples", "const"}
 
 
 def _merge_annotations(target: dict[str, Any], source: Mapping[str, Any]) -> bool:
@@ -134,24 +157,57 @@ def _nullable_type_array(schema: Mapping[str, Any]) -> dict[str, Any] | None:
     return result
 
 
+def _visit_schema(schema: Any) -> int:
+    if not isinstance(schema, dict):
+        return 0
+    changed = 0
+    for key, child in list(schema.items()):
+        if key in _OPAQUE_KEYWORDS:
+            continue
+        if key in _SCHEMA_MAP_KEYWORDS and isinstance(child, dict):
+            changed += sum(_visit_schema(item) for item in child.values())
+        elif key in _SCHEMA_SINGLE_KEYWORDS:
+            if isinstance(child, list):
+                changed += sum(_visit_schema(item) for item in child)
+            else:
+                changed += _visit_schema(child)
+        elif key in _SCHEMA_ARRAY_KEYWORDS and isinstance(child, list):
+            changed += sum(_visit_schema(item) for item in child)
+    normalized = _nullable_type_array(schema)
+    if normalized is not None:
+        schema.clear()
+        schema.update(normalized)
+        changed += 1
+    return changed
+
+
+def _visit_openapi(value: Any) -> int:
+    if isinstance(value, dict):
+        changed = 0
+        for key, child in list(value.items()):
+            if key in _OPAQUE_KEYWORDS or key.startswith("x-"):
+                continue
+            if key == "schema":
+                changed += _visit_schema(child)
+            elif key == "schemas" and isinstance(child, dict):
+                changed += sum(_visit_schema(schema) for schema in child.values())
+            else:
+                changed += _visit_openapi(child)
+        return changed
+    if isinstance(value, list):
+        return sum(_visit_openapi(item) for item in value)
+    return 0
+
+
 def normalize_nullable_types(value: Any) -> int:
-    """Rewrite only equivalent anyOf null unions, returning the change count.
+    """Rewrite equivalent OpenAPI schema unions, ignoring literal payload data.
 
     Simple nullable types become OpenAPI 3.1 JSON Schema type arrays. Nullable
     references, duplicate types, and unions with distinct branch constraints
-    remain anyOf because flattening them could alter validation semantics.
+    remain anyOf because flattening them could alter validation semantics. Only
+    schema-bearing OpenAPI locations are visited; enum/default/example values
+    are opaque JSON data even when they resemble Schema Objects.
     """
-
-    changed = 0
-    if isinstance(value, dict):
-        for child in list(value.values()):
-            changed += normalize_nullable_types(child)
-        normalized = _nullable_type_array(value)
-        if normalized is not None:
-            value.clear()
-            value.update(normalized)
-            changed += 1
-    elif isinstance(value, list):
-        for child in value:
-            changed += normalize_nullable_types(child)
-    return changed
+    if isinstance(value, dict) and any(key in value for key in ("openapi", "components", "paths")):
+        return _visit_openapi(value)
+    return _visit_schema(value)

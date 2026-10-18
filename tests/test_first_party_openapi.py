@@ -27,9 +27,9 @@ def test_existing_internal_operations_and_schemas_remain_in_first_party_export()
         assert actual_ids == IDS
         assert sum(len(operations) for operations in actual_ids.values()) == 35
         for path, operations in FLOOR["paths"].items():
-            expected = deepcopy(operations)
-            normalize_nullable_types(expected)
-            assert contract["paths"][path] == expected, path
+            expected_document = {"paths": {path: deepcopy(operations)}}
+            normalize_nullable_types(expected_document)
+            assert contract["paths"][path] == expected_document["paths"][path], path
         for name, model in FLOOR["schemas"].items():
             expected = deepcopy(model)
             normalize_nullable_types(expected)
