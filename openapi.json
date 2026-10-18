@@ -5930,7 +5930,7 @@
           "meta",
           "links"
         ],
-        "title": "CollectionEnvelope[CountyContextObservation]"
+        "title": "County Context Observation Collection"
       },
       "CountyContextObservation": {
         "properties": {
@@ -7058,7 +7058,7 @@
           "meta",
           "links"
         ],
-        "title": "CollectionEnvelope[Observation]"
+        "title": "Standard Observation Collection"
       },
       "Observation": {
         "properties": {

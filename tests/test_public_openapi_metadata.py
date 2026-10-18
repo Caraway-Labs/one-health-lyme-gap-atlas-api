@@ -59,6 +59,36 @@ def test_pending_geography_openapi_error_matches_specific_runtime_code() -> None
     assert example["code"] == "CANONICAL_DATA_UNAVAILABLE"
 
 
+def test_observation_variants_are_named_anyof_branches_for_sdk_generation() -> None:
+    schema = create_app(settings=ApiSettings()).openapi()
+    response_schema = schema["paths"]["/v1/observations"]["get"]["responses"]["200"][
+        "content"
+    ]["application/json"]["schema"]
+    assert "oneOf" not in response_schema
+    assert "discriminator" not in response_schema
+    branches = response_schema["anyOf"]
+    refs = [branch["$ref"] for branch in branches]
+    assert refs == [
+        "#/components/schemas/CollectionEnvelope_CountyContextObservation_",
+        "#/components/schemas/CollectionEnvelope_Observation_",
+    ]
+
+    models = schema["components"]["schemas"]
+    context = models["CollectionEnvelope_CountyContextObservation_"]
+    standard = models["CollectionEnvelope_Observation_"]
+    assert context["title"] == "County Context Observation Collection"
+    assert standard["title"] == "Standard Observation Collection"
+    assert context["properties"]["data"]["items"]["$ref"].endswith(
+        "/CountyContextObservation"
+    )
+    assert standard["properties"]["data"]["items"]["$ref"].endswith("/Observation")
+    context_fields = models["CountyContextObservation"]["properties"]
+    standard_fields = models["Observation"]["properties"]
+    assert "county_context" in context_fields and "county_context" not in standard_fields
+    assert context_fields["period_start"]["anyOf"][-1] == {"type": "null"}
+    assert standard_fields["period_start"]["format"] == "date"
+
+
 def test_openapi_uses_canonical_domain_and_problem_type_uris_in_all_exports() -> None:
     app = create_app(settings=ApiSettings())
     for schema in (app.openapi(), app.first_party_openapi()):

@@ -207,6 +207,14 @@ class AtlasFastAPI(FastAPI):
             separate_input_output_schemas=self.separate_input_output_schemas,
             external_docs=self.openapi_external_docs,
         )
+        # Keep existing component names stable for generated clients while
+        # making both observation collection alternatives discoverable. They
+        # remain anyOf: period county-context rows can satisfy both schemas.
+        schemas = schema["components"]["schemas"]
+        schemas["CollectionEnvelope_CountyContextObservation_"]["title"] = (
+            "County Context Observation Collection"
+        )
+        schemas["CollectionEnvelope_Observation_"]["title"] = "Standard Observation Collection"
         # FastAPI normally adds a generic 422 response to query-parameter
         # operations. The shared canonical response map lists every status
         # these routes can actually return, and their validation handler
