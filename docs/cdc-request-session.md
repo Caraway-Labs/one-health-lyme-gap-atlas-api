@@ -157,4 +157,3 @@ Do not alter views/warehouse, grants, rate limits or admission to meet a target.
 
 API #248 remains open until actual production performance acceptance and its
 remaining criteria are reviewed. This PR's green fixtures/CI cannot close it.
-
