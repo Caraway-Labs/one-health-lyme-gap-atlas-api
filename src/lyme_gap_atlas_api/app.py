@@ -163,6 +163,23 @@ from .tier1_priority import (
 logger = operational_logger(__name__)
 
 
+def _canonical_validation_is_400(path: str) -> bool:
+    return path in {
+        "/v1/indicators",
+        "/v1/measures",
+        "/v1/observations",
+        "/v1/sources",
+    } or path.startswith(
+        (
+            "/v1/indicators/",
+            "/v1/measures/",
+            "/v1/geographies/",
+            "/v1/sources/",
+            "/v1/methodologies/",
+        )
+    )
+
+
 class AtlasFastAPI(FastAPI):
     _first_party_schema: dict[str, Any] | None = None
 
@@ -197,7 +214,9 @@ class AtlasFastAPI(FastAPI):
         # from those fully specified maps; unrelated operations keep FastAPI's
         # validation response.
         canonical_error_statuses = {"400", "404", "413", "414", "429", "503"}
-        for path_item in schema["paths"].values():
+        for path, path_item in schema["paths"].items():
+            if not _canonical_validation_is_400(path):
+                continue
             for operation in path_item.values():
                 if not isinstance(operation, dict):
                     continue
@@ -454,20 +473,7 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-        is_canonical = request.url.path in {
-            "/v1/indicators",
-            "/v1/measures",
-            "/v1/observations",
-            "/v1/sources",
-        } or request.url.path.startswith(
-            (
-                "/v1/indicators/",
-                "/v1/measures/",
-                "/v1/geographies/",
-                "/v1/sources/",
-                "/v1/methodologies/",
-            )
-        )
+        is_canonical = _canonical_validation_is_400(request.url.path)
         response_status = 400 if is_canonical else 422
         problem = ProblemDetails(
             type=problem_type_uri("validation"),

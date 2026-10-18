@@ -145,9 +145,9 @@ def test_canonical_response_maps_snapshot_has_only_concrete_documented_statuses(
             "429",
             "503",
         },
-        "listIntelligenceItems": {"200", "400", "404", "413", "414", "429", "503"},
-        "listIntelligenceSources": {"200", "400", "404", "413", "414", "429", "503"},
-        "listIntelligenceFeed": {"200", "400", "404", "413", "414", "429", "503"},
+        "listIntelligenceItems": {"200", "400", "404", "413", "414", "422", "429", "503"},
+        "listIntelligenceSources": {"200", "400", "404", "413", "414", "422", "429", "503"},
+        "listIntelligenceFeed": {"200", "400", "404", "413", "414", "422", "429", "503"},
     }
 
     first_party_only = {

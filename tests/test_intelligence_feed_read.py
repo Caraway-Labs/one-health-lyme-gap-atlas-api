@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.intelligence_feed import ITEM_COLUMNS, V2_COLUMNS, SnowflakeFeedRepository
+from lyme_gap_atlas_api.models import ProblemDetails
 from lyme_gap_atlas_api.public_contract import PublicQueryError
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
 
@@ -52,6 +53,37 @@ def client(repository: Repository, *, enabled: bool = True) -> TestClient:
             intelligence_repository=repository,
         )
     )
+
+
+@pytest.mark.parametrize(
+    ("path", "operation_id"),
+    [
+        ("/v1/intelligence/items", "listIntelligenceItems"),
+        ("/v1/intelligence/sources", "listIntelligenceSources"),
+        ("/v1/intelligence/feed", "listIntelligenceFeed"),
+    ],
+)
+def test_feed_validation_problem_matches_first_party_openapi(path: str, operation_id: str) -> None:
+    app = create_app(
+        settings=ApiSettings(intelligence_feed_read_enabled=True),
+        intelligence_repository=Repository(),
+    )
+    response = TestClient(app).get(path, params={"page_size": 0})
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert ProblemDetails.model_validate(response.json()).status == 422
+
+    operations = {
+        operation["operationId"]: operation
+        for path_item in app.first_party_openapi()["paths"].values()
+        for operation in path_item.values()
+        if isinstance(operation, dict) and "operationId" in operation
+    }
+    documented = operations[operation_id]["responses"]["422"]
+    assert set(documented["content"]) == {"application/problem+json"}
+    assert documented["content"]["application/problem+json"]["schema"] == {
+        "$ref": "#/components/schemas/ProblemDetails"
+    }
 
 
 def test_disabled_has_no_query_and_does_not_claim_empty() -> None:
@@ -133,9 +165,7 @@ def test_two_sources_and_revisions_survive_http_paging_without_private_fields() 
     assert first_page.headers["cache-control"] == "no-store"
     token = first_page.json()["meta"]["next_page_token"]
     assert token
-    second_page = app.get(
-        "/v1/intelligence/items", params={"page_size": 2, "page_token": token}
-    )
+    second_page = app.get("/v1/intelligence/items", params={"page_size": 2, "page_token": token})
     assert second_page.status_code == 200
     assert second_page.json()["meta"]["next_page_token"] is None
     evidence = first_page.json()["data"] + second_page.json()["data"]
