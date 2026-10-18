@@ -72,11 +72,18 @@ DETAIL_DESCRIPTION = (
     "ETag with matching If-None-Match returns an empty 304."
 )
 
+PROBLEM_TYPE_BASE_URI = "https://onehealthatlas.org/problems"
+
+
+def problem_type_uri(name: str) -> str:
+    """Return the stable One Health Atlas URI for an RFC 9457 problem type."""
+    return f"{PROBLEM_TYPE_BASE_URI}/{name}"
+
 
 def problem_response(status: int, code: str | None, detail: str) -> dict[str, Any]:
     """Describe the existing RFC 9457 wire format using a synthetic example."""
     value: dict[str, Any] = {
-        "type": f"https://carawaylabs.com/problems/http-{status}",
+        "type": problem_type_uri(f"http-{status}"),
         "title": "Request failed",
         "status": status,
         "detail": detail,
