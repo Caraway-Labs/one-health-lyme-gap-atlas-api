@@ -1,0 +1,30 @@
+{
+  "openapi.json": {
+    "/paths/~1v1~1observations/get/parameters/4/schema": {
+      "description": "Annual year or complete date range, not both. CDC cumulative status rejects year; use start_date=end_date=2025-12-31.",
+      "examples": [2023],
+      "title": "Year",
+      "maximum": 2100,
+      "minimum": 1900,
+      "type": ["integer", "null"]
+    },
+    "/components/schemas/CountyContextObservation/properties/value": {
+      "title": "Value",
+      "description": "Integer population/category or exact nonzero decimal text; ZERO is integer 0.",
+      "type": ["integer", "string", "null"]
+    }
+  },
+  "first-party-openapi.json": {
+    "/components/schemas/CollectionMeta/properties/availability": {
+      "title": "Availability",
+      "description": "Observation selection availability, not biological presence. Omitted on other collections. An exhausted continuation remains AVAILABLE.",
+      "enum": ["AVAILABLE", "UNAVAILABLE", null],
+      "type": ["string", "null"]
+    },
+    "/components/schemas/CountyContextObservation/properties/value": {
+      "title": "Value",
+      "description": "Integer population/category or exact nonzero decimal text; ZERO is integer 0.",
+      "type": ["integer", "string", "null"]
+    }
+  }
+}

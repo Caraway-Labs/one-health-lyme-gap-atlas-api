@@ -85,7 +85,7 @@ def test_observation_variants_are_named_anyof_branches_for_sdk_generation() -> N
     context_fields = models["CountyContextObservation"]["properties"]
     standard_fields = models["Observation"]["properties"]
     assert "county_context" in context_fields and "county_context" not in standard_fields
-    assert context_fields["period_start"]["anyOf"][-1] == {"type": "null"}
+    assert context_fields["period_start"]["type"] == ["string", "null"]
     assert standard_fields["period_start"]["format"] == "date"
 
 

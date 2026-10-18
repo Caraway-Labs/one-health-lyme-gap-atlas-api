@@ -93,6 +93,7 @@ from .models import (
     UserProfileResponse,
     UserProfileWrite,
 )
+from .openapi_nullable import normalize_nullable_types
 from .privacy_requests import (
     InvalidPrivacyRequestError,
     PrivacyRequestNotFoundError,
@@ -236,6 +237,7 @@ class AtlasFastAPI(FastAPI):
         # Problem responses use their actual media type, without an extra JSON
         # response model. Generate the referenced component directly from Pydantic.
         schema["components"]["schemas"]["ProblemDetails"] = ProblemDetails.model_json_schema()
+        normalize_nullable_types(schema)
         schema["info"]["x-logo"] = deepcopy(LOGO)
         # FastAPI's OpenAPI serialization drops nulls inside response examples.
         # Restore these meaningful missingness/pagination values after serialization.
