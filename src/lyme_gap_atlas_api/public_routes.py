@@ -505,6 +505,14 @@ def observations(
     query: Annotated[ObservationQuery, Depends(observation_query)],
     service: Annotated[ObservationService, Depends(observation_service)],
 ) -> ObservationCollection:
+    from .cdc_surveillance import IDENTITIES
+    from .cdc_timing import CDCTiming, cdc_request_timing
+
+    if query.measure_id in IDENTITIES and service.cdc_adapter is not None:
+        cdc_timing = CDCTiming()
+        request.state.cdc_timing = cdc_timing
+        with cdc_request_timing(cdc_timing):
+            return service.search(query)
     if query.measure_id in MEASURES:
         timing = ClimateTiming()
         request.state.climate_timing = timing

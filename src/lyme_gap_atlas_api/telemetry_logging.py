@@ -8,6 +8,8 @@ from typing import Any
 
 from opentelemetry import trace
 
+from .cdc_timing import IO_OPERATIONS as CDC_IO_OPERATIONS
+from .cdc_timing import PHASES as CDC_PHASES
 from .climate_timing import IO_OPERATIONS, PHASES
 from .telemetry import FAILURES, METHODS, OUTCOMES, REQUEST_CORRELATION, ROUTES
 
@@ -135,16 +137,28 @@ ASK_OUTCOMES = frozenset(
         "query_too_broad",
     }
 )
-OPERATIONAL_OUTCOMES = frozenset({
-    "answered", "abstained", "validation_failure", "dependency_failure",
-    "provider_failure", "budget_exhaustion", "internal_failure",
-})
+OPERATIONAL_OUTCOMES = frozenset(
+    {
+        "answered",
+        "abstained",
+        "validation_failure",
+        "dependency_failure",
+        "provider_failure",
+        "budget_exhaustion",
+        "internal_failure",
+    }
+)
 
 
-STRUCTURED_CAUSES = frozenset({
-    "tool_timeout", "tool_validation_failure", "tool_dependency_failure",
-    "tool_internal_failure", "route_unavailable",
-})
+STRUCTURED_CAUSES = frozenset(
+    {
+        "tool_timeout",
+        "tool_validation_failure",
+        "tool_dependency_failure",
+        "tool_internal_failure",
+        "route_unavailable",
+    }
+)
 
 
 def assistant_operational_outcome(
@@ -155,18 +169,38 @@ def assistant_operational_outcome(
     # while the Literature service has failed. Classify the observed cause first.
     if cause in {"unhandled_error", "response_serialization_failure"}:
         return "internal_failure"
-    if cause in {"capacity_limited", "budget_failure", "budget_exhausted",
-                 "deadline_exhausted", "rate_limited"}:
+    if cause in {
+        "capacity_limited",
+        "budget_failure",
+        "budget_exhausted",
+        "deadline_exhausted",
+        "rate_limited",
+    }:
         return "budget_exhaustion"
-    if cause in {"provider_rejection", "generation_transport_error",
-                 "generation_timeout", "generation_error", "embedding_failure"}:
+    if cause in {
+        "provider_rejection",
+        "generation_transport_error",
+        "generation_timeout",
+        "generation_error",
+        "embedding_failure",
+    }:
         return "provider_failure"
-    if cause in {"corrective_retry_exhausted", "grounding_validation_failed",
-                 "malformed_generated_json"}:
+    if cause in {
+        "corrective_retry_exhausted",
+        "grounding_validation_failed",
+        "malformed_generated_json",
+    }:
         return "validation_failure"
-    if cause in {"neo4j_timeout", "neo4j_query_failure", "retrieval_dependency_unavailable",
-                 "retrieval_failure", "provenance_failure", "persistence_failure",
-                 "authorization_dependency_failure", "route_unavailable"}:
+    if cause in {
+        "neo4j_timeout",
+        "neo4j_query_failure",
+        "retrieval_dependency_unavailable",
+        "retrieval_failure",
+        "provenance_failure",
+        "persistence_failure",
+        "authorization_dependency_failure",
+        "route_unavailable",
+    }:
         return "dependency_failure"
     if structured_cause == "tool_internal_failure":
         return "internal_failure"
@@ -176,8 +210,14 @@ def assistant_operational_outcome(
         return "dependency_failure"
     if outcome == "answered":
         return "answered"
-    if outcome in {"insufficient_evidence", "no_evidence", "needs_clarification",
-                   "safety_refusal", "unsupported_request", "query_too_broad"}:
+    if outcome in {
+        "insufficient_evidence",
+        "no_evidence",
+        "needs_clarification",
+        "safety_refusal",
+        "unsupported_request",
+        "query_too_broad",
+    }:
         return "abstained"
     if outcome == "request_validation_failure":
         return "validation_failure"
@@ -188,6 +228,8 @@ def assistant_operational_outcome(
     if outcome == "source_unavailable":
         return "dependency_failure"
     return "internal_failure"
+
+
 STAGES = frozenset(
     {
         "safety_classification",
@@ -289,6 +331,8 @@ def completion_context(event: str, context: dict[str, Any]) -> dict[str, Any]:
         ("service_duration_ms", 86_400_000),
         ("climate_before_service_ms", 86_400_000),
         ("climate_after_service_ms", 86_400_000),
+        ("cdc_before_service_ms", 86_400_000),
+        ("cdc_after_service_ms", 86_400_000),
         ("generation_attempts", 2),
         ("retrieval_passage_count", 100),
         ("retrieval_paper_count", 100),
@@ -303,13 +347,20 @@ def completion_context(event: str, context: dict[str, Any]) -> dict[str, Any]:
             for stage in STAGES
             if (duration := _number(stages.get(stage), 86_400_000)) is not None
         }
-    for key, maximum in (
-        ("climate_timing_ms", 86_400_000), ("climate_operation_counts", 10_000)
-    ):
+    for key, maximum in (("climate_timing_ms", 86_400_000), ("climate_operation_counts", 10_000)):
         values = context.get(key)
         if isinstance(values, dict) and values:
             result[key] = {
-                name: number for name in PHASES | IO_OPERATIONS
+                name: number
+                for name in PHASES | IO_OPERATIONS
+                if (number := _number(values.get(name), maximum)) is not None
+            }
+    for key, maximum in (("cdc_timing_ms", 86_400_000), ("cdc_operation_counts", 10_000)):
+        values = context.get(key)
+        if isinstance(values, dict) and values:
+            result[key] = {
+                name: number
+                for name in CDC_PHASES | CDC_IO_OPERATIONS
                 if (number := _number(values.get(name), maximum)) is not None
             }
     return result

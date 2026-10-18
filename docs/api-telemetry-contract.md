@@ -138,3 +138,41 @@ remain unchanged; this is one bounded addition to the existing event, not a
 second log stream. Logical phase spans use `atlas.climate.<closed phase>`.
 Intervals overlap; do not sum service, phase and I/O durations. See
 [measurement boundaries and controlled acceptance](climate-http-latency.md).
+
+## CDC request timings (API #248 Stage 1)
+
+The existing completion event may include `cdc_timing_ms` and
+`cdc_operation_counts`. Closed keys are `service`, `session_setup`,
+`release_lookup`, `identity`, `authority_query`, `producer`,
+`producer_processing`, `mapping`, `connect`, `execute`, `fetchone`, `fetchmany`,
+`fetchall`, `cursor_teardown`, `connection_teardown` and fallback `close`. Finite durations are
+nonnegative milliseconds capped at one day; counts cap at 10000. Unknown names,
+nonfinite values, SQL, query IDs, county lists and private authority are excluded.
+Counts include attempted operations that fail; execute counts exclude SDK-internal
+session initialization and implicit COMMIT/ROLLBACK inside context teardown.
+
+`cdc_before_service_ms` and `cdc_after_service_ms` bound the synchronous service
+inside the existing middleware interval. `duration_ms` ends before final body
+transport; the existing canonical SERVER span, ending at final ASGI send,
+measures full server request elapsed time. Neither is public HTTP/ingress-only
+latency. Middleware/service summaries are emitted even when the request trace is
+sampled out. Handled 503s and unhandled failures retain completed CDC timings;
+cancellation retains them only if the synchronous handler has already unwound.
+Client disconnect does not forcibly interrupt a Python worker or an SDK call.
+
+Logical spans `atlas.cdc.<closed phase>` reuse the existing provider and sampling.
+`identity` and `authority_query` include execute, fetch and row decoding.
+`producer` includes those serial callbacks and Data validation/mapping.
+`producer_processing` is explicitly the producer interval minus the sum of its
+nonoverlapping synchronous query-callback intervals; it includes local waits and
+instrumentation and is **not CPU time**. API `mapping` starts after the producer
+returns and includes envelope validation and DTO/context mapping. `service`
+includes connection establishment through teardown. Connect includes key parsing,
+authentication and session initialization; execute includes connector/network and
+server waits. Teardown includes implicit transaction cleanup and closing.
+
+Service, logical and dependency intervals overlap. Never sum their totals;
+compare individual boundaries or compute interval unions. Zero rounded log
+milliseconds are possible for submillisecond mock operations; missing fields
+mean unavailable. No new metrics backend, diagnostic endpoint, sampling, retention
+or public payload change. See [CDC session design and acceptance](cdc-request-session.md).

@@ -3,7 +3,7 @@
 import hashlib
 import json
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import date
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -12,6 +12,7 @@ from snowflake.connector.cursor import SnowflakeCursor
 
 if TYPE_CHECKING:
     from .cdc_surveillance import CDCObservationAdapter
+from .cdc_timing import phase as cdc_phase
 from .climate_timing import phase
 from .config import ApiSettings
 from .county_context import context_observation, context_query
@@ -53,22 +54,38 @@ class SnowflakeObservationRepository:
         self._connection = _connection
 
     @contextmanager
-    def climate_request(self) -> Iterator["SnowflakeObservationRepository"]:
+    def request_session(
+        self, *, close_on_exit_error: bool = False
+    ) -> Iterator["SnowflakeObservationRepository"]:
         """One exclusively owned session for one synchronous request, never a pool."""
         body_error: BaseException | None = None
+        connection: SnowflakeConnection | None = None
         try:
-            with connect(self.settings) as connection:
+            connection = connect(self.settings)
+            with connection as borrowed:
                 try:
-                    yield SnowflakeObservationRepository(self.settings, _connection=connection)
+                    yield SnowflakeObservationRepository(self.settings, _connection=borrowed)
                 except BaseException as error:
                     body_error = error
                     raise
-        except Exception as exc:
+        except BaseException as exc:
+            if close_on_exit_error and connection is not None and exc is not body_error:
+                # SDK commit/rollback may raise before close. Cleanup must not
+                # replace the original request error or cancellation.
+                with suppress(BaseException):
+                    connection.close()
             if body_error is not None:
                 if exc is body_error:
                     raise
                 raise body_error from None
-            raise AtlasDataUnavailableError("Governed observations are unavailable") from exc
+            if isinstance(exc, Exception):
+                raise AtlasDataUnavailableError("Governed observations are unavailable") from exc
+            raise
+
+    @contextmanager
+    def climate_request(self) -> Iterator["SnowflakeObservationRepository"]:
+        with self.request_session() as repository:
+            yield repository
 
     @contextmanager
     def _cursor(self) -> Iterator[SnowflakeCursor]:
@@ -192,6 +209,19 @@ class ObservationService:
             raise PublicQueryError(
                 "UNSUPPORTED_STRATIFICATION", "This release has no governed strata."
             )
+        from .cdc_surveillance import IDENTITIES
+
+        if (
+            isinstance(self.repository, SnowflakeObservationRepository)
+            and self.cdc_adapter is not None
+            and query.measure_id in IDENTITIES
+        ):
+            check()
+            self.cdc_adapter.validate_query(query)
+            with self.repository.request_session(close_on_exit_error=True) as repository:
+                assert repository._connection is not None
+                with self.cdc_adapter.request_session(repository._connection) as adapter:
+                    return self._search(query, repository, check, cdc_adapter=adapter)
         if isinstance(self.repository, SnowflakeObservationRepository) and (
             query.measure_id in CONTEXT_FIELDS
             or (
@@ -205,16 +235,22 @@ class ObservationService:
         return self._search(query, self.repository, check)
 
     def _search(
-        self, query: ObservationQuery, repository: ObservationRepository, check: Callable[[], None]
+        self,
+        query: ObservationQuery,
+        repository: ObservationRepository,
+        check: Callable[[], None],
+        *,
+        cdc_adapter: "CDCObservationAdapter | None" = None,
     ) -> ObservationCollection:
         check()
         from .cdc_surveillance import IDENTITIES
 
-        cdc = self.cdc_adapter is not None and query.measure_id in IDENTITIES
+        adapter = cdc_adapter or self.cdc_adapter
+        cdc = adapter is not None and query.measure_id in IDENTITIES
         if cdc:
-            assert self.cdc_adapter is not None
-            self.cdc_adapter.validate_query(query)
-        with phase("release_lookup"):
+            assert adapter is not None
+            adapter.validate_query(query)
+        with phase("release_lookup"), cdc_phase("release_lookup"):
             release = repository.current_release()
         check()
         with phase("measure_lookup"):
@@ -237,10 +273,8 @@ class ObservationService:
         check()
         items: list[PublicObservation]
         if cdc:
-            assert self.cdc_adapter is not None
-            items = [
-                item for item in self.cdc_adapter.search(query, release, offset, checkpoint=check)
-            ]
+            assert adapter is not None
+            items = [item for item in adapter.search(query, release, offset, checkpoint=check)]
             more = len(items) > query.page_size
             items = items[: query.page_size]
         else:
