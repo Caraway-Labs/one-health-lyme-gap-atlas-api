@@ -78,6 +78,8 @@ class Cursor:
         elif sql.startswith("WITH scoped"):
             self.description = [("synthetic",)]
             self.rows = [("batch",)]
+        elif "CURRENT_RELEASE_V" in sql:
+            self.rows = [(s.release,)]
 
     def fetchone(self):
         return (self.session.release,)
@@ -300,7 +302,7 @@ def test_http_pagination_and_unsampled_safe_timing(monkeypatch, caplog, measure)
         counts = event["cdc_operation_counts"]
         assert counts["connect"] == counts["connection_teardown"] == 1
         assert counts["execute"] == expected
-        assert counts["fetchmany"] == expected - 3
+        assert counts["fetchmany"] == expected - 2
         assert event["cdc_timing_ms"]["service"] >= event["cdc_timing_ms"]["producer"]
         assert event["cdc_timing_ms"]["producer_processing"] >= 0
         text = json.dumps(event)
@@ -360,7 +362,7 @@ def test_sdk_transaction_teardown_error_still_closes_and_preserves_body(monkeypa
         assert "private" not in str(captured.value)
 
 
-@pytest.mark.parametrize("operation", ["fetchone", "fetchmany"])
+@pytest.mark.parametrize("operation", ["execute", "fetchmany"])
 def test_fetch_error_closes_session(monkeypatch, operation):
     def fail(*args, **kwargs):
         raise TimeoutError("private result chunk")

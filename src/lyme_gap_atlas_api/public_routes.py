@@ -8,11 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from .climate_timing import ClimateTiming, climate_request_timing
 from .config import ApiSettings
 from .environmental_context import MEASURES
+from .geography_availability import CanonicalGeographyAvailability, county_availability
 from .public_contract import (
     CollectionEnvelope,
     CollectionLinks,
     CollectionMeta,
     Geography,
+    GeographyIdentity,
     GeographyType,
     Indicator,
     Measure,
@@ -24,15 +26,19 @@ from .public_contract import (
     Source,
 )
 from .public_docs import (
+    AVAILABLE_OBSERVATION_EXAMPLE,
     COLLECTION_DESCRIPTION,
     DETAIL_DESCRIPTION,
-    EMPTY_COLLECTION_EXAMPLE,
+    EXHAUSTED_OBSERVATIONS_EXAMPLE,
+    KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE,
     MISSING_OBSERVATION_EXAMPLE,
     problem_response,
 )
 from .public_metadata import MetadataService
 from .public_observations import ObservationService
 from .public_provenance import ProvenanceService
+from .repository import AtlasDataUnavailableError
+from .service import AtlasService
 
 router = APIRouter()
 
@@ -348,6 +354,65 @@ def geography(geography_type: GeographyType, geography_id: str) -> NoReturn:
     pending()
 
 
+@router.get(
+    "/v1/geographies/{geography_type}/{geography_id}/availability",
+    response_model=CanonicalGeographyAvailability,
+    responses={
+        **PROBLEMS,
+        200: {
+            "description": "Confirmed current county identity; canonical publication is pending.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "availability": "UNAVAILABLE",
+                        "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+                        "data": None,
+                        "release_id": "example-release",
+                        "limitations": [
+                            "Illustrative checked county directory; no geometry is delivered."
+                        ],
+                    }
+                }
+            },
+        },
+    },
+    operation_id="canonicalGeographyAvailability",
+    tags=["geographies"],
+    summary="Check canonical county geography publication availability",
+    description=(
+        "Additive county-only operation. Confirms membership and release from the governed "
+        "county directory before returning UNAVAILABLE/CANONICAL_GEOGRAPHY_UNPUBLISHED "
+        "with null data. The canonical resource is identity metadata, not a polygon. "
+        "No geometry is returned or inferred. State availability is unsupported (400). "
+        "Malformed county IDs return 400; confirmed absent identities return 404. "
+        "Unavailable, empty, duplicate or inconsistent directory authority remains 503. "
+        "The directory uses the existing bounded snapshot cache, checked against a fresh "
+        "current-release lookup; a mismatch remains 503. Responses use Cache-Control: no-store. "
+        "The existing canonical resource route and county/map routes are unchanged."
+    ),
+)
+def geography_availability(
+    request: Request,
+    response: Response,
+    geography_type: GeographyType,
+    geography_id: str,
+) -> CanonicalGeographyAvailability:
+    try:
+        GeographyIdentity(geography_type=geography_type, geography_id=geography_id)
+    except ValueError as exc:
+        raise PublicQueryError("INVALID_REQUEST", str(exc)) from exc
+    if geography_type != GeographyType.county:
+        raise PublicQueryError("UNSUPPORTED_FILTER", "Only county availability is supported.")
+    service = cast(AtlasService, request.app.state.service)
+    snapshot = service.snapshot()
+    observations = cast(ObservationService, request.app.state.observation_service)
+    if observations.repository.current_release() != snapshot.metadata.release_id:
+        raise AtlasDataUnavailableError("Current geography release is unavailable")
+    result = county_availability(snapshot, geography_id)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
 def observation_query(
     request: Request,
     measure_id: Annotated[
@@ -472,7 +537,9 @@ def observation_service(request: Request) -> ObservationService:
             "content": {
                 "application/json": {
                     "examples": {
-                        "empty": EMPTY_COLLECTION_EXAMPLE,
+                        "empty": EXHAUSTED_OBSERVATIONS_EXAMPLE,
+                        "available": AVAILABLE_OBSERVATION_EXAMPLE,
+                        "known_unavailable": KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE,
                         "missing": MISSING_OBSERVATION_EXAMPLE,
                     }
                 }
@@ -495,13 +562,19 @@ def observation_service(request: Request) -> ObservationService:
     "and retains ACS 2018-2022 periods. "
     "RUCC requires vintage_year=2023 and returns categorical codes/labels with null period dates. "
     "These measures reject annual/day filters; absent rows are unavailable evidence, never zero. "
-    "A measure and bounded county/time selection are required; no user sorting or aggregation.",
+    "A measure and bounded county/time selection are required; no user sorting or aggregation. "
+    "After successful release/measure/query reads, an initially empty non-CDC selection "
+    "returns 200 with meta.availability=UNAVAILABLE and reason=NO_PUBLISHED_RESULTS. "
+    "This does not establish source coverage or biological absence. Exhausted continuation "
+    "pages remain AVAILABLE. CDC admission and operational errors remain non-2xx. "
+    "Known unavailable collections use Cache-Control: no-store.",
     operation_id="observations_v1_observations_get",
     tags=["observations"],
     summary="Query county observations",
 )
 def observations(
     request: Request,
+    response: Response,
     query: Annotated[ObservationQuery, Depends(observation_query)],
     service: Annotated[ObservationService, Depends(observation_service)],
 ) -> ObservationCollection:
@@ -512,10 +585,14 @@ def observations(
         cdc_timing = CDCTiming()
         request.state.cdc_timing = cdc_timing
         with cdc_request_timing(cdc_timing):
-            return service.search(query)
-    if query.measure_id in MEASURES:
+            result = service.search(query)
+    elif query.measure_id in MEASURES:
         timing = ClimateTiming()
         request.state.climate_timing = timing
         with climate_request_timing(timing):
-            return service.search(query)
-    return service.search(query)
+            result = service.search(query)
+    else:
+        result = service.search(query)
+    if result.meta.availability == "UNAVAILABLE":
+        response.headers["Cache-Control"] = "no-store"
+    return result

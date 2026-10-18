@@ -74,6 +74,10 @@ class Cursor:
             raise RuntimeError("private release error")
         return ("fixture-release",)
 
+    def fetchmany(self, limit):
+        assert limit == 2
+        return [self.fetchone()]
+
     def fetchall(self):
         if self.session.fail == "fetch":
             raise RuntimeError("private fetch error")

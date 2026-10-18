@@ -1,5 +1,13 @@
 # API #237: structured origin 503 response fidelity
 
+Historical ingress diagnosis below is retained. The owner's subsequent
+[typed availability decision](adr/0019-typed-selection-availability.md) supersedes
+the provider-support/topology recommendation for this implementation. No provider
+ticket or infrastructure change is planned. Genuine operational503 remains an
+error and may still be rewritten; only successful authoritative availability
+determinations use200. The compatible geography operation is additive, so the
+legacy route's ingress limitation remains.
+
 ## Diagnosis
 
 Production evidence attached to [API #237](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-api/issues/237)

@@ -1,5 +1,35 @@
 # Canonical public API V1 contract (API #52)
 
+## Typed observation selection availability (API #237)
+
+Additive `GET /v1/geographies/{geography_type}/{geography_id}/availability`
+supports county identities only. It checks the current county directory and a
+fresh matching release before returning HTTP200 UNAVAILABLE, reason
+CANONICAL_GEOGRAPHY_UNPUBLISHED, data=null, release_id and limitations. This
+concerns pending canonical identity delivery, not polygon availability. No
+geometry is returned or inferred. Missing county identity404, malformed ID400,
+unsupported state availability400 and authority/dependency503 remain errors.
+Responses use no-store. The original canonical resource remains unchanged; use
+the separate operation to consume typed publication availability.
+
+Observation responses retain `data/meta/links`. Optional `meta.availability`
+describes published results for the requested selection, not biological presence.
+After successful release, measure and query reads, an initially empty non-CDC
+selection returns HTTP200, `data=[]`, `availability=UNAVAILABLE`,
+`reason=NO_PUBLISHED_RESULTS`, the checked `release_id` and factual limitations.
+These responses use `Cache-Control: no-store`. Available records and exhausted
+continuation pages carry AVAILABLE; reason is omitted. Existing metadata and
+pagination remain. Other collection resources omit these optional fields.
+
+This does not classify CDC unknown coverage: the pinned governed producer cannot
+establish a consumer-safe unavailable outcome after complete admission. CDC
+admission, metadata, source and release failures remain non-2xx. NO_RECORDS is
+still a delivered publisher observation whose meaning is unknown, never absence.
+Existing county-context no-admitted-selection404, validation and rate limits are
+unchanged. Operational failures remain RFC9457 errors; ingress is unchanged.
+See [ADR0019](adr/0019-typed-selection-availability.md) and the
+[classification and Data dependency](api-237-availability-classification.md).
+
 ## Optional surveillance companions (API #88)
 
 `GET /v1/observations` may carry `surveillance_context` only through the existing

@@ -91,7 +91,9 @@ class PublicReadProtectionMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         path = request.url.path
         if request.method != "GET" or not (
-            path in _PUBLIC_COLLECTIONS or path.startswith(_PUBLIC_DETAILS)
+            path in _PUBLIC_COLLECTIONS
+            or path.startswith(_PUBLIC_DETAILS)
+            or (path.startswith("/v1/geographies/") and path.endswith("/availability"))
         ):
             return await call_next(request)
         if len(request.scope.get("query_string", b"")) > self.max_query_bytes:

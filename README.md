@@ -27,7 +27,11 @@ Ask Atlas request bounds, diagnosis, rollback and manual regression promotion ar
 documented in the [Ask Atlas operating runbook](docs/ask-atlas-operations.md).
 Indicator and measure discovery (#53), bounded county observation queries
 (#54), and source/methodology metadata (#55) read governed current-release views.
-Geography retains its documented 503 until its owning story is delivered.
+Geography retains its documented resource503 until its owning story is delivered.
+The additive county geography `/availability` operation verifies current identity
+and release, then reports typed200 unpublished capability with null data. Known-empty
+ordinary observation selections carry typed availability in meta. CDC authority
+failures remain errors; see [typed availability](docs/api-237-typed-availability.md).
 `GET /v1/states/{state}/review` returns the versioned county Review result,
 separate data gaps, and coverage from the current governed release. Method
 `atlas-county-review@1.0.0` has no enabled candidate rules while source-native

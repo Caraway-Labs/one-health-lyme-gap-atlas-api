@@ -1825,13 +1825,232 @@
         }
       }
     },
+    "/v1/geographies/{geography_type}/{geography_id}/availability": {
+      "get": {
+        "tags": [
+          "geographies"
+        ],
+        "summary": "Check canonical county geography publication availability",
+        "description": "Additive county-only operation. Confirms membership and release from the governed county directory before returning UNAVAILABLE/CANONICAL_GEOGRAPHY_UNPUBLISHED with null data. The canonical resource is identity metadata, not a polygon. No geometry is returned or inferred. State availability is unsupported (400). Malformed county IDs return 400; confirmed absent identities return 404. Unavailable, empty, duplicate or inconsistent directory authority remains 503. The directory uses the existing bounded snapshot cache, checked against a fresh current-release lookup; a mismatch remains 503. Responses use Cache-Control: no-store. The existing canonical resource route and county/map routes are unchanged.",
+        "operationId": "canonicalGeographyAvailability",
+        "parameters": [
+          {
+            "name": "geography_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/GeographyType"
+            }
+          },
+          {
+            "name": "geography_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Geography Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confirmed current county identity; canonical publication is pending.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonicalGeographyAvailability"
+                },
+                "example": {
+                  "availability": "UNAVAILABLE",
+                  "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+                  "release_id": "example-release",
+                  "limitations": [
+                    "Illustrative checked county directory; no geometry is delivered."
+                  ]
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Canonical client errors use application/problem+json.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-400",
+                      "title": "Request failed",
+                      "status": 400,
+                      "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "RESOURCE_NOT_FOUND; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-404",
+                      "title": "Request failed",
+                      "status": 404,
+                      "detail": "RESOURCE_NOT_FOUND; application/problem+json",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "RESOURCE_NOT_FOUND"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; Retry-After; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-429",
+                      "title": "Request failed",
+                      "status": 429,
+                      "detail": "Rate limited; Retry-After; application/problem+json",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "RATE_LIMITED"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "GET request body rejected; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-413",
+                      "title": "Request failed",
+                      "status": 413,
+                      "detail": "GET request body rejected; application/problem+json",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "Query string too long; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-414",
+                      "title": "Request failed",
+                      "status": 414,
+                      "detail": "Query string too long; application/problem+json",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable; application/problem+json",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://carawaylabs.com/problems/http-503",
+                      "title": "Request failed",
+                      "status": 503,
+                      "detail": "Service unavailable; application/problem+json",
+                      "instance": "/v1/observations",
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/observations": {
       "get": {
         "tags": [
           "observations"
         ],
         "summary": "Query county observations",
-        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. Surveillance context is optional and requires an admitted Data delivery; normalized_state preserves Data semantics and the publisher value remains value. Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; scapularis_status and burgdorferi_status require exact Data record admission. Annual year and other date ranges return 400 UNSUPPORTED_FILTER before data access. Missing context does not establish absence or temporal comparability. County SVI/population/insurance context requires vintage_year=2022 and retains ACS 2018-2022 periods. RUCC requires vintage_year=2023 and returns categorical codes/labels with null period dates. These measures reject annual/day filters; absent rows are unavailable evidence, never zero. A measure and bounded county/time selection are required; no user sorting or aggregation.",
+        "description": "Current published county observations only. Ordered by measure ID, county FIPS, period start, and observation ID. Opaque page tokens bind to filters and release. Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental measures use labeled daily periods, carry environmental_context coverage, and have no supported strata. Environmental context is descriptive weather, with no causal, disease-risk or ML claim. Surveillance context is optional and requires an admitted Data delivery; normalized_state preserves Data semantics and the publisher value remains value. Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; scapularis_status and burgdorferi_status require exact Data record admission. Annual year and other date ranges return 400 UNSUPPORTED_FILTER before data access. Missing context does not establish absence or temporal comparability. County SVI/population/insurance context requires vintage_year=2022 and retains ACS 2018-2022 periods. RUCC requires vintage_year=2023 and returns categorical codes/labels with null period dates. These measures reject annual/day filters; absent rows are unavailable evidence, never zero. A measure and bounded county/time selection are required; no user sorting or aggregation. After successful release/measure/query reads, an initially empty non-CDC selection returns 200 with meta.availability=UNAVAILABLE and reason=NO_PUBLISHED_RESULTS. This does not establish source coverage or biological absence. Exhausted continuation pages remain AVAILABLE. CDC admission and operational errors remain non-2xx. Known unavailable collections use Cache-Control: no-store.",
         "operationId": "observations_v1_observations_get",
         "parameters": [
           {
@@ -6147,6 +6366,49 @@
         ],
         "title": "Candidate"
       },
+      "CanonicalGeographyAvailability": {
+        "properties": {
+          "availability": {
+            "type": "string",
+            "const": "UNAVAILABLE",
+            "title": "Availability"
+          },
+          "reason": {
+            "type": "string",
+            "const": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+            "title": "Reason"
+          },
+          "data": {
+            "type": "null",
+            "title": "Data",
+            "description": "No canonical geography resource or geometry is fabricated."
+          },
+          "release_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Release Id",
+            "description": "Governed county directory release used to confirm identity."
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Limitations",
+            "description": "Publication and representation boundaries, not scientific absence."
+          }
+        },
+        "type": "object",
+        "required": [
+          "availability",
+          "reason",
+          "data",
+          "release_id",
+          "limitations"
+        ],
+        "title": "CanonicalGeographyAvailability"
+      },
       "ChatHistoryTurn": {
         "properties": {
           "role": {
@@ -6384,6 +6646,62 @@
             "format": "date-time",
             "title": "Response At",
             "description": "UTC response construction time; not source freshness or observation time."
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "AVAILABLE",
+                  "UNAVAILABLE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Availability",
+            "description": "Observation selection availability, not biological presence. Omitted on other collections. An exhausted continuation remains AVAILABLE."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "NO_PUBLISHED_RESULTS"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "No published rows after a successful initial non-CDC query; otherwise omitted."
+          },
+          "release_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Id",
+            "description": "Current governed release actually read for this query."
+          },
+          "limitations": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limitations",
+            "description": "Selection availability caveats; observations only."
           }
         },
         "type": "object",
