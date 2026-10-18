@@ -1,0 +1,934 @@
+{
+  "source_commit": "2476bfec3b89b513adf9ce2348fe94be44abf915",
+  "source_factory": "tests/test_cdc_consumer_batch.py:batch_case; count=2; target release; synthetic admission only, not PROD evidence",
+  "cases": [
+    {
+      "measure": "scapularis_status",
+      "value": "Established",
+      "rows": [
+        {
+          "resource_key": "cdc_tick_ixodes_county_status",
+          "dataset_id": "cdc-ixodes-county-status-2025",
+          "source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+          "observation_id": "synthetic-target-observation-0",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "measure_id": "scapularis_status",
+          "county_fips": "00001",
+          "temporal_window": "through 2025-12-31",
+          "governed_source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+          "ingestion_run_id": "run-scapularis_status-0",
+          "governed_ingestion_run_id": "run-scapularis_status-0",
+          "artifact_id": "artifact-scapularis_status-0",
+          "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "semantic_source_record_id": "source-record-scapularis_status-0-0",
+          "semantic_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source_id": "cdc_arbonet_tick_module",
+          "release_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+          "conformed_record_id": "record-scapularis_status-0-0",
+          "governed_source_record_id": "source-record-scapularis_status-0-0",
+          "governed_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "record_match_kind": "RESTRICTED_CDC_CONFORMED",
+          "cdc_runtime_authority": {
+            "source_vintage": "through 2025-12-31",
+            "source_status": "CONDITIONAL",
+            "source_retired_at": null,
+            "source_decision": "APPROVED_WITH_CONDITIONS",
+            "source_decision_id": "test-source-review",
+            "source_conditions": [
+              "restricted"
+            ],
+            "source_review_version": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+            "source_review_resource": "cdc_tick_ixodes_county_status",
+            "release_status": "PUBLISHED",
+            "value": "Established",
+            "publisher_value": "Established",
+            "value_state": "OBSERVED",
+            "geography_semantics": "COUNTY_FIPS_5",
+            "transformation_version": "semantic_county_assembly_v1",
+            "derivation_status": "COMPLETED",
+            "derivation_mode": "RESTRICTED_FULL_PROD",
+            "evidence_run_id": "synthetic-evidence-run",
+            "evidence_status": "COMPLETED",
+            "evidence_mode": "EVIDENCE_ONLY",
+            "evidence_resource": "cdc_tick_ixodes_county_status",
+            "artifact_run_id": "synthetic-evidence-run",
+            "artifact_type": "SOURCE_WORKBOOK_EVIDENCE",
+            "source_definition_version": 1,
+            "record_resource": "cdc_tick_ixodes_county_status",
+            "record_county": "00001",
+            "coverage_state": "OBSERVED",
+            "workbook_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+            "retrieved_at": "2026-09-24T00:00:00Z",
+            "attestations": [
+              {
+                "attestation_id": "synthetic-final-copy",
+                "semantic_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                "resource_key": "cdc_tick_ixodes_county_status",
+                "data_source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+                "attested_by": "SYNTHETIC_TEST_REVIEWER",
+                "delivery_reference": "synthetic-delivery",
+                "delivered_at": "2026-10-11T00:00:00Z"
+              }
+            ],
+            "review_decisions": [
+              {
+                "decision_id": "test-scientific-review",
+                "decision": "APPROVED",
+                "reviewer": "SYNTHETIC_TEST_REVIEWER",
+                "active_steward": true,
+                "decided_at": "2026-10-17",
+                "rationale": "synthetic review evidence only",
+                "conditions": [
+                  {
+                    "cdc_consumer_admission": {
+                      "release_id": "governed-2026-10-15-january-climate-prod",
+                      "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+                      "scope": {
+                        "resource_key": "cdc_tick_ixodes_county_status",
+                        "dataset_id": "cdc-ixodes-county-status-2025",
+                        "source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242"
+                      },
+                      "metadata_revision_id": "metadata-revision:v1:3300365cfd0af87dcc80afdd94aa4b35f8651b2ab5ba898edb8a282f562016fd",
+                      "decision_reference": "test-reviewed-decision",
+                      "observation_bindings": {
+                        "synthetic-target-observation-0": {
+                          "record_id": "record-scapularis_status-0-0",
+                          "semantic_revision_id": "revision:v1:296a984c58e5c8f1fafb4f1f3c0ef6e1954ed37d903fd8a0ebd16301fdcf957a",
+                          "donor_observation_id": "test-physical-observation"
+                        },
+                        "synthetic-target-observation-1": {
+                          "record_id": "record-scapularis_status-0-1",
+                          "semantic_revision_id": "revision:v1:0b8fed1b571f77d11da9394b21ea0a1c39ee035413e9f7191e72db334d161f0c",
+                          "donor_observation_id": "test-physical-observation"
+                        }
+                      },
+                      "reviewed_at": "2026-10-17",
+                      "restricted_copy_reuse": {
+                        "donor_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                        "donor_bundle_sha256": "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9",
+                        "attestation_ids": [
+                          "synthetic-final-copy"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "donor_record_equivalent": true,
+            "donor_observation_id": "test-physical-observation"
+          }
+        },
+        {
+          "resource_key": "cdc_tick_ixodes_county_status",
+          "dataset_id": "cdc-ixodes-county-status-2025",
+          "source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+          "observation_id": "synthetic-target-observation-1",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "measure_id": "scapularis_status",
+          "county_fips": "00002",
+          "temporal_window": "through 2025-12-31",
+          "governed_source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+          "ingestion_run_id": "run-scapularis_status-0",
+          "governed_ingestion_run_id": "run-scapularis_status-0",
+          "artifact_id": "artifact-scapularis_status-0",
+          "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "semantic_source_record_id": "source-record-scapularis_status-0-1",
+          "semantic_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source_id": "cdc_arbonet_tick_module",
+          "release_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+          "conformed_record_id": "record-scapularis_status-0-1",
+          "governed_source_record_id": "source-record-scapularis_status-0-1",
+          "governed_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "record_match_kind": "RESTRICTED_CDC_CONFORMED",
+          "cdc_runtime_authority": {
+            "source_vintage": "through 2025-12-31",
+            "source_status": "CONDITIONAL",
+            "source_retired_at": null,
+            "source_decision": "APPROVED_WITH_CONDITIONS",
+            "source_decision_id": "test-source-review",
+            "source_conditions": [
+              "restricted"
+            ],
+            "source_review_version": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+            "source_review_resource": "cdc_tick_ixodes_county_status",
+            "release_status": "PUBLISHED",
+            "value": "Established",
+            "publisher_value": "Established",
+            "value_state": "OBSERVED",
+            "geography_semantics": "COUNTY_FIPS_5",
+            "transformation_version": "semantic_county_assembly_v1",
+            "derivation_status": "COMPLETED",
+            "derivation_mode": "RESTRICTED_FULL_PROD",
+            "evidence_run_id": "synthetic-evidence-run",
+            "evidence_status": "COMPLETED",
+            "evidence_mode": "EVIDENCE_ONLY",
+            "evidence_resource": "cdc_tick_ixodes_county_status",
+            "artifact_run_id": "synthetic-evidence-run",
+            "artifact_type": "SOURCE_WORKBOOK_EVIDENCE",
+            "source_definition_version": 1,
+            "record_resource": "cdc_tick_ixodes_county_status",
+            "record_county": "00002",
+            "coverage_state": "OBSERVED",
+            "workbook_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+            "retrieved_at": "2026-09-24T00:00:00Z",
+            "attestations": [
+              {
+                "attestation_id": "synthetic-final-copy",
+                "semantic_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                "resource_key": "cdc_tick_ixodes_county_status",
+                "data_source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+                "attested_by": "SYNTHETIC_TEST_REVIEWER",
+                "delivery_reference": "synthetic-delivery",
+                "delivered_at": "2026-10-11T00:00:00Z"
+              }
+            ],
+            "review_decisions": [
+              {
+                "decision_id": "test-scientific-review",
+                "decision": "APPROVED",
+                "reviewer": "SYNTHETIC_TEST_REVIEWER",
+                "active_steward": true,
+                "decided_at": "2026-10-17",
+                "rationale": "synthetic review evidence only",
+                "conditions": [
+                  {
+                    "cdc_consumer_admission": {
+                      "release_id": "governed-2026-10-15-january-climate-prod",
+                      "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+                      "scope": {
+                        "resource_key": "cdc_tick_ixodes_county_status",
+                        "dataset_id": "cdc-ixodes-county-status-2025",
+                        "source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242"
+                      },
+                      "metadata_revision_id": "metadata-revision:v1:3300365cfd0af87dcc80afdd94aa4b35f8651b2ab5ba898edb8a282f562016fd",
+                      "decision_reference": "test-reviewed-decision",
+                      "observation_bindings": {
+                        "synthetic-target-observation-0": {
+                          "record_id": "record-scapularis_status-0-0",
+                          "semantic_revision_id": "revision:v1:296a984c58e5c8f1fafb4f1f3c0ef6e1954ed37d903fd8a0ebd16301fdcf957a",
+                          "donor_observation_id": "test-physical-observation"
+                        },
+                        "synthetic-target-observation-1": {
+                          "record_id": "record-scapularis_status-0-1",
+                          "semantic_revision_id": "revision:v1:0b8fed1b571f77d11da9394b21ea0a1c39ee035413e9f7191e72db334d161f0c",
+                          "donor_observation_id": "test-physical-observation"
+                        }
+                      },
+                      "reviewed_at": "2026-10-17",
+                      "restricted_copy_reuse": {
+                        "donor_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                        "donor_bundle_sha256": "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9",
+                        "attestation_ids": [
+                          "synthetic-final-copy"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "donor_record_equivalent": true,
+            "donor_observation_id": "test-physical-observation"
+          }
+        }
+      ]
+    },
+    {
+      "measure": "scapularis_status",
+      "value": "Reported",
+      "rows": [
+        {
+          "resource_key": "cdc_tick_ixodes_county_status",
+          "dataset_id": "cdc-ixodes-county-status-2025",
+          "source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+          "observation_id": "synthetic-target-observation-0",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "measure_id": "scapularis_status",
+          "county_fips": "00001",
+          "temporal_window": "through 2025-12-31",
+          "governed_source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+          "ingestion_run_id": "run-scapularis_status-0",
+          "governed_ingestion_run_id": "run-scapularis_status-0",
+          "artifact_id": "artifact-scapularis_status-0",
+          "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "semantic_source_record_id": "source-record-scapularis_status-0-0",
+          "semantic_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source_id": "cdc_arbonet_tick_module",
+          "release_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+          "conformed_record_id": "record-scapularis_status-0-0",
+          "governed_source_record_id": "source-record-scapularis_status-0-0",
+          "governed_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "record_match_kind": "RESTRICTED_CDC_CONFORMED",
+          "cdc_runtime_authority": {
+            "source_vintage": "through 2025-12-31",
+            "source_status": "CONDITIONAL",
+            "source_retired_at": null,
+            "source_decision": "APPROVED_WITH_CONDITIONS",
+            "source_decision_id": "test-source-review",
+            "source_conditions": [
+              "restricted"
+            ],
+            "source_review_version": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+            "source_review_resource": "cdc_tick_ixodes_county_status",
+            "release_status": "PUBLISHED",
+            "value": "Reported",
+            "publisher_value": "Reported",
+            "value_state": "OBSERVED",
+            "geography_semantics": "COUNTY_FIPS_5",
+            "transformation_version": "semantic_county_assembly_v1",
+            "derivation_status": "COMPLETED",
+            "derivation_mode": "RESTRICTED_FULL_PROD",
+            "evidence_run_id": "synthetic-evidence-run",
+            "evidence_status": "COMPLETED",
+            "evidence_mode": "EVIDENCE_ONLY",
+            "evidence_resource": "cdc_tick_ixodes_county_status",
+            "artifact_run_id": "synthetic-evidence-run",
+            "artifact_type": "SOURCE_WORKBOOK_EVIDENCE",
+            "source_definition_version": 1,
+            "record_resource": "cdc_tick_ixodes_county_status",
+            "record_county": "00001",
+            "coverage_state": "OBSERVED",
+            "workbook_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+            "retrieved_at": "2026-09-24T00:00:00Z",
+            "attestations": [
+              {
+                "attestation_id": "synthetic-final-copy",
+                "semantic_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                "resource_key": "cdc_tick_ixodes_county_status",
+                "data_source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+                "attested_by": "SYNTHETIC_TEST_REVIEWER",
+                "delivery_reference": "synthetic-delivery",
+                "delivered_at": "2026-10-11T00:00:00Z"
+              }
+            ],
+            "review_decisions": [
+              {
+                "decision_id": "test-scientific-review",
+                "decision": "APPROVED",
+                "reviewer": "SYNTHETIC_TEST_REVIEWER",
+                "active_steward": true,
+                "decided_at": "2026-10-17",
+                "rationale": "synthetic review evidence only",
+                "conditions": [
+                  {
+                    "cdc_consumer_admission": {
+                      "release_id": "governed-2026-10-15-january-climate-prod",
+                      "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+                      "scope": {
+                        "resource_key": "cdc_tick_ixodes_county_status",
+                        "dataset_id": "cdc-ixodes-county-status-2025",
+                        "source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242"
+                      },
+                      "metadata_revision_id": "metadata-revision:v1:3300365cfd0af87dcc80afdd94aa4b35f8651b2ab5ba898edb8a282f562016fd",
+                      "decision_reference": "test-reviewed-decision",
+                      "observation_bindings": {
+                        "synthetic-target-observation-0": {
+                          "record_id": "record-scapularis_status-0-0",
+                          "semantic_revision_id": "revision:v1:99b4cccff41f1dd6053926184f3ed2851ce689030c4ab50964698b142960f445",
+                          "donor_observation_id": "test-physical-observation"
+                        },
+                        "synthetic-target-observation-1": {
+                          "record_id": "record-scapularis_status-0-1",
+                          "semantic_revision_id": "revision:v1:0412b54ed54efb30f0308c899280f0fbadea69b4dd4e27c6e22cc4844686e68f",
+                          "donor_observation_id": "test-physical-observation"
+                        }
+                      },
+                      "reviewed_at": "2026-10-17",
+                      "restricted_copy_reuse": {
+                        "donor_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                        "donor_bundle_sha256": "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9",
+                        "attestation_ids": [
+                          "synthetic-final-copy"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "donor_record_equivalent": true,
+            "donor_observation_id": "test-physical-observation"
+          }
+        },
+        {
+          "resource_key": "cdc_tick_ixodes_county_status",
+          "dataset_id": "cdc-ixodes-county-status-2025",
+          "source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+          "observation_id": "synthetic-target-observation-1",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "measure_id": "scapularis_status",
+          "county_fips": "00002",
+          "temporal_window": "through 2025-12-31",
+          "governed_source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+          "ingestion_run_id": "run-scapularis_status-0",
+          "governed_ingestion_run_id": "run-scapularis_status-0",
+          "artifact_id": "artifact-scapularis_status-0",
+          "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "semantic_source_record_id": "source-record-scapularis_status-0-1",
+          "semantic_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source_id": "cdc_arbonet_tick_module",
+          "release_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+          "conformed_record_id": "record-scapularis_status-0-1",
+          "governed_source_record_id": "source-record-scapularis_status-0-1",
+          "governed_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "record_match_kind": "RESTRICTED_CDC_CONFORMED",
+          "cdc_runtime_authority": {
+            "source_vintage": "through 2025-12-31",
+            "source_status": "CONDITIONAL",
+            "source_retired_at": null,
+            "source_decision": "APPROVED_WITH_CONDITIONS",
+            "source_decision_id": "test-source-review",
+            "source_conditions": [
+              "restricted"
+            ],
+            "source_review_version": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+            "source_review_resource": "cdc_tick_ixodes_county_status",
+            "release_status": "PUBLISHED",
+            "value": "Reported",
+            "publisher_value": "Reported",
+            "value_state": "OBSERVED",
+            "geography_semantics": "COUNTY_FIPS_5",
+            "transformation_version": "semantic_county_assembly_v1",
+            "derivation_status": "COMPLETED",
+            "derivation_mode": "RESTRICTED_FULL_PROD",
+            "evidence_run_id": "synthetic-evidence-run",
+            "evidence_status": "COMPLETED",
+            "evidence_mode": "EVIDENCE_ONLY",
+            "evidence_resource": "cdc_tick_ixodes_county_status",
+            "artifact_run_id": "synthetic-evidence-run",
+            "artifact_type": "SOURCE_WORKBOOK_EVIDENCE",
+            "source_definition_version": 1,
+            "record_resource": "cdc_tick_ixodes_county_status",
+            "record_county": "00002",
+            "coverage_state": "OBSERVED",
+            "workbook_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+            "retrieved_at": "2026-09-24T00:00:00Z",
+            "attestations": [
+              {
+                "attestation_id": "synthetic-final-copy",
+                "semantic_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                "resource_key": "cdc_tick_ixodes_county_status",
+                "data_source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242",
+                "attested_by": "SYNTHETIC_TEST_REVIEWER",
+                "delivery_reference": "synthetic-delivery",
+                "delivered_at": "2026-10-11T00:00:00Z"
+              }
+            ],
+            "review_decisions": [
+              {
+                "decision_id": "test-scientific-review",
+                "decision": "APPROVED",
+                "reviewer": "SYNTHETIC_TEST_REVIEWER",
+                "active_steward": true,
+                "decided_at": "2026-10-17",
+                "rationale": "synthetic review evidence only",
+                "conditions": [
+                  {
+                    "cdc_consumer_admission": {
+                      "release_id": "governed-2026-10-15-january-climate-prod",
+                      "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+                      "scope": {
+                        "resource_key": "cdc_tick_ixodes_county_status",
+                        "dataset_id": "cdc-ixodes-county-status-2025",
+                        "source_version_id": "b81c116f-d93d-4c6b-9d11-ac2477e0e242"
+                      },
+                      "metadata_revision_id": "metadata-revision:v1:3300365cfd0af87dcc80afdd94aa4b35f8651b2ab5ba898edb8a282f562016fd",
+                      "decision_reference": "test-reviewed-decision",
+                      "observation_bindings": {
+                        "synthetic-target-observation-0": {
+                          "record_id": "record-scapularis_status-0-0",
+                          "semantic_revision_id": "revision:v1:99b4cccff41f1dd6053926184f3ed2851ce689030c4ab50964698b142960f445",
+                          "donor_observation_id": "test-physical-observation"
+                        },
+                        "synthetic-target-observation-1": {
+                          "record_id": "record-scapularis_status-0-1",
+                          "semantic_revision_id": "revision:v1:0412b54ed54efb30f0308c899280f0fbadea69b4dd4e27c6e22cc4844686e68f",
+                          "donor_observation_id": "test-physical-observation"
+                        }
+                      },
+                      "reviewed_at": "2026-10-17",
+                      "restricted_copy_reuse": {
+                        "donor_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                        "donor_bundle_sha256": "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9",
+                        "attestation_ids": [
+                          "synthetic-final-copy"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "donor_record_equivalent": true,
+            "donor_observation_id": "test-physical-observation"
+          }
+        }
+      ]
+    },
+    {
+      "measure": "burgdorferi_status",
+      "value": "Present",
+      "rows": [
+        {
+          "resource_key": "cdc_tick_ixodes_pathogen_status",
+          "dataset_id": "cdc-ixodes-pathogen-status-2025",
+          "source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+          "observation_id": "synthetic-target-observation-0",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "measure_id": "burgdorferi_status",
+          "county_fips": "00001",
+          "temporal_window": "through 2025-12-31",
+          "governed_source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+          "ingestion_run_id": "run-burgdorferi_status-0",
+          "governed_ingestion_run_id": "run-burgdorferi_status-0",
+          "artifact_id": "artifact-burgdorferi_status-0",
+          "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "semantic_source_record_id": "source-record-burgdorferi_status-0-0",
+          "semantic_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source_id": "cdc_arbonet_tick_module",
+          "release_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+          "conformed_record_id": "record-burgdorferi_status-0-0",
+          "governed_source_record_id": "source-record-burgdorferi_status-0-0",
+          "governed_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "record_match_kind": "RESTRICTED_CDC_CONFORMED",
+          "cdc_runtime_authority": {
+            "source_vintage": "through 2025-12-31",
+            "source_status": "CONDITIONAL",
+            "source_retired_at": null,
+            "source_decision": "APPROVED_WITH_CONDITIONS",
+            "source_decision_id": "test-source-review",
+            "source_conditions": [
+              "restricted"
+            ],
+            "source_review_version": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+            "source_review_resource": "cdc_tick_ixodes_pathogen_status",
+            "release_status": "PUBLISHED",
+            "value": "Present",
+            "publisher_value": "Present",
+            "value_state": "OBSERVED",
+            "geography_semantics": "COUNTY_FIPS_5",
+            "transformation_version": "semantic_county_assembly_v1",
+            "derivation_status": "COMPLETED",
+            "derivation_mode": "RESTRICTED_FULL_PROD",
+            "evidence_run_id": "synthetic-evidence-run",
+            "evidence_status": "COMPLETED",
+            "evidence_mode": "EVIDENCE_ONLY",
+            "evidence_resource": "cdc_tick_ixodes_pathogen_status",
+            "artifact_run_id": "synthetic-evidence-run",
+            "artifact_type": "SOURCE_WORKBOOK_EVIDENCE",
+            "source_definition_version": 1,
+            "record_resource": "cdc_tick_ixodes_pathogen_status",
+            "record_county": "00001",
+            "coverage_state": "OBSERVED",
+            "workbook_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+            "retrieved_at": "2026-09-24T00:00:00Z",
+            "attestations": [
+              {
+                "attestation_id": "synthetic-final-copy",
+                "semantic_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                "resource_key": "cdc_tick_ixodes_pathogen_status",
+                "data_source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+                "attested_by": "SYNTHETIC_TEST_REVIEWER",
+                "delivery_reference": "synthetic-delivery",
+                "delivered_at": "2026-10-11T00:00:00Z"
+              }
+            ],
+            "review_decisions": [
+              {
+                "decision_id": "test-scientific-review",
+                "decision": "APPROVED",
+                "reviewer": "SYNTHETIC_TEST_REVIEWER",
+                "active_steward": true,
+                "decided_at": "2026-10-17",
+                "rationale": "synthetic review evidence only",
+                "conditions": [
+                  {
+                    "cdc_consumer_admission": {
+                      "release_id": "governed-2026-10-15-january-climate-prod",
+                      "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+                      "scope": {
+                        "resource_key": "cdc_tick_ixodes_pathogen_status",
+                        "dataset_id": "cdc-ixodes-pathogen-status-2025",
+                        "source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf"
+                      },
+                      "metadata_revision_id": "metadata-revision:v1:f864fe95d98836fcc030e5b2a15d3a63c2bec50011cde1de59318b34219188f0",
+                      "decision_reference": "test-reviewed-decision",
+                      "observation_bindings": {
+                        "synthetic-target-observation-0": {
+                          "record_id": "record-burgdorferi_status-0-0",
+                          "semantic_revision_id": "revision:v1:e5ebe51a40f1a745da83d1e108d01c765f97b59660e9b4d763dc3d765ba80db7",
+                          "donor_observation_id": "test-physical-observation"
+                        },
+                        "synthetic-target-observation-1": {
+                          "record_id": "record-burgdorferi_status-0-1",
+                          "semantic_revision_id": "revision:v1:e8a4d7dc0ba5fceaba52b5c30a463e471441eb714066765c86ee2fe93b7aa8df",
+                          "donor_observation_id": "test-physical-observation"
+                        }
+                      },
+                      "reviewed_at": "2026-10-17",
+                      "restricted_copy_reuse": {
+                        "donor_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                        "donor_bundle_sha256": "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9",
+                        "attestation_ids": [
+                          "synthetic-final-copy"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "donor_record_equivalent": true,
+            "donor_observation_id": "test-physical-observation"
+          }
+        },
+        {
+          "resource_key": "cdc_tick_ixodes_pathogen_status",
+          "dataset_id": "cdc-ixodes-pathogen-status-2025",
+          "source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+          "observation_id": "synthetic-target-observation-1",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "measure_id": "burgdorferi_status",
+          "county_fips": "00002",
+          "temporal_window": "through 2025-12-31",
+          "governed_source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+          "ingestion_run_id": "run-burgdorferi_status-0",
+          "governed_ingestion_run_id": "run-burgdorferi_status-0",
+          "artifact_id": "artifact-burgdorferi_status-0",
+          "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "semantic_source_record_id": "source-record-burgdorferi_status-0-1",
+          "semantic_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source_id": "cdc_arbonet_tick_module",
+          "release_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+          "conformed_record_id": "record-burgdorferi_status-0-1",
+          "governed_source_record_id": "source-record-burgdorferi_status-0-1",
+          "governed_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "record_match_kind": "RESTRICTED_CDC_CONFORMED",
+          "cdc_runtime_authority": {
+            "source_vintage": "through 2025-12-31",
+            "source_status": "CONDITIONAL",
+            "source_retired_at": null,
+            "source_decision": "APPROVED_WITH_CONDITIONS",
+            "source_decision_id": "test-source-review",
+            "source_conditions": [
+              "restricted"
+            ],
+            "source_review_version": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+            "source_review_resource": "cdc_tick_ixodes_pathogen_status",
+            "release_status": "PUBLISHED",
+            "value": "Present",
+            "publisher_value": "Present",
+            "value_state": "OBSERVED",
+            "geography_semantics": "COUNTY_FIPS_5",
+            "transformation_version": "semantic_county_assembly_v1",
+            "derivation_status": "COMPLETED",
+            "derivation_mode": "RESTRICTED_FULL_PROD",
+            "evidence_run_id": "synthetic-evidence-run",
+            "evidence_status": "COMPLETED",
+            "evidence_mode": "EVIDENCE_ONLY",
+            "evidence_resource": "cdc_tick_ixodes_pathogen_status",
+            "artifact_run_id": "synthetic-evidence-run",
+            "artifact_type": "SOURCE_WORKBOOK_EVIDENCE",
+            "source_definition_version": 1,
+            "record_resource": "cdc_tick_ixodes_pathogen_status",
+            "record_county": "00002",
+            "coverage_state": "OBSERVED",
+            "workbook_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+            "retrieved_at": "2026-09-24T00:00:00Z",
+            "attestations": [
+              {
+                "attestation_id": "synthetic-final-copy",
+                "semantic_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                "resource_key": "cdc_tick_ixodes_pathogen_status",
+                "data_source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+                "attested_by": "SYNTHETIC_TEST_REVIEWER",
+                "delivery_reference": "synthetic-delivery",
+                "delivered_at": "2026-10-11T00:00:00Z"
+              }
+            ],
+            "review_decisions": [
+              {
+                "decision_id": "test-scientific-review",
+                "decision": "APPROVED",
+                "reviewer": "SYNTHETIC_TEST_REVIEWER",
+                "active_steward": true,
+                "decided_at": "2026-10-17",
+                "rationale": "synthetic review evidence only",
+                "conditions": [
+                  {
+                    "cdc_consumer_admission": {
+                      "release_id": "governed-2026-10-15-january-climate-prod",
+                      "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+                      "scope": {
+                        "resource_key": "cdc_tick_ixodes_pathogen_status",
+                        "dataset_id": "cdc-ixodes-pathogen-status-2025",
+                        "source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf"
+                      },
+                      "metadata_revision_id": "metadata-revision:v1:f864fe95d98836fcc030e5b2a15d3a63c2bec50011cde1de59318b34219188f0",
+                      "decision_reference": "test-reviewed-decision",
+                      "observation_bindings": {
+                        "synthetic-target-observation-0": {
+                          "record_id": "record-burgdorferi_status-0-0",
+                          "semantic_revision_id": "revision:v1:e5ebe51a40f1a745da83d1e108d01c765f97b59660e9b4d763dc3d765ba80db7",
+                          "donor_observation_id": "test-physical-observation"
+                        },
+                        "synthetic-target-observation-1": {
+                          "record_id": "record-burgdorferi_status-0-1",
+                          "semantic_revision_id": "revision:v1:e8a4d7dc0ba5fceaba52b5c30a463e471441eb714066765c86ee2fe93b7aa8df",
+                          "donor_observation_id": "test-physical-observation"
+                        }
+                      },
+                      "reviewed_at": "2026-10-17",
+                      "restricted_copy_reuse": {
+                        "donor_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                        "donor_bundle_sha256": "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9",
+                        "attestation_ids": [
+                          "synthetic-final-copy"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "donor_record_equivalent": true,
+            "donor_observation_id": "test-physical-observation"
+          }
+        }
+      ]
+    },
+    {
+      "measure": "burgdorferi_status",
+      "value": "No records",
+      "rows": [
+        {
+          "resource_key": "cdc_tick_ixodes_pathogen_status",
+          "dataset_id": "cdc-ixodes-pathogen-status-2025",
+          "source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+          "observation_id": "synthetic-target-observation-0",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "measure_id": "burgdorferi_status",
+          "county_fips": "00001",
+          "temporal_window": "through 2025-12-31",
+          "governed_source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+          "ingestion_run_id": "run-burgdorferi_status-0",
+          "governed_ingestion_run_id": "run-burgdorferi_status-0",
+          "artifact_id": "artifact-burgdorferi_status-0",
+          "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "semantic_source_record_id": "source-record-burgdorferi_status-0-0",
+          "semantic_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source_id": "cdc_arbonet_tick_module",
+          "release_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+          "conformed_record_id": "record-burgdorferi_status-0-0",
+          "governed_source_record_id": "source-record-burgdorferi_status-0-0",
+          "governed_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "record_match_kind": "RESTRICTED_CDC_CONFORMED",
+          "cdc_runtime_authority": {
+            "source_vintage": "through 2025-12-31",
+            "source_status": "CONDITIONAL",
+            "source_retired_at": null,
+            "source_decision": "APPROVED_WITH_CONDITIONS",
+            "source_decision_id": "test-source-review",
+            "source_conditions": [
+              "restricted"
+            ],
+            "source_review_version": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+            "source_review_resource": "cdc_tick_ixodes_pathogen_status",
+            "release_status": "PUBLISHED",
+            "value": "No records",
+            "publisher_value": "No records",
+            "value_state": "NO_RECORDS",
+            "geography_semantics": "COUNTY_FIPS_5",
+            "transformation_version": "semantic_county_assembly_v1",
+            "derivation_status": "COMPLETED",
+            "derivation_mode": "RESTRICTED_FULL_PROD",
+            "evidence_run_id": "synthetic-evidence-run",
+            "evidence_status": "COMPLETED",
+            "evidence_mode": "EVIDENCE_ONLY",
+            "evidence_resource": "cdc_tick_ixodes_pathogen_status",
+            "artifact_run_id": "synthetic-evidence-run",
+            "artifact_type": "SOURCE_WORKBOOK_EVIDENCE",
+            "source_definition_version": 1,
+            "record_resource": "cdc_tick_ixodes_pathogen_status",
+            "record_county": "00001",
+            "coverage_state": "OBSERVED",
+            "workbook_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+            "retrieved_at": "2026-09-24T00:00:00Z",
+            "attestations": [
+              {
+                "attestation_id": "synthetic-final-copy",
+                "semantic_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                "resource_key": "cdc_tick_ixodes_pathogen_status",
+                "data_source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+                "attested_by": "SYNTHETIC_TEST_REVIEWER",
+                "delivery_reference": "synthetic-delivery",
+                "delivered_at": "2026-10-11T00:00:00Z"
+              }
+            ],
+            "review_decisions": [
+              {
+                "decision_id": "test-scientific-review",
+                "decision": "APPROVED",
+                "reviewer": "SYNTHETIC_TEST_REVIEWER",
+                "active_steward": true,
+                "decided_at": "2026-10-17",
+                "rationale": "synthetic review evidence only",
+                "conditions": [
+                  {
+                    "cdc_consumer_admission": {
+                      "release_id": "governed-2026-10-15-january-climate-prod",
+                      "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+                      "scope": {
+                        "resource_key": "cdc_tick_ixodes_pathogen_status",
+                        "dataset_id": "cdc-ixodes-pathogen-status-2025",
+                        "source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf"
+                      },
+                      "metadata_revision_id": "metadata-revision:v1:f864fe95d98836fcc030e5b2a15d3a63c2bec50011cde1de59318b34219188f0",
+                      "decision_reference": "test-reviewed-decision",
+                      "observation_bindings": {
+                        "synthetic-target-observation-0": {
+                          "record_id": "record-burgdorferi_status-0-0",
+                          "semantic_revision_id": "revision:v1:8046a8825169b8a579a135bc2f704909419479ad53824543178c9c83a6b5a9ce",
+                          "donor_observation_id": "test-physical-observation"
+                        },
+                        "synthetic-target-observation-1": {
+                          "record_id": "record-burgdorferi_status-0-1",
+                          "semantic_revision_id": "revision:v1:5b0f4062c282831e1320a2008ad26cb6705d6f6e5e8ac8b38e2128b27b9495ed",
+                          "donor_observation_id": "test-physical-observation"
+                        }
+                      },
+                      "reviewed_at": "2026-10-17",
+                      "restricted_copy_reuse": {
+                        "donor_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                        "donor_bundle_sha256": "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9",
+                        "attestation_ids": [
+                          "synthetic-final-copy"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "donor_record_equivalent": true,
+            "donor_observation_id": "test-physical-observation"
+          }
+        },
+        {
+          "resource_key": "cdc_tick_ixodes_pathogen_status",
+          "dataset_id": "cdc-ixodes-pathogen-status-2025",
+          "source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+          "observation_id": "synthetic-target-observation-1",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "measure_id": "burgdorferi_status",
+          "county_fips": "00002",
+          "temporal_window": "through 2025-12-31",
+          "governed_source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+          "ingestion_run_id": "run-burgdorferi_status-0",
+          "governed_ingestion_run_id": "run-burgdorferi_status-0",
+          "artifact_id": "artifact-burgdorferi_status-0",
+          "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "semantic_source_record_id": "source-record-burgdorferi_status-0-1",
+          "semantic_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source_id": "cdc_arbonet_tick_module",
+          "release_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+          "conformed_record_id": "record-burgdorferi_status-0-1",
+          "governed_source_record_id": "source-record-burgdorferi_status-0-1",
+          "governed_source_row_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "record_match_kind": "RESTRICTED_CDC_CONFORMED",
+          "cdc_runtime_authority": {
+            "source_vintage": "through 2025-12-31",
+            "source_status": "CONDITIONAL",
+            "source_retired_at": null,
+            "source_decision": "APPROVED_WITH_CONDITIONS",
+            "source_decision_id": "test-source-review",
+            "source_conditions": [
+              "restricted"
+            ],
+            "source_review_version": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+            "source_review_resource": "cdc_tick_ixodes_pathogen_status",
+            "release_status": "PUBLISHED",
+            "value": "No records",
+            "publisher_value": "No records",
+            "value_state": "NO_RECORDS",
+            "geography_semantics": "COUNTY_FIPS_5",
+            "transformation_version": "semantic_county_assembly_v1",
+            "derivation_status": "COMPLETED",
+            "derivation_mode": "RESTRICTED_FULL_PROD",
+            "evidence_run_id": "synthetic-evidence-run",
+            "evidence_status": "COMPLETED",
+            "evidence_mode": "EVIDENCE_ONLY",
+            "evidence_resource": "cdc_tick_ixodes_pathogen_status",
+            "artifact_run_id": "synthetic-evidence-run",
+            "artifact_type": "SOURCE_WORKBOOK_EVIDENCE",
+            "source_definition_version": 1,
+            "record_resource": "cdc_tick_ixodes_pathogen_status",
+            "record_county": "00002",
+            "coverage_state": "OBSERVED",
+            "workbook_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+            "retrieved_at": "2026-09-24T00:00:00Z",
+            "attestations": [
+              {
+                "attestation_id": "synthetic-final-copy",
+                "semantic_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                "resource_key": "cdc_tick_ixodes_pathogen_status",
+                "data_source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf",
+                "attested_by": "SYNTHETIC_TEST_REVIEWER",
+                "delivery_reference": "synthetic-delivery",
+                "delivered_at": "2026-10-11T00:00:00Z"
+              }
+            ],
+            "review_decisions": [
+              {
+                "decision_id": "test-scientific-review",
+                "decision": "APPROVED",
+                "reviewer": "SYNTHETIC_TEST_REVIEWER",
+                "active_steward": true,
+                "decided_at": "2026-10-17",
+                "rationale": "synthetic review evidence only",
+                "conditions": [
+                  {
+                    "cdc_consumer_admission": {
+                      "release_id": "governed-2026-10-15-january-climate-prod",
+                      "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+                      "scope": {
+                        "resource_key": "cdc_tick_ixodes_pathogen_status",
+                        "dataset_id": "cdc-ixodes-pathogen-status-2025",
+                        "source_version_id": "92b22f19-0d5d-4576-a7c6-6c9af9343edf"
+                      },
+                      "metadata_revision_id": "metadata-revision:v1:f864fe95d98836fcc030e5b2a15d3a63c2bec50011cde1de59318b34219188f0",
+                      "decision_reference": "test-reviewed-decision",
+                      "observation_bindings": {
+                        "synthetic-target-observation-0": {
+                          "record_id": "record-burgdorferi_status-0-0",
+                          "semantic_revision_id": "revision:v1:8046a8825169b8a579a135bc2f704909419479ad53824543178c9c83a6b5a9ce",
+                          "donor_observation_id": "test-physical-observation"
+                        },
+                        "synthetic-target-observation-1": {
+                          "record_id": "record-burgdorferi_status-0-1",
+                          "semantic_revision_id": "revision:v1:5b0f4062c282831e1320a2008ad26cb6705d6f6e5e8ac8b38e2128b27b9495ed",
+                          "donor_observation_id": "test-physical-observation"
+                        }
+                      },
+                      "reviewed_at": "2026-10-17",
+                      "restricted_copy_reuse": {
+                        "donor_release_id": "governed-2026-10-06-nlcd-demo-cohort",
+                        "donor_bundle_sha256": "603afb135a1a5c958d1d56d48d580d9942c67eb38986caf8b4b3acf69fcde2c9",
+                        "attestation_ids": [
+                          "synthetic-final-copy"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "donor_record_equivalent": true,
+            "donor_observation_id": "test-physical-observation"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -4,11 +4,11 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import date
 from time import perf_counter
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from snowflake.connector import SnowflakeConnection
 
-from .cdc_timing import phase, record_processing
+from .cdc_timing import phase, record_envelope, record_processing, record_selection
 from .config import ApiSettings
 from .dependency_telemetry import connect
 from .public_contract import (
@@ -31,6 +31,12 @@ from .surveillance_delivery import (
     resolve_context,
 )
 
+if TYPE_CHECKING:
+    from lyme_gap_atlas_data.cdc_consumer_batch import CDCBatchResultV1
+    from lyme_gap_atlas_data.cdc_consumer_runtime import Query
+
+T = TypeVar("T")
+
 RELEASE = "governed-2026-10-15-january-climate-prod"
 BUNDLE = "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d"
 PERIOD = date(2025, 12, 31)
@@ -51,6 +57,7 @@ IDENTITIES = {
 }
 BINDING = BundleBinding(RELEASE, BUNDLE, "API #246 reviewed unchanged CDC carry-forward")
 Producer = Callable[[str, str], dict[str, Any]]
+BatchProducer = Callable[[str, tuple[str, ...]], "CDCBatchResultV1"]
 
 
 def _read(measure: str, county: str, *, settings: ApiSettings | None = None) -> dict[str, Any]:
@@ -83,8 +90,42 @@ def _read_on_connection(
 ) -> dict[str, Any]:
     from lyme_gap_atlas_data import cdc_consumer_runtime
 
-    # Data retains identity and exact record admission on every call. Only the
-    # exclusively owned session is reused; SQL, binds, fetch bound and pin stay fixed.
+    return _produce_on_connection(
+        connection,
+        settings,
+        lambda query: cdc_consumer_runtime._project(
+            query, cdc_consumer_runtime._resources(), measure, county, "prod", release_id=RELEASE
+        ),
+    )
+
+
+def _read_batch_on_connection(
+    measure: str,
+    counties: tuple[str, ...],
+    connection: SnowflakeConnection,
+    settings: ApiSettings,
+) -> "CDCBatchResultV1":
+    from lyme_gap_atlas_data.cdc_consumer_batch import produce_cdc_batch_v1
+
+    return _produce_on_connection(
+        connection,
+        settings,
+        lambda query: produce_cdc_batch_v1(
+            query, measure, counties, environment="prod", release_id=RELEASE
+        ),
+        batch=True,
+    )
+
+
+def _produce_on_connection(
+    connection: SnowflakeConnection,
+    settings: ApiSettings,
+    producer: Callable[["Query"], T],
+    *,
+    batch: bool = False,
+) -> T:
+    from lyme_gap_atlas_data.cdc_consumer_runtime import IDENTITY_SQL
+
     timeout = min(settings.public_query_timeout_seconds, 30)
     try:
         with connection.cursor() as cursor:
@@ -94,28 +135,22 @@ def _read_on_connection(
                 nonlocal io_seconds
                 started = perf_counter()
                 try:
-                    with phase(
-                        "identity"
-                        if sql == cdc_consumer_runtime.IDENTITY_SQL
-                        else "authority_query"
-                    ):
+                    with phase("identity" if sql == IDENTITY_SQL else "authority_query"):
                         cursor.execute(sql, params, timeout=timeout)
                         columns = [str(column[0]) for column in cursor.description or []]
-                        return [dict(zip(columns, row, strict=True)) for row in cursor.fetchmany(2)]
+                        rows = [dict(zip(columns, row, strict=True)) for row in cursor.fetchmany(2)]
+                        if batch and sql != IDENTITY_SQL and len(rows) == 1:
+                            for key, value in rows[0].items():
+                                if key.lower() == "batch_authority":
+                                    record_envelope(value)
+                        return rows
                 finally:
                     io_seconds += perf_counter() - started
 
             started = perf_counter()
             try:
                 with phase("producer"):
-                    return cdc_consumer_runtime._project(
-                        query,
-                        cdc_consumer_runtime._resources(),
-                        measure,
-                        county,
-                        "prod",
-                        release_id=RELEASE,
-                    )
+                    return producer(query)
             finally:
                 record_processing(max(0.0, perf_counter() - started - io_seconds))
     except Exception:
@@ -125,6 +160,16 @@ def _read_on_connection(
 def _require(condition: bool) -> None:
     if not condition:
         raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable")
+
+
+@contextmanager
+def _safe_errors() -> Iterator[None]:
+    try:
+        yield
+    except AtlasDataUnavailableError:
+        raise
+    except Exception:
+        raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable") from None
 
 
 class CDCResolver:
@@ -170,9 +215,16 @@ class CDCResolver:
 
 
 class CDCObservationAdapter:
-    def __init__(self, settings: ApiSettings, producer: Producer | None = None) -> None:
+    def __init__(
+        self,
+        settings: ApiSettings,
+        producer: Producer | None = None,
+        *,
+        batch_producer: BatchProducer | None = None,
+    ) -> None:
         self.settings = settings
         self._producer_override = producer
+        self.batch_producer = batch_producer
         self.producer = producer or (
             lambda measure, county: _read(measure, county, settings=settings)
         )
@@ -188,6 +240,16 @@ class CDCObservationAdapter:
                 lambda measure, county: _read_on_connection(
                     measure, county, connection, self.settings
                 )
+            ),
+            batch_producer=self.batch_producer
+            or (
+                (
+                    lambda measure, counties: _read_batch_on_connection(
+                        measure, counties, connection, self.settings
+                    )
+                )
+                if self._producer_override is None
+                else None
             ),
         )
 
@@ -219,21 +281,44 @@ class CDCObservationAdapter:
     ) -> list[Observation]:
         self.validate_query(query)
         _require(release == RELEASE)
+        counties = tuple(sorted(query.geography_id)[offset : offset + query.page_size + 1])
+        # Empty continuations preserve existing behavior; Data accepts no empty batch.
+        if not counties:
+            return []
+        use_batch = len(counties) <= 50 and self.batch_producer is not None
+        record_selection("batch" if use_batch else "singleton", len(counties))
         items = []
-        # One page plus lookahead only; Data verifies each published record's
-        # exact retained admission. Source coverage alone never authorizes it.
-        for county in sorted(query.geography_id)[offset : offset + query.page_size + 1]:
+        if use_batch:
+            from lyme_gap_atlas_data.cdc_consumer_batch import CONTRACT_VERSION, CDCBatchResultV1
+
             if checkpoint is not None:
                 checkpoint()
-            try:
-                items.append(self._observation(query.measure_id, county))
-            except AtlasDataUnavailableError:
-                raise
-            except Exception:
-                # Never leak Data's private authority or database diagnostics.
-                raise AtlasDataUnavailableError(
-                    "Governed CDC surveillance is unavailable"
-                ) from None
+            with _safe_errors():
+                assert self.batch_producer is not None
+                result = self.batch_producer(query.measure_id, counties)
+                _require(isinstance(result, CDCBatchResultV1))
+                _require(
+                    result.contract_version == CONTRACT_VERSION
+                    and result.measure_id == query.measure_id
+                    and result.release_id == release
+                    and result.county_fips == counties
+                    and len(set(counties)) == len(counties)
+                    and len(result.observations) == len(counties)
+                )
+            for county, envelope in zip(counties, result.observations, strict=True):
+                if checkpoint is not None:
+                    checkpoint()
+                with _safe_errors(), phase("mapping"):
+                    items.append(self._map_observation(query.measure_id, county, envelope))
+            _require(len({item.observation_id for item in items}) == len(items))
+        else:
+            # Preserve sequential singleton admission for large pages. It has
+            # preexisting cross-statement consistency limits, not a page snapshot.
+            for county in counties:
+                if checkpoint is not None:
+                    checkpoint()
+                with _safe_errors():
+                    items.append(self._observation(query.measure_id, county))
         return items
 
     def _observation(self, measure: str, county: str) -> Observation:

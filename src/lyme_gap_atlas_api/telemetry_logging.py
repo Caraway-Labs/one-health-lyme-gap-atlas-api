@@ -363,6 +363,14 @@ def completion_context(event: str, context: dict[str, Any]) -> dict[str, Any]:
                 for name in CDC_PHASES | CDC_IO_OPERATIONS
                 if (number := _number(values.get(name), maximum)) is not None
             }
+    if isinstance(context.get("cdc_serving_path"), str) and context["cdc_serving_path"] in {
+        "batch",
+        "singleton",
+    }:
+        result["cdc_serving_path"] = context["cdc_serving_path"]
+    for key, maximum in (("cdc_processed_counties", 500), ("cdc_batch_envelope_bytes", 8388609)):
+        if (number := _number(context.get(key), maximum)) is not None:
+            result[key] = number
     return result
 
 

@@ -100,3 +100,34 @@ def test_optional_tracer_failure_cannot_change_result_or_leak_context(monkeypatc
         timing.record_processing(0.01)
     assert recorder.counts == {"producer_processing": 1, "producer": 1, "service": 1}
     assert timing.CURRENT.get() is None
+
+
+def test_serving_selection_and_encoded_envelope_are_private_safe():
+    recorder = timing.CDCTiming()
+    with timing.cdc_request_timing(recorder):
+        timing.record_selection("batch", 50)
+        timing.record_envelope('{"private": "secret"}')
+    result = completion_context(
+        "api_request_completed",
+        {
+            "cdc_serving_path": recorder.serving_path,
+            "cdc_processed_counties": recorder.processed_counties,
+            "cdc_batch_envelope_bytes": recorder.batch_envelope_bytes,
+        },
+    )
+    assert result["cdc_serving_path"] == "batch"
+    assert result["cdc_processed_counties"] == 50
+    assert result["cdc_batch_envelope_bytes"] == 21
+    assert "secret" not in json.dumps(result)
+    with timing.cdc_request_timing(recorder):
+        timing.record_selection("private FIPS", 1000)
+        timing.record_envelope({"private": "secret"})
+    assert recorder.serving_path == "batch"
+    assert recorder.processed_counties == 50
+    assert recorder.batch_envelope_bytes == 21
+
+
+def test_invalid_serving_path_is_excluded():
+    for path in ["01001", None, ["private"]]:
+        result = completion_context("api_request_completed", {"cdc_serving_path": path})
+        assert "cdc_serving_path" not in result
