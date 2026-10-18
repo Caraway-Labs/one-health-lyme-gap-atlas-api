@@ -22,6 +22,7 @@ from .config import ApiSettings
 from .dependency_telemetry import connect
 from .intelligence_projection import IntelligenceItemProjectionV2, ProjectionProvenance
 from .public_contract import PublicQueryError
+from .public_docs import problem_response
 from .public_routes import PROBLEMS
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
@@ -57,10 +58,14 @@ UNAVAILABLE = "Governed intelligence data is unavailable."
 FEED_PROBLEMS = {
     **PROBLEMS,
     422: {
+        **problem_response(
+            422,
+            None,
+            "One or more request values are invalid.",
+            type_name="validation",
+            title="Invalid request",
+        ),
         "description": "Request validation failed; application/problem+json.",
-        "content": {
-            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
-        },
     },
 }
 

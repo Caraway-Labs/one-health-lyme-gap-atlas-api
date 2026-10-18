@@ -53,17 +53,15 @@ def test_pending_geography_openapi_error_matches_specific_runtime_code() -> None
     response = schema["paths"]["/v1/geographies/{geography_type}/{geography_id}"]["get"][
         "responses"
     ]["503"]
-    example = response["content"]["application/problem+json"]["examples"]["illustrative"][
-        "value"
-    ]
+    example = response["content"]["application/problem+json"]["examples"]["illustrative"]["value"]
     assert example["code"] == "CANONICAL_DATA_UNAVAILABLE"
 
 
 def test_observation_variants_are_named_anyof_branches_for_sdk_generation() -> None:
     schema = create_app(settings=ApiSettings()).openapi()
-    response_schema = schema["paths"]["/v1/observations"]["get"]["responses"]["200"][
-        "content"
-    ]["application/json"]["schema"]
+    response_schema = schema["paths"]["/v1/observations"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]
     assert "oneOf" not in response_schema
     assert "discriminator" not in response_schema
     branches = response_schema["anyOf"]
@@ -78,9 +76,7 @@ def test_observation_variants_are_named_anyof_branches_for_sdk_generation() -> N
     standard = models["CollectionEnvelope_Observation_"]
     assert context["title"] == "County Context Observation Collection"
     assert standard["title"] == "Standard Observation Collection"
-    assert context["properties"]["data"]["items"]["$ref"].endswith(
-        "/CountyContextObservation"
-    )
+    assert context["properties"]["data"]["items"]["$ref"].endswith("/CountyContextObservation")
     assert standard["properties"]["data"]["items"]["$ref"].endswith("/Observation")
     context_fields = models["CountyContextObservation"]["properties"]
     standard_fields = models["Observation"]["properties"]
@@ -109,6 +105,52 @@ def test_openapi_uses_canonical_domain_and_problem_type_uris_in_all_exports() ->
                     for value in values:
                         assert value["type"].startswith(f"{PROBLEM_TYPE_BASE_URI}/")
     assert "https://carawaylabs.com/problems/" not in str(app.first_party_openapi())
+
+
+def test_problem_examples_match_operation_route_templates_and_documented_statuses() -> None:
+    app = create_app(settings=ApiSettings())
+    expected_statuses = {
+        ("/v1/indicators", "get"): {"400", "404", "413", "414", "429", "503"},
+        ("/v1/atlas/metadata", "get"): {"404", "422", "429", "503"},
+        ("/v1/counties/{fips}/report.pdf", "get"): {"400", "404", "413", "422", "429", "503"},
+    }
+    for contract in (app.openapi(), app.first_party_openapi()):
+        observed_statuses = set()
+        for path, path_item in contract["paths"].items():
+            for method, operation in path_item.items():
+                if method.lower() not in {
+                    "get",
+                    "post",
+                    "put",
+                    "patch",
+                    "delete",
+                    "options",
+                    "head",
+                }:
+                    continue
+                for status, response in operation.get("responses", {}).items():
+                    problem = response.get("content", {}).get("application/problem+json")
+                    if problem is None:
+                        continue
+                    observed_statuses.add(status)
+                    values = [
+                        item.get("value", {}) for item in problem.get("examples", {}).values()
+                    ]
+                    if isinstance(problem.get("example"), dict):
+                        values.append(problem["example"])
+                    assert values
+                    for value in values:
+                        assert value["instance"] == path
+                        assert value["status"] == int(status)
+                        assert value["type"].startswith(f"{PROBLEM_TYPE_BASE_URI}/")
+        assert {"400", "404", "413", "414", "422", "429", "503"} <= observed_statuses
+        for (path, method), statuses in expected_statuses.items():
+            responses = contract["paths"][path][method]["responses"]
+            assert statuses <= {
+                status
+                for status, response in responses.items()
+                if "application/problem+json" in response.get("content", {})
+            }
 
 
 def test_internal_product_routes_remain_registered_and_callable() -> None:
