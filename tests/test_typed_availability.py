@@ -84,6 +84,27 @@ def test_no_authoritative_release_cannot_establish_empty_availability(release):
     assert response.status_code == 503
 
 
+@pytest.mark.parametrize(
+    "second_release,status",
+    [
+        ("release-1", 200),
+        ("release-2", 503),
+        (AtlasDataUnavailableError("private release recheck failure"), 503),
+    ],
+)
+def test_empty_selection_revalidates_current_release(second_release, status):
+    repository = FixtureRepository()
+    repository.current_release = Mock(side_effect=["release-1", second_release])
+    response = client(repository).get("/v1/observations", params=params(year=2024))
+    assert response.status_code == status
+    assert repository.current_release.call_count == 2
+    if status == 200:
+        assert response.json()["meta"]["reason"] == "NO_PUBLISHED_RESULTS"
+    else:
+        assert response.json()["code"] == "SERVICE_UNAVAILABLE"
+        assert "private" not in response.text
+
+
 @pytest.mark.parametrize("measure", ["scapularis_status", "burgdorferi_status"])
 def test_cdc_unclassified_state_remains_operational_error(measure):
     from lyme_gap_atlas_data.cdc_consumer_runtime import CDCConsumerUnavailable

@@ -30,6 +30,11 @@ release and explicit selection-only limitations. Use `Cache-Control: no-store`.
 Empty continuation pages remain AVAILABLE with no unavailable reason. Existing
 county-context initial missing-selection404 is retained. `reason` is omitted
 when no unavailable reason is asserted.
+An initial empty non-CDC selection rechecks the strict current release before
+asserting NO_PUBLISHED_RESULTS. A pointer change or failed recheck remains503.
+This prevents a current-view switch from disguising an old-release filter as
+known absence. It adds one bounded metadata read on that path and is not a
+claim of transactional consistency across all query statements.
 
 No global exception mapping changes. CDC unknown coverage, admission or metadata
 failure cannot use this success path. Pinned Data producer has no validated

@@ -328,6 +328,13 @@ class ObservationService:
         # Only a successful initial non-CDC query establishes an empty published
         # selection. CDC admission errors never reach this branch as empty data.
         unavailable = query.measure_id not in IDENTITIES and not items and offset == 0
+        if unavailable:
+            # A current-view pointer switch can make an old-release filter empty.
+            # Revalidate before asserting a successful absence of published rows.
+            check()
+            if repository.current_release() != release:
+                raise AtlasDataUnavailableError("Current observation release changed")
+            check()
         meta = CollectionMeta(
             next_page_token=token,
             availability="UNAVAILABLE" if unavailable else "AVAILABLE",

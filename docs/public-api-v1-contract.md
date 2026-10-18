@@ -18,6 +18,8 @@ After successful release, measure and query reads, an initially empty non-CDC
 selection returns HTTP200, `data=[]`, `availability=UNAVAILABLE`,
 `reason=NO_PUBLISHED_RESULTS`, the checked `release_id` and factual limitations.
 These responses use `Cache-Control: no-store`. Available records and exhausted
+An empty initial query revalidates the current release before asserting
+unavailability; release changes or failed rechecks remain503.
 continuation pages carry AVAILABLE; reason is omitted. Existing metadata and
 pagination remain. Other collection resources omit these optional fields.
 

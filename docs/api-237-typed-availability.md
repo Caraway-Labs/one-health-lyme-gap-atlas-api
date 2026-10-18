@@ -22,6 +22,10 @@ unavailable successes use no-store. Existing catalogs do not start emitting
 observation availability metadata. Available rows, value states, provenance,
 pagination token bindings and cumulative CDC dates are preserved. An empty
 continuation means page exhaustion rather than unavailable scientific evidence.
+Before asserting an empty initial selection, the service revalidates the current
+release. A changed pointer or failed recheck remains503. This adds one bounded
+release read only for that empty-success path; it is pointer revalidation, not
+a multi-statement transactional snapshot guarantee.
 
 Operational errors remain RFC9457 non-2xx, including repository/authentication,
 SQL timeout, unavailable current release, source/admission mismatch and malformed
