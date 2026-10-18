@@ -107,9 +107,12 @@ from .public_contract import PublicQueryError
 from .public_docs import (
     API_DESCRIPTION,
     API_SUMMARY,
-    EMPTY_COLLECTION_EXAMPLE,
+    AVAILABLE_OBSERVATION_EXAMPLE,
+    EXHAUSTED_OBSERVATIONS_EXAMPLE,
+    KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE,
     LEGACY_ERRORS,
     MISSING_OBSERVATION_EXAMPLE,
+    PENDING_GEOGRAPHY_EXAMPLE,
     TAGS,
     problem_response,
 )
@@ -198,9 +201,16 @@ class AtlasFastAPI(FastAPI):
             "application/json"
         ]["examples"] = deepcopy(
             {
-                "empty": EMPTY_COLLECTION_EXAMPLE,
+                "empty": EXHAUSTED_OBSERVATIONS_EXAMPLE,
+                "available": AVAILABLE_OBSERVATION_EXAMPLE,
+                "known_unavailable": KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE,
                 "missing": MISSING_OBSERVATION_EXAMPLE,
             }
+        )
+        schema["paths"]["/v1/geographies/{geography_type}/{geography_id}/availability"]["get"][
+            "responses"
+        ]["200"]["content"]["application/json"]["examples"] = deepcopy(
+            {"unpublished": PENDING_GEOGRAPHY_EXAMPLE}
         )
         self._first_party_schema = schema
         return schema

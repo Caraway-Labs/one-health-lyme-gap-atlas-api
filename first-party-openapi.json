@@ -1860,13 +1860,19 @@
                 "schema": {
                   "$ref": "#/components/schemas/CanonicalGeographyAvailability"
                 },
-                "example": {
-                  "availability": "UNAVAILABLE",
-                  "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
-                  "release_id": "example-release",
-                  "limitations": [
-                    "Illustrative checked county directory; no geometry is delivered."
-                  ]
+                "examples": {
+                  "unpublished": {
+                    "summary": "Confirmed county identity; canonical geography publication pending",
+                    "value": {
+                      "availability": "UNAVAILABLE",
+                      "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+                      "data": null,
+                      "release_id": "example-release",
+                      "limitations": [
+                        "Illustrative checked county directory; no geometry is delivered."
+                      ]
+                    }
+                  }
                 }
               }
             }
@@ -2265,12 +2271,79 @@
                 },
                 "examples": {
                   "empty": {
-                    "summary": "Illustrative exhausted page; no observations matched",
+                    "summary": "Empty continuation page; not an unavailable selection",
                     "value": {
                       "data": [],
                       "meta": {
                         "next_page_token": null,
-                        "response_at": "2026-01-01T00:00:00Z"
+                        "response_at": "2026-01-01T00:00:00Z",
+                        "availability": "AVAILABLE",
+                        "release_id": "example-release",
+                        "limitations": []
+                      },
+                      "links": {
+                        "self": null
+                      }
+                    }
+                  },
+                  "available": {
+                    "summary": "Synthetic available published observation example",
+                    "value": {
+                      "data": [
+                        {
+                          "observation_id": "example-observation",
+                          "measure_id": "case_count_floor_2023",
+                          "geography": {
+                            "geography_type": "county",
+                            "geography_id": "08001"
+                          },
+                          "period_start": "2023-01-01",
+                          "period_end": "2023-12-31",
+                          "temporal_grain": "year",
+                          "value": 12,
+                          "value_state": "OBSERVED",
+                          "unit": "cases",
+                          "denominator": null,
+                          "source_id": "human",
+                          "methodology_id": null,
+                          "methodology_version": "example-transform-v1",
+                          "semantic_version": "example-semantic-v1",
+                          "release_id": "example-release",
+                          "provenance_ref": "example-observation",
+                          "limitations": [
+                            "Synthetic documentation example; no measured value is asserted."
+                          ],
+                          "evidence": {
+                            "resource_type": "observation",
+                            "resource_id": "example-observation"
+                          }
+                        }
+                      ],
+                      "meta": {
+                        "next_page_token": null,
+                        "response_at": "2026-01-01T00:00:00Z",
+                        "availability": "AVAILABLE",
+                        "release_id": "example-release",
+                        "limitations": []
+                      },
+                      "links": {
+                        "self": null
+                      }
+                    }
+                  },
+                  "known_unavailable": {
+                    "summary": "Successful initial query with no published results; not negative evidence",
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "next_page_token": null,
+                        "response_at": "2026-01-01T00:00:00Z",
+                        "availability": "UNAVAILABLE",
+                        "reason": "NO_PUBLISHED_RESULTS",
+                        "release_id": "example-release",
+                        "limitations": [
+                          "No published observations match this selection in the checked release. This does not establish biological absence, source coverage, or geography membership."
+                        ]
                       },
                       "links": {
                         "self": null

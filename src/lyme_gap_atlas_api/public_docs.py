@@ -188,3 +188,14 @@ EXHAUSTED_OBSERVATIONS_EXAMPLE["summary"] = "Empty continuation page; not an una
 EXHAUSTED_OBSERVATIONS_EXAMPLE["value"]["meta"].update(
     availability="AVAILABLE", release_id="example-release", limitations=[]
 )
+
+PENDING_GEOGRAPHY_EXAMPLE: dict[str, Any] = {
+    "summary": "Confirmed county identity; canonical geography publication pending",
+    "value": {
+        "availability": "UNAVAILABLE",
+        "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+        "data": None,
+        "release_id": "example-release",
+        "limitations": ["Illustrative checked county directory; no geometry is delivered."],
+    },
+}

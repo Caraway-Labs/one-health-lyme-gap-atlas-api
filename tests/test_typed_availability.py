@@ -270,3 +270,24 @@ def test_other_collection_metadata_wire_shape_and_legacy_geography_are_unchanged
     response = geography_client().get("/v1/geographies/county/01001")
     assert response.status_code == 503
     assert response.json()["code"] == "CANONICAL_DATA_UNAVAILABLE"
+
+
+def test_availability_examples_keep_required_nulls_in_both_schema_exports():
+    from lyme_gap_atlas_api.geography_availability import CanonicalGeographyAvailability
+
+    app = create_app(settings=ApiSettings())
+    for schema in (app.openapi(), app.first_party_openapi()):
+        operation = schema["paths"]["/v1/geographies/{geography_type}/{geography_id}/availability"][
+            "get"
+        ]
+        example = operation["responses"]["200"]["content"]["application/json"]["examples"][
+            "unpublished"
+        ]["value"]
+        assert "data" in example and example["data"] is None
+        CanonicalGeographyAvailability.model_validate(example)
+        observations = schema["paths"]["/v1/observations"]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["examples"]
+        assert observations["known_unavailable"]["value"]["meta"]["availability"] == "UNAVAILABLE"
+        assert observations["available"]["value"]["meta"]["availability"] == "AVAILABLE"
+        assert observations["empty"]["value"]["meta"]["next_page_token"] is None

@@ -32,6 +32,7 @@ from .public_docs import (
     EXHAUSTED_OBSERVATIONS_EXAMPLE,
     KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE,
     MISSING_OBSERVATION_EXAMPLE,
+    PENDING_GEOGRAPHY_EXAMPLE,
     problem_response,
 )
 from .public_metadata import MetadataService
@@ -363,15 +364,7 @@ def geography(geography_type: GeographyType, geography_id: str) -> NoReturn:
             "description": "Confirmed current county identity; canonical publication is pending.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "availability": "UNAVAILABLE",
-                        "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
-                        "data": None,
-                        "release_id": "example-release",
-                        "limitations": [
-                            "Illustrative checked county directory; no geometry is delivered."
-                        ],
-                    }
+                    "examples": {"unpublished": PENDING_GEOGRAPHY_EXAMPLE}
                 }
             },
         },
