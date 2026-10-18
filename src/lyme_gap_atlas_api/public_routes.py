@@ -44,12 +44,6 @@ from .service import AtlasService
 router = APIRouter()
 
 PROBLEMS: dict[int | str, dict[str, Any]] = {
-    "4XX": {
-        "description": "Canonical client errors use application/problem+json.",
-        "content": {
-            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
-        },
-    },
     400: {
         "description": "INVALID_REQUEST, UNSUPPORTED_FILTER, "
         "UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",

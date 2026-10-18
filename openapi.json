@@ -1559,16 +1559,6 @@
               }
             }
           },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "400": {
             "description": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
             "content": {
@@ -1780,16 +1770,6 @@
                       ]
                     }
                   }
-                }
-              }
-            }
-          },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2035,16 +2015,6 @@
               }
             }
           },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "400": {
             "description": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
             "content": {
@@ -2234,16 +2204,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResourceEnvelope_Indicator_"
-                }
-              }
-            }
-          },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2524,16 +2484,6 @@
               }
             }
           },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "400": {
             "description": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
             "content": {
@@ -2723,16 +2673,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResourceEnvelope_Measure_"
-                }
-              }
-            }
-          },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2929,16 +2869,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResourceEnvelope_Methodology_"
-                }
-              }
-            }
-          },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3455,16 +3385,6 @@
               }
             }
           },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "400": {
             "description": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
             "content": {
@@ -3690,16 +3610,6 @@
               }
             }
           },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "400": {
             "description": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
             "content": {
@@ -3889,16 +3799,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResourceEnvelope_Source_"
-                }
-              }
-            }
-          },
-          "4XX": {
-            "description": "Canonical client errors use application/problem+json.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }

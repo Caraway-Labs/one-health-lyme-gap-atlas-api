@@ -190,6 +190,20 @@ class AtlasFastAPI(FastAPI):
             separate_input_output_schemas=self.separate_input_output_schemas,
             external_docs=self.openapi_external_docs,
         )
+        # FastAPI normally adds a generic 422 response to query-parameter
+        # operations. The shared canonical response map lists every status
+        # these routes can actually return, and their validation handler
+        # normalizes invalid requests to 400. Remove only that generated 422
+        # from those fully specified maps; unrelated operations keep FastAPI's
+        # validation response.
+        canonical_error_statuses = {"400", "404", "413", "414", "429", "503"}
+        for path_item in schema["paths"].values():
+            for operation in path_item.values():
+                if not isinstance(operation, dict):
+                    continue
+                responses = operation.get("responses", {})
+                if canonical_error_statuses <= responses.keys():
+                    responses.pop("422", None)
         if "BriefingArtifact" not in schema.get("components", {}).get("schemas", {}):
             add_briefing_openapi(schema)
         # Problem responses use their actual media type, without an extra JSON
