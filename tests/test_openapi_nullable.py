@@ -72,9 +72,7 @@ def test_schema_shaped_literal_data_is_opaque_but_nested_schemas_are_normalized(
         "enum": [literal],
         "default": {"schema": literal},
         "examples": [{"anyOf": [{"type": "string"}, {"type": "null"}]}],
-        "properties": {
-            "actual": {"anyOf": [{"type": "string", "maxLength": 5}, {"type": "null"}]}
-        },
+        "properties": {"actual": {"anyOf": [{"type": "string", "maxLength": 5}, {"type": "null"}]}},
         "items": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
     }
     after = copy.deepcopy(before)
@@ -94,10 +92,13 @@ def test_openapi_examples_are_opaque_and_component_schemas_are_normalized() -> N
     document = {
         "openapi": "3.1.0",
         "components": {
-            "schemas": {
-                "Value": {"anyOf": [{"type": "integer"}, {"type": "null"}]}
+            "schemas": {"Value": {"anyOf": [{"type": "integer"}, {"type": "null"}]}},
+            "links": {
+                "Next": {
+                    "requestBody": {"schema": literal},
+                    "parameters": {"sample": literal},
+                }
             },
-            "links": {"Next": {"requestBody": {"schema": literal}}},
         },
         "x-example": {"schema": literal},
         "paths": {
@@ -113,19 +114,106 @@ def test_openapi_examples_are_opaque_and_component_schemas_are_normalized() -> N
                             }
                         }
                     }
-                }
+                },
+                "post": {
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {"type": "string"},
+                                        {"type": "null"},
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
             }
         },
     }
-    assert normalize_nullable_types(document) == 1
+    assert normalize_nullable_types(document) == 2
     assert document["x-example"]["schema"] == literal
     assert document["components"]["links"]["Next"]["requestBody"]["schema"] == literal
-    assert document["components"]["schemas"]["Value"]["type"] == ["integer", "null"]
-    media = document["paths"]["/x"]["get"]["responses"]["200"]["content"][
-        "application/json"
+    assert document["components"]["links"]["Next"]["parameters"]["sample"] == literal
+    request_schema = document["paths"]["/x"]["post"]["requestBody"]["content"]["application/json"][
+        "schema"
     ]
+    assert request_schema["type"] == ["string", "null"]
+    assert document["components"]["schemas"]["Value"]["type"] == ["integer", "null"]
+    media = document["paths"]["/x"]["get"]["responses"]["200"]["content"]["application/json"]
     assert media["schema"]["enum"] == [literal]
     assert media["examples"]["sample"]["value"] == literal
+
+
+def test_patterned_openapi_extensions_are_skipped_without_skipping_component_names() -> None:
+    nullable = {"anyOf": [{"type": "string"}, {"type": "null"}]}
+
+    def actual_response() -> dict[str, Any]:
+        return {
+            "description": "OK",
+            "content": {"application/json": {"schema": copy.deepcopy(nullable)}},
+        }
+
+    def literal_response() -> dict[str, Any]:
+        return actual_response()
+
+    document = {
+        "openapi": "3.1.0",
+        "components": {
+            "schemas": {"x-schema": copy.deepcopy(nullable)},
+            "responses": {
+                "x-response": {
+                    "description": "Component response",
+                    "content": {"application/json": {"schema": copy.deepcopy(nullable)}},
+                }
+            },
+            "callbacks": {
+                "Callback": {
+                    "{$request.body#/url}": {"post": {"responses": {"200": actual_response()}}},
+                    "x-original-callback": {"post": {"responses": {"200": literal_response()}}},
+                }
+            },
+        },
+        "paths": {
+            "/real": {
+                "get": {
+                    "responses": {
+                        "200": actual_response(),
+                        "x-original-response": literal_response(),
+                    },
+                    "callbacks": {
+                        "next": {
+                            "{$request.body#/url}": {
+                                "post": {"responses": {"200": actual_response()}}
+                            },
+                            "x-original-callback": {
+                                "post": {"responses": {"200": literal_response()}}
+                            },
+                        }
+                    },
+                }
+            },
+            "x-original-path": {"get": {"responses": {"200": literal_response()}}},
+        },
+    }
+    assert normalize_nullable_types(document) == 5
+    assert document["paths"]["/real"]["get"]["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]["type"] == ["string", "null"]
+    assert (
+        document["paths"]["/real"]["get"]["responses"]["x-original-response"] == actual_response()
+    )
+    assert document["paths"]["x-original-path"]["get"]["responses"]["200"] == actual_response()
+    callback = document["paths"]["/real"]["get"]["callbacks"]["next"]
+    assert callback["x-original-callback"]["post"]["responses"]["200"] == actual_response()
+    assert callback["{$request.body#/url}"]["post"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]["type"] == ["string", "null"]
+    assert document["components"]["schemas"]["x-schema"]["type"] == ["string", "null"]
+    assert document["components"]["responses"]["x-response"]["content"]["application/json"][
+        "schema"
+    ]["type"] == ["string", "null"]
 
 
 @pytest.mark.parametrize(
@@ -191,16 +279,14 @@ def test_type_array_normalization_is_json_schema_equivalent(
 
 def test_generated_sdk_shape_keeps_existing_models_and_nullable_refs() -> None:
     schema = TestClient(create_app(settings=ApiSettings())).get("/openapi.json").json()
-    response = schema["paths"]["/v1/observations"]["get"]["responses"]["200"][
-        "content"
-    ]["application/json"]["schema"]
+    response = schema["paths"]["/v1/observations"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]
     assert response["anyOf"] == [
         {"$ref": "#/components/schemas/CollectionEnvelope_CountyContextObservation_"},
         {"$ref": "#/components/schemas/CollectionEnvelope_Observation_"},
     ]
-    assert schema["components"]["schemas"]["CollectionMeta"]["properties"][
-        "availability"
-    ] == {
+    assert schema["components"]["schemas"]["CollectionMeta"]["properties"]["availability"] == {
         "title": "Availability",
         "description": (
             "Observation selection availability, not biological presence. Omitted on other "
