@@ -102,7 +102,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -126,7 +126,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -150,7 +150,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -182,7 +182,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -206,7 +206,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -230,7 +230,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -295,7 +295,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators/{indicator_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -319,7 +319,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators/{indicator_id}",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -343,7 +343,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators/{indicator_id}",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -375,7 +375,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators/{indicator_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -399,7 +399,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators/{indicator_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -423,7 +423,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/indicators/{indicator_id}",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -551,7 +551,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -575,7 +575,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -599,7 +599,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -631,7 +631,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -655,7 +655,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -679,7 +679,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -744,7 +744,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures/{measure_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -768,7 +768,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures/{measure_id}",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -792,7 +792,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures/{measure_id}",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -824,7 +824,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures/{measure_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -848,7 +848,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures/{measure_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -872,7 +872,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/measures/{measure_id}",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -964,7 +964,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -988,7 +988,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -1012,7 +1012,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -1044,7 +1044,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1068,7 +1068,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1092,7 +1092,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -1157,7 +1157,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources/{source_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1181,7 +1181,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources/{source_id}",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -1205,7 +1205,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources/{source_id}",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -1237,7 +1237,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources/{source_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1261,7 +1261,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources/{source_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1285,7 +1285,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/sources/{source_id}",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -1353,7 +1353,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/methodologies/{methodology_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1377,7 +1377,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/methodologies/{methodology_id}",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -1401,7 +1401,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/methodologies/{methodology_id}",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -1433,7 +1433,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/methodologies/{methodology_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1457,7 +1457,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/methodologies/{methodology_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1481,7 +1481,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/methodologies/{methodology_id}",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -1557,7 +1557,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1581,7 +1581,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -1605,7 +1605,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -1637,7 +1637,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1661,7 +1661,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1685,7 +1685,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Canonical data delivery is not yet available.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}",
                       "request_id": "example-request-id",
                       "code": "CANONICAL_DATA_UNAVAILABLE"
                     }
@@ -1772,7 +1772,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}/availability",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1796,7 +1796,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}/availability",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -1820,7 +1820,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}/availability",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -1852,7 +1852,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}/availability",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1876,7 +1876,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}/availability",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -1900,7 +1900,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}/availability",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -2501,7 +2501,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/items",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -2525,7 +2525,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/items",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -2549,7 +2549,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/items",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -2581,7 +2581,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/items",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -2605,7 +2605,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/items",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -2629,7 +2629,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/items",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -2652,6 +2652,19 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/validation",
+                      "title": "Invalid request",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/intelligence/items",
+                      "request_id": "example-request-id"
+                    }
+                  }
                 }
               }
             }
@@ -2720,7 +2733,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/sources",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -2744,7 +2757,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/sources",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -2768,7 +2781,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/sources",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -2800,7 +2813,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/sources",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -2824,7 +2837,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/sources",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -2848,7 +2861,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/sources",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -2871,6 +2884,19 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/validation",
+                      "title": "Invalid request",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/intelligence/sources",
+                      "request_id": "example-request-id"
+                    }
+                  }
                 }
               }
             }
@@ -2978,7 +3004,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/feed",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -3002,7 +3028,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/feed",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -3026,7 +3052,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/feed",
                       "request_id": "example-request-id",
                       "code": "RATE_LIMITED"
                     }
@@ -3058,7 +3084,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/feed",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -3082,7 +3108,7 @@
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/feed",
                       "request_id": "example-request-id",
                       "code": "INVALID_REQUEST"
                     }
@@ -3106,7 +3132,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/intelligence/feed",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -3129,6 +3155,19 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/validation",
+                      "title": "Invalid request",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/intelligence/feed",
+                      "request_id": "example-request-id"
+                    }
+                  }
                 }
               }
             }
@@ -3763,7 +3802,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/states/{state}/review",
                       "request_id": "example-request-id"
                     }
                   }
@@ -3786,7 +3825,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/states/{state}/review",
                       "request_id": "example-request-id"
                     }
                   }
@@ -3809,7 +3848,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/states/{state}/review",
                       "request_id": "example-request-id"
                     }
                   }
@@ -3840,7 +3879,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/states/{state}/review",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -3908,7 +3947,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/metadata",
                       "request_id": "example-request-id"
                     }
                   }
@@ -3931,7 +3970,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/metadata",
                       "request_id": "example-request-id"
                     }
                   }
@@ -3954,7 +3993,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/metadata",
                       "request_id": "example-request-id"
                     }
                   }
@@ -3985,7 +4024,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/metadata",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -4053,7 +4092,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/geometry",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4076,7 +4115,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/geometry",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4099,7 +4138,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/geometry",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4130,7 +4169,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/geometry",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -4239,7 +4278,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/scores",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4262,7 +4301,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/scores",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4285,7 +4324,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/scores",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4316,7 +4355,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/scores",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -4432,7 +4471,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4455,7 +4494,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4478,7 +4517,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4509,7 +4548,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -4575,7 +4614,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/tier1-surveillance-priority",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4598,7 +4637,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/tier1-surveillance-priority",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4621,7 +4660,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/tier1-surveillance-priority",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4652,7 +4691,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/tier1-surveillance-priority",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -4718,7 +4757,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County is not in the current geography release.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/tier1-surveillance-priority/availability",
                       "request_id": "example-request-id",
                       "code": "RESOURCE_NOT_FOUND"
                     }
@@ -4742,7 +4781,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/tier1-surveillance-priority/availability",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4765,7 +4804,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/tier1-surveillance-priority/availability",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4796,7 +4835,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/tier1-surveillance-priority/availability",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -4972,7 +5011,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/report.pdf",
                       "request_id": "example-request-id"
                     }
                   }
@@ -4995,7 +5034,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/report.pdf",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5018,7 +5057,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/report.pdf",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5049,7 +5088,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/report.pdf",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -5084,7 +5123,7 @@
                       "title": "Request failed",
                       "status": 400,
                       "detail": "Narrow the observation period.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/report.pdf",
                       "request_id": "example-request-id",
                       "code": "QUERY_TOO_BROAD"
                     }
@@ -5108,7 +5147,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "The report exceeds configured resource limits.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/counties/{fips}/report.pdf",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5227,7 +5266,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/states/{state}/report.pdf",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5250,7 +5289,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/states/{state}/report.pdf",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5273,7 +5312,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/states/{state}/report.pdf",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5304,7 +5343,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/states/{state}/report.pdf",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -5339,7 +5378,7 @@
                       "title": "Request failed",
                       "status": 413,
                       "detail": "The report exceeds configured resource limits.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/states/{state}/report.pdf",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5462,7 +5501,7 @@
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/ranking.csv",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5485,7 +5524,7 @@
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/ranking.csv",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5508,7 +5547,7 @@
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/ranking.csv",
                       "request_id": "example-request-id"
                     }
                   }
@@ -5539,7 +5578,7 @@
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
-                      "instance": "/v1/observations",
+                      "instance": "/v1/atlas/ranking.csv",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }

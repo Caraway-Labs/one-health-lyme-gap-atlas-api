@@ -117,6 +117,7 @@ from .public_docs import (
     TAGS,
     problem_response,
     problem_type_uri,
+    route_problem_instances,
 )
 from .public_metadata import MetadataRepository, MetadataService, SnowflakeMetadataRepository
 from .public_observations import (
@@ -237,6 +238,7 @@ class AtlasFastAPI(FastAPI):
         # Problem responses use their actual media type, without an extra JSON
         # response model. Generate the referenced component directly from Pydantic.
         schema["components"]["schemas"]["ProblemDetails"] = ProblemDetails.model_json_schema()
+        route_problem_instances(schema)
         normalize_nullable_types(schema)
         schema["info"]["x-logo"] = deepcopy(LOGO)
         # FastAPI's OpenAPI serialization drops nulls inside response examples.

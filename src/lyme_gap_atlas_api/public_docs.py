@@ -80,11 +80,18 @@ def problem_type_uri(name: str) -> str:
     return f"{PROBLEM_TYPE_BASE_URI}/{name}"
 
 
-def problem_response(status: int, code: str | None, detail: str) -> dict[str, Any]:
+def problem_response(
+    status: int,
+    code: str | None,
+    detail: str,
+    *,
+    type_name: str | None = None,
+    title: str = "Request failed",
+) -> dict[str, Any]:
     """Describe the existing RFC 9457 wire format using a synthetic example."""
     value: dict[str, Any] = {
-        "type": problem_type_uri(f"http-{status}"),
-        "title": "Request failed",
+        "type": problem_type_uri(type_name or f"http-{status}"),
+        "title": title,
         "status": status,
         "detail": detail,
         "instance": "/v1/observations",
@@ -112,6 +119,46 @@ def problem_response(status: int, code: str | None, detail: str) -> dict[str, An
             }
         }
     return result
+
+
+def route_problem_instances(schema: dict[str, Any]) -> None:
+    """Set each RFC 9457 example's instance to its operation route template.
+
+    Response maps are reused by FastAPI route declarations, so copy each
+    response before editing to keep examples operation-specific.
+    """
+    for path, path_item in schema.get("paths", {}).items():
+        if not isinstance(path_item, dict):
+            continue
+        for method, operation in path_item.items():
+            if method.lower() not in {"get", "post", "put", "patch", "delete", "options", "head"}:
+                continue
+            if not isinstance(operation, dict):
+                continue
+            responses = operation.get("responses", {})
+            if not isinstance(responses, dict):
+                continue
+            for status, response in list(responses.items()):
+                if not isinstance(response, dict):
+                    continue
+                content = response.get("content", {})
+                problem = (
+                    content.get("application/problem+json") if isinstance(content, dict) else None
+                )
+                if not isinstance(problem, dict):
+                    continue
+                response = deepcopy(response)
+                responses[status] = response
+                problem = response["content"]["application/problem+json"]
+                examples = problem.get("examples", {})
+                if isinstance(examples, dict):
+                    for example in examples.values():
+                        value = example.get("value") if isinstance(example, dict) else None
+                        if isinstance(value, dict):
+                            value["instance"] = path
+                example = problem.get("example")
+                if isinstance(example, dict):
+                    example["instance"] = path
 
 
 LEGACY_ERRORS: dict[int | str, dict[str, Any]] = {
