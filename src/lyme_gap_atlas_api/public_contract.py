@@ -594,6 +594,10 @@ class PublicQueryError(ValueError):
         super().__init__(detail)
 
 
+# The branches intentionally use anyOf: period-based county-context records can
+# also satisfy the standard observation shape because Pydantic models permit
+# extra fields. Vintage county-context rows are disjoint, but that does not make
+# the union mutually exclusive for all valid data.
 ObservationCollection = (
     CollectionEnvelope[CountyContextObservation] | CollectionEnvelope[Observation]
 )
