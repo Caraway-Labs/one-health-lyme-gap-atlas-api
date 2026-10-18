@@ -216,11 +216,13 @@ def test_invalid_current_geography_authority_never_returns200(kind):
     elif kind == "duplicate":
         snapshot.counties.append(snapshot.counties[0])
     elif kind == "release":
-        snapshot.counties[0].release_id = "wrong-release"
+        snapshot.counties[0] = snapshot.counties[0].model_copy(
+            update={"release_id": "wrong-release"}
+        )
     elif kind == "blank_release":
         snapshot.metadata.release_id = " "
     else:
-        snapshot.counties[0].fips = "bad"
+        snapshot.counties[0] = snapshot.counties[0].model_copy(update={"fips": "bad"})
     repository.load_snapshot = Mock(return_value=snapshot)
     response = geography_client(repository).get("/v1/geographies/county/01001/availability")
     assert response.status_code == 503
