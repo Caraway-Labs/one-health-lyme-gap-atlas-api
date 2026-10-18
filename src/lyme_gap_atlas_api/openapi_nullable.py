@@ -95,9 +95,7 @@ def _nullable_type_array(schema: Mapping[str, Any]) -> dict[str, Any] | None:
         return None
     null_branches = [branch for branch in branches if branch == {"type": "null"}]
     typed_branches = [
-        branch
-        for branch in branches
-        if isinstance(branch, dict) and branch.get("type") != "null"
+        branch for branch in branches if isinstance(branch, dict) and branch.get("type") != "null"
     ]
     if len(null_branches) != 1 or len(typed_branches) != len(branches) - 1:
         return None
@@ -225,7 +223,11 @@ def _visit_response(response: Any) -> int:
 def _visit_callback(callback: Any) -> int:
     if not isinstance(callback, dict):
         return 0
-    return sum(_visit_path_item(path_item) for path_item in callback.values())
+    return sum(
+        _visit_path_item(path_item)
+        for name, path_item in callback.items()
+        if not name.startswith("x-")
+    )
 
 
 def _visit_operation(operation: Any) -> int:
@@ -238,7 +240,11 @@ def _visit_operation(operation: Any) -> int:
     changed += _visit_request_body(operation.get("requestBody"))
     responses = operation.get("responses")
     if isinstance(responses, dict):
-        changed += sum(_visit_response(response) for response in responses.values())
+        changed += sum(
+            _visit_response(response)
+            for status_code, response in responses.items()
+            if not status_code.startswith("x-")
+        )
     callbacks = operation.get("callbacks")
     if isinstance(callbacks, dict):
         changed += sum(_visit_callback(callback) for callback in callbacks.values())
@@ -254,9 +260,7 @@ def _visit_path_item(path_item: Any) -> int:
         changed += sum(_visit_parameter(parameter) for parameter in parameters)
     methods = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
     changed += sum(
-        _visit_operation(operation)
-        for method, operation in path_item.items()
-        if method in methods
+        _visit_operation(operation) for method, operation in path_item.items() if method in methods
     )
     return changed
 
@@ -268,7 +272,11 @@ def _visit_openapi(document: Any) -> int:
     for root_key in ("paths", "webhooks"):
         path_items = document.get(root_key)
         if isinstance(path_items, dict):
-            changed += sum(_visit_path_item(path_item) for path_item in path_items.values())
+            changed += sum(
+                _visit_path_item(path_item)
+                for name, path_item in path_items.items()
+                if not name.startswith("x-")
+            )
     components = document.get("components")
     if isinstance(components, dict):
         schemas = components.get("schemas")
