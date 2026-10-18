@@ -120,7 +120,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -144,7 +144,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -168,7 +168,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -200,7 +200,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -224,7 +224,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -248,7 +248,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -323,7 +323,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -347,7 +347,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -371,7 +371,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -403,7 +403,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -427,7 +427,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -451,7 +451,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -609,7 +609,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -633,7 +633,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -657,7 +657,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -689,7 +689,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -713,7 +713,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -737,7 +737,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -812,7 +812,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -836,7 +836,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -860,7 +860,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -892,7 +892,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -916,7 +916,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -940,7 +940,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -1050,7 +1050,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -1074,7 +1074,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -1098,7 +1098,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -1130,7 +1130,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -1154,7 +1154,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -1178,7 +1178,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -1253,7 +1253,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -1277,7 +1277,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -1301,7 +1301,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -1333,7 +1333,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -1357,7 +1357,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -1381,7 +1381,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -1459,7 +1459,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -1483,7 +1483,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -1507,7 +1507,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -1539,7 +1539,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -1563,7 +1563,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -1587,7 +1587,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -1673,7 +1673,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -1697,7 +1697,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -1721,7 +1721,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -1753,7 +1753,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -1777,7 +1777,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -1801,7 +1801,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Canonical data delivery is not yet available.",
@@ -1898,7 +1898,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -1922,7 +1922,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -1946,7 +1946,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -1978,7 +1978,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -2002,7 +2002,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -2026,7 +2026,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -2417,7 +2417,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -2441,7 +2441,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -2465,7 +2465,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -2497,7 +2497,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -2521,7 +2521,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -2545,7 +2545,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -2691,7 +2691,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -2715,7 +2715,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -2739,7 +2739,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -2771,7 +2771,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -2795,7 +2795,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -2819,7 +2819,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -2914,7 +2914,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -2938,7 +2938,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -2962,7 +2962,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -2994,7 +2994,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -3018,7 +3018,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -3042,7 +3042,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -3188,7 +3188,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
@@ -3212,7 +3212,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "RESOURCE_NOT_FOUND; application/problem+json",
@@ -3236,7 +3236,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limited; Retry-After; application/problem+json",
@@ -3268,7 +3268,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "GET request body rejected; application/problem+json",
@@ -3292,7 +3292,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-414",
+                      "type": "https://onehealthatlas.org/problems/http-414",
                       "title": "Request failed",
                       "status": 414,
                       "detail": "Query string too long; application/problem+json",
@@ -3316,7 +3316,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Service unavailable; application/problem+json",
@@ -3995,7 +3995,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
@@ -4018,7 +4018,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -4041,7 +4041,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -4072,7 +4072,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
@@ -4144,7 +4144,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
@@ -4167,7 +4167,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -4190,7 +4190,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -4221,7 +4221,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
@@ -4293,7 +4293,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
@@ -4316,7 +4316,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -4339,7 +4339,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -4370,7 +4370,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
@@ -4483,7 +4483,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
@@ -4506,7 +4506,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -4529,7 +4529,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -4560,7 +4560,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
@@ -4680,7 +4680,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
@@ -4703,7 +4703,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -4726,7 +4726,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -4757,7 +4757,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
@@ -4823,7 +4823,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
@@ -4846,7 +4846,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -4869,7 +4869,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -4900,7 +4900,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
@@ -4966,7 +4966,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County is not in the current geography release.",
@@ -4990,7 +4990,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -5013,7 +5013,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -5044,7 +5044,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
@@ -5236,7 +5236,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
@@ -5259,7 +5259,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -5282,7 +5282,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -5313,7 +5313,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
@@ -5348,7 +5348,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-400",
+                      "type": "https://onehealthatlas.org/problems/http-400",
                       "title": "Request failed",
                       "status": 400,
                       "detail": "Narrow the observation period.",
@@ -5372,7 +5372,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "The report exceeds configured resource limits.",
@@ -5495,7 +5495,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
@@ -5518,7 +5518,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -5541,7 +5541,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -5572,7 +5572,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
@@ -5607,7 +5607,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-413",
+                      "type": "https://onehealthatlas.org/problems/http-413",
                       "title": "Request failed",
                       "status": 413,
                       "detail": "The report exceeds configured resource limits.",
@@ -5730,7 +5730,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-404",
+                      "type": "https://onehealthatlas.org/problems/http-404",
                       "title": "Request failed",
                       "status": 404,
                       "detail": "County or dataset release not found.",
@@ -5753,7 +5753,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-422",
+                      "type": "https://onehealthatlas.org/problems/http-422",
                       "title": "Request failed",
                       "status": 422,
                       "detail": "One or more request values are invalid.",
@@ -5776,7 +5776,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-429",
+                      "type": "https://onehealthatlas.org/problems/http-429",
                       "title": "Request failed",
                       "status": 429,
                       "detail": "Rate limit exceeded.",
@@ -5807,7 +5807,7 @@
                   "illustrative": {
                     "summary": "Synthetic error example",
                     "value": {
-                      "type": "https://carawaylabs.com/problems/http-503",
+                      "type": "https://onehealthatlas.org/problems/http-503",
                       "title": "Request failed",
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",

@@ -12,6 +12,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
 
+from .public_docs import problem_type_uri
 from .telemetry import enrich_request, request_correlation, request_dimensions
 from .telemetry import request_id as normalize_request_id
 from .telemetry_logging import assistant_operational_outcome, emit_completion, operational_logger
@@ -70,7 +71,7 @@ class PublicReadProtectionMiddleware(BaseHTTPMiddleware):
             headers=headers,
             content=json.dumps(
                 {
-                    "type": f"https://carawaylabs.com/problems/{code.lower().replace('_', '-')}",
+                    "type": problem_type_uri(code.lower().replace("_", "-")),
                     "title": {
                         400: "Invalid request",
                         413: "Payload too large",
@@ -423,7 +424,7 @@ class KnowledgeChatLimitMiddleware(BaseHTTPMiddleware):
             if rate_full or busy:
                 retry_after = "600" if rate_full else "1"
                 problem = {
-                    "type": "https://carawaylabs.com/problems/knowledge-chat-rate-limit",
+                    "type": problem_type_uri("knowledge-chat-rate-limit"),
                     "title": "Too many requests",
                     "status": 429,
                     "detail": "The evidence chat request limit has been reached.",
@@ -484,7 +485,7 @@ class PrivacyRequestLimitMiddleware(BaseHTTPMiddleware):
             window.popleft()
         if len(window) >= 5:
             problem = {
-                "type": "https://carawaylabs.com/problems/privacy-request-rate-limit",
+                "type": problem_type_uri("privacy-request-rate-limit"),
                 "title": "Too many requests",
                 "status": 429,
                 "detail": "The privacy-request limit has been reached.",
@@ -537,7 +538,7 @@ class FeedbackLimitMiddleware(BaseHTTPMiddleware):
                 },
             )
             problem = {
-                "type": "https://carawaylabs.com/problems/feedback-unsupported-media-type",
+                "type": problem_type_uri("feedback-unsupported-media-type"),
                 "title": "Unsupported Media Type",
                 "status": 415,
                 "detail": "Feedback submissions must use application/json.",
@@ -568,7 +569,7 @@ class FeedbackLimitMiddleware(BaseHTTPMiddleware):
                     },
                 )
                 problem = {
-                    "type": "https://carawaylabs.com/problems/feedback-payload-too-large",
+                    "type": problem_type_uri("feedback-payload-too-large"),
                     "title": "Payload Too Large",
                     "status": 413,
                     "detail": "Feedback submissions must be at most 8192 bytes.",
@@ -602,7 +603,7 @@ class FeedbackLimitMiddleware(BaseHTTPMiddleware):
                 },
             )
             problem = {
-                "type": "https://carawaylabs.com/problems/feedback-rate-limit",
+                "type": problem_type_uri("feedback-rate-limit"),
                 "title": "Too many requests",
                 "status": 429,
                 "detail": "The feedback submission limit has been reached.",

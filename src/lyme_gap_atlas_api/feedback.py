@@ -19,14 +19,13 @@ from lyme_gap_atlas_shared.settings import SnowflakeSettings
 
 from .dependency_telemetry import connect
 from .models import FeedbackSubmissionRequest, FeedbackSubmissionResponse
+from .public_docs import problem_type_uri
 
 logger = logging.getLogger(__name__)
 
 FEEDBACK_SCHEMA_VERSION = "feedback/v1"
 FEEDBACK_PERSISTENCE_DETAIL = "Feedback cannot be stored right now. Please try again later."
-FEEDBACK_IDEMPOTENCY_MISMATCH_TYPE = (
-    "https://carawaylabs.com/problems/feedback-idempotency-mismatch"
-)
+FEEDBACK_IDEMPOTENCY_MISMATCH_TYPE = problem_type_uri("feedback-idempotency-mismatch")
 FEEDBACK_TOPOLOGY_UNSAFE_DETAIL = (
     "Feedback submission is unavailable because this API process is not configured "
     "for single-process idempotency."

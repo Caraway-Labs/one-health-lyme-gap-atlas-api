@@ -115,6 +115,7 @@ from .public_docs import (
     PENDING_GEOGRAPHY_EXAMPLE,
     TAGS,
     problem_response,
+    problem_type_uri,
 )
 from .public_metadata import MetadataRepository, MetadataService, SnowflakeMetadataRepository
 from .public_observations import (
@@ -455,7 +456,7 @@ def create_app(
         )
         response_status = 400 if is_canonical else 422
         problem = ProblemDetails(
-            type="https://carawaylabs.com/problems/validation",
+            type=problem_type_uri("validation"),
             title="Invalid request",
             status=response_status,
             detail="One or more request values are invalid.",
@@ -479,7 +480,7 @@ def create_app(
         if exc.code == "QUERY_TOO_BROAD":
             logger.info("public_read_rejected", extra={"context": {"reason": "query_too_broad"}})
         problem = ProblemDetails(
-            type=f"https://carawaylabs.com/problems/{exc.code.lower().replace('_', '-')}",
+            type=problem_type_uri(exc.code.lower().replace("_", "-")),
             title="Invalid public query",
             status=response_status,
             detail=str(exc),
@@ -499,7 +500,7 @@ def create_app(
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         problem = ProblemDetails(
-            type=f"https://carawaylabs.com/problems/http-{exc.status_code}",
+            type=problem_type_uri(f"http-{exc.status_code}"),
             title={404: "Not found", 429: "Too many requests", 503: "Service unavailable"}.get(
                 exc.status_code, "Request failed"
             ),

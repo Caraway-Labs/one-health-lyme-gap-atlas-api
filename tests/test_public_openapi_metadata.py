@@ -10,6 +10,7 @@ from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.models import ProblemDetails
 from lyme_gap_atlas_api.public_contract import CollectionEnvelope, Observation
+from lyme_gap_atlas_api.public_docs import PROBLEM_TYPE_BASE_URI
 
 ROOT = Path(__file__).resolve().parents[1]
 IDS = json.loads((ROOT / "tests/fixtures/public-operation-ids.json").read_text())
@@ -58,6 +59,28 @@ def test_pending_geography_openapi_error_matches_specific_runtime_code() -> None
     assert example["code"] == "CANONICAL_DATA_UNAVAILABLE"
 
 
+def test_openapi_uses_canonical_domain_and_problem_type_uris_in_all_exports() -> None:
+    app = create_app(settings=ApiSettings())
+    for schema in (app.openapi(), app.first_party_openapi()):
+        assert schema["servers"] == [
+            {"url": "https://api.onehealthatlas.org", "description": "Production"}
+        ]
+        assert schema["externalDocs"]["url"] == "https://onehealthatlas.org/docs"
+        for path_item in schema["paths"].values():
+            for operation in path_item.values():
+                for response in operation["responses"].values():
+                    problem = response.get("content", {}).get("application/problem+json")
+                    if problem is None:
+                        continue
+                    examples = problem.get("examples", {}).values()
+                    values = [example.get("value", {}) for example in examples]
+                    if "example" in problem:
+                        values.append(problem["example"])
+                    for value in values:
+                        assert value["type"].startswith(f"{PROBLEM_TYPE_BASE_URI}/")
+    assert "https://carawaylabs.com/problems/" not in str(app.first_party_openapi())
+
+
 def test_internal_product_routes_remain_registered_and_callable() -> None:
     app = create_app(settings=ApiSettings(knowledge_chat_enabled=False))
     paths = {getattr(route, "path", "") for route in app.routes}
@@ -93,6 +116,7 @@ def test_examples_validate_and_error_matches_runtime() -> None:
     assert invalid.status_code == 400
     assert invalid.headers["content-type"] == "application/problem+json"
     assert invalid.json()["code"] == "INVALID_REQUEST"
+    assert invalid.json()["type"] == f"{PROBLEM_TYPE_BASE_URI}/validation"
     models = schema["components"]["schemas"]
     for model, fields in {
         "Observation": (
