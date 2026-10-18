@@ -181,22 +181,116 @@ def _visit_schema(schema: Any) -> int:
     return changed
 
 
-def _visit_openapi(value: Any) -> int:
-    if isinstance(value, dict):
-        changed = 0
-        for key, child in list(value.items()):
-            if key in _OPAQUE_KEYWORDS or key.startswith("x-"):
-                continue
-            if key == "schema":
-                changed += _visit_schema(child)
-            elif key == "schemas" and isinstance(child, dict):
-                changed += sum(_visit_schema(schema) for schema in child.values())
-            else:
-                changed += _visit_openapi(child)
-        return changed
-    if isinstance(value, list):
-        return sum(_visit_openapi(item) for item in value)
-    return 0
+def _visit_media_type(media_type: Any) -> int:
+    if not isinstance(media_type, dict):
+        return 0
+    return _visit_schema(media_type.get("schema"))
+
+
+def _visit_content(content: Any) -> int:
+    if not isinstance(content, dict):
+        return 0
+    return sum(_visit_media_type(media_type) for media_type in content.values())
+
+
+def _visit_parameter(parameter: Any) -> int:
+    if not isinstance(parameter, dict):
+        return 0
+    changed = _visit_schema(parameter.get("schema"))
+    changed += _visit_content(parameter.get("content"))
+    return changed
+
+
+def _visit_header(header: Any) -> int:
+    return _visit_parameter(header)
+
+
+def _visit_request_body(request_body: Any) -> int:
+    if not isinstance(request_body, dict):
+        return 0
+    return _visit_content(request_body.get("content"))
+
+
+def _visit_response(response: Any) -> int:
+    if not isinstance(response, dict):
+        return 0
+    changed = _visit_content(response.get("content"))
+    headers = response.get("headers")
+    if isinstance(headers, dict):
+        changed += sum(_visit_header(header) for header in headers.values())
+    # Response links are runtime expressions/examples, not schema locations.
+    return changed
+
+
+def _visit_callback(callback: Any) -> int:
+    if not isinstance(callback, dict):
+        return 0
+    return sum(_visit_path_item(path_item) for path_item in callback.values())
+
+
+def _visit_operation(operation: Any) -> int:
+    if not isinstance(operation, dict):
+        return 0
+    changed = 0
+    parameters = operation.get("parameters")
+    if isinstance(parameters, list):
+        changed += sum(_visit_parameter(parameter) for parameter in parameters)
+    changed += _visit_request_body(operation.get("requestBody"))
+    responses = operation.get("responses")
+    if isinstance(responses, dict):
+        changed += sum(_visit_response(response) for response in responses.values())
+    callbacks = operation.get("callbacks")
+    if isinstance(callbacks, dict):
+        changed += sum(_visit_callback(callback) for callback in callbacks.values())
+    return changed
+
+
+def _visit_path_item(path_item: Any) -> int:
+    if not isinstance(path_item, dict):
+        return 0
+    changed = 0
+    parameters = path_item.get("parameters")
+    if isinstance(parameters, list):
+        changed += sum(_visit_parameter(parameter) for parameter in parameters)
+    methods = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
+    changed += sum(
+        _visit_operation(operation)
+        for method, operation in path_item.items()
+        if method in methods
+    )
+    return changed
+
+
+def _visit_openapi(document: Any) -> int:
+    if not isinstance(document, dict):
+        return 0
+    changed = 0
+    for root_key in ("paths", "webhooks"):
+        path_items = document.get(root_key)
+        if isinstance(path_items, dict):
+            changed += sum(_visit_path_item(path_item) for path_item in path_items.values())
+    components = document.get("components")
+    if isinstance(components, dict):
+        schemas = components.get("schemas")
+        if isinstance(schemas, dict):
+            changed += sum(_visit_schema(schema) for schema in schemas.values())
+        for key in ("parameters", "headers", "responses", "requestBodies"):
+            entries = components.get(key)
+            if isinstance(entries, dict):
+                visitor = {
+                    "parameters": _visit_parameter,
+                    "headers": _visit_header,
+                    "responses": _visit_response,
+                    "requestBodies": _visit_request_body,
+                }[key]
+                changed += sum(visitor(entry) for entry in entries.values())
+        callbacks = components.get("callbacks")
+        if isinstance(callbacks, dict):
+            changed += sum(_visit_callback(callback) for callback in callbacks.values())
+        path_items = components.get("pathItems")
+        if isinstance(path_items, dict):
+            changed += sum(_visit_path_item(path_item) for path_item in path_items.values())
+    return changed
 
 
 def normalize_nullable_types(value: Any) -> int:
@@ -205,8 +299,8 @@ def normalize_nullable_types(value: Any) -> int:
     Simple nullable types become OpenAPI 3.1 JSON Schema type arrays. Nullable
     references, duplicate types, and unions with distinct branch constraints
     remain anyOf because flattening them could alter validation semantics. Only
-    schema-bearing OpenAPI locations are visited; enum/default/example values
-    are opaque JSON data even when they resemble Schema Objects.
+    explicit OpenAPI Schema Object locations are visited; Link Objects and
+    literal enum/default/example/extension values are left untouched.
     """
     if isinstance(value, dict) and any(key in value for key in ("openapi", "components", "paths")):
         return _visit_openapi(value)

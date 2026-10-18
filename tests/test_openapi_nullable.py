@@ -96,7 +96,8 @@ def test_openapi_examples_are_opaque_and_component_schemas_are_normalized() -> N
         "components": {
             "schemas": {
                 "Value": {"anyOf": [{"type": "integer"}, {"type": "null"}]}
-            }
+            },
+            "links": {"Next": {"requestBody": {"schema": literal}}},
         },
         "x-example": {"schema": literal},
         "paths": {
@@ -118,6 +119,7 @@ def test_openapi_examples_are_opaque_and_component_schemas_are_normalized() -> N
     }
     assert normalize_nullable_types(document) == 1
     assert document["x-example"]["schema"] == literal
+    assert document["components"]["links"]["Next"]["requestBody"]["schema"] == literal
     assert document["components"]["schemas"]["Value"]["type"] == ["integer", "null"]
     media = document["paths"]["/x"]["get"]["responses"]["200"]["content"][
         "application/json"
