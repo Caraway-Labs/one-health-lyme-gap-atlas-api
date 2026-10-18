@@ -363,9 +363,7 @@ def geography(geography_type: GeographyType, geography_id: str) -> NoReturn:
         200: {
             "description": "Confirmed current county identity; canonical publication is pending.",
             "content": {
-                "application/json": {
-                    "examples": {"unpublished": PENDING_GEOGRAPHY_EXAMPLE}
-                }
+                "application/json": {"examples": {"unpublished": PENDING_GEOGRAPHY_EXAMPLE}}
             },
         },
     },
