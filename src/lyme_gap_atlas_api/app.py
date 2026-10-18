@@ -163,6 +163,23 @@ from .tier1_priority import (
 logger = operational_logger(__name__)
 
 
+def _canonical_validation_is_400(path: str) -> bool:
+    return path in {
+        "/v1/indicators",
+        "/v1/measures",
+        "/v1/observations",
+        "/v1/sources",
+    } or path.startswith(
+        (
+            "/v1/indicators/",
+            "/v1/measures/",
+            "/v1/geographies/",
+            "/v1/sources/",
+            "/v1/methodologies/",
+        )
+    )
+
+
 class AtlasFastAPI(FastAPI):
     _first_party_schema: dict[str, Any] | None = None
 
@@ -190,6 +207,22 @@ class AtlasFastAPI(FastAPI):
             separate_input_output_schemas=self.separate_input_output_schemas,
             external_docs=self.openapi_external_docs,
         )
+        # FastAPI normally adds a generic 422 response to query-parameter
+        # operations. The shared canonical response map lists every status
+        # these routes can actually return, and their validation handler
+        # normalizes invalid requests to 400. Remove only that generated 422
+        # from those fully specified maps; unrelated operations keep FastAPI's
+        # validation response.
+        canonical_error_statuses = {"400", "404", "413", "414", "429", "503"}
+        for path, path_item in schema["paths"].items():
+            if not _canonical_validation_is_400(path):
+                continue
+            for operation in path_item.values():
+                if not isinstance(operation, dict):
+                    continue
+                responses = operation.get("responses", {})
+                if canonical_error_statuses <= responses.keys():
+                    responses.pop("422", None)
         if "BriefingArtifact" not in schema.get("components", {}).get("schemas", {}):
             add_briefing_openapi(schema)
         # Problem responses use their actual media type, without an extra JSON
@@ -440,20 +473,7 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-        is_canonical = request.url.path in {
-            "/v1/indicators",
-            "/v1/measures",
-            "/v1/observations",
-            "/v1/sources",
-        } or request.url.path.startswith(
-            (
-                "/v1/indicators/",
-                "/v1/measures/",
-                "/v1/geographies/",
-                "/v1/sources/",
-                "/v1/methodologies/",
-            )
-        )
+        is_canonical = _canonical_validation_is_400(request.url.path)
         response_status = 400 if is_canonical else 422
         problem = ProblemDetails(
             type=problem_type_uri("validation"),

@@ -50,6 +50,7 @@ def test_public_paths_and_generated_shapes() -> None:
         "page_token",
     } <= names
     responses = paths["/v1/observations"]["get"]["responses"]
+    assert "4XX" not in responses
     assert "422" not in responses
     assert set(responses["400"]["content"]) == {"application/problem+json"}
     for path in (
@@ -85,6 +86,92 @@ def test_public_paths_and_generated_shapes() -> None:
     assert "completeness" not in observation_fields
     assert "value_state" in observation_fields
     assert "next_page_token" in schema["components"]["schemas"]["CollectionMeta"]["properties"]
+
+
+def test_canonical_response_maps_snapshot_has_only_concrete_documented_statuses() -> None:
+    app = create_app(settings=ApiSettings())
+    expected = {
+        "geography_v1_geographies__geography_type___geography_id__get": {
+            "200",
+            "400",
+            "404",
+            "413",
+            "414",
+            "429",
+            "503",
+        },
+        "canonicalGeographyAvailability": {"200", "400", "404", "413", "414", "429", "503"},
+        "indicators_v1_indicators_get": {"200", "400", "404", "413", "414", "429", "503"},
+        "indicator_v1_indicators__indicator_id__get": {
+            "200",
+            "304",
+            "400",
+            "404",
+            "413",
+            "414",
+            "429",
+            "503",
+        },
+        "measures_v1_measures_get": {"200", "400", "404", "413", "414", "429", "503"},
+        "measure_v1_measures__measure_id__get": {
+            "200",
+            "304",
+            "400",
+            "404",
+            "413",
+            "414",
+            "429",
+            "503",
+        },
+        "methodology_v1_methodologies__methodology_id__get": {
+            "200",
+            "304",
+            "400",
+            "404",
+            "413",
+            "414",
+            "429",
+            "503",
+        },
+        "observations_v1_observations_get": {"200", "400", "404", "413", "414", "429", "503"},
+        "sources_v1_sources_get": {"200", "400", "404", "413", "414", "429", "503"},
+        "source_v1_sources__source_id__get": {
+            "200",
+            "304",
+            "400",
+            "404",
+            "413",
+            "414",
+            "429",
+            "503",
+        },
+        "listIntelligenceItems": {"200", "400", "404", "413", "414", "422", "429", "503"},
+        "listIntelligenceSources": {"200", "400", "404", "413", "414", "422", "429", "503"},
+        "listIntelligenceFeed": {"200", "400", "404", "413", "414", "422", "429", "503"},
+    }
+
+    first_party_only = {
+        "listIntelligenceItems",
+        "listIntelligenceSources",
+        "listIntelligenceFeed",
+    }
+    for schema, included_ids in (
+        (app.openapi(), set(expected) - first_party_only),
+        (app.first_party_openapi(), set(expected)),
+    ):
+        operations = {
+            operation["operationId"]: operation
+            for path_item in schema["paths"].values()
+            for operation in path_item.values()
+            if isinstance(operation, dict) and "operationId" in operation
+        }
+        for operation in operations.values():
+            assert "4XX" not in operation.get("responses", {})
+        for operation_id, response_codes in expected.items():
+            if operation_id not in included_ids:
+                continue
+            responses = operations[operation_id]["responses"]
+            assert set(responses) == response_codes
 
 
 def test_typed_geography_and_value_states() -> None:

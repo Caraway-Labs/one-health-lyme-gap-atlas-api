@@ -54,6 +54,16 @@ VARIANTS = {"field_states", "geographies", "topics", "provenance", "limitations"
 V2_COLUMNS = ITEM_COLUMNS + ("publisher_metadata", "derived_metadata")
 UNAVAILABLE = "Governed intelligence data is unavailable."
 
+FEED_PROBLEMS = {
+    **PROBLEMS,
+    422: {
+        "description": "Request validation failed; application/problem+json.",
+        "content": {
+            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
+        },
+    },
+}
+
 
 FEED_COLUMNS = (
     "item_id",
@@ -371,7 +381,7 @@ def _service(request: Request, response: Response, page_size: int) -> FeedServic
     response_model=FeedItems,
     operation_id="listIntelligenceItems",
     summary="Read normalized publication intelligence",
-    responses=PROBLEMS,
+    responses=FEED_PROBLEMS,
     description="First-party read only; no ingestion. Stable identity ordering, source/revision "
     "provenance and separate publisher/fetch dates. Optional inclusive publication dates exclude "
     "unknown publisher dates. No retention cutoff is applied. page_size 1–500; "
@@ -405,7 +415,7 @@ def items(
     response_model=FeedSources,
     operation_id="listIntelligenceSources",
     summary="Read source identities represented by published intelligence",
-    responses=PROBLEMS,
+    responses=FEED_PROBLEMS,
     description="First-party read only. Source catalog covers represented item sources, "
     "not the private "
     "registry or all active sources. Health is explicitly unavailable until DATA publishes it. "
@@ -436,7 +446,7 @@ def sources(
     response_model=MetadataFeed,
     operation_id="listIntelligenceFeed",
     summary="Read source-attributed publication metadata",
-    responses=PROBLEMS,
+    responses=FEED_PROBLEMS,
     description="Read only from governed INTELLIGENCE_FEED_V2. No excerpts, article bodies "
     "or media. Publisher dates remain null when unknown; inclusive date filters exclude "
     "unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, "
