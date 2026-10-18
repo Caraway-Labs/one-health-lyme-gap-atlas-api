@@ -38,6 +38,9 @@ IO_OPERATIONS = frozenset(
 class CDCTiming:
     durations: dict[str, float] = field(default_factory=dict)
     counts: dict[str, int] = field(default_factory=dict)
+    serving_path: str | None = None
+    processed_counties: int | None = None
+    batch_envelope_bytes: int | None = None
     started: float | None = None
     finished: float | None = None
 
@@ -98,3 +101,20 @@ def record_processing(seconds: float) -> None:
         timing = CURRENT.get()
         if timing is not None:
             timing.record("producer_processing", seconds)
+
+
+def record_selection(path: str, count: int) -> None:
+    """Closed serving mode and bounded count, never county identities."""
+    with suppress(Exception):
+        timing = CURRENT.get()
+        if timing is not None and path in {"batch", "singleton"} and 1 <= count <= 500:
+            timing.serving_path = path
+            timing.processed_counties = count
+
+
+def record_envelope(value: object) -> None:
+    """Measure already encoded JSON only; native VARIANT size stays unavailable."""
+    with suppress(Exception):
+        timing = CURRENT.get()
+        if timing is not None and isinstance(value, str):
+            timing.batch_envelope_bytes = min(len(value.encode("utf-8")), 8 * 1024 * 1024 + 1)

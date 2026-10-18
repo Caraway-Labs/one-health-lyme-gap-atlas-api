@@ -188,6 +188,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         return {
             "cdc_timing_ms": timing.durations,
             "cdc_operation_counts": timing.counts,
+            "cdc_serving_path": timing.serving_path,
+            "cdc_processed_counties": timing.processed_counties,
+            "cdc_batch_envelope_bytes": timing.batch_envelope_bytes,
             "cdc_before_service_ms": max(0, (timing.started - started_at) * 1000),
             "cdc_after_service_ms": max(0, (time.perf_counter() - timing.finished) * 1000),
         }

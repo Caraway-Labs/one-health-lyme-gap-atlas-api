@@ -176,3 +176,18 @@ compare individual boundaries or compute interval unions. Zero rounded log
 milliseconds are possible for submillisecond mock operations; missing fields
 mean unavailable. No new metrics backend, diagnostic endpoint, sampling, retention
 or public payload change. See [CDC session design and acceptance](cdc-request-session.md).
+
+
+### CDC bounded serving selection (API #248 Stage 2)
+
+The same completion event additionally permits `cdc_serving_path` (`batch` or
+`singleton`) and `cdc_processed_counties` (bounded 1–500, including lookahead).
+Existing `authority_query`, `execute`, `connect` counts and execute/fetch/producer/
+mapping/service timings retain their meanings and include failed attempts.
+`cdc_batch_envelope_bytes` is the UTF-8 length only when the connector returns
+an already encoded JSON envelope string, capped at 8 MiB + 1 as an overflow
+indicator. Native VARIANT dictionaries have no cheap encoded size; that field
+is unavailable, not zero. No raw authority serialization is added for logging.
+The service interval includes connection teardown; existing request duration
+and SERVER span retain their documented transport boundaries. No new sampling,
+private record values, SQL, county arrays or authority versions are emitted.
