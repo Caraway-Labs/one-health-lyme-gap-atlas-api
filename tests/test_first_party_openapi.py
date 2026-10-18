@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
+from lyme_gap_atlas_api.openapi_nullable import normalize_nullable_types
 from lyme_gap_atlas_api.public_openapi import public_projection
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,9 +27,13 @@ def test_existing_internal_operations_and_schemas_remain_in_first_party_export()
         assert actual_ids == IDS
         assert sum(len(operations) for operations in actual_ids.values()) == 35
         for path, operations in FLOOR["paths"].items():
-            assert contract["paths"][path] == operations, path
+            expected_document = {"paths": {path: deepcopy(operations)}}
+            normalize_nullable_types(expected_document)
+            assert contract["paths"][path] == expected_document["paths"][path], path
         for name, model in FLOOR["schemas"].items():
-            assert contract["components"]["schemas"][name] == model, name
+            expected = deepcopy(model)
+            normalize_nullable_types(expected)
+            assert contract["components"]["schemas"][name] == expected, name
 
 
 def test_independent_caches_and_docs_never_change_route_visibility() -> None:

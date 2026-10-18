@@ -35,15 +35,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dataset Version"
+              "title": "Dataset Version",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -187,15 +183,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dataset Version"
+              "title": "Dataset Version",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -545,15 +537,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dataset Version"
+              "title": "Dataset Version",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -742,15 +730,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dataset Version"
+              "title": "Dataset Version",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -939,15 +923,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dataset Version"
+              "title": "Dataset Version",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -955,17 +935,13 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Exact inclusive observation start for county-v2.",
-              "title": "Period Start"
+              "title": "Period Start",
+              "format": "date",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "description": "Exact inclusive observation start for county-v2."
           },
@@ -974,17 +950,13 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Exact inclusive observation end for county-v2.",
-              "title": "Period End"
+              "title": "Period End",
+              "format": "date",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "description": "Exact inclusive observation end for county-v2."
           },
@@ -993,20 +965,16 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "maxItems": 20
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "1\u201320 measure IDs; repeated or comma-separated for county-v2.",
-              "title": "Measure Id"
+              "title": "Measure Id",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": [
+                "array",
+                "null"
+              ]
             },
             "description": "1\u201320 measure IDs; repeated or comma-separated for county-v2."
           },
@@ -1951,15 +1919,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Indicator Id"
+              "title": "Indicator Id",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -1967,21 +1931,17 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "maximum": 500,
-                  "minimum": 1
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Items per page; defaults to 100, configured maximum at most 500.",
               "examples": [
                 100
               ],
-              "title": "Page Size"
+              "title": "Page Size",
+              "maximum": 500,
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "description": "Items per page; defaults to 100, configured maximum at most 500."
           },
@@ -1990,16 +1950,12 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Opaque next_page_token; retain query filters and release.",
-              "title": "Page Token"
+              "title": "Page Token",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "description": "Opaque next_page_token; retain query filters and release."
           }
@@ -2388,15 +2344,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Measure Id"
+              "title": "Measure Id",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2404,15 +2356,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Indicator Id"
+              "title": "Indicator Id",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2420,15 +2368,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Geography Type"
+              "title": "Geography Type",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2436,21 +2380,17 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "maximum": 500,
-                  "minimum": 1
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Items per page; defaults to 100, configured maximum at most 500.",
               "examples": [
                 100
               ],
-              "title": "Page Size"
+              "title": "Page Size",
+              "maximum": 500,
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "description": "Items per page; defaults to 100, configured maximum at most 500."
           },
@@ -2459,16 +2399,12 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Opaque next_page_token; retain query filters and release.",
-              "title": "Page Token"
+              "title": "Page Token",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "description": "Opaque next_page_token; retain query filters and release."
           }
@@ -3097,18 +3033,14 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "maximum": 2100,
-                  "minimum": 1900
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Required for county context: 2022 for SVI/ACS, 2023 for RUCC. Excludes year/date filters.",
-              "title": "Vintage Year"
+              "title": "Vintage Year",
+              "maximum": 2100,
+              "minimum": 1900,
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "description": "Required for county context: 2022 for SVI/ACS, 2023 for RUCC. Excludes year/date filters."
           },
@@ -3117,21 +3049,17 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "maximum": 2100,
-                  "minimum": 1900
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Annual year or complete date range, not both. CDC cumulative status rejects year; use start_date=end_date=2025-12-31.",
               "examples": [
                 2023
               ],
-              "title": "Year"
+              "title": "Year",
+              "maximum": 2100,
+              "minimum": 1900,
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "description": "Annual year or complete date range, not both. CDC cumulative status rejects year; use start_date=end_date=2025-12-31."
           },
@@ -3140,20 +3068,16 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Inclusive period start; requires end_date and excludes year.",
               "examples": [
                 "2023-01-01"
               ],
-              "title": "Start Date"
+              "title": "Start Date",
+              "format": "date",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "description": "Inclusive period start; requires end_date and excludes year."
           },
@@ -3162,20 +3086,16 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Inclusive period end; requires start_date and excludes year.",
               "examples": [
                 "2023-12-31"
               ],
-              "title": "End Date"
+              "title": "End Date",
+              "format": "date",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "description": "Inclusive period end; requires start_date and excludes year."
           },
@@ -3184,19 +3104,15 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Current release has no strata; unsupported selections fail explicitly.",
-              "title": "Stratification"
+              "title": "Stratification",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
             },
             "description": "Current release has no strata; unsupported selections fail explicitly."
           },
@@ -3205,21 +3121,17 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "maximum": 500,
-                  "minimum": 1
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Items per page; defaults to 100, configured maximum at most 500.",
               "examples": [
                 100
               ],
-              "title": "Page Size"
+              "title": "Page Size",
+              "maximum": 500,
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "description": "Items per page; defaults to 100, configured maximum at most 500."
           },
@@ -3228,16 +3140,12 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Opaque next_page_token; retain query filters and release.",
-              "title": "Page Token"
+              "title": "Page Token",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "description": "Opaque next_page_token; retain query filters and release."
           }
@@ -3562,21 +3470,17 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "maximum": 500,
-                  "minimum": 1
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Items per page; defaults to 100, configured maximum at most 500.",
               "examples": [
                 100
               ],
-              "title": "Page Size"
+              "title": "Page Size",
+              "maximum": 500,
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "description": "Items per page; defaults to 100, configured maximum at most 500."
           },
@@ -3585,16 +3489,12 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
               "description": "Opaque next_page_token; retain query filters and release.",
-              "title": "Page Token"
+              "title": "Page Token",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "description": "Opaque next_page_token; retain query filters and release."
           }
@@ -3993,15 +3893,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dataset Version"
+              "title": "Dataset Version",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -4228,16 +4124,12 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 80
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Observation Context"
+              "title": "Observation Context",
+              "maxLength": 80,
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -4245,15 +4137,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dataset Version"
+              "title": "Dataset Version",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -4445,32 +4333,24 @@
             "type": "string"
           },
           "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "default": null,
-            "title": "Code"
+            "title": "Code",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "errors": {
-            "anyOf": [
-              {
-                "items": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "default": null,
-            "title": "Errors"
+            "title": "Errors",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -4814,114 +4694,74 @@
             "title": "Color"
           },
           "population": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Population"
+            "title": "Population",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "case_count_floor_2023": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Case Count Floor 2023"
+            "title": "Case Count Floor 2023",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "incidence_floor_2023": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Incidence Floor 2023"
+            "title": "Incidence Floor 2023",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "state_unallocated_records_2023": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "State Unallocated Records 2023"
+            "title": "State Unallocated Records 2023",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "scapularis_status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scapularis Status"
+            "title": "Scapularis Status",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "pacificus_status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pacificus Status"
+            "title": "Pacificus Status",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "svi_percentile": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Svi Percentile"
+            "title": "Svi Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "uninsured_percentile": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uninsured Percentile"
+            "title": "Uninsured Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "uninsured_percent": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uninsured Percent"
+            "title": "Uninsured Percent",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "rucc_2023": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rucc 2023"
+            "title": "Rucc 2023",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "release": {
             "$ref": "#/components/schemas/AtlasMetadata"
@@ -4964,47 +4804,36 @@
             "description": "Five-digit county FIPS for this persisted result."
           },
           "priority_tier": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "HIGH",
-                  "MEDIUM",
-                  "LOW"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Priority Tier",
-            "description": "HIGH, MEDIUM, or LOW model-assisted surveillance review priority under the named tier policy; not disease risk. Null for NOT_ESTIMABLE."
+            "description": "HIGH, MEDIUM, or LOW model-assisted surveillance review priority under the named tier policy; not disease risk. Null for NOT_ESTIMABLE.",
+            "enum": [
+              "HIGH",
+              "MEDIUM",
+              "LOW",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "priority_percentile": {
-            "anyOf": [
-              {
-                "type": "number",
-                "maximum": 100.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Priority Percentile",
-            "description": "Within-batch relative position among scored counties for this model and inference batch (0-100). Not a probability or comparable across batches, model versions, populations, or tier policies without a separate validation. Null for NOT_ESTIMABLE."
+            "description": "Within-batch relative position among scored counties for this model and inference batch (0-100). Not a probability or comparable across batches, model versions, populations, or tier policies without a separate validation. Null for NOT_ESTIMABLE.",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "raw_model_score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Raw Model Score",
-            "description": "Model-native anomaly score; not a probability, incidence estimate, or clinical/disease risk. Its scale is model-specific and is not comparable across versions without validation. Null for NOT_ESTIMABLE."
+            "description": "Model-native anomaly score; not a probability, incidence estimate, or clinical/disease risk. Its scale is model-specific and is not comparable across versions without validation. Null for NOT_ESTIMABLE.",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "evidence_sufficiency": {
             "type": "string",
@@ -5145,17 +4974,16 @@
             "description": "Current governed geography release used to validate the requested FIPS."
           },
           "reason": {
-            "anyOf": [
-              {
-                "type": "string",
-                "const": "NO_PUBLISHED_MODEL"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Reason",
-            "description": "Stable reason when no persisted result is published; null when data is available."
+            "description": "Stable reason when no persisted result is published; null when data is available.",
+            "enum": [
+              "NO_PUBLISHED_MODEL",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "data": {
             "anyOf": [
@@ -5324,15 +5152,11 @@
             "title": "Label"
           },
           "definition": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Definition"
+            "title": "Definition",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "measure_ids": {
             "items": {
@@ -5347,38 +5171,26 @@
             "description": "Governed semantic contract version, separate from HTTP V1 and application version."
           },
           "release_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Release Version",
-            "description": "Governed current-release relationship version."
+            "description": "Governed current-release relationship version.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "domain": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Domain"
+            "title": "Domain",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "category": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category"
+            "title": "Category",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "limitations": {
             "items": {
@@ -5389,18 +5201,14 @@
             "description": "Governed interpretation limitations; preserve alongside values and versions."
           },
           "standards_mappings": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/StandardsMapping"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Standards Mappings"
+            "title": "Standards Mappings",
+            "items": {
+              "$ref": "#/components/schemas/StandardsMapping"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "type": "object",
@@ -5432,15 +5240,11 @@
             "title": "Relationship"
           },
           "mapping_reference": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mapping Reference"
+            "title": "Mapping Reference",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object",
@@ -5455,16 +5259,12 @@
       "CollectionMeta": {
         "properties": {
           "next_page_token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Next Page Token",
-            "description": "Opaque query/release-bound continuation. Null means exhaustion; tokens may expire on restart."
+            "description": "Opaque query/release-bound continuation. Null means exhaustion; tokens may expire on restart.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "response_at": {
             "type": "string",
@@ -5473,60 +5273,48 @@
             "description": "UTC response construction time; not source freshness or observation time."
           },
           "availability": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "AVAILABLE",
-                  "UNAVAILABLE"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Availability",
-            "description": "Observation selection availability, not biological presence. Omitted on other collections. An exhausted continuation remains AVAILABLE."
+            "description": "Observation selection availability, not biological presence. Omitted on other collections. An exhausted continuation remains AVAILABLE.",
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reason": {
-            "anyOf": [
-              {
-                "type": "string",
-                "const": "NO_PUBLISHED_RESULTS"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Reason",
-            "description": "No published rows after a successful initial non-CDC query; otherwise omitted."
+            "description": "No published rows after a successful initial non-CDC query; otherwise omitted.",
+            "enum": [
+              "NO_PUBLISHED_RESULTS",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "release_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Release Id",
-            "description": "Current governed release actually read for this query."
+            "description": "Current governed release actually read for this query.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "limitations": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Limitations",
-            "description": "Selection availability caveats; observations only."
+            "description": "Selection availability caveats; observations only.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "type": "object",
@@ -5535,15 +5323,11 @@
       "CollectionLinks": {
         "properties": {
           "self": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Self"
+            "title": "Self",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object",
@@ -5600,15 +5384,11 @@
             "title": "Label"
           },
           "definition": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Definition"
+            "title": "Definition",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "semantic_version": {
             "type": "string",
@@ -5616,176 +5396,120 @@
             "description": "Governed semantic contract version, separate from HTTP V1 and application version."
           },
           "release_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Release Version",
-            "description": "Governed current-release relationship version."
+            "description": "Governed current-release relationship version.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "measure_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Measure Type"
+            "title": "Measure Type",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "unit": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit"
+            "title": "Unit",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "denominator": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Denominator",
-            "description": "Governed denominator; null means it is not supplied and must not be inferred."
+            "description": "Governed denominator; null means it is not supplied and must not be inferred.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "geography_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/GeographyType"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Geography Types"
+            "title": "Geography Types",
+            "items": {
+              "$ref": "#/components/schemas/GeographyType"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "temporal_grains": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Temporal Grains"
+            "title": "Temporal Grains",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "geography_semantics": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Geography Semantics"
+            "title": "Geography Semantics",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "temporal_semantics": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Temporal Semantics"
+            "title": "Temporal Semantics",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "allowed_value_states": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/ValueState"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Allowed Value States"
+            "title": "Allowed Value States",
+            "items": {
+              "$ref": "#/components/schemas/ValueState"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "allowed_strata": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Allowed Strata"
+            "title": "Allowed Strata",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "missingness_semantics": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Missingness Semantics"
+            "title": "Missingness Semantics",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "methodology_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Methodology Id",
-            "description": "Exact governed methodology resource ID; null when not governed."
+            "description": "Exact governed methodology resource ID; null when not governed.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "methodology": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Methodology"
+            "title": "Methodology",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Ids"
+            "title": "Source Ids",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "limitations": {
             "items": {
@@ -5796,18 +5520,14 @@
             "description": "Governed interpretation limitations; preserve alongside values and versions."
           },
           "standards_mappings": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/StandardsMapping"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Standards Mappings"
+            "title": "Standards Mappings",
+            "items": {
+              "$ref": "#/components/schemas/StandardsMapping"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "type": "object",
@@ -5935,16 +5655,12 @@
       "CountyContextObservation": {
         "properties": {
           "metadata_revision_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Metadata Revision Id",
-            "description": "Reviewed consumer-safe metadata revision; not private lineage."
+            "description": "Reviewed consumer-safe metadata revision; not private lineage.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "observation_id": {
             "type": "string",
@@ -5967,19 +5683,13 @@
             "title": "Temporal Grain"
           },
           "value": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Value",
-            "description": "Integer population/category or exact nonzero decimal text; ZERO is integer 0."
+            "description": "Integer population/category or exact nonzero decimal text; ZERO is integer 0.",
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ]
           },
           "value_state": {
             "$ref": "#/components/schemas/ValueState",
@@ -5990,16 +5700,12 @@
             "title": "Unit"
           },
           "denominator": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Denominator",
-            "description": "Governed denominator; null means it is not supplied and must not be inferred."
+            "description": "Governed denominator; null means it is not supplied and must not be inferred.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "strata": {
             "additionalProperties": {
@@ -6014,60 +5720,40 @@
             "description": "Public source resource key; distinct from lineage_source_id and dataset_id."
           },
           "lineage_source_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lineage Source Id"
+            "title": "Lineage Source Id",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "dataset_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dataset Id"
+            "title": "Dataset Id",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "methodology_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Methodology Id",
-            "description": "Exact governed methodology resource ID; null when not governed."
+            "description": "Exact governed methodology resource ID; null when not governed.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "methodology": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Methodology"
+            "title": "Methodology",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "release_methodology_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Release Methodology Version"
+            "title": "Release Methodology Version",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "methodology_version": {
             "type": "string",
@@ -6090,76 +5776,52 @@
             "description": "Structured observation provenance identity; not a literature citation."
           },
           "source_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Label"
+            "title": "Source Label",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_vintage": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Vintage"
+            "title": "Source Vintage",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Url"
+            "title": "Source Url",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_published_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Source Published At",
-            "description": "Publisher timestamp when governed; null is not inferred freshness."
+            "description": "Publisher timestamp when governed; null is not inferred freshness.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "atlas_acquired_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Atlas Acquired At",
-            "description": "Atlas acquisition time when governed; distinct from source publication and processing."
+            "description": "Atlas acquisition time when governed; distinct from source publication and processing.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "atlas_processed_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Atlas Processed At",
-            "description": "Atlas processing time when governed; distinct from response time."
+            "description": "Atlas processing time when governed; distinct from response time.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "limitations": {
             "items": {
@@ -6195,30 +5857,22 @@
             "description": "Only supplied through an admitted Data release/bundle and supported slice. Omitted or null carries no evidence-state, comparability or lag claim. Comparison is case-definition scope only; alignment is descriptive, not causal."
           },
           "period_start": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Period Start",
-            "description": "ACS reference-period start; null for RUCC vintage."
+            "description": "ACS reference-period start; null for RUCC vintage.",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "period_end": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Period End",
-            "description": "ACS reference-period end; null for RUCC vintage."
+            "description": "ACS reference-period end; null for RUCC vintage.",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "county_context": {
             "$ref": "#/components/schemas/CountyContext"
@@ -6259,75 +5913,51 @@
             "title": "Resource Id"
           },
           "source_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Source Id",
-            "description": "Public source resource key; distinct from lineage_source_id and dataset_id."
+            "description": "Public source resource key; distinct from lineage_source_id and dataset_id.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "provenance_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Provenance Ref",
-            "description": "Structured observation provenance identity; not a literature citation."
+            "description": "Structured observation provenance identity; not a literature citation.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "semantic_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Semantic Version",
-            "description": "Governed semantic contract version, separate from HTTP V1 and application version."
+            "description": "Governed semantic contract version, separate from HTTP V1 and application version.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "methodology_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Methodology Version",
-            "description": "Transformation version, distinct from methodology resource version."
+            "description": "Transformation version, distinct from methodology resource version.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "release_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Release Id",
-            "description": "Governed release identity for reproducibility."
+            "description": "Governed release identity for reproducibility.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "uri": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uri"
+            "title": "Uri",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object",
@@ -6360,102 +5990,62 @@
             "description": "Publisher labeled 24-hour period, not a midnight calendar day."
           },
           "expected_area_m2": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expected Area M2"
+            "title": "Expected Area M2",
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
           },
           "intersected_area_m2": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Intersected Area M2"
+            "title": "Intersected Area M2",
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
           },
           "source_supported_area_m2": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Supported Area M2"
+            "title": "Source Supported Area M2",
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
           },
           "valid_area_m2": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Valid Area M2"
+            "title": "Valid Area M2",
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
           },
           "source_coverage_fraction": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Source Coverage Fraction",
-            "description": "Monthly source-supported/legal county area; separate from daily completeness."
+            "description": "Monthly source-supported/legal county area; separate from daily completeness.",
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
           },
           "valid_fraction_of_supported_area": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Valid Fraction Of Supported Area",
-            "description": "Daily valid/source-supported area; completeness threshold 0.95."
+            "description": "Daily valid/source-supported area; completeness threshold 0.95.",
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
           },
           "upstream_date_modified": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Upstream Date Modified",
-            "description": "Upstream modification metadata; never original publication or first availability."
+            "description": "Upstream modification metadata; never original publication or first availability.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "weight_version": {
             "type": "string",
@@ -6535,21 +6125,18 @@
             "title": "Contract Version"
           },
           "normalized_state": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "established",
-                  "detected",
-                  "unknown"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Normalized State",
-            "description": "Data-owned county evidence state, projected without classification. Null means the older companion did not supply normalization; unknown supports no biological absence conclusion. Original publisher value remains Observation.value."
+            "description": "Data-owned county evidence state, projected without classification. Null means the older companion did not supply normalization; unknown supports no biological absence conclusion. Original publisher value remains Observation.value.",
+            "enum": [
+              "established",
+              "detected",
+              "unknown",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "state": {
             "type": "string",
@@ -6647,28 +6234,20 @@
           },
           "methodology_era_ids": {
             "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
+              "type": [
+                "string",
+                "null"
               ]
             },
             "type": "array",
             "title": "Methodology Era Ids"
           },
           "jurisdiction_class": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Jurisdiction Class"
+            "title": "Jurisdiction Class",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "references": {
             "items": {
@@ -6866,26 +6445,18 @@
             "title": "Offset Days"
           },
           "window_days": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Window Days"
+            "title": "Window Days",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "season_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Season Id"
+            "title": "Season Id",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "additionalProperties": false,
@@ -6996,16 +6567,12 @@
             "title": "Value Type"
           },
           "category_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Category Label",
-            "description": "Authoritative category label; null for quantities."
+            "description": "Authoritative category label; null for quantities.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "definition": {
             "type": "string",
@@ -7063,16 +6630,12 @@
       "Observation": {
         "properties": {
           "metadata_revision_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Metadata Revision Id",
-            "description": "Reviewed consumer-safe metadata revision; not private lineage."
+            "description": "Reviewed consumer-safe metadata revision; not private lineage.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "observation_id": {
             "type": "string",
@@ -7091,19 +6654,13 @@
             "title": "Temporal Grain"
           },
           "value": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Value",
-            "description": "Read with value_state and unit; null never means zero."
+            "description": "Read with value_state and unit; null never means zero.",
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
           },
           "value_state": {
             "$ref": "#/components/schemas/ValueState",
@@ -7114,16 +6671,12 @@
             "title": "Unit"
           },
           "denominator": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Denominator",
-            "description": "Governed denominator; null means it is not supplied and must not be inferred."
+            "description": "Governed denominator; null means it is not supplied and must not be inferred.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "strata": {
             "additionalProperties": {
@@ -7138,60 +6691,40 @@
             "description": "Public source resource key; distinct from lineage_source_id and dataset_id."
           },
           "lineage_source_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lineage Source Id"
+            "title": "Lineage Source Id",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "dataset_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dataset Id"
+            "title": "Dataset Id",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "methodology_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Methodology Id",
-            "description": "Exact governed methodology resource ID; null when not governed."
+            "description": "Exact governed methodology resource ID; null when not governed.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "methodology": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Methodology"
+            "title": "Methodology",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "release_methodology_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Release Methodology Version"
+            "title": "Release Methodology Version",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "methodology_version": {
             "type": "string",
@@ -7214,76 +6747,52 @@
             "description": "Structured observation provenance identity; not a literature citation."
           },
           "source_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Label"
+            "title": "Source Label",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_vintage": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Vintage"
+            "title": "Source Vintage",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Url"
+            "title": "Source Url",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_published_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Source Published At",
-            "description": "Publisher timestamp when governed; null is not inferred freshness."
+            "description": "Publisher timestamp when governed; null is not inferred freshness.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "atlas_acquired_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Atlas Acquired At",
-            "description": "Atlas acquisition time when governed; distinct from source publication and processing."
+            "description": "Atlas acquisition time when governed; distinct from source publication and processing.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "atlas_processed_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Atlas Processed At",
-            "description": "Atlas processing time when governed; distinct from response time."
+            "description": "Atlas processing time when governed; distinct from response time.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "limitations": {
             "items": {
@@ -7390,15 +6899,11 @@
             "title": "Label"
           },
           "publisher": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Publisher"
+            "title": "Publisher",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "lineage_source_id": {
             "type": "string",
@@ -7419,90 +6924,62 @@
             "description": "Governed current-release relationship version."
           },
           "source_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Url"
+            "title": "Source Url",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_vintage": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Vintage"
+            "title": "Source Vintage",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Version"
+            "title": "Source Version",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "published_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Published At",
-            "deprecated": true
+            "deprecated": true,
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "atlas_acquired_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Atlas Acquired At",
             "description": "Atlas acquisition time when governed; distinct from source publication and processing.",
-            "deprecated": true
+            "deprecated": true,
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "upstream_updated_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Upstream Updated At",
-            "description": "Governed publisher update time; null when unavailable."
+            "description": "Governed publisher update time; null when unavailable.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source_retrieved_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Source Retrieved At",
-            "description": "Governed source retrieval time; null when unavailable."
+            "description": "Governed source retrieval time; null when unavailable.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "limitations": {
             "items": {
@@ -7565,15 +7042,11 @@
             "title": "Evaluated At"
           },
           "requested_observation_context": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Requested Observation Context"
+            "title": "Requested Observation Context",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "effective_observation_context": {
             "type": "string",

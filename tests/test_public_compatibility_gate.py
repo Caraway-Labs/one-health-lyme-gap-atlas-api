@@ -15,7 +15,10 @@ FLOOR = json.loads(
 
 
 def _allows_null(schema: dict, schemas: dict) -> bool:
-    if schema.get("type") == "null" or schema.get("nullable") is True:
+    schema_type = schema.get("type", [])
+    if schema_type == "null" or "null" in schema_type or schema.get("nullable") is True:
+        return True
+    if None in schema.get("enum", []):
         return True
     if "$ref" in schema:
         return _allows_null(schemas[schema["$ref"].split("/")[-1]], schemas)

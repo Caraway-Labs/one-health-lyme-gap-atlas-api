@@ -187,8 +187,9 @@ def test_public_and_first_party_openapi_include_optional_strict_context():
         evidence = schemas["SurveillanceEvidenceContext"]
         assert evidence["additionalProperties"] is False
         assert "normalized_state" not in evidence["required"]
-        assert evidence["properties"]["normalized_state"]["anyOf"][0]["enum"] == [
+        assert evidence["properties"]["normalized_state"]["enum"] == [
             "established",
             "detected",
             "unknown",
+            None,
         ]
