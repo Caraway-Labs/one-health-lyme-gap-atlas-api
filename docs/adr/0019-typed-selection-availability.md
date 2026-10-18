@@ -51,8 +51,9 @@ generated TypeScript and Zod contracts rely on that shape. Returning null there
 would be incompatible. The narrow compatible implementation is an additive
 `/v1/geographies/{geography_type}/{geography_id}/availability`, following the
 existing Tier1 pattern, that validates current identity/release before reporting
-unpublished canonical identity delivery. The alternative was presented before
-implementation and follows the owner's authorized compatible API scope; no
+unpublished canonical identity delivery. The product owner explicitly approved
+Option1, this backward-compatible additive operation with the legacy route and
+Web code preserved. No
 incompatible nullable union is introduced. It returns200 UNAVAILABLE with reason
 CANONICAL_GEOGRAPHY_UNPUBLISHED, data=null, release_id and limitations. Only
 counties are supported: malformed IDs400, absent current identity404,

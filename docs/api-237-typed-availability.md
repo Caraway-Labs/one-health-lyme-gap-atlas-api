@@ -41,8 +41,8 @@ The current geography schema represents identity and label, not polygons. Its
 required `data: Geography` cannot safely become null without an explicit
 compatibility decision. The additive
 `/v1/geographies/{geography_type}/{geography_id}/availability` preserves the old
-resource. The compatible alternative was presented before implementation and
-implemented within the authorized safe API scope. County availability checks
+resource. The product owner explicitly approved this additive Option1 and
+preserving the current route's non-null successful contract. County availability checks
 real current FIPS membership, rejects duplicate/malformed directory entries and
 checks a fresh strict current-release read against the cached directory snapshot.
 It returns200 UNAVAILABLE, reason CANONICAL_GEOGRAPHY_UNPUBLISHED, data=null,
