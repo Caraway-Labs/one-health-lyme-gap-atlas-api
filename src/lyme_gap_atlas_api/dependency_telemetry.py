@@ -13,6 +13,7 @@ from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from snowflake.connector import SnowflakeConnection
 
+from .cdc_timing import CURRENT as CDC_CURRENT
 from .climate_timing import CURRENT
 
 DEPENDENCIES = frozenset({"snowflake", "supabase"})
@@ -26,6 +27,7 @@ OPERATIONS = frozenset(
         "cursor_teardown",
         "execute",
         "fetchone",
+        "fetchmany",
         "fetchall",
         "close",
         "jwks_fetch",
@@ -89,6 +91,10 @@ def dependency_span(system: str, operation: str) -> Iterator[None]:
             if timing is not None and system == "snowflake":
                 timing.record(operation, perf_counter() - started)
         with suppress(Exception):
+            cdc_timing = CDC_CURRENT.get()
+            if cdc_timing is not None and system == "snowflake":
+                cdc_timing.record(operation, perf_counter() - started)
+        with suppress(Exception):
             if span is not None:
                 span.end()
 
@@ -102,7 +108,7 @@ class _SnowflakeBoundary:
 
     def __getattr__(self, name: str) -> Any:
         original = getattr(self._resource, name)
-        if name not in {"cursor", "execute", "fetchone", "fetchall", "close"}:
+        if name not in {"cursor", "execute", "fetchone", "fetchmany", "fetchall", "close"}:
             return original
 
         def call(*args: Any, **kwargs: Any) -> Any:

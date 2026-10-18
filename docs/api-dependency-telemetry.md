@@ -12,7 +12,7 @@ Coverage:
 
 - Snowflake legacy snapshot/readiness, public metadata/observations/provenance,
   and feedback procedure adapters delegate to the shared connection constructor.
-  Connect, execute, fetchone/fetchall, explicit close, and context teardown are
+  Connect, execute, fetchone/fetchmany/fetchall, explicit close, and context teardown are
   timed independently. Cursor construction and context entry are local SDK work
   and have no dependency span. Teardown includes the SDK's
   commit/rollback/close work. There is no span covering the connection lifetime.

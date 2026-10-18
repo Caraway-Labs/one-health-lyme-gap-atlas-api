@@ -1,9 +1,14 @@
 """Narrow API binding to the immutable, admitted Data CDC producer."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import date
+from time import perf_counter
 from typing import Any
 
+from snowflake.connector import SnowflakeConnection
+
+from .cdc_timing import phase, record_processing
 from .config import ApiSettings
 from .dependency_telemetry import connect
 from .public_contract import (
@@ -53,32 +58,66 @@ def _read(measure: str, county: str, *, settings: ApiSettings | None = None) -> 
     _require(
         runtime.snowflake_auth_method == "key_pair" and runtime.snowflake_user == "OH_LYME_API_SVC"
     )
-    from lyme_gap_atlas_data import cdc_consumer_runtime
-
-    # Reuse read_cdc_consumer's exact pinned producer. Its convenience connection
-    # hardcodes 30s; the API supplies only I/O so its stricter configured bound
-    # applies to every identity/authority statement. All admission stays in Data.
-    timeout = min(runtime.public_query_timeout_seconds, 30)
     try:
-        with connect(runtime) as connection, connection.cursor() as cursor:
+        with connect(runtime) as connection:
+            _setup_session(connection, runtime)
+            return _read_on_connection(measure, county, connection, runtime)
+    except Exception:
+        raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable") from None
+
+
+def _setup_session(connection: SnowflakeConnection, settings: ApiSettings) -> None:
+    timeout = min(settings.public_query_timeout_seconds, 30)
+    try:
+        with phase("session_setup"), connection.cursor() as cursor:
             cursor.execute(
                 f"ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS={timeout}", timeout=timeout
             )
             cursor.execute("USE SECONDARY ROLES NONE", timeout=timeout)
+    except Exception:
+        raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable") from None
+
+
+def _read_on_connection(
+    measure: str, county: str, connection: SnowflakeConnection, settings: ApiSettings
+) -> dict[str, Any]:
+    from lyme_gap_atlas_data import cdc_consumer_runtime
+
+    # Data retains identity and exact record admission on every call. Only the
+    # exclusively owned session is reused; SQL, binds, fetch bound and pin stay fixed.
+    timeout = min(settings.public_query_timeout_seconds, 30)
+    try:
+        with connection.cursor() as cursor:
+            io_seconds = 0.0
 
             def query(sql: str, params: tuple[str, ...]) -> list[dict[str, Any]]:
-                cursor.execute(sql, params, timeout=timeout)
-                columns = [str(column[0]) for column in cursor.description or []]
-                return [dict(zip(columns, row, strict=True)) for row in cursor.fetchmany(2)]
+                nonlocal io_seconds
+                started = perf_counter()
+                try:
+                    with phase(
+                        "identity"
+                        if sql == cdc_consumer_runtime.IDENTITY_SQL
+                        else "authority_query"
+                    ):
+                        cursor.execute(sql, params, timeout=timeout)
+                        columns = [str(column[0]) for column in cursor.description or []]
+                        return [dict(zip(columns, row, strict=True)) for row in cursor.fetchmany(2)]
+                finally:
+                    io_seconds += perf_counter() - started
 
-            return cdc_consumer_runtime._project(
-                query,
-                cdc_consumer_runtime._resources(),
-                measure,
-                county,
-                "prod",
-                release_id=RELEASE,
-            )
+            started = perf_counter()
+            try:
+                with phase("producer"):
+                    return cdc_consumer_runtime._project(
+                        query,
+                        cdc_consumer_runtime._resources(),
+                        measure,
+                        county,
+                        "prod",
+                        release_id=RELEASE,
+                    )
+            finally:
+                record_processing(max(0.0, perf_counter() - started - io_seconds))
     except Exception:
         raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable") from None
 
@@ -133,8 +172,23 @@ class CDCResolver:
 class CDCObservationAdapter:
     def __init__(self, settings: ApiSettings, producer: Producer | None = None) -> None:
         self.settings = settings
+        self._producer_override = producer
         self.producer = producer or (
             lambda measure, county: _read(measure, county, settings=settings)
+        )
+
+    @contextmanager
+    def request_session(self, connection: SnowflakeConnection) -> Iterator["CDCObservationAdapter"]:
+        """Borrow one request's session; never mutate the application adapter."""
+        _setup_session(connection, self.settings)
+        yield CDCObservationAdapter(
+            self.settings,
+            self._producer_override
+            or (
+                lambda measure, county: _read_on_connection(
+                    measure, county, connection, self.settings
+                )
+            ),
         )
 
     def validate_query(self, query: ObservationQuery) -> None:
@@ -184,6 +238,10 @@ class CDCObservationAdapter:
 
     def _observation(self, measure: str, county: str) -> Observation:
         envelope = self.producer(measure, county)
+        with phase("mapping"):
+            return self._map_observation(measure, county, envelope)
+
+    def _map_observation(self, measure: str, county: str, envelope: dict[str, Any]) -> Observation:
         _require(_evidence_validator.is_valid(envelope))
         semantic = envelope["semantic"]
         item, metadata, lineage = (semantic[k] for k in ("observation", "measure", "lineage"))

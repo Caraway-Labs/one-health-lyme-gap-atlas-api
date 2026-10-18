@@ -19,8 +19,13 @@ from .telemetry_logging import assistant_operational_outcome, emit_completion, o
 logger = operational_logger(__name__)
 
 _PUBLIC_COLLECTIONS = {
-    "/v1/indicators", "/v1/measures", "/v1/sources", "/v1/observations",
-    "/v1/intelligence/feed", "/v1/intelligence/items", "/v1/intelligence/sources",
+    "/v1/indicators",
+    "/v1/measures",
+    "/v1/sources",
+    "/v1/observations",
+    "/v1/intelligence/feed",
+    "/v1/intelligence/items",
+    "/v1/intelligence/sources",
 }
 _PUBLIC_DETAILS = ("/v1/indicators/", "/v1/measures/", "/v1/sources/", "/v1/methodologies/")
 
@@ -31,7 +36,7 @@ def _log_route(request: Request) -> str:
     if path in _PUBLIC_COLLECTIONS:
         return path
     for prefix in _PUBLIC_DETAILS:
-        if path.startswith(prefix) and path[len(prefix):] and "/" not in path[len(prefix):]:
+        if path.startswith(prefix) and path[len(prefix) :] and "/" not in path[len(prefix) :]:
             return prefix + "{id}"
     route = request.scope.get("route")
     return str(route.path) if route is not None else "unmatched"
@@ -175,6 +180,18 @@ class PublicReadProtectionMiddleware(BaseHTTPMiddleware):
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
+    @staticmethod
+    def _cdc_context(request: Request, started_at: float) -> dict[str, object]:
+        timing = getattr(request.state, "cdc_timing", None)
+        if timing is None or timing.started is None or timing.finished is None:
+            return {}
+        return {
+            "cdc_timing_ms": timing.durations,
+            "cdc_operation_counts": timing.counts,
+            "cdc_before_service_ms": max(0, (timing.started - started_at) * 1000),
+            "cdc_after_service_ms": max(0, (time.perf_counter() - timing.finished) * 1000),
+        }
+
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
@@ -183,7 +200,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request.state.request_id = request_id
         started_at = time.perf_counter()
         chat_route = request.url.path in {
-            "/v1/knowledge-graph/chat", "/v1/assistant/mixed",
+            "/v1/knowledge-graph/chat",
+            "/v1/assistant/mixed",
             "/v1/assistant/structured",
         }
         failure_type: str | None = None
@@ -197,21 +215,31 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             dimensions.pop("status_code")
             dimensions["status_class"] = "unknown"
             enrich_request(span, request_id, dimensions)
-            emit_completion(logger, "api_request_failed", {
-                **dimensions, "request_id": request_id,
-                "duration_ms": round((time.perf_counter() - started_at) * 1000),
-            })
+            emit_completion(
+                logger,
+                "api_request_failed",
+                {
+                    **self._cdc_context(request, started_at),
+                    **dimensions,
+                    "request_id": request_id,
+                    "duration_ms": round((time.perf_counter() - started_at) * 1000),
+                },
+            )
             raise
         except Exception as exc:
             failure_type = type(exc).__name__
             request.state.request_failure_class = "unhandled_error"
             if not chat_route:
                 emit_completion(
-                    logger, "api_request_failed", {
+                    logger,
+                    "api_request_failed",
+                    {
+                        **self._cdc_context(request, started_at),
                         "request_id": request_id,
                         "duration_ms": round((time.perf_counter() - started_at) * 1000),
-                        **request_dimensions(request.method, _log_route(request), 500,
-                                             "unhandled_error"),
+                        **request_dimensions(
+                            request.method, _log_route(request), 500, "unhandled_error"
+                        ),
                     },
                 )
                 raise
@@ -222,7 +250,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         dimensions = request_dimensions(
-            request.method, _log_route(request), response.status_code,
+            request.method,
+            _log_route(request),
+            response.status_code,
             "unhandled_error" if failure_type else "none",
         )
         request.state.request_dimensions = dimensions
@@ -239,43 +269,49 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                     503: "route_unavailable",
                 }.get(response.status_code, "unhandled_error")
             operational = assistant_operational_outcome(
-                outcome, diagnostics.get("service_outcome") or diagnostics.get("outcome"),
+                outcome,
+                diagnostics.get("service_outcome") or diagnostics.get("outcome"),
                 diagnostics.get("structured_cause"),
             )
-            emit_completion(logger, "knowledge_chat_total", {
-                **diagnostics,
-                **dimensions,
-                "request_id": request_id,
-                "http_status": response.status_code,
-                "duration_ms": round((time.perf_counter() - started_at) * 1000),
-                "outcome": outcome,
-                "operational_outcome": operational,
-                "failure_type": failure_type,
-            })
+            emit_completion(
+                logger,
+                "knowledge_chat_total",
+                {
+                    **diagnostics,
+                    **dimensions,
+                    "request_id": request_id,
+                    "http_status": response.status_code,
+                    "duration_ms": round((time.perf_counter() - started_at) * 1000),
+                    "outcome": outcome,
+                    "operational_outcome": operational,
+                    "failure_type": failure_type,
+                },
+            )
             return response
         climate_timing = getattr(request.state, "climate_timing", None)
         climate_bounds = {}
         if climate_timing is not None and climate_timing.finished is not None:
             climate_bounds = {
-                "climate_before_service_ms": max(
-                    0, (climate_timing.started - started_at) * 1000
-                ),
+                "climate_before_service_ms": max(0, (climate_timing.started - started_at) * 1000),
                 "climate_after_service_ms": max(
                     0, (time.perf_counter() - climate_timing.finished) * 1000
                 ),
             }
         emit_completion(
-            logger, "api_request_completed", {
-                    "request_id": request_id,
-                    **climate_bounds,
-                    "climate_timing_ms": getattr(
-                        getattr(request.state, "climate_timing", None), "durations", {}
-                    ),
-                    "climate_operation_counts": getattr(
-                        getattr(request.state, "climate_timing", None), "counts", {}
-                    ),
-                    **dimensions,
-                    "duration_ms": round((time.perf_counter() - started_at) * 1000),
+            logger,
+            "api_request_completed",
+            {
+                **self._cdc_context(request, started_at),
+                "request_id": request_id,
+                **climate_bounds,
+                "climate_timing_ms": getattr(
+                    getattr(request.state, "climate_timing", None), "durations", {}
+                ),
+                "climate_operation_counts": getattr(
+                    getattr(request.state, "climate_timing", None), "counts", {}
+                ),
+                **dimensions,
+                "duration_ms": round((time.perf_counter() - started_at) * 1000),
             },
         )
         return response
@@ -347,8 +383,11 @@ class KnowledgeChatLimitMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         path = request.url.path
-        if path not in {"/v1/knowledge-graph/chat", "/v1/assistant/mixed",
-                        "/v1/assistant/structured"}:
+        if path not in {
+            "/v1/knowledge-graph/chat",
+            "/v1/assistant/mixed",
+            "/v1/assistant/structured",
+        }:
             return await call_next(request)
         client = request.headers.get("do-connecting-ip") or (
             request.client.host if request.client else "unknown"
@@ -363,8 +402,11 @@ class KnowledgeChatLimitMiddleware(BaseHTTPMiddleware):
             if len(self.requests) > 10_000:
                 self.requests = defaultdict(
                     deque,
-                    {k: values for k, values in self.requests.items()
-                     if values and now - values[-1] < 600},
+                    {
+                        k: values
+                        for k, values in self.requests.items()
+                        if values and now - values[-1] < 600
+                    },
                 )
             window = self.requests[key]
             while window and now - window[0] > 600:
@@ -372,9 +414,7 @@ class KnowledgeChatLimitMiddleware(BaseHTTPMiddleware):
             while self.literature_requests and now - self.literature_requests[0] > 600:
                 self.literature_requests.popleft()
             rate_full = len(window) >= limit or (paid and len(self.literature_requests) >= 60)
-            busy = self.concurrent.get(key, 0) >= 3 or (
-                paid and self.literature_concurrent >= 6
-            )
+            busy = self.concurrent.get(key, 0) >= 3 or (paid and self.literature_concurrent >= 6)
             if rate_full or busy:
                 retry_after = "600" if rate_full else "1"
                 problem = {
