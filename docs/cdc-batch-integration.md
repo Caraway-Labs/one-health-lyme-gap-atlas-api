@@ -57,9 +57,11 @@ HTTP/network transport. Mapping and exclusive producer processing come from
 existing request timing; JSON serialization is measured separately. Public
 payload bytes include the complete response envelope. Peak memory uses Python
 tracemalloc across service execution and serialization, not process RSS or SDK
-native memory. The recorded batch envelope byte count describes the synthetic
-callback marker, not the real private authority payload or Data's measured
-48.66% pair-payload reduction. The script asserts DTO equality, one closed connection per call,
+native memory. Batch authority-envelope bytes are unavailable for the controlled
+producer double, which returns a synthetic marker rather than the real private
+authority payload. Public payload sizes are measured independently; this does
+not reproduce Data's measured 48.66% pair-payload reduction. The script asserts
+DTO equality, one closed connection per call,
 authority counts and explicit SQL counts. CSV samples remain gitignored at
 `.agent-tools/api248-stage2/benchmark.csv`.
 
