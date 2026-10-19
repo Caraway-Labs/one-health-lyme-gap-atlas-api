@@ -17,7 +17,7 @@ from contextlib import ExitStack, contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass
 from threading import Thread, get_ident
-from typing import Any, Protocol, TypedDict, cast
+from typing import Any, Literal, Protocol, TypedDict, cast
 
 import anyio.from_thread
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
@@ -433,7 +433,7 @@ class Answerer(Protocol):
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, Any]: ...
 
 
@@ -797,34 +797,6 @@ class SnowflakeCorpusProvenanceStore:
             return result
 
 
-_CLAIM_GROUNDING_INSTRUCTIONS = (
-    "Build every claim from its support quotes, not the other way around. "
-    "For each claim, first select returned passage IDs and their matching PMIDs, then select "
-    "one or two adjacent numbered quote segments from each cited passage. Set support_quote_refs "
-    "to an object "
-    'keyed by each cited passage ID, for example {"passage-1": 0}; use the exact IDs in '
-    "passage_ids as keys, with no other keys. Use [0, 1] for two adjacent segments when "
-    "the second contains a material study qualifier. The server copies the selected text "
-    "into support_quotes and rejects invalid references. Do not write quote text yourself. "
-    "Every claim, including a claim about a study limitation, must have at least one returned "
-    "passage ID, its matching PMID, and a quote reference from that passage. Never add "
-    "a claim with empty passage_ids, pmids, or support_quote_refs; omit any finding or limitation "
-    "that the supplied excerpts do not explicitly support. Do not add an uncited concluding "
-    "claim or a placeholder claim to answer every part of the question. "
-    "Return at most three short claims, each citing at most two returned passages. Copy every "
-    "passage ID and PMID exactly from the supplied passage record; omit a claim if its IDs "
-    "cannot be copied exactly. If findings conflict, use claims to show both sides; use a "
-    "remaining claim for a material limitation only when directly supported. "
-    "Only then write one short, atomic claim about a finding explicitly present in those quotes. "
-    "Use a close extractive paraphrase: preserve the source's important scientific nouns, "
-    "entities, verbs, relationships, and material species, geography, population, and outcome "
-    "qualifiers. Avoid distant synonyms, smoother but unsupported interpretation, and combining "
-    "unrelated findings. Make each claim no broader than its cited quotes. Do not add unsupported "
-    "numbers or causal language. The validated claims[].text are the user-visible answer units; "
-    "keep answer consistent with those claims and do not add separate broader findings. "
-)
-
-
 def _quote_segments(excerpt: str) -> list[tuple[str, int, int]]:
     """Keep every sentence-sized segment and its exact excerpt offsets."""
     segments: list[tuple[str, int, int]] = []
@@ -840,50 +812,141 @@ def _quote_segments(excerpt: str) -> list[tuple[str, int, int]]:
     return segments
 
 
-def _resolve_quote_refs(candidate: dict[str, Any], evidence: list[Evidence]) -> dict[str, Any]:
-    """Resolve model-selected positions to literal quotes before the existing validator."""
-    by_id = {item.passage_id: item for item in evidence}
-    claims = candidate.get("claims")
-    if not isinstance(claims, list):
-        return candidate
-    for claim in claims:
-        if not isinstance(claim, dict) or "support_quote_refs" not in claim:
-            continue
-        refs = claim.pop("support_quote_refs")
-        if "support_quotes" in claim:
-            claim["support_quotes"] = {}
-            continue
-        if not isinstance(refs, dict):
-            claim["support_quotes"] = {}
-            continue
-        quotes: dict[str, str] = {}
-        for passage_id, index in refs.items():
-            item = by_id.get(passage_id)
-            segments = _quote_segments(item.excerpt) if item is not None else []
-            bounds = [index, index] if type(index) is int else index
-            if (
-                isinstance(bounds, list)
-                and len(bounds) == 2
-                and all(type(value) is int for value in bounds)
-                and 0 <= bounds[0] <= bounds[1] < len(segments)
-                and bounds[1] - bounds[0] <= 1
-                and item is not None
-            ):
-                quotes[passage_id] = item.excerpt[segments[bounds[0]][1]:segments[bounds[1]][2]]
-            else:
-                quotes[passage_id] = ""
-        claim["support_quotes"] = quotes
-    return candidate
-
-
 class GenerationBudgetExceeded(Exception):
     """The local request bound was reached before a grounded answer existed."""
 
 
+class GenerationReferenceError(ValueError):
+    """A model-selected reference cannot resolve to supplied literal evidence."""
+
+
+_CLAIM_GROUNDING_INSTRUCTIONS = (
+    "Select supporting reference IDs BEFORE writing each claim. "
+    "Return at most two short atomic claims, each supported by exactly one reference. "
+    "Choose only an allowed support_ref. A reference such as s0.0 selects one sentence; "
+    "s0.0-1 selects two adjacent sentences when the second carries a material qualifier. "
+    "The server resolves references to exact quotes and canonical citations. "
+    "Prefer copying a relevant selected sentence verbatim as the claim. If shortening it, "
+    "use a close extractive paraphrase preserving scientific nouns, entities, verbs, "
+    "relationships and material species, geography, period, population, sampling, "
+    "denominator, outcome, validation and study limitations. Make each claim no broader "
+    "than its selected quotes. Do not add unsupported numbers or causal language. "
+    "Every finding or limitation needs support; omit unsupported claims. If excerpts "
+    "do not answer the question, return no claims. If findings conflict, cite both sides "
+    "in the two claims and preserve the disagreement. Do not infer consensus from paper "
+    "count. Claims are the displayed answer: do not produce a separate answer or copy "
+    "PMIDs, passage IDs, claim IDs or a separate quote field into the output. "
+    'Example for reference s0.0 reading "In Germany, Ixodes abundance was associated '
+    'with Borrelia prevalence.": {"evidence_state":"single_study","claims":[{"text":'
+    '"In Germany, Ixodes abundance was associated with Borrelia prevalence.",'
+    '"support_ref":"s0.0"}]}. '
+    "Use the example shape only, never its finding unless supplied in the actual evidence. "
+)
+
+
+def _quote_options(evidence: list[Evidence]) -> dict[str, tuple[Evidence, int, int]]:
+    options = {}
+    for source, item in enumerate(evidence):
+        segments = _quote_segments(item.excerpt)
+        for index, segment in enumerate(segments):
+            options[f"s{source}.{index}"] = (item, segment[1], segment[2])
+            if index + 1 < len(segments):
+                options[f"s{source}.{index}-{index + 1}"] = (
+                    item,
+                    segment[1],
+                    segments[index + 1][2],
+                )
+    return options
+
+
+def _generation_schema(evidence: list[Evidence]) -> dict[str, Any]:
+    refs = list(_quote_options(evidence))
+    # Stay within the provider's documented enum limits; never truncate evidence silently.
+    if not refs or len(refs) > 994 or (len(refs) > 250 and sum(map(len, refs)) > 15000):
+        raise GenerationBudgetExceeded
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["evidence_state", "claims"],
+        "properties": {
+            "evidence_state": {
+                "type": "string",
+                "enum": [
+                    "single_study",
+                    "consistent",
+                    "limited",
+                    "mixed",
+                    "conflicting",
+                    "insufficient_to_compare",
+                ],
+            },
+            "claims": {
+                "type": "array",
+                "maxItems": 2,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["support_ref", "text"],
+                    "properties": {
+                        "support_ref": {"type": "string", "enum": refs},
+                        "text": {"type": "string"},
+                    },
+                },
+            },
+        },
+    }
+
+
+def _resolve_generation(candidate: Any, evidence: list[Evidence]) -> dict[str, Any]:
+    """Resolve explicit indices only; never infer support for a missing reference."""
+    if not isinstance(candidate, dict) or set(candidate) != {"evidence_state", "claims"}:
+        raise GenerationReferenceError("invalid_generated_shape")
+    raw_claims = candidate["claims"]
+    if not isinstance(raw_claims, list) or len(raw_claims) > 2:
+        raise GenerationReferenceError("invalid_generated_shape")
+    claims: list[dict[str, Any]] = []
+    for number, raw in enumerate(raw_claims, 1):
+        if (
+            not isinstance(raw, dict)
+            or set(raw) != {"text", "support_ref"}
+            or not isinstance(raw["text"], str)
+        ):
+            raise GenerationReferenceError("invalid_generated_shape")
+        ref = raw["support_ref"]
+        options = _quote_options(evidence)
+        if not isinstance(ref, str) or ref not in options:
+            raise GenerationReferenceError("support quote is absent from cited passage")
+        item, start, end = options[ref]
+        quotes = {item.passage_id: item.excerpt[start:end]}
+        claims.append(
+            {
+                "claim_id": f"claim-{number}",
+                "text": raw["text"],
+                "passage_ids": list(quotes),
+                "pmids": [item.pmid],
+                "support_quotes": quotes,
+            }
+        )
+    return {
+        "answer": "\n\n".join(claim["text"] for claim in claims),
+        "evidence_state": candidate["evidence_state"],
+        "claims": claims,
+    }
+
+
 class OpenAIAnswerer:
-    def __init__(self, client: OpenAI, model: str = "gpt-5.6-luna") -> None:
+    def __init__(
+        self,
+        client: OpenAI,
+        model: str = "gpt-5.6-luna",
+        *,
+        reasoning_effort: Literal["none", "low"] = "none",
+    ) -> None:
         self._client = client
         self._model = model
+        if reasoning_effort not in {"none", "low"}:
+            raise ValueError("unsupported chat reasoning effort")
+        self._reasoning_effort = reasoning_effort
 
     @property
     def model_id(self) -> str:
@@ -896,7 +959,7 @@ class OpenAIAnswerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, Any]:
         policy = load_assistant_policy()
         question_class = classify_question(message)
@@ -905,16 +968,23 @@ class OpenAIAnswerer:
         # validated Evidence after generation; summaries cannot support quotes.
         passages = [
             {
-                "passage_id": item.passage_id,
-                "quote_segments": [segment[0] for segment in _quote_segments(item.excerpt)],
-                "pmid": item.pmid,
+                "source": source,
+                "segments": [
+                    {"ref": f"s{source}.{index}", "text": segment[0]}
+                    for index, segment in enumerate(_quote_segments(item.excerpt))
+                ],
                 "title": item.title,
             }
-            for item in evidence
+            for source, item in enumerate(evidence)
         ]
+        failure = correction if correction in _GROUNDING_REASONS else "invalid_generated_shape"
         correction_instruction = (
-            "The previous candidate failed deterministic grounding. Regenerate carefully from "
-            "only the supplied passages. Do not reuse the previous candidate."
+            "The previous candidate failed deterministic grounding. "
+            f"Validation failure: {failure}. "
+            "Correct that failure using only supplied segments. For unsupported wording, "
+            "use a shorter extractive claim with the source qualifiers. For invalid references, "
+            "select one allowed support_ref; use an adjacent-pair reference for two sentences. "
+            "Omit any claim that cannot be supported."
             if correction
             else ""
         )
@@ -927,22 +997,23 @@ class OpenAIAnswerer:
             raise GenerationBudgetExceeded
         logger.info(
             "knowledge_chat_provider_input_size",
-            extra={"context": {
-                "request_id": _REQUEST_ID.get(),
-                "passage_count": len(passages),
-                "input_characters": len(provider_input),
-            }},
+            extra={
+                "context": {
+                    "request_id": _REQUEST_ID.get(),
+                    "passage_count": len(passages),
+                    "input_characters": len(provider_input),
+                }
+            },
         )
         response = self._client.with_options(max_retries=0).responses.create(
             model=self._model,
             max_output_tokens=2048,
             store=False,
-            reasoning={"effort": "low"},
+            reasoning={"effort": self._reasoning_effort},
             safety_identifier=safety_id,
             instructions=(
                 "Answer only from supplied steward-approved PubMed/PMC full-text passages. "
-                "Return JSON with answer, evidence_state, and claims. Each claim has claim_id, "
-                "text, passage_ids, pmids, and support_quote_refs. "
+                "Return the structured evidence_state and claims, each with support_ref and text. "
                 f"{_CLAIM_GROUNDING_INSTRUCTIONS}"
                 "State must be one of single_study, consistent, limited, mixed, conflicting, "
                 "insufficient_to_compare. Do not infer consensus from paper count. Preserve "
@@ -957,7 +1028,14 @@ class OpenAIAnswerer:
                 f"{correction_instruction}"
             ),
             input=provider_input,
-            text={"format": {"type": "json_object"}},
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "grounded_claims_v2",
+                    "strict": True,
+                    "schema": _generation_schema(evidence),
+                }
+            },
             timeout=timeout_seconds,
         )
         logger.info(
@@ -985,7 +1063,7 @@ class OpenAIAnswerer:
         if provider_status not in (None, "completed"):
             raise ValueError("provider response not complete")
         with _span("generated_json_parsing", _REQUEST_ID.get()):
-            return _resolve_quote_refs(json.loads(response.output_text), evidence)
+            return _resolve_generation(json.loads(response.output_text), evidence)
 
 
 def _unsafe_request(message: str) -> bool:
@@ -1265,6 +1343,7 @@ class KnowledgeChatService:
         # if self._clock() >= deadline:
         #     return unavailable("deadline_exhausted")
 
+        correction: bool | str = False
         for attempt in (1, 2):
             diagnostics = _DIAGNOSTICS.get()
             remaining = deadline - self._clock()
@@ -1277,6 +1356,7 @@ class KnowledgeChatService:
                 self._generation_timeout_seconds,
                 remaining - _POST_GENERATION_RESERVE_SECONDS,
             )
+            reference_failure = None
             try:
                 with _timed_stage(request_id, f"answer_generation_attempt_{attempt}"):
                     if diagnostics is not None:
@@ -1286,19 +1366,27 @@ class KnowledgeChatService:
                         evidence,
                         safety_id,
                         timeout_seconds=timeout,
-                        correction=attempt == 2,
+                        correction=correction,
                     )
+            except GenerationReferenceError as exc:
+                reference_failure = str(exc)
+                generated = {}
             except (APITimeoutError, TimeoutError):
                 return unavailable("generation_timeout")
             except GenerationBudgetExceeded:
                 return unavailable("budget_exhausted")
             except APIStatusError as exc:
-                logger.warning("knowledge_chat_provider_failure", extra={"context": {
-                    "request_id": request_id,
-                    "provider": "openai",
-                    "failure_category": "provider_rejection",
-                    "status_code": exc.status_code,
-                }})
+                logger.warning(
+                    "knowledge_chat_provider_failure",
+                    extra={
+                        "context": {
+                            "request_id": request_id,
+                            "provider": "openai",
+                            "failure_category": "provider_rejection",
+                            "status_code": exc.status_code,
+                        }
+                    },
+                )
                 return unavailable("provider_rejection")
             except (APIConnectionError, OSError):
                 return unavailable("generation_transport_error")
@@ -1308,9 +1396,12 @@ class KnowledgeChatService:
                 return unavailable("generation_error")
             try:
                 with _timed_stage(request_id, f"grounding_validation_attempt_{attempt}"):
+                    if reference_failure is not None:
+                        raise ValueError(reference_failure)
                     claims, citations = _validate_grounding(generated, evidence)
                     evidence_state = _validate_evidence_state(generated, citations)
             except Exception as exc:
+                correction = _grounding_reason(exc)
                 if diagnostics is not None:
                     diagnostics["validation_outcome"] = _grounding_reason(exc)
                 logger.info(

@@ -144,11 +144,25 @@ def test_broken_tracer_does_not_change_answer(monkeypatch: Any) -> None:
 def test_provider_identifiers_are_not_logged(caplog: Any) -> None:
     class Responses:
         def create(self, **kwargs: Any) -> Any:
-            return type("Response", (), {
-                "_request_id": "req-provider-123",
-                "id": "resp-generation-456",
-                "output_text": json.dumps(candidate()),
-            })()
+            return type(
+                "Response",
+                (),
+                {
+                    "_request_id": "req-provider-123",
+                    "id": "resp-generation-456",
+                    "output_text": json.dumps(
+                        {
+                            "evidence_state": "single_study",
+                            "claims": [
+                                {
+                                    "text": EVIDENCE[0].excerpt,
+                                    "support_ref": "s0.0",
+                                }
+                            ],
+                        }
+                    ),
+                },
+            )()
 
     class Client:
         responses = Responses()

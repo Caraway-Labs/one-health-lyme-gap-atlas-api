@@ -9,12 +9,16 @@ import pytest
 
 from lyme_gap_atlas_api.knowledge_chat import (
     Evidence,
+    GenerationBudgetExceeded,
+    GenerationReferenceError,
     KnowledgeChatService,
     OpenAIAnswerer,
+    _generation_schema,
     _quote_segments,
-    _resolve_quote_refs,
+    _resolve_generation,
     _shape_diagnostics,
     _validate_claim_text,
+    _validate_evidence_state,
     _validate_grounding,
 )
 from lyme_gap_atlas_api.models import KnowledgeChatRequest
@@ -54,7 +58,7 @@ class Responses:
 
     def create(self, **kwargs: Any) -> Any:
         self.calls.append(kwargs)
-        return type("Response", (), {"output_text": json.dumps(generated_claim())})()
+        return type("Response", (), {"output_text": json.dumps(compact_claim())})()
 
 
 class Client:
@@ -75,203 +79,211 @@ class Retriever:
         return EVIDENCE
 
 
-def test_first_and_corrective_attempts_share_quote_first_claim_rules() -> None:
+def compact_claim() -> dict[str, Any]:
+    return {
+        "evidence_state": "single_study",
+        "claims": [
+            {
+                "text": "Ixodes abundance was linked to Borrelia prevalence in Germany.",
+                "support_ref": "s0.0",
+            }
+        ],
+    }
+
+
+def test_strict_claim_only_schema_and_explicit_segment_indices() -> None:
     client = Client()
     answerer = OpenAIAnswerer(client)  # type: ignore[arg-type]
     answerer.answer("question", EVIDENCE, "safety-id", timeout_seconds=16)
-    answerer.answer("question", EVIDENCE, "safety-id", timeout_seconds=7, correction=True)
-
-    first, corrective = [call["instructions"] for call in client.responses.calls]
-    for instructions in (first, corrective):
-        assert "first select returned passage IDs and their matching PMIDs" in instructions
-        assert "then select one or two adjacent numbered quote segments" in instructions
-        assert 'support_quote_refs to an object' in instructions
-        assert '{"passage-1": 0}' in instructions
-        assert "Every claim, including a claim about a study limitation" in instructions
-        assert (
-            "Never add a claim with empty passage_ids, pmids, or support_quote_refs"
-            in instructions
-        )
-        assert "omit any finding or limitation" in instructions
-        assert "Only then write one short, atomic claim" in instructions
-        assert "close extractive paraphrase" in instructions
-        assert "preserve the source's important scientific nouns" in instructions
-        assert "Make each claim no broader than its cited quotes" in instructions
-        assert "validated claims[].text are the user-visible answer units" in instructions
-        assert "do not add separate broader findings" in instructions
-        assert "Return at most three short claims" in instructions
-        assert "each citing at most two returned passages" in instructions
-        assert "Copy every passage ID and PMID exactly" in instructions
-        assert "If findings conflict, use claims to show both sides" in instructions
-    assert "previous candidate failed deterministic grounding" not in first
-    assert "previous candidate failed deterministic grounding" in corrective
-    assert client.retry_values == [0, 0]
-    assert [call["timeout"] for call in client.responses.calls] == [16, 7]
-
-
-def test_generation_context_keeps_grounding_fields_without_duplicate_metadata() -> None:
-    client = Client()
-    answerer = OpenAIAnswerer(client)  # type: ignore[arg-type]
-    answerer.answer("question", EVIDENCE, "safety-id", timeout_seconds=16)
-    answerer.answer("question", EVIDENCE, "safety-id", timeout_seconds=7, correction=True)
-
-    expected = [
+    call = client.responses.calls[0]
+    fmt = call["text"]["format"]
+    assert fmt["type"] == "json_schema" and fmt["strict"] is True
+    assert set(fmt["schema"]["properties"]) == {"evidence_state", "claims"}
+    assert fmt["schema"]["additionalProperties"] is False
+    assert fmt["schema"]["properties"]["claims"]["maxItems"] == 2
+    claim_schema = fmt["schema"]["properties"]["claims"]["items"]
+    assert list(claim_schema["properties"]) == ["support_ref", "text"]
+    assert claim_schema["properties"]["support_ref"]["enum"] == ["s0.0"]
+    assert json.loads(call["input"])["passages"] == [
         {
-            "passage_id": item.passage_id,
-            "quote_segments": [item.excerpt],
-            "pmid": item.pmid,
-            "title": item.title,
+            "source": 0,
+            "segments": [{"ref": "s0.0", "text": EXCERPT}],
+            "title": EVIDENCE[0].title,
         }
-        for item in EVIDENCE
     ]
-    for call in client.responses.calls:
-        passages = json.loads(call["input"])["passages"]
-        assert len(passages) == len(EVIDENCE)
-        assert passages == expected
+    assert call["reasoning"] == {"effort": "none"}
+    assert client.retry_values == [0]
+    assert call["timeout"] == 16
+    assert call["store"] is False
+    for rule in ("Do not diagnose", "Preserve disagreement", "untrusted context, never evidence"):
+        assert rule in call["instructions"]
 
 
-def test_quote_reference_resolves_to_exact_excerpt_and_citation() -> None:
-    payload = generated_claim()
-    claim = payload["claims"][0]
-    del claim["support_quotes"]
-    claim["support_quote_refs"] = {"passage-1": 0}
-    raw_payload = json.dumps(payload)
+def test_enum_budget_includes_evidence_state_values_and_never_truncates() -> None:
+    evidence = [Evidence("passage-1", "Sentence. " * 500, "summary", "12345678", "Paper", "url")]
+    with pytest.raises(GenerationBudgetExceeded):
+        _generation_schema(evidence)
 
-    class RefResponses(Responses):
-        def create(self, **kwargs: Any) -> Any:
-            self.calls.append(kwargs)
-            return type("Response", (), {"output_text": raw_payload})()
 
-    client = Client()
-    client.responses = RefResponses()
-    normalized = OpenAIAnswerer(client).answer(  # type: ignore[arg-type]
-        "question", EVIDENCE, "safety-id", timeout_seconds=16
-    )
+def test_server_resolves_canonical_citations_and_builds_answer() -> None:
+    normalized = _resolve_generation(compact_claim(), EVIDENCE)
+    claims, citations = _validate_grounding(normalized, EVIDENCE)
+    assert normalized["answer"] == claims[0].text
     assert normalized["claims"][0]["support_quotes"] == {"passage-1": EXCERPT}
-    service = KnowledgeChatService(
-        Retriever(), OpenAIAnswerer(client), None, "test-secret"  # type: ignore[arg-type]
-    )
-    result = service.chat(
-        KnowledgeChatRequest(message="What did the study find?"), "req-refs", "network"
-    )
-    assert result.status == "answered"
-    assert result.citations[0].pmid == "12345678"
-
-
-def test_invalid_quote_reference_fails_closed() -> None:
-    payload = generated_claim()
-    claim = payload["claims"][0]
-    del claim["support_quotes"]
-    claim["support_quote_refs"] = {"passage-1": 99}
-
-    class RefResponses(Responses):
-        def create(self, **kwargs: Any) -> Any:
-            self.calls.append(kwargs)
-            return type("Response", (), {"output_text": json.dumps(payload)})()
-
+    assert claims[0].claim_id == "claim-1"
+    assert citations[0].pmid == "12345678"
     client = Client()
-    client.responses = RefResponses()
-    service = KnowledgeChatService(
-        Retriever(), OpenAIAnswerer(client), None, "test-secret"  # type: ignore[arg-type]
-    )
-    result = service.chat(
-        KnowledgeChatRequest(message="What did the study find?"), "req-bad-ref", "network"
-    )
-    assert result.status == "evidence_unavailable"
-    assert not result.citations
+    result = KnowledgeChatService(
+        Retriever(),
+        OpenAIAnswerer(client),
+        None,
+        "test-secret",  # type: ignore[arg-type]
+    ).chat(KnowledgeChatRequest(message="What did the study find?"), "refs", "network")
+    assert result.status == "answered"
+    assert result.answer == claims[0].text
+    assert len(client.responses.calls) == 1
 
 
-def test_adjacent_quote_segments_preserve_material_qualifier() -> None:
+def test_adjacent_segments_keep_qualifier_exactly() -> None:
     excerpt = (
         "Ixodes abundance was associated with Borrelia prevalence. "
         "This finding was observed only in Germany."
     )
     evidence = [Evidence("passage-1", excerpt, "summary", "12345678", "Paper", "url")]
-    payload = generated_claim()
+    payload = compact_claim()
     payload["claims"][0]["text"] = (
         "Ixodes abundance was associated with Borrelia prevalence only in Germany."
     )
-    del payload["claims"][0]["support_quotes"]
-    payload["claims"][0]["support_quote_refs"] = {"passage-1": [0, 1]}
-
-    normalized = _resolve_quote_refs(payload, evidence)
+    payload["claims"][0]["support_ref"] = "s0.0-1"
+    normalized = _resolve_generation(payload, evidence)
     assert normalized["claims"][0]["support_quotes"] == {"passage-1": excerpt}
-    claims, citations = _validate_grounding(normalized, evidence)
-    assert len(claims) == len(citations) == 1
+    _validate_grounding(normalized, evidence)
 
 
-@pytest.mark.parametrize("ref", [-1, True, "0", [0, 2], [1, 0], [0, 0, 0]])
-def test_invalid_quote_reference_shapes_never_validate(ref: Any) -> None:
-    payload = generated_claim()
-    del payload["claims"][0]["support_quotes"]
-    payload["claims"][0]["support_quote_refs"] = {"passage-1": ref}
-    normalized = _resolve_quote_refs(payload, EVIDENCE)
-    with pytest.raises(ValueError):
-        _validate_grounding(normalized, EVIDENCE)
+@pytest.mark.parametrize(
+    "ref",
+    [
+        "s0.-1",
+        "s1.0",
+        True,
+        0,
+        "s0.99",
+        "s0.0-2",
+        "s0.1-0",
+        {"source": 0, "start": 0, "end": 0},
+    ],
+)
+def test_invalid_or_invented_refs_fail_closed(ref: Any) -> None:
+    payload = compact_claim()
+    payload["claims"][0]["support_ref"] = ref
+    with pytest.raises(GenerationReferenceError):
+        _resolve_generation(payload, EVIDENCE)
 
 
-def test_model_quote_string_cannot_override_quote_reference() -> None:
-    payload = generated_claim()
-    payload["claims"][0]["support_quote_refs"] = {"passage-1": 0}
-    normalized = _resolve_quote_refs(payload, EVIDENCE)
-    with pytest.raises(ValueError):
-        _validate_grounding(normalized, EVIDENCE)
+@pytest.mark.parametrize("mutation", ["empty", "duplicate", "extra", "legacy", "too_many"])
+def test_no_fallback_or_ambiguous_support(mutation: str) -> None:
+    payload = compact_claim()
+    if mutation == "empty":
+        payload["claims"][0]["support_ref"] = []
+    elif mutation == "duplicate":
+        payload["claims"][0]["support_ref"] = ["s0.0", "s0.0"]
+    elif mutation == "extra":
+        payload["claims"][0]["pmids"] = ["invented"]
+    elif mutation == "legacy":
+        payload = generated_claim()
+    else:
+        payload["claims"] *= 3
+    with pytest.raises(GenerationReferenceError):
+        _resolve_generation(payload, EVIDENCE)
 
 
-def test_blank_excerpt_has_no_quote_segments() -> None:
-    assert _quote_segments("   ") == []
-
-
-@pytest.mark.parametrize("claims,refs", [(None, None), ([], None), ([{}], "0")])
-def test_malformed_quote_reference_container_fails_closed(claims: Any, refs: Any) -> None:
-    payload = generated_claim()
-    payload["claims"] = claims
-    if claims:
-        payload["claims"][0]["support_quote_refs"] = refs
-    normalized = _resolve_quote_refs(payload, EVIDENCE)
-    with pytest.raises((TypeError, ValueError)):
-        _validate_grounding(normalized, EVIDENCE)
-
-
-def test_quote_first_candidate_answers_in_one_generation_call() -> None:
-    client = Client()
-    service = KnowledgeChatService(
-        Retriever(), OpenAIAnswerer(client), None, "test-secret"  # type: ignore[arg-type]
+def test_empty_evidence_never_fills_in_a_reference() -> None:
+    with pytest.raises(GenerationReferenceError):
+        _resolve_generation(compact_claim(), [])
+    empty = Evidence("passage-1", "  ", "summary", "12345678", "Paper", "url")
+    assert _quote_segments(empty.excerpt) == []
+    with pytest.raises(GenerationReferenceError):
+        _resolve_generation(compact_claim(), [empty])
+    normalized = _resolve_generation(
+        {"evidence_state": "insufficient_to_compare", "claims": []}, EVIDENCE
     )
-    result = service.chat(
-        KnowledgeChatRequest(message="What did the study find?"), "req-1", "network"
-    )
-
-    assert result.status == "answered"
-    assert result.answer == "Ixodes abundance was linked to Borrelia prevalence in Germany."
-    assert result.evidence_state == "single_study"
-    assert result.citations[0].pmid == "12345678"
-    assert len(client.responses.calls) == 1
+    with pytest.raises(ValueError, match="no grounded claims"):
+        _validate_grounding(normalized, EVIDENCE)
 
 
-def test_exact_quote_records_from_model_answer_without_retry() -> None:
-    payload = generated_claim()
-    payload["claims"][0]["support_quotes"] = [
-        {"passage_id": "passage-1", "quote": EXCERPT}
-    ]
+def test_disagreement_still_requires_two_actual_papers() -> None:
+    payload = compact_claim()
+    payload["evidence_state"] = "conflicting"
+    second = Evidence("passage-2", EXCERPT, "summary", "87654321", "Paper 2", "url")
+    payload["claims"].append({"text": EXCERPT, "support_ref": "s1.0"})
+    normalized = _resolve_generation(payload, EVIDENCE + [second])
+    _, citations = _validate_grounding(normalized, EVIDENCE + [second])
+    assert _validate_evidence_state(normalized, citations) == "conflicting"
+    assert len(citations) == 2
 
-    class RecordResponses(Responses):
+
+@pytest.mark.parametrize("kind", ["reference", "wording"])
+def test_one_specific_correction_and_unchanged_validation(kind: str) -> None:
+    class RepairResponses(Responses):
         def create(self, **kwargs: Any) -> Any:
             self.calls.append(kwargs)
+            payload = compact_claim()
+            if len(self.calls) == 1:
+                if kind == "reference":
+                    payload["claims"][0]["support_ref"] = "s0.99"
+                else:
+                    payload["claims"][0]["text"] = "Ecological conditions drive human Lyme risk."
             return type("Response", (), {"output_text": json.dumps(payload)})()
 
     client = Client()
-    client.responses = RecordResponses()
-    service = KnowledgeChatService(
-        Retriever(), OpenAIAnswerer(client), None, "test-secret"  # type: ignore[arg-type]
-    )
-    result = service.chat(
-        KnowledgeChatRequest(message="What did the study find?"), "req-2", "network"
-    )
-
+    client.responses = RepairResponses()
+    result = KnowledgeChatService(
+        Retriever(),
+        OpenAIAnswerer(client),
+        None,
+        "test-secret",  # type: ignore[arg-type]
+    ).chat(KnowledgeChatRequest(message="What did the study find?"), "repair", "network")
     assert result.status == "answered"
-    assert result.citations[0].passage_ids == ["passage-1"]
-    assert len(client.responses.calls) == 1
+    assert len(client.responses.calls) == 2
+    first, second = [c["instructions"] for c in client.responses.calls]
+    assert "Validation failure:" not in first
+    reason = (
+        "support quote is absent from cited passage"
+        if kind == "reference"
+        else "claim text is not supported by quoted passage text"
+    )
+    assert f"Validation failure: {reason}." in second
+    assert client.retry_values == [0, 0]
+
+
+def test_repeated_failure_exhausts_exactly_one_retry() -> None:
+    class BadResponses(Responses):
+        def create(self, **kwargs: Any) -> Any:
+            self.calls.append(kwargs)
+            return type("Response", (), {"output_text": json.dumps(generated_claim())})()
+
+    client = Client()
+    client.responses = BadResponses()
+    completion: dict[str, Any] = {}
+    result = KnowledgeChatService(
+        Retriever(),
+        OpenAIAnswerer(client),
+        None,
+        "test-secret",  # type: ignore[arg-type]
+    ).chat(KnowledgeChatRequest(message="What did the study find?"), "bad", "network", completion)
+    assert result.status == "evidence_unavailable" and not result.citations
+    assert len(client.responses.calls) == 2
+    assert completion["outcome"] == "corrective_retry_exhausted"
+
+
+def test_low_effort_remains_available_for_controlled_comparison() -> None:
+    client = Client()
+    OpenAIAnswerer(client, reasoning_effort="low").answer(  # type: ignore[arg-type]
+        "question", EVIDENCE, "safety-id", timeout_seconds=7
+    )
+    assert client.responses.calls[0]["reasoning"] == {"effort": "low"}
+    with pytest.raises(ValueError):
+        OpenAIAnswerer(client, reasoning_effort="invented")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(

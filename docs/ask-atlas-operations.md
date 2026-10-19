@@ -24,6 +24,14 @@ retry. A timeout retains the existing typed 503 and `neo4j_timeout` completion.
 The 28-second workflow deadline remains cooperative for other dependencies.
 See [#265 cancellation evidence and rollout limits](api-265-bounded-retrieval.md).
 
+Generation defaults to `gpt-5.6-luna` with reasoning effort `none`. Strict
+Structured Outputs selects one enumerated exact sentence/adjacent-sentence
+reference per atomic claim, at most two claims. Canonical citations and answer
+text are assembled server-side and still pass the existing grounding validator.
+The one corrective attempt receives the allowlisted validation reason. See the
+[controlled live generation benchmark](ask-atlas-generation-benchmark.md) for
+measured improvements, source provenance and production acceptance limits.
+
 The request completion has a bounded `operational_outcome`: `answered`,
 `abstained`, `validation_failure`, `dependency_failure`, `provider_failure`,
 `budget_exhaustion`, or `internal_failure`. `service_outcome` retains the
