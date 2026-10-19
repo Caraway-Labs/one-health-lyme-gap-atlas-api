@@ -6,6 +6,7 @@ import json
 import logging
 from typing import Any
 
+import anyio
 import pytest
 
 from lyme_gap_atlas_api.knowledge_chat import (
@@ -282,28 +283,27 @@ def test_retrieval_logs_embedding_and_fixed_neo4j_stages(caplog: Any) -> None:
             assert timeout == 5
             return self
 
-    class Driver:
-        def execute_query(self, query: Any, parameters: Any, **kwargs: Any) -> Any:
-            return (
-                [
-                    {
-                        "passage_id": "passage-1",
-                        "excerpt": EXCERPT,
-                        "summary": "Governed full-text passage",
-                        "pmid": "12345678",
-                        "title": "Paper 12345678",
-                        "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
-                    }
-                ],
-                None,
-                None,
-            )
+    async def retrieve(message: str, embedding: list[float], deadline: float) -> list[Any]:
+        return [
+            {
+                "passage_id": "passage-1",
+                "excerpt": EXCERPT,
+                "summary": "Governed full-text passage",
+                "pmid": "12345678",
+                "title": "Paper 12345678",
+                "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+            }
+        ]
 
     retriever = Neo4jRetriever.__new__(Neo4jRetriever)
     retriever._openai = OpenAIClient()  # type: ignore[assignment]
-    retriever._driver = Driver()  # type: ignore[assignment]
+    retriever._retrieve = retrieve  # type: ignore[method-assign]
     caplog.set_level(logging.INFO)
-    assert retriever.search("question", "req-1")[0].pmid == "12345678"
+
+    async def search() -> list[Evidence]:
+        return await anyio.to_thread.run_sync(retriever.search, "question", "req-1")
+
+    assert anyio.run(search)[0].pmid == "12345678"
     contexts = [record.context for record in caplog.records if record.msg == "knowledge_chat_stage"]
     assert [item["stage"] for item in contexts] == ["embedding", "neo4j_retrieval"]
     assert all(item["request_id"] == "req-1" for item in contexts)

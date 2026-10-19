@@ -10,6 +10,7 @@ from neo4j.exceptions import (
     AuthError,
     ConfigurationError,
     ConnectionAcquisitionTimeoutError,
+    Neo4jError,
     ServiceUnavailable,
     SessionExpired,
 )
@@ -53,6 +54,13 @@ def test_readiness_categories_remain_private(error: Exception, category: str, ca
 def test_wrapped_timeout_is_more_specific_than_service_unavailable() -> None:
     error = ServiceUnavailable(SECRET)
     error.__cause__ = TimeoutError(SECRET)
+    assert _neo4j_failure_category(error) == "timeout"
+
+
+def test_server_transaction_timeout_is_classified_without_error_text() -> None:
+    error = Neo4jError._hydrate_neo4j(
+        code="Neo.ClientError.Transaction.TransactionTimedOutClientConfiguration", message=SECRET
+    )
     assert _neo4j_failure_category(error) == "timeout"
 
 

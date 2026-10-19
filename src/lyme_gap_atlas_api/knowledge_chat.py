@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -18,10 +19,11 @@ from dataclasses import dataclass
 from threading import Thread, get_ident
 from typing import Any, Protocol, TypedDict, cast
 
+import anyio.from_thread
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from lyme_gap_atlas_shared.snowflake import connect
-from neo4j import GraphDatabase, Query
+from neo4j import READ_ACCESS, AsyncGraphDatabase, GraphDatabase
 from neo4j.exceptions import (
     AuthError,
     ConfigurationError,
@@ -42,7 +44,7 @@ from .models import (
     KnowledgeClaim,
     SourceUsed,
 )
-from .neo4j_diagnostics import log_serving_graph_probe
+from .neo4j_diagnostics import _server_error_category, log_serving_graph_probe
 from .telemetry_logging import emit_completion, operational_logger
 
 logger = operational_logger(__name__)
@@ -52,6 +54,10 @@ _DIAGNOSTICS: ContextVar[dict[str, Any] | None] = ContextVar(
     "knowledge_chat_diagnostics", default=None
 )
 _REQUEST_ID: ContextVar[str] = ContextVar("knowledge_chat_request_id", default="unavailable")
+_RETRIEVAL_DEADLINE: ContextVar[float | None] = ContextVar(
+    "knowledge_chat_retrieval_deadline", default=None
+)
+_NEO4J_RETRIEVAL_SECONDS = 5.0
 
 
 class _RequestSnowflakeSession:
@@ -483,6 +489,8 @@ def _neo4j_failure_category(error: BaseException) -> str:
             pending.append(current.__cause__)
         if isinstance(current, BaseExceptionGroup):
             pending.extend(reversed(current.exceptions[:8]))
+    if any(_server_error_category(item) == "transaction_timeout" for item in chain):
+        return "timeout"
     for exception_type, category in (
         (AuthError, "authentication"),
         (ConfigurationError, "configuration"),
@@ -503,6 +511,8 @@ class Neo4jRetriever:
     """Read-only retriever exposing no arbitrary-Cypher interface."""
 
     def __init__(self, uri: str, user: str, password: str, openai: OpenAI) -> None:
+        self._uri = uri
+        self._auth = (user, password)
         # Short connect timeout so readiness/chat fail closed instead of hanging
         # App Platform health checks when Neo4j is unreachable from the VPC path.
         self._driver = GraphDatabase.driver(
@@ -565,13 +575,20 @@ class Neo4jRetriever:
         records: list[Any] = []
         try:
             with _timed_stage(request_id, "neo4j_retrieval"):
-                records, _, _ = self._driver.execute_query(
-                    Query(HYBRID_SEARCH, timeout=5),
-                    {"query": message, "embedding": embedding},
-                    database_="neo4j",
+                deadline = min(
+                    _RETRIEVAL_DEADLINE.get() or float("inf"),
+                    time.monotonic() + _NEO4J_RETRIEVAL_SECONDS,
                 )
+                # FastAPI calls this synchronous service on an AnyIO worker.
+                # Await actual async cancellation/cleanup, never abandon a worker
+                # or race session cleanup against a still-running query task.
+                records = anyio.from_thread.run(self._retrieve, message, embedding, deadline)
         except Exception as exc:
-            category = "neo4j_timeout" if isinstance(exc, TimeoutError) else "neo4j_query_failure"
+            category = (
+                "neo4j_timeout"
+                if _neo4j_failure_category(exc) == "timeout"
+                else "neo4j_query_failure"
+            )
             raise Neo4jQueryFailure from exc
         finally:
             logger.info(
@@ -601,6 +618,37 @@ class Neo4jRetriever:
             )
             for record in records
         ]
+
+    async def _retrieve(self, message: str, embedding: list[float], deadline: float) -> list[Any]:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError
+        loop_deadline = asyncio.get_running_loop().time() + remaining
+        # The timeout surrounds driver entry, eager result consumption AND exit.
+        # Driver 6.2 cancellation kills/releases the session's connection; pool
+        # close kills remaining connections if it is itself cancelled. A scoped
+        # pool prevents an unhealthy socket from returning to another request.
+        async with asyncio.timeout_at(loop_deadline):
+            async with AsyncGraphDatabase.driver(
+                self._uri,
+                auth=self._auth,
+                connection_acquisition_timeout=3.0,
+                connection_timeout=3.0,
+                connection_write_timeout=3.0,
+                max_transaction_retry_time=0,
+                max_connection_pool_size=1,
+            ) as driver:
+                # Explicit transaction: no managed retry timer/backoff (including
+                # the first retry possible with retry_time=0 on coarse clocks).
+                async with (
+                    driver.session(database="neo4j", default_access_mode=READ_ACCESS) as session,
+                    await session.begin_transaction(timeout=min(5.0, remaining)) as tx,
+                ):
+                    result = await tx.run(
+                        HYBRID_SEARCH, {"query": message, "embedding": embedding}
+                    )
+                    records, _, _ = await result.to_eager_result()
+                return records
 
 
 def _governance_database(settings: SnowflakeSettings) -> str:
@@ -1158,7 +1206,13 @@ class KnowledgeChatService:
             # context. Prior assistant text is never admitted as evidence.
             prior_questions = [turn.content for turn in request.history if turn.role == "user"][-2:]
             contextual_question = "\n".join([*prior_questions, request.message])
-            evidence = self._retriever.search(contextual_question, request_id)
+            retrieval_token = _RETRIEVAL_DEADLINE.set(
+                time.monotonic() + max(0.0, deadline - self._clock())
+            )
+            try:
+                evidence = self._retriever.search(contextual_question, request_id)
+            finally:
+                _RETRIEVAL_DEADLINE.reset(retrieval_token)
             diagnostics = _DIAGNOSTICS.get()
             if diagnostics is not None:
                 diagnostics["retrieval_passage_count"] = len(evidence)
@@ -1166,8 +1220,11 @@ class KnowledgeChatService:
         except EmbeddingFailure:
             return unavailable("embedding_failure")
         except Neo4jQueryFailure as exc:
-            return unavailable("neo4j_timeout" if isinstance(exc.__cause__, TimeoutError)
-                               else "neo4j_query_failure")
+            return unavailable(
+                "neo4j_timeout"
+                if exc.__cause__ is not None and _neo4j_failure_category(exc.__cause__) == "timeout"
+                else "neo4j_query_failure"
+            )
         except RuntimeError:
             return unavailable("retrieval_dependency_unavailable")
         except Exception:
