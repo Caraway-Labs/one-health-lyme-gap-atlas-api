@@ -478,11 +478,13 @@ def test_county_pdf_export_has_safe_headers_and_provenance() -> None:
     assert response.headers["content-type"].startswith("application/pdf")
     assert response.content.startswith(b"%PDF-")
     assert response.headers["content-disposition"] == (
-        'attachment; filename="lyme-gap-atlas-co-adams-08001-alpha-2026-08-06.pdf"'
+        'attachment; filename="Adams_CO_AtlasBrief.pdf"'
     )
     assert response.headers["cache-control"] == "public, max-age=300, must-revalidate"
     assert response.headers["etag"]
-    assert renderer.calls[0][1] == "county-v1"
+    assert renderer.calls[0][1] == "county-v3"
+    assert renderer.calls[0][0].brief is not None
+    assert renderer.calls[0][0].brief.response_title
     report = renderer.calls[0][0]
     assert report.geography.identifier == "08001"
     assert report.provenance.dataset_version == "alpha-2026-08-06"
@@ -503,7 +505,8 @@ def test_pdf_cache_uses_all_report_inputs_and_honors_etag() -> None:
     )
 
     assert cached.content == first.content
-    assert len(renderer.calls) == 3
+    assert changed_settings.content == first.content
+    assert len(renderer.calls) == 2
     assert changed_settings.status_code == 200
     assert changed_geography.status_code == 200
     assert not_modified.status_code == 304
