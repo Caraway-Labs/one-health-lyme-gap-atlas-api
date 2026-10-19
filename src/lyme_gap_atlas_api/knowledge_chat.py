@@ -1243,24 +1243,27 @@ class KnowledgeChatService:
                 return unavailable("persistence_failure")
         if self._clock() >= deadline:
             return unavailable("deadline_exhausted")
-        try:
-            if self._store is not None:
-                with _timed_stage(request_id, "budget_reservation"):
-                    allowed = self._store.reserve(request_id)
-                if not allowed:
-                    return (
-                        KnowledgeChatResponse(
-                            **base,
-                            status="capacity_limited",
-                            answer=CAPACITY_LIMITED,
-                            evidence_state="not_applicable",
-                        ),
-                        "capacity_limited",
-                    )
-        except Exception:
-            return unavailable("budget_failure")
-        if self._clock() >= deadline:
-            return unavailable("deadline_exhausted")
+        # Product-owner-authorized bypass (2026-10-18): do not ask Snowflake
+        # for spending approval or create a chat budget reservation. Existing
+        # rate limits, provider bounds, grounding and persistence remain active.
+        # try:
+        #     if self._store is not None:
+        #         with _timed_stage(request_id, "budget_reservation"):
+        #             allowed = self._store.reserve(request_id)
+        #         if not allowed:
+        #             return (
+        #                 KnowledgeChatResponse(
+        #                     **base,
+        #                     status="capacity_limited",
+        #                     answer=CAPACITY_LIMITED,
+        #                     evidence_state="not_applicable",
+        #                 ),
+        #                 "capacity_limited",
+        #             )
+        # except Exception:
+        #     return unavailable("budget_failure")
+        # if self._clock() >= deadline:
+        #     return unavailable("deadline_exhausted")
 
         for attempt in (1, 2):
             diagnostics = _DIAGNOSTICS.get()

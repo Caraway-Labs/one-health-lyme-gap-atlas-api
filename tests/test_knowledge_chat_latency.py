@@ -97,7 +97,7 @@ class Store:
         return True
 
     def reserve(self, request_id: str) -> bool:
-        return True
+        raise AssertionError("Spending approval must not be called")
 
     def persist(self, **kwargs: Any) -> None:
         self.persist_calls += 1
@@ -180,10 +180,6 @@ def test_measured_prework_allows_longer_generation_with_persistence_reserve() ->
             super().__init__()
             self.clock = clock
 
-        def reserve(self, request_id: str) -> bool:
-            self.clock.now += 7
-            return True
-
         def persist(self, **kwargs: Any) -> None:
             self.clock.now += 4
             super().persist(**kwargs)
@@ -191,7 +187,12 @@ def test_measured_prework_allows_longer_generation_with_persistence_reserve() ->
     clock = Clock()
     answerer = Answerer([valid_payload()], clock, elapsed=12)
     store = TimedStore(clock)
-    service = KnowledgeChatService(Retriever(), answerer, store, "test-secret", clock=clock)
+    class TimedRetriever(Retriever):
+        def search(self, message: str, request_id: str) -> list[Evidence]:
+            clock.now += 7
+            return super().search(message, request_id)
+
+    service = KnowledgeChatService(TimedRetriever(), answerer, store, "test-secret", clock=clock)
     response = service.chat(
         KnowledgeChatRequest(message="What did the study find?"), "req-budget", "network"
     )
@@ -202,19 +203,16 @@ def test_measured_prework_allows_longer_generation_with_persistence_reserve() ->
 
 
 def test_generation_cap_shrinks_to_preserve_post_generation_work() -> None:
-    class TimedStore(Store):
-        def __init__(self, clock: Clock) -> None:
-            super().__init__()
-            self.clock = clock
-
-        def reserve(self, request_id: str) -> bool:
-            self.clock.now += 16
-            return True
-
     clock = Clock()
+
+    class TimedRetriever(Retriever):
+        def search(self, message: str, request_id: str) -> list[Evidence]:
+            clock.now += 16
+            return super().search(message, request_id)
+
     answerer = Answerer([valid_payload()], clock)
     service = KnowledgeChatService(
-        Retriever(), answerer, TimedStore(clock), "test-secret", clock=clock
+        TimedRetriever(), answerer, Store(), "test-secret", clock=clock
     )
     response = service.chat(
         KnowledgeChatRequest(message="What did the study find?"), "req-tight", "network"
@@ -240,12 +238,12 @@ def test_request_scoped_timing_is_structured_and_private(caplog: Any) -> None:
     contexts = [record.context for record in caplog.records if record.msg == "knowledge_chat_stage"]
     assert {item["stage"] for item in contexts} >= {
         "safety_classification",
-        "budget_reservation",
         "answer_generation_attempt_1",
         "grounding_validation_attempt_1",
         "provenance_enrichment",
         "conversation_persistence",
     }
+    assert "budget_reservation" not in {item["stage"] for item in contexts}
     assert all(item["request_id"] == "req-1" and item["duration_ms"] >= 0 for item in contexts)
     assert "What did the study find?" not in caplog.text
     assert "12345678" not in caplog.text
