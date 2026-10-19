@@ -77,6 +77,7 @@ from .middleware import (
     RateLimitMiddleware,
     RequestContextMiddleware,
 )
+from .model_serving_probe import start_model_serving_probe
 from .models import (
     AtlasMetadata,
     CountyDetail,
@@ -394,6 +395,7 @@ def create_app(
             probe_started = True
             start_reader_probe(config)
             start_county_context_probe(config)
+            start_model_serving_probe(config)
         yield
 
     app = AtlasFastAPI(
