@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 
 import pytest
 from snowflake.connector.errors import ProgrammingError
@@ -161,3 +162,40 @@ def test_unconfigured_and_dev_are_not_probed(monkeypatch):
         )["identity_status"]
         == "unsupported_target"
     )
+
+
+def test_log_and_background_dispatch_use_existing_settings_without_secrets(monkeypatch, caplog):
+    supplied = settings()
+    session = Session("denied")
+    monkeypatch.setattr(probe, "connect", lambda config: session)
+    with caplog.at_level(logging.INFO):
+        probe._log(supplied)
+    record = caplog.records[-1]
+    assert record.message == probe.EVENT
+    assert record.context["read_status"] == "object_or_access_unavailable"
+    assert not record.context["publication_matches"]
+    assert "fixture-secret" not in caplog.text and not record.exc_info
+    calls = []
+
+    class Worker:
+        def __init__(self, **kwargs):
+            calls.append(kwargs)
+
+        def start(self):
+            calls.append("started")
+
+    monkeypatch.setattr(probe, "Thread", Worker)
+    probe.start_model_serving_probe(supplied)
+    assert calls == [{"target": probe._log, "args": (supplied,), "daemon": True}, "started"]
+
+
+def test_dispatch_failure_never_blocks_startup_or_exposes_driver_text(monkeypatch, caplog):
+    def unavailable(**kwargs):
+        raise RuntimeError("fixture-secret")
+
+    monkeypatch.setattr(probe, "Thread", unavailable)
+    with caplog.at_level(logging.INFO):
+        probe.start_model_serving_probe(settings())
+    record = caplog.records[-1]
+    assert record.context == {"identity_status": "dispatch_unavailable"}
+    assert "fixture-secret" not in caplog.text and not record.exc_info
