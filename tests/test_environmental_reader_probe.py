@@ -175,6 +175,9 @@ def test_app_construction_and_exports_are_inert_and_startup_dispatches_once(monk
 
     calls = []
     monkeypatch.setattr(module, "start_reader_probe", lambda config: calls.append(config))
+    monkeypatch.setattr(
+        "lyme_gap_atlas_api.model_serving_probe.start_model_serving_probe", lambda _: None
+    )
     # Reload executes the module-level factory with configured credentials.
     monkeypatch.setattr(app_module, "get_settings", settings)
     monkeypatch.setattr("lyme_gap_atlas_api.config.get_settings", settings)
