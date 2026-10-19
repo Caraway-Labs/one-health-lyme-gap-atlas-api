@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from test_ask_atlas_orchestration import FakeTools
 from test_ask_atlas_tools import tools as real_tools
-from test_knowledge_chat_latency import Answerer, Clock, Retriever, Store, valid_payload
+from test_knowledge_chat_latency import Answerer, Clock, Retriever, valid_payload
 
 from lyme_gap_atlas_api import app as application
 from lyme_gap_atlas_api import knowledge_chat as knowledge_chat_module
@@ -426,7 +426,7 @@ def test_intentionally_disabled_literature_route_is_dependency_unavailable(
     assert completions[0]["operational_outcome"] == "dependency_failure"
 
 
-@pytest.mark.parametrize("failure", ["retrieval", "capacity", "provider"])
+@pytest.mark.parametrize("failure", ["retrieval", "provider"])
 def test_real_literature_service_typed_failure_is_503_and_single_completion(
     failure: str, monkeypatch: Any
 ) -> None:
@@ -442,16 +442,12 @@ def test_real_literature_service_typed_failure_is_503_and_single_completion(
         def search(self, message: str, request_id: str) -> Any:
             raise RuntimeError("fixture dependency unavailable")
 
-    class NoCapacity(Store):
-        def reserve(self, request_id: str) -> bool:
-            return False
-
     clock = Clock()
     service = KnowledgeChatService(
         FailingRetriever() if failure == "retrieval" else Retriever(),
         Answerer([OSError("fixture transport failure") if failure == "provider"
                   else valid_payload()], clock),
-        NoCapacity() if failure == "capacity" else None,
+        None,
         "fixture-secret", deadline_seconds=24, clock=clock,
     )
     app = application.create_app(
@@ -465,20 +461,16 @@ def test_real_literature_service_typed_failure_is_503_and_single_completion(
     assert response.status_code == 503
     assert response.headers["Retry-After"] == "30"
     assert response.json()["outcome"] == "SOURCE_UNAVAILABLE"
-    if failure != "capacity":
-        assert response.json()["literature"]["status"] == "evidence_unavailable"
-    else:
-        assert response.json()["literature"] is None
-        assert response.json()["actual_sources_used"] == []
+    assert response.json()["literature"]["status"] == "evidence_unavailable"
     assert len(completions) == 1
     assert completions[0]["outcome"] == "source_unavailable"
     assert completions[0]["operational_outcome"] == (
         "dependency_failure" if failure == "retrieval" else
-        "provider_failure" if failure == "provider" else "budget_exhaustion"
+        "provider_failure"
     )
     assert completions[0]["service_outcome"] == (
         "retrieval_dependency_unavailable" if failure == "retrieval" else
-        "generation_transport_error" if failure == "provider" else "capacity_limited"
+        "generation_transport_error"
     )
     assert completions[0]["path"] == "/v1/assistant/mixed"
 

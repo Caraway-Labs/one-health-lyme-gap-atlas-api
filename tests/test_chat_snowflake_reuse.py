@@ -106,9 +106,8 @@ def test_answer_reuses_one_connection_and_preserves_sequential_turns(
     assert len(connections) == 1
     connection = connections[0]
     assert connection.closed
-    assert connection.commits == 3
+    assert connection.commits == 2
     assert [sql.split("SP_")[1].split("(")[0] for sql, _ in connection.calls] == [
-        "RESERVE_KG_LLM_BUDGET",
         "LOOKUP_RETRIEVAL_CORPUS_PROVENANCE",
         "PERSIST_KG_CONVERSATION_TURN",
         "PERSIST_KG_CONVERSATION_TURN",
@@ -124,24 +123,25 @@ def test_answer_reuses_one_connection_and_preserves_sequential_turns(
     )
 
 
-@pytest.mark.parametrize("failure", ["RESERVE", "PERSIST", ""])
+@pytest.mark.parametrize("failure", ["PERSIST", ""])
 def test_failures_close_session_without_replaying_writes(monkeypatch: Any, failure: str) -> None:
     connection = Connection(failure=failure)
     monkeypatch.setattr(chat, "connect", lambda settings: connection)
     results = [TimeoutError()] if not failure else None
     result = service(ApiSettings(), results).chat(KnowledgeChatRequest(message="study?"), "r", "n")
     assert result.status == "evidence_unavailable"
-    assert connection.closed
-    assert sum("RESERVE" in sql for sql, _ in connection.calls) == 1
+    assert connection.closed == bool(failure)
+    assert sum("RESERVE" in sql for sql, _ in connection.calls) == 0
     assert sum("PERSIST" in sql for sql, _ in connection.calls) <= 1
 
 
-def test_budget_denial_never_generates_and_closes(monkeypatch: Any) -> None:
-    connection = Connection(allowed=False)
+def test_unused_budget_procedure_failure_does_not_block_answer(monkeypatch: Any) -> None:
+    connection = Connection(failure="RESERVE", allowed=False)
     monkeypatch.setattr(chat, "connect", lambda settings: connection)
     result = service(ApiSettings()).chat(KnowledgeChatRequest(message="study?"), "r", "n")
-    assert result.status == "capacity_limited"
-    assert len(connection.calls) == 1
+    assert result.status == "answered"
+    assert len(connection.calls) == 3
+    assert not any("RESERVE" in sql for sql, _ in connection.calls)
     assert connection.closed
 
 
@@ -174,7 +174,7 @@ def test_concurrent_requests_never_share_sessions(monkeypatch: Any) -> None:
         )
     assert all(result.status == "answered" for result in results)
     assert len(connections) == 2
-    assert all(connection.closed and len(connection.calls) == 4 for connection in connections)
+    assert all(connection.closed and len(connection.calls) == 3 for connection in connections)
 
 
 def test_session_is_lazy_and_closed_connection_is_not_replaced(monkeypatch: Any) -> None:
@@ -220,7 +220,7 @@ def test_optional_provenance_failure_rolls_back_then_persists(monkeypatch: Any) 
     monkeypatch.setattr(chat, "connect", lambda settings: connection)
     result = service(ApiSettings()).chat(KnowledgeChatRequest(message="study?"), "r", "n")
     assert result.status == "answered"
-    assert connection.closed and connection.rollbacks == 1 and connection.commits == 2
+    assert connection.closed and connection.rollbacks == 1 and connection.commits == 1
     assert sum("PERSIST" in sql for sql, _ in connection.calls) == 2
 
 
