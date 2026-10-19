@@ -88,6 +88,44 @@ class ReportObservationContext(BaseModel):
     observations: list[Observation]
 
 
+class BriefRow(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    number: str
+    label: str
+    text: str
+
+
+class BriefLink(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    label: str
+    url: str
+
+
+class CountyDataBrief(BaseModel):
+    """Published two-page County Data Brief. Recommendation text is server-owned."""
+
+    model_config = ConfigDict(frozen=True)
+
+    copy_version: str
+    branding: str
+    report_title: str
+    county_heading: str
+    response_title: str
+    response_status: Literal["assigned", "unavailable"]
+    score_label: str
+    fips: str
+    why_it_surfaced: str
+    categories: list[BriefRow]
+    interpretation: str
+    posture: str
+    workstreams: list[BriefRow]
+    questions: list[BriefRow]
+    resources: list[BriefLink]
+    traceability: list[str]
+
+
 class CountyReport(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -101,6 +139,7 @@ class CountyReport(BaseModel):
     human_health: list[ReportMetric]
     ecological: list[ReportMetric]
     data_completeness: ReportMetric
+    brief: CountyDataBrief | None = None
 
 
 class StateReport(BaseModel):

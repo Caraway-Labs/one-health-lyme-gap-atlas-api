@@ -188,6 +188,25 @@ def test_asset_limits_are_enforced() -> None:
             ),
         ),
         (
+            "county-v3",
+            lambda service: service.county_report(
+                "08001", ScoreSettings(), template_version="county-v3"
+            ),
+            (
+                "ONE HEALTH LYME GAP ATLAS",
+                "COUNTY DATA BRIEF",
+                "Why it surfaced",
+                "County data / Six review factors",
+                "Adams, Colorado",
+                "Published Lyme case data",
+                "Five suggested follow-up workstreams",
+                "Human disease surveillance",
+                "Questions before acting",
+                "Official resources",
+                "alpha-2026-08-06",
+            ),
+        ),
+        (
             "state-v1",
             lambda service: service.state_report("CO", ScoreSettings()),
             (
@@ -209,12 +228,17 @@ def test_real_typst_templates_render_meaningful_report_content(
     reports = ReportService(AtlasService(FakeRepository()))
     report = report_factory(reports)
     payload = TypstRenderer(_limits(), binary=(real_typst_binary,)).render(report, template_key)
-    rendered_text = "\n".join(
-        page.extract_text() or "" for page in PdfReader(BytesIO(payload)).pages
+    rendered_text = " ".join(
+        "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(payload)).pages).split()
     )
 
     for expected in required_text:
         assert expected in rendered_text
+    if template_key == "county-v3":
+        assert len(PdfReader(BytesIO(payload)).pages) == 2
+        assert "ONE HEALTH / LYME GAP ATLAS" not in rendered_text
+        assert "What the data show" not in rendered_text
+        assert "Design prototype" not in rendered_text
     assert "text(size:" not in rendered_text
     assert "v(18pt)" not in rendered_text
     assert "v(10pt)" not in rendered_text

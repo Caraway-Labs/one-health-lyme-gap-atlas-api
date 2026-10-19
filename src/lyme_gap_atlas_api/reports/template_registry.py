@@ -17,6 +17,7 @@ class TemplateDefinition:
 _TEMPLATES = (
     TemplateDefinition("county-v1", "county/v1/report.typ", "county", "v1"),
     TemplateDefinition("county-v2", "county/v2/report.typ", "county", "v2"),
+    TemplateDefinition("county-v3", "county/v3/report.typ", "county", "v3"),
     TemplateDefinition("state-v1", "state/v1/report.typ", "state", "v1"),
 )
 

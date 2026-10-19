@@ -58,7 +58,7 @@ docker run --rm lyme-atlas-api:pdf typst --version
 ```
 
 `TypstRenderer` accepts only server-registered template keys, not paths or client-supplied Typst.
-`county-v1` and `state-v1` are immutable server-side identifiers. They consume normalized JSON
+`county-v1`, `county-v2`, `county-v3`, and `state-v1` are server-side identifiers. They consume normalized JSON
 written by the report layer as `input.json`; report data is never interpolated into Typst source.
 Shared components live in `reports/templates/shared/v1`. Material template/schema changes require
 a new template version rather than modifying an already released v1 layout. Defaults can be overridden with
@@ -69,11 +69,11 @@ configure it with `PDF_CACHE_ENABLED=true`, `PDF_CACHE_TTL_SECONDS=300`, and
 `PDF_CACHE_MAX_ENTRIES=128`. A cache hit returns the original artifact, including its
 generation timestamp, until the TTL expires or a material report input changes.
 
-For Investigate exports, use the opt-in `county-v2` [observation context contract](docs/county-report-investigate-contract.md). Legacy v1 remains the default.
+For Investigate exports, use the opt-in `county-v2` [observation context contract](docs/county-report-investigate-contract.md). The default county download is `county-v3`, the published two-page County Data Brief. Explicit `county-v1` remains available and unchanged.
 
 ## PDF export operations
 
-The API exposes only versioned, server-registered templates: `county-v1` and `state-v1`.
+The API exposes only versioned, server-registered templates: `county-v3` (default County Data Brief), `county-v1`, `county-v2`, and `state-v1`.
 Clients may select a supported template key but cannot supply Typst source or filesystem paths.
 
 ```powershell

@@ -111,7 +111,7 @@ def test_web460_canonical_proof_direct_reload_and_legacy_isolation():
     assert api.get(PATH, params=PARAMS).status_code == 200
     assert len(renderer.calls) == 1
     assert api.get(PATH).status_code == 200
-    assert renderer.calls[-1][1] == "county-v1"
+    assert renderer.calls[-1][1] == "county-v3"
     assert api.get(PATH, params={"period_start": "2023-01-01"}).status_code == 422
 
 
