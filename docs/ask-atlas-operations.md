@@ -15,6 +15,15 @@ can select SQL, Cypher, a tool name, or an unrestricted retrieval path.
 | Literature | Existing one retrieval, budget reservation through the governed Snowflake procedure (currently $0.05 reservation per chat), at most two generation attempts, no SDK retries, 28-second service deadline, each generation call at most 16 seconds, 32,000-character provider-input guard and 2,048 output-token ceiling per attempt. An incomplete provider response or exhausted input bound cannot be admitted as an answer. The character guard is not a token counter. |
 | Exhaustion | Budget denial, input/output exhaustion and deadline failure return no ungrounded claim. Mixed mode discards an earlier branch when literature budget is refused or exhausted; it returns `SOURCE_UNAVAILABLE` with no sources used. |
 
+Neo4j retrieval has an absolute monotonic cap of 5 seconds or the remaining
+service budget, whichever is shorter. Its request-scoped async driver covers
+acquisition, transport, one explicit read transaction, eager result consumption
+and cleanup. Cancellation kills the affected connection before the synchronous
+worker returns; there is no detached retrieval thread or managed transaction
+retry. A timeout retains the existing typed 503 and `neo4j_timeout` completion.
+The 28-second workflow deadline remains cooperative for other dependencies.
+See [#265 cancellation evidence and rollout limits](api-265-bounded-retrieval.md).
+
 The request completion has a bounded `operational_outcome`: `answered`,
 `abstained`, `validation_failure`, `dependency_failure`, `provider_failure`,
 `budget_exhaustion`, or `internal_failure`. `service_outcome` retains the
