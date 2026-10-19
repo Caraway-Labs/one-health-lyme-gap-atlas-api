@@ -905,7 +905,7 @@
           "counties"
         ],
         "summary": "Download a county report",
-        "description": "PDF attachment using the immutable county-v1 registered template by default. Optional dataset_version and score settings bind report inputs. Opt-in county-v2 requires dataset_version, period_start, period_end and repeated measure_id (1\u201320, repeated or comma-separated); reads canonical evidence, lineage, value states and limitations. Missing or mismatched provenance returns 503; unknown observations return 404. V1 rejects observation selectors with 422. V2 responses use no-store and revalidate authoritative context before cache/304. ETag/If-None-Match supports 304; V1 public cache TTL 300 seconds with revalidation. Unknown templates return 422; resource limits 413; renderer failure/timeout 503.",
+        "description": "PDF attachment. The default template is county-v3, the two-page County Data Brief for the published gap score and Explorer follow-up. county-v3 ignores score-setting overrides, so a What-if request cannot change the published score, response category, recommendations, or questions. Explicit county-v1 remains the immutable legacy county report and still binds score settings. Optional dataset_version selects a release. Opt-in county-v2 requires dataset_version, period_start, period_end and repeated measure_id (1\u201320, repeated or comma-separated); reads canonical evidence, lineage, value states and limitations. Missing or mismatched provenance returns 503; unknown observations return 404. county-v1 and county-v3 reject observation selectors with 422. V2 responses use no-store and revalidate authoritative context before cache/304. ETag/If-None-Match supports 304; published briefs use public cache TTL 300 seconds with revalidation. Unknown templates return 422; resource limits 413; renderer failure/timeout 503.",
         "operationId": "county_report_pdf_v1_counties__fips__report_pdf_get",
         "parameters": [
           {
@@ -985,7 +985,7 @@
             "schema": {
               "type": "string",
               "pattern": "^[a-z]+-v\\d+$",
-              "default": "county-v1",
+              "default": "county-v3",
               "title": "Template"
             }
           },

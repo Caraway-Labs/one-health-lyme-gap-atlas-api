@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import time
+import unicodedata
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -302,6 +303,16 @@ def _filename_component(value: str) -> str:
 
     component = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return component or "unknown"
+
+
+def _atlas_brief_filename(report: CountyReport) -> str:
+    """Short County_State_AtlasBrief name. Release identifiers stay inside the PDF."""
+
+    county = re.sub(r"\s+County$", "", report.geography.name.strip(), flags=re.IGNORECASE)
+    ascii_county = unicodedata.normalize("NFKD", county).encode("ascii", "ignore").decode("ascii")
+    token = re.sub(r"[^A-Za-z0-9]+", "_", ascii_county).strip("_") or "County"
+    state = re.sub(r"[^A-Za-z]", "", report.geography.state_code).upper() or "XX"
+    return f"{token}_{state}_AtlasBrief"
 
 
 def create_app(
@@ -1123,15 +1134,20 @@ def create_app(
         operation_id="county_report_pdf_v1_counties__fips__report_pdf_get",
         summary="Download a county report",
         description=(
-            "PDF attachment using the immutable county-v1 registered template by default. "
-            "Optional dataset_version and score settings bind report inputs. "
+            "PDF attachment. The default template is county-v3, the two-page County Data Brief "
+            "for the published gap score and Explorer follow-up. county-v3 ignores score-setting "
+            "overrides, so a What-if request cannot change the published score, response "
+            "category, recommendations, or questions. Explicit county-v1 remains the immutable "
+            "legacy county report and still binds score settings. "
+            "Optional dataset_version selects a release. "
             "Opt-in county-v2 requires dataset_version, period_start, period_end and repeated "
             "measure_id (1–20, repeated or comma-separated); reads canonical evidence, lineage, "
             "value states and limitations. Missing or mismatched provenance returns 503; "
-            "unknown observations return 404. V1 rejects observation selectors with 422. "
+            "unknown observations return 404. county-v1 and county-v3 reject observation "
+            "selectors with 422. "
             "V2 responses use no-store and revalidate authoritative context before cache/304. "
-            "ETag/If-None-Match supports 304; V1 public cache TTL 300 seconds with "
-            "revalidation. Unknown templates return 422; resource limits 413; renderer "
+            "ETag/If-None-Match supports 304; published briefs use public cache TTL 300 seconds "
+            "with revalidation. Unknown templates return 422; resource limits 413; renderer "
             "failure/timeout 503."
         ),
     )
@@ -1153,7 +1169,7 @@ def create_app(
                 max_length=20,
             ),
         ] = None,
-        template: Annotated[str, Query(pattern=r"^[a-z]+-v\d+$")] = "county-v1",
+        template: Annotated[str, Query(pattern=r"^[a-z]+-v\d+$")] = "county-v3",
     ) -> Response:
         template_definition = TEMPLATE_REGISTRY.get(template)
         if template_definition is None or template_definition.geography_level != "county":
@@ -1164,7 +1180,7 @@ def create_app(
         if measure_id is not None:
             measure_id = [item for value in measure_id for item in value.split(",")]
         context_requested = any(x is not None for x in (period_start, period_end, measure_id))
-        if template == "county-v1" and context_requested:
+        if template in {"county-v1", "county-v3"} and context_requested:
             raise HTTPException(status_code=422, detail="Observation context requires county-v2.")
         if template == "county-v2" and (
             not dataset_version
@@ -1216,13 +1232,17 @@ def create_app(
                 headers={"Retry-After": "30"},
             ) from exc
 
-        filename = "-".join(
-            (
-                "lyme-gap-atlas",
-                _filename_component(report.geography.state_code),
-                _filename_component(report.geography.name),
-                _filename_component(report.geography.identifier),
-                _filename_component(report.provenance.dataset_version),
+        filename = (
+            _atlas_brief_filename(report)
+            if template == "county-v3"
+            else "-".join(
+                (
+                    "lyme-gap-atlas",
+                    _filename_component(report.geography.state_code),
+                    _filename_component(report.geography.name),
+                    _filename_component(report.geography.identifier),
+                    _filename_component(report.provenance.dataset_version),
+                )
             )
         )
         etag = _etag(payload)
