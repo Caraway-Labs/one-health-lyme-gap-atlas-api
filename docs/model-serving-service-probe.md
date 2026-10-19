@@ -11,7 +11,10 @@ five seconds. The primary API identity, configured reader/database/warehouse and
 absence of owner/migrator/publisher roles must match before presentation reads.
 Both frozen ML138 models must expose 3,144 distinct counties, the original
 October 15 input release/bundle and v1 batch identity under the current governed
-presentation release. Four base-table LIMIT 0 reads must remain inaccessible (SQLSTATE 42S02 means either missing or unauthorized; this probe does not distinguish them); no DML or
+presentation release. Four base-table LIMIT 0 reads must remain inaccessible.
+Only Snowflake error 2003 with SQLSTATE 02000 (schema) or 42S02 (table) qualifies;
+these mean missing or unauthorized, and the probe does not distinguish them.
+Other errors remain unverified, and successful base-table access fails. No DML or
 publication procedure is attempted. Failures retain closed categories; logs
 contain counts, booleans and identity/release fingerprints, never credentials,
 raw model rows or driver messages. Fixtures, import and OpenAPI export are inert.
