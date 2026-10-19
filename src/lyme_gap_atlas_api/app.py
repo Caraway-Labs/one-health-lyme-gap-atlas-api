@@ -265,6 +265,13 @@ class AtlasFastAPI(FastAPI):
         ]["200"]["content"]["application/json"]["examples"] = deepcopy(
             {"unpublished": PENDING_GEOGRAPHY_EXAMPLE}
         )
+        situation_example = schema["paths"]["/v1/counties/{fips}/surveillance-situations"][
+            "get"
+        ]["responses"]["200"]["content"]["application/json"]["examples"]["unpublished"]["value"]
+        for variant in ("four_state", "tick_pathogen"):
+            situation_example[variant].update(
+                batch_id=None, batch_version=None, input_release_id=None, data=None
+            )
         self._first_party_schema = schema
         return schema
 

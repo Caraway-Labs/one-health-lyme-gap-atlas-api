@@ -4574,7 +4574,7 @@
           "counties"
         ],
         "summary": "Get both persisted county surveillance-situation classifications",
-        "description": "Primary four_state includes human surveillance; secondary tick_pathogen excludes it. Returns reviewed labels, four membership probabilities per model (0-1, sum 1 within 1e-6), immutable model/batch lineage, source vintages and interpretation limits. Unknown is an available class; No records does not establish absence. Membership is not disease risk, incidence, pathogen presence, causation or Tier 1 priority. HTTP 200 can contain typed UNAVAILABLE variants with null data, including an incompatible release. Unknown county 404; malformed FIPS 422; dependency, malformed Persisted data or changing release 503. Cache-Control: no-store; no fallback or inference.",
+        "description": "Primary four_state includes human surveillance; secondary tick_pathogen excludes it. Returns reviewed labels, four membership probabilities per model (0-1, sum 1 within 1e-6), immutable model/batch lineage, source vintages and interpretation limits. Unknown is an available class; No records does not establish absence. Membership is not disease risk, incidence, pathogen presence, causation or Tier 1 priority. HTTP 200 can contain typed UNAVAILABLE variants with null data, including an incompatible release. Unknown county 404; malformed FIPS 422; dependency, malformed persisted data or changing release 503. Cache-Control: no-store; no fallback or inference.",
         "operationId": "county_surveillance_situations_get",
         "parameters": [
           {
@@ -4607,13 +4607,21 @@
                         "model_id": "surveillance-situation-four-state",
                         "availability": "UNAVAILABLE",
                         "unavailable_reason": "NOT_PUBLISHED",
-                        "compatibility": "UNAVAILABLE"
+                        "compatibility": "UNAVAILABLE",
+                        "batch_id": null,
+                        "batch_version": null,
+                        "input_release_id": null,
+                        "data": null
                       },
                       "tick_pathogen": {
                         "model_id": "surveillance-situation-tick-pathogen",
                         "availability": "UNAVAILABLE",
                         "unavailable_reason": "NOT_PUBLISHED",
-                        "compatibility": "UNAVAILABLE"
+                        "compatibility": "UNAVAILABLE",
+                        "batch_id": null,
+                        "batch_version": null,
+                        "input_release_id": null,
+                        "data": null
                       }
                     }
                   }
