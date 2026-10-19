@@ -1,13 +1,18 @@
 #let report = json("input.json")
 #let brief = report.at("brief")
+#let geography = report.at("geography")
 
 #let teal = rgb("0f7782")
-#let teal-dark = rgb("075760")
-#let navy = rgb("082a4d")
-#let pale = rgb("e7f4f5")
-#let ink = rgb("1b2830")
-#let muted = rgb("5c6b73")
-#let rule = rgb("d5e4e6")
+#let teal-dark = rgb("0b5c64")
+#let navy = rgb("0c2c4d")
+#let ink = rgb("1c2b33")
+#let muted = rgb("5c6c74")
+#let rule = rgb("d7e3e6")
+#let mint = rgb("e7f4f3")
+#let mint-bar = rgb("1a8a80")
+#let amber = rgb("fbf6ea")
+#let amber-bar = rgb("d9923a")
+#let row-tint = rgb("f3f8f8")
 
 #show "Borrelia burgdorferi": set text(style: "italic")
 #show "Ixodes scapularis": set text(style: "italic")
@@ -18,122 +23,164 @@
   author: "One Health Lyme Gap Atlas",
   description: "Published county surveillance data and suggested follow-up.",
 )
-#set text(font: "Libertinus Serif", size: 8.5pt, fill: ink, lang: "en", hyphenate: true)
-#set par(leading: 0.42em, justify: false)
+#set text(font: "Libertinus Serif", size: 8.5pt, fill: ink, lang: "en", hyphenate: false)
+#set par(leading: 0.42em, justify: false, spacing: 0.45em)
 
 #show heading.where(level: 1): it => {
-  set text(size: 16pt, weight: "bold", fill: navy)
-  block(above: 1pt, below: 0pt, it.body)
+  set text(size: 20pt, weight: "bold", fill: navy, hyphenate: false)
+  set par(leading: 0.22em)
+  block(above: 1pt, below: 1pt, it.body)
 }
 #show heading.where(level: 2): it => {
-  set text(size: 10.5pt, weight: "bold", fill: navy)
-  block(above: 7pt, below: 2pt, it.body)
+  set text(size: 11pt, weight: "bold", fill: navy, hyphenate: false)
+  block(above: 9pt, below: 3pt, it.body)
 }
 
-#let brand = text(size: 7.5pt, fill: teal-dark, weight: "bold", brief.at("branding"))
+#let footer-place = upper(geography.at("name")) + ", " + upper(geography.at("state_code"))
 
-#let factor(row) = block(width: 100%, above: 2.5pt, below: 1.5pt)[
+#let kicker(body) = text(size: 7.5pt, fill: muted, weight: "regular", tracking: 0.01em, hyphenate: false, body)
+
+#let callout(fill, accent, title, body) = block(
+  width: 100%,
+  fill: fill,
+  inset: (left: 10pt, right: 9pt, y: 7pt),
+  stroke: (left: 3.25pt + accent),
+  above: 7pt,
+  below: 2pt,
+)[
+  #text(size: 8.3pt, fill: navy, weight: "bold")[#title]
+  #h(5pt)
+  #text(size: 8.2pt)[#body]
+]
+
+#let factor(row, show-label) = block(
+  width: 100%,
+  inset: (top: 4.5pt, bottom: 4pt),
+  stroke: (bottom: 0.45pt + rule),
+)[
   #grid(
-    columns: (16pt, 1fr),
-    column-gutter: 4pt,
-    text(size: 8pt, fill: teal-dark, weight: "bold")[#row.at("number")],
+    columns: (20pt, 1fr),
+    column-gutter: 6pt,
+    text(size: 8pt, fill: teal, weight: "bold")[#row.at("number")],
     [
-      #if row.at("label") != "Question" [
-        #text(size: 8.5pt, fill: navy, weight: "bold")[#row.at("label")]
+      #if show-label [
+        #text(size: 8.4pt, fill: navy, weight: "bold")[#row.at("label")]
         #linebreak()
       ]
-      #text(size: 8.2pt)[#row.at("text")]
+      #text(size: 8.15pt)[#row.at("text")]
     ],
   )
 ]
 
 #set page(
   paper: "us-letter",
-  margin: (top: 0.52in, bottom: 0.36in, x: 0.52in),
-  background: place(top, rect(width: 100%, height: 6pt, fill: teal)),
-  header: align(left, brand),
-  header-ascent: 42%,
+  margin: (top: 0.72in, bottom: 0.46in, x: 0.58in),
+  background: context {
+    let bar-width = page.width - 1.16in
+    place(
+      top + left,
+      dx: 0.58in,
+      dy: 0.22in,
+      rect(width: bar-width, height: 6.5pt, radius: 2pt, fill: teal),
+    )
+  },
+  header: align(
+    left + bottom,
+    text(size: 7.4pt, fill: teal-dark, weight: "bold", tracking: 0.07em, brief.at("branding")),
+  ),
+  header-ascent: 38%,
   footer: context {
-    set text(size: 7pt, fill: muted)
+    set text(size: 6.6pt, fill: muted, tracking: 0.015em, hyphenate: false)
     let current = counter(page).get().first()
     let total = counter(page).final().first()
-    grid(
-      columns: (1fr, auto),
-      align(left)[#brief.at("branding") · FIPS #brief.at("fips")],
-      align(right)[#current / #total],
-    )
+    block(width: 100%, inset: (top: 3pt), stroke: (top: 0.6pt + rule))[
+      #grid(
+        columns: (1fr, auto),
+        column-gutter: 10pt,
+        align(left + horizon)[#brief.at("branding") | #footer-place],
+        align(right + horizon)[#current / #total],
+      )
+    ]
   },
 )
 
 = #brief.at("county_heading")
-#v(1pt)
-#text(size: 8pt, fill: teal-dark, weight: "bold")[#brief.at("report_title")]
-#v(3pt)
-#text(size: 8.4pt)[
-  FIPS #brief.at("fips") · Published gap score #brief.at("score_label") · #brief.at("response_title")
+#kicker[
+  #brief.at("report_title")
+  |
+  Published response: #brief.at("response_title")
+  |
+  Score #brief.at("score_label")
+  |
+  FIPS #brief.at("fips")
 ]
 
-== Why it surfaced
-#text(size: 8.3pt)[#brief.at("why_it_surfaced")]
+#callout(mint, mint-bar, [Why it surfaced], brief.at("why_it_surfaced"))
 
-#v(2pt)
+== County data / Six review factors
 #for row in brief.at("categories") [
-  #factor(row)
+  #factor(row, true)
 ]
 
-#v(4pt)
-#block(width: 100%, fill: pale, inset: 7pt, radius: 2pt)[
-  #text(size: 8.4pt, fill: navy, weight: "bold")[Interpreting the data]
-  #linebreak()
-  #text(size: 8pt)[#brief.at("interpretation")]
+#callout(amber, amber-bar, [Interpreting the data], brief.at("interpretation"))
+
+#v(6pt)
+#text(size: 7pt, fill: muted)[
+  #brief.at("traceability").filter(item => item.starts-with("Observation periods:")).join()
 ]
 
 #pagebreak()
 
 = #brief.at("response_title")
-#v(1pt)
-#text(size: 8pt, fill: teal-dark, weight: "bold")[#brief.at("report_title")]
-#h(6pt)
-#text(size: 8.2pt, fill: muted)[#brief.at("county_heading") · Published gap-score response]
-
-#v(5pt)
-#block(width: 100%, fill: pale, inset: 6pt, radius: 2pt)[
-  #text(size: 8.2pt, fill: navy, weight: "bold")[Recommended posture]
-  #h(4pt)
-  #text(size: 8.2pt)[#brief.at("posture")]
+#kicker[
+  #brief.at("report_title")
+  |
+  #brief.at("county_heading")
+  |
+  Published gap-score response
 ]
 
-== Suggested follow-up
+#callout(amber, amber-bar, [Recommended posture], brief.at("posture"))
+
+== Five suggested follow-up workstreams
 #table(
-  columns: (1.85in, 1fr),
-  inset: (x: 4pt, y: 3.2pt),
-  stroke: (x, y) => (bottom: 0.4pt + rule),
+  columns: (1.82in, 1fr),
+  inset: (x: 7pt, y: 4.2pt),
+  stroke: (x, y) => if y < brief.at("workstreams").len() - 1 { (bottom: 0.7pt + white) } else { none },
+  fill: row-tint,
   ..brief.at("workstreams").map(row => (
-    text(size: 8pt, fill: navy, weight: "bold", hyphenate: false)[#row.at("label")],
-    text(size: 8pt)[#row.at("text")],
+    text(size: 7.8pt, fill: navy, weight: "bold", hyphenate: false)[#row.at("label")],
+    text(size: 7.8pt)[#row.at("text")],
   )).flatten(),
 )
 
 == Questions before acting
 #for row in brief.at("questions") [
-  #factor(row)
+  #block(width: 100%, above: 1.5pt, below: 1.5pt)[
+    #grid(
+      columns: (20pt, 1fr),
+      column-gutter: 4pt,
+      text(size: 8pt, fill: teal, weight: "bold")[#row.at("number")],
+      text(size: 8.15pt)[#row.at("text")],
+    )
+  ]
 ]
 
-== Official resources
-#text(size: 8pt, hyphenate: false)[
+== Official resources & traceability
+#text(size: 7.7pt, fill: teal, hyphenate: false)[
   #let pieces = ()
   #for (index, item) in brief.at("resources").enumerate() {
     if index > 0 {
-      pieces.push([ · ])
+      pieces.push(text(fill: muted)[ | ])
     }
     pieces.push(link(item.at("url"))[#item.at("label")])
   }
   #pieces.join()
 ]
 
-#v(5pt)
-#block(width: 100%, inset: (top: 3pt), stroke: (top: 0.6pt + rule))[
-  #text(size: 7pt, fill: muted)[
+#v(6pt)
+#block(width: 100%, inset: (top: 4pt), stroke: (top: 0.6pt + rule))[
+  #text(size: 6.8pt, fill: muted)[
     #brief.at("traceability").join([\ ])
   ]
 ]
