@@ -24,6 +24,7 @@ class MembershipProbability(BaseModel):
         ge=0,
         le=1,
         allow_inf_nan=False,
+        strict=True,
         description="Latent-class membership on 0–1 scale; never disease risk.",
     )
 
@@ -37,7 +38,10 @@ class SituationClassification(BaseModel):
         min_length=1, description="Reviewed persisted explanation, verbatim."
     )
     probabilities: list[MembershipProbability] = Field(min_length=4, max_length=4)
-    limitations: list[str]
+    limitations: list[str] = Field(
+        min_length=1,
+        description="Persisted must_not_be_read_as list: prohibited interpretations, not outcomes.",
+    )
     batch_id: str = Field(min_length=1)
     batch_version: str = Field(min_length=1)
     county_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")

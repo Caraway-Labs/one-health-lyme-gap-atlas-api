@@ -5132,7 +5132,9 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Limitations"
+            "minItems": 1,
+            "title": "Limitations",
+            "description": "Persisted must_not_be_read_as list: prohibited interpretations, not outcomes."
           },
           "batch_id": {
             "type": "string",
