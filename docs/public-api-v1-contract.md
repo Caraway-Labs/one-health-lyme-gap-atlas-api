@@ -57,6 +57,14 @@ publisher's literal `No records`; it never establishes absence. Optional
 CDC requests use `start_date=end_date=2025-12-31`, cumulative rather than annual
 grain. Unknown/unavailable remain distinct. See [ADR 0017](adr/0017-cdc-consumer-observations.md).
 
+## Latent-class county surveillance situations (API #253)
+
+The additive `GET /v1/counties/{fips}/surveillance-situations` returns both
+approved persisted model variants, complete membership vectors, immutable
+lineage and explicit publication availability. Unknown remains an available
+class. See [the surveillance situations contract](county-surveillance-situations.md)
+for bounds, errors, no-store freshness and scientific interpretation.
+
 ## Tier 1 county surveillance review priority (API #10)
 
 `GET /v1/counties/{fips}/tier1-surveillance-priority` returns the persisted

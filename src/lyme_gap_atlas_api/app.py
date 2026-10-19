@@ -154,6 +154,11 @@ from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
 from .surveillance_delivery import SurveillanceResolver
+from .surveillance_situations import (
+    CountySurveillanceSituations,
+    SituationRepository,
+    SnowflakeSituationRepository,
+)
 from .telemetry import PrivateInstrumentationProvider, server_request_hook, server_response_hook
 from .telemetry_logging import operational_logger, operational_request_id, protect_dependency_logs
 from .tier1_priority import (
@@ -333,8 +338,10 @@ def create_app(
     intelligence_repository: FeedRepository | None = None,
     tier1_priority_repository: Tier1PriorityRepository | None = None,
     surveillance_resolver: SurveillanceResolver | None = None,
+    situation_repository: SituationRepository | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
+    situations = situation_repository or SnowflakeSituationRepository(config)
     configure_logging()
     protect_dependency_logs()
     configure_tracing("one-health-lyme-gap-atlas-api")
@@ -1042,6 +1049,67 @@ def create_app(
             raise HTTPException(
                 status_code=404, detail="County or dataset release not found"
             ) from exc
+
+    @app.get(
+        "/v1/counties/{fips}/surveillance-situations",
+        response_model=CountySurveillanceSituations,
+        tags=["counties"],
+        operation_id="county_surveillance_situations_get",
+        summary="Get both persisted county surveillance-situation classifications",
+        description=(
+            "Primary four_state includes human surveillance; secondary tick_pathogen excludes it. "
+            "Returns reviewed labels, four membership probabilities per model (0-1, sum 1 within "
+            "1e-6), immutable model/batch lineage, source vintages and interpretation limits. "
+            "Unknown is an available class; No records does not establish absence. Membership "
+            "is not disease risk, incidence, pathogen presence, causation or Tier 1 priority. "
+            "HTTP 200 can contain typed UNAVAILABLE variants with null data, including an "
+            "incompatible release. Unknown county 404; malformed FIPS 422; dependency, malformed "
+            "persisted data or changing release 503. Cache-Control: no-store; "
+            "no fallback or inference."
+        ),
+        responses={
+            **LEGACY_ERRORS,
+            200: {
+                "description": "Both model variants, including explicit publication availability.",
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "unpublished": {
+                                "summary": "Illustrative unpublished batch; never Unknown",
+                                "value": {
+                                    "county_fips": "01001",
+                                    "release_id": "example-release",
+                                    "bundle_sha256": "a" * 64,
+                                    **{
+                                        variant: {
+                                            "model_id": model,
+                                            "availability": "UNAVAILABLE",
+                                            "unavailable_reason": "NOT_PUBLISHED",
+                                            "compatibility": "UNAVAILABLE",
+                                            "batch_id": None,
+                                            "batch_version": None,
+                                            "input_release_id": None,
+                                            "data": None,
+                                        }
+                                        for variant, model in {
+                                            "four_state": "surveillance-situation-four-state",
+                                            "tick_pathogen": "surveillance-situation-tick-pathogen",
+                                        }.items()
+                                    },
+                                },
+                            },
+                        }
+                    }
+                },
+            },
+        },
+    )
+    def county_surveillance_situations(
+        response: Response, fips: Annotated[str, Path(pattern=r"^[0-9]{5}$")]
+    ) -> CountySurveillanceSituations:
+        result = situations.county(fips)
+        response.headers["Cache-Control"] = "no-store"
+        return result
 
     @app.get(
         "/v1/counties/{fips}/tier1-surveillance-priority",

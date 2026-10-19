@@ -4568,6 +4568,171 @@
         }
       }
     },
+    "/v1/counties/{fips}/surveillance-situations": {
+      "get": {
+        "tags": [
+          "counties"
+        ],
+        "summary": "Get both persisted county surveillance-situation classifications",
+        "description": "Primary four_state includes human surveillance; secondary tick_pathogen excludes it. Returns reviewed labels, four membership probabilities per model (0-1, sum 1 within 1e-6), immutable model/batch lineage, source vintages and interpretation limits. Unknown is an available class; No records does not establish absence. Membership is not disease risk, incidence, pathogen presence, causation or Tier 1 priority. HTTP 200 can contain typed UNAVAILABLE variants with null data, including an incompatible release. Unknown county 404; malformed FIPS 422; dependency, malformed Persisted data or changing release 503. Cache-Control: no-store; no fallback or inference.",
+        "operationId": "county_surveillance_situations_get",
+        "parameters": [
+          {
+            "name": "fips",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{5}$",
+              "title": "Fips"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Both model variants, including explicit publication availability.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountySurveillanceSituations"
+                },
+                "examples": {
+                  "unpublished": {
+                    "summary": "Illustrative unpublished batch; never Unknown",
+                    "value": {
+                      "county_fips": "01001",
+                      "release_id": "example-release",
+                      "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "four_state": {
+                        "model_id": "surveillance-situation-four-state",
+                        "availability": "UNAVAILABLE",
+                        "unavailable_reason": "NOT_PUBLISHED",
+                        "compatibility": "UNAVAILABLE"
+                      },
+                      "tick_pathogen": {
+                        "model_id": "surveillance-situation-tick-pathogen",
+                        "availability": "UNAVAILABLE",
+                        "unavailable_reason": "NOT_PUBLISHED",
+                        "compatibility": "UNAVAILABLE"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "County or dataset release not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-404",
+                      "title": "Request failed",
+                      "status": 404,
+                      "detail": "County or dataset release not found.",
+                      "instance": "/v1/counties/{fips}/surveillance-situations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more request values are invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-422",
+                      "title": "Request failed",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/counties/{fips}/surveillance-situations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-429",
+                      "title": "Request failed",
+                      "status": 429,
+                      "detail": "Rate limit exceeded.",
+                      "instance": "/v1/counties/{fips}/surveillance-situations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Atlas data service is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-503",
+                      "title": "Request failed",
+                      "status": 503,
+                      "detail": "Atlas data service is unavailable.",
+                      "instance": "/v1/counties/{fips}/surveillance-situations",
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/counties/{fips}/tier1-surveillance-priority": {
       "get": {
         "tags": [
@@ -7052,6 +7217,44 @@
         ],
         "title": "CountyScoreSummary"
       },
+      "CountySurveillanceSituations": {
+        "properties": {
+          "county_fips": {
+            "type": "string",
+            "pattern": "^[0-9]{5}$",
+            "title": "County Fips"
+          },
+          "release_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Release Id",
+            "description": "Active governed presentation release."
+          },
+          "bundle_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Bundle Sha256"
+          },
+          "four_state": {
+            "$ref": "#/components/schemas/SituationVariant",
+            "description": "Primary model, including human surveillance."
+          },
+          "tick_pathogen": {
+            "$ref": "#/components/schemas/SituationVariant",
+            "description": "Secondary model, excluding human surveillance."
+          }
+        },
+        "type": "object",
+        "required": [
+          "county_fips",
+          "release_id",
+          "bundle_sha256",
+          "four_state",
+          "tick_pathogen"
+        ],
+        "title": "CountySurveillanceSituations",
+        "description": "Two distinct model outputs; Unknown is a valid available classification."
+      },
       "Coverage": {
         "properties": {
           "geography": {
@@ -9007,6 +9210,29 @@
         ],
         "title": "Measure"
       },
+      "MembershipProbability": {
+        "properties": {
+          "class_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Id",
+            "description": "Version-scoped persisted class identity."
+          },
+          "probability": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Probability",
+            "description": "Latent-class membership on 0\u20131 scale; never disease risk."
+          }
+        },
+        "type": "object",
+        "required": [
+          "class_id",
+          "probability"
+        ],
+        "title": "MembershipProbability"
+      },
       "MetadataFeed": {
         "properties": {
           "data": {
@@ -10359,6 +10585,240 @@
           "counties"
         ],
         "title": "ScoreCollection"
+      },
+      "SituationClassification": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Model Id"
+          },
+          "model_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Model Version"
+          },
+          "class_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Id"
+          },
+          "class_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Name",
+            "description": "Reviewed persisted display label, verbatim."
+          },
+          "class_description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Description",
+            "description": "Reviewed persisted explanation, verbatim."
+          },
+          "probabilities": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipProbability"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Probabilities"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "batch_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Batch Id"
+          },
+          "batch_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Batch Version"
+          },
+          "county_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "County Sha256"
+          },
+          "dictionary_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dictionary Sha256"
+          },
+          "input_release_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Input Release Id"
+          },
+          "input_bundle_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Input Bundle Sha256"
+          },
+          "fit_git_sha": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Fit Git Sha"
+          },
+          "feature_contract": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Feature Contract",
+            "description": "Persisted feature/config contract."
+          },
+          "model_provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Model Provenance"
+          },
+          "source_provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Source Provenance",
+            "description": "Persisted sources and source vintages."
+          },
+          "handoff_approval": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Handoff Approval"
+          },
+          "data_publication_authorization": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data Publication Authorization"
+          },
+          "data_authorization_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Data Authorization Id"
+          },
+          "staging_attempt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Staging Attempt"
+          },
+          "activated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Activated At",
+            "description": "Data activation time, not source vintage or request time."
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "model_version",
+          "class_id",
+          "class_name",
+          "class_description",
+          "probabilities",
+          "limitations",
+          "batch_id",
+          "batch_version",
+          "county_sha256",
+          "dictionary_sha256",
+          "input_release_id",
+          "input_bundle_sha256",
+          "fit_git_sha",
+          "feature_contract",
+          "model_provenance",
+          "source_provenance",
+          "handoff_approval",
+          "data_publication_authorization",
+          "data_authorization_id",
+          "staging_attempt",
+          "activated_at"
+        ],
+        "title": "SituationClassification"
+      },
+      "SituationVariant": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ],
+            "title": "Availability"
+          },
+          "unavailable_reason": {
+            "title": "Unavailable Reason",
+            "enum": [
+              "DEACTIVATED",
+              "NOT_PUBLISHED",
+              "UNAPPROVED_BATCH",
+              "INCOMPATIBLE_RELEASE",
+              "MISSING_ASSIGNMENT",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compatibility": {
+            "type": "string",
+            "enum": [
+              "EXACT_INPUT",
+              "ADMITTED_CARRY_FORWARD",
+              "UNAVAILABLE"
+            ],
+            "title": "Compatibility"
+          },
+          "batch_id": {
+            "title": "Batch Id",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "batch_version": {
+            "title": "Batch Version",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "input_release_id": {
+            "title": "Input Release Id",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SituationClassification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "availability",
+          "unavailable_reason",
+          "compatibility",
+          "batch_id",
+          "batch_version",
+          "input_release_id",
+          "data"
+        ],
+        "title": "SituationVariant"
       },
       "Source": {
         "properties": {
