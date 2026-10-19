@@ -101,5 +101,8 @@
   },
   "/v1/geographies/{geography_type}/{geography_id}/availability": {
     "get": "canonicalGeographyAvailability"
+  },
+  "/v1/counties/{fips}/surveillance-situations": {
+    "get": "county_surveillance_situations_get"
   }
 }

@@ -48,6 +48,10 @@ uv run python scripts/export_openapi.py
 uv run uvicorn lyme_gap_atlas_api.app:app --reload
 ```
 
+County latent-class classifications use the additive
+[`surveillance-situations` endpoint](docs/county-surveillance-situations.md),
+separate from Tier 1 priority.
+
 ## PDF renderer development
 
 PDF exports use the pinned Typst binary in the production image. Build and verify it locally with:
