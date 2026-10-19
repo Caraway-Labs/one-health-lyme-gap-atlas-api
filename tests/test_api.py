@@ -242,7 +242,7 @@ class FakeAnswerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, object]:
         return {
             "answer": "Reviewed evidence associates the vector with the pathogen.",
@@ -270,7 +270,7 @@ class InventedCitationAnswerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, object]:
         self.calls += 1
         return {

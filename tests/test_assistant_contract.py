@@ -47,7 +47,7 @@ class Answerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, Any]:
         self.calls += 1
         self.questions.append(message)

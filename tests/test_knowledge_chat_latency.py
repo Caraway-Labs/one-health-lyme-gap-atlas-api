@@ -69,7 +69,7 @@ class Answerer:
         self.results = results
         self.clock = clock
         self.elapsed = elapsed
-        self.calls: list[tuple[float, bool]] = []
+        self.calls: list[tuple[float, bool | str]] = []
 
     def answer(
         self,
@@ -78,7 +78,7 @@ class Answerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, Any]:
         self.calls.append((timeout_seconds, correction))
         self.clock.now += self.elapsed
@@ -154,7 +154,7 @@ def test_grounding_failure_gets_one_corrective_retry() -> None:
     response, answerer = run([invalid, valid_payload()])
     assert response.status == "answered"
     assert response.citations[0].pmid == "12345678"
-    assert [correction for _, correction in answerer.calls] == [False, True]
+    assert [bool(correction) for _, correction in answerer.calls] == [False, True]
 
 
 def test_repeated_grounding_failure_has_no_third_call() -> None:
@@ -367,7 +367,18 @@ def test_answer_specific_openai_client_has_no_sdk_retries() -> None:
             self.timeout = kwargs["timeout"]
             self.instructions = kwargs["instructions"]
             self.max_output_tokens = kwargs["max_output_tokens"]
-            return type("Response", (), {"output_text": json.dumps(valid_payload())})()
+            return type(
+                "Response",
+                (),
+                {
+                    "output_text": json.dumps(
+                        {
+                            "evidence_state": "single_study",
+                            "claims": [{"text": EXCERPT, "support_ref": "s0.0"}],
+                        }
+                    )
+                },
+            )()
 
     class Client:
         def __init__(self) -> None:
@@ -394,12 +405,21 @@ def test_oversized_provider_input_never_calls_provider() -> None:
             raise AssertionError("provider call crossed input guard")
 
     huge = [
-        Evidence("passage-1", "x" * 33_000, "Governed full-text passage", "12345678",
-                 "Paper 12345678", "https://pubmed.ncbi.nlm.nih.gov/12345678/")
+        Evidence(
+            "passage-1",
+            "x" * 33_000,
+            "Governed full-text passage",
+            "12345678",
+            "Paper 12345678",
+            "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+        )
     ]
     with pytest.raises(GenerationBudgetExceeded):
         OpenAIAnswerer(NeverCall()).answer(  # type: ignore[arg-type]
-            "question", huge, "safety-id", timeout_seconds=7,
+            "question",
+            huge,
+            "safety-id",
+            timeout_seconds=7,
         )
 
 
