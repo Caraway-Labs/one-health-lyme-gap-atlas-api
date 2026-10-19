@@ -1,0 +1,629 @@
+{
+  "recorded_date_local": "2026-10-18 America/Denver",
+  "evidence_manifest": [
+    {
+      "case_id": "tick-surveillance",
+      "passage_count": 20,
+      "excerpt_characters": 12755,
+      "sources": [
+        {
+          "pmcid": "PMC13472387",
+          "pmid": "42594106",
+          "source": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC13472387/fullTextXML",
+          "xml_sha256": "0d366e326f4c8130209f67fe689987a2bc3213bf91286ba121816ac47b1d647d",
+          "selected_paragraphs": 10
+        },
+        {
+          "pmcid": "PMC11803743",
+          "pmid": "39916608",
+          "source": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC11803743/fullTextXML",
+          "xml_sha256": "e3feff1f9ec08b464e03888208eace8cb76312fe4f822809f52c7214a130a1ce",
+          "selected_paragraphs": 10
+        }
+      ]
+    },
+    {
+      "case_id": "mammal-reservoirs",
+      "passage_count": 20,
+      "excerpt_characters": 13022,
+      "sources": [
+        {
+          "pmcid": "PMC13580959",
+          "pmid": "42748116",
+          "source": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC13580959/fullTextXML",
+          "xml_sha256": "57b53470a51a063476c00c158938ab292b1e3e0d23d12818cc54646f10b16daf",
+          "selected_paragraphs": 10
+        },
+        {
+          "pmcid": "PMC13505984",
+          "pmid": "42607219",
+          "source": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC13505984/fullTextXML",
+          "xml_sha256": "77dbf88725287229ea22ff36b5907ca947d863e4797be1324039ce99f5ffdd71",
+          "selected_paragraphs": 10
+        }
+      ]
+    }
+  ],
+  "comparison": {
+    "baseline_ref": "3e95c3091ff3559061ee9a3c09bfe40ff4cbcdd7",
+    "evidence_sha256": "4eb075d2d3853cca88731947d1536f7b239e3ec068a8ed737a71dd24349c0b1a",
+    "scope": "live provider generation on fixed published evidence; not production retrieval",
+    "comparison": "effort",
+    "rows": [
+      {
+        "outcome": "failed",
+        "first_pass_valid": false,
+        "attempts": 2,
+        "citation_count": 0,
+        "validation": [
+          "support quote is absent from cited passage",
+          "claim text is not supported by quoted passage text"
+        ],
+        "total_ms": 15234.0,
+        "case_id": "tick-surveillance",
+        "repeat": 1,
+        "variant": "baseline-low",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 17460,
+            "outcome": "completed",
+            "input_token_count": 4559,
+            "output_token_count": 578,
+            "reasoning_token_count": 160,
+            "output_characters": 1768,
+            "duration_ms": 9488.68
+          },
+          {
+            "input_characters": 17460,
+            "outcome": "completed",
+            "input_token_count": 4581,
+            "output_token_count": 588,
+            "reasoning_token_count": 131,
+            "output_characters": 1962,
+            "duration_ms": 5747.81
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 1,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 3531.0,
+        "case_id": "tick-surveillance",
+        "repeat": 1,
+        "variant": "candidate-low",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 19217,
+            "outcome": "completed",
+            "input_token_count": 6755,
+            "output_token_count": 275,
+            "reasoning_token_count": 131,
+            "output_characters": 686,
+            "duration_ms": 3524.18
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 1,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 1969.0,
+        "case_id": "tick-surveillance",
+        "repeat": 1,
+        "variant": "candidate-none",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 19217,
+            "outcome": "completed",
+            "input_token_count": 6755,
+            "output_token_count": 113,
+            "reasoning_token_count": 0,
+            "output_characters": 550,
+            "duration_ms": 1945.67
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 2,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 5437.0,
+        "case_id": "mammal-reservoirs",
+        "repeat": 1,
+        "variant": "candidate-low",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 18011,
+            "outcome": "completed",
+            "input_token_count": 5883,
+            "output_token_count": 387,
+            "reasoning_token_count": 263,
+            "output_characters": 451,
+            "duration_ms": 5419.43
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 2,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 1391.0,
+        "case_id": "mammal-reservoirs",
+        "repeat": 1,
+        "variant": "candidate-none",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 18011,
+            "outcome": "completed",
+            "input_token_count": 5883,
+            "output_token_count": 81,
+            "reasoning_token_count": 0,
+            "output_characters": 299,
+            "duration_ms": 1395.5
+          }
+        ]
+      },
+      {
+        "outcome": "failed",
+        "first_pass_valid": false,
+        "attempts": 2,
+        "citation_count": 0,
+        "validation": [
+          "claim text is not supported by quoted passage text",
+          "claim text is not supported by quoted passage text"
+        ],
+        "total_ms": 10969.0,
+        "case_id": "mammal-reservoirs",
+        "repeat": 1,
+        "variant": "baseline-low",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 16860,
+            "outcome": "completed",
+            "input_token_count": 4266,
+            "output_token_count": 647,
+            "reasoning_token_count": 120,
+            "output_characters": 2103,
+            "duration_ms": 5991.51
+          },
+          {
+            "input_characters": 16860,
+            "outcome": "completed",
+            "input_token_count": 4288,
+            "output_token_count": 551,
+            "reasoning_token_count": 143,
+            "output_characters": 1575,
+            "duration_ms": 4981.87
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 2,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 4422.0,
+        "case_id": "tick-surveillance",
+        "repeat": 2,
+        "variant": "candidate-low",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 19217,
+            "outcome": "completed",
+            "input_token_count": 6755,
+            "output_token_count": 257,
+            "reasoning_token_count": 161,
+            "output_characters": 408,
+            "duration_ms": 4416.3
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 1,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 1562.0,
+        "case_id": "tick-surveillance",
+        "repeat": 2,
+        "variant": "candidate-none",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 19217,
+            "outcome": "completed",
+            "input_token_count": 6755,
+            "output_token_count": 122,
+            "reasoning_token_count": 0,
+            "output_characters": 598,
+            "duration_ms": 1543.68
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": false,
+        "attempts": 2,
+        "citation_count": 2,
+        "validation": [
+          "claim text is not supported by quoted passage text",
+          "passed"
+        ],
+        "claim_count": 3,
+        "total_ms": 12281.0,
+        "case_id": "tick-surveillance",
+        "repeat": 2,
+        "variant": "baseline-low",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 17460,
+            "outcome": "completed",
+            "input_token_count": 4559,
+            "output_token_count": 697,
+            "reasoning_token_count": 242,
+            "output_characters": 1979,
+            "duration_ms": 6417.56
+          },
+          {
+            "input_characters": 17460,
+            "outcome": "completed",
+            "input_token_count": 4581,
+            "output_token_count": 638,
+            "reasoning_token_count": 224,
+            "output_characters": 1739,
+            "duration_ms": 5865.35
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 2,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 4938.0,
+        "case_id": "mammal-reservoirs",
+        "repeat": 2,
+        "variant": "candidate-none",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 18011,
+            "outcome": "completed",
+            "input_token_count": 5883,
+            "output_token_count": 135,
+            "reasoning_token_count": 0,
+            "output_characters": 539,
+            "duration_ms": 4942.95
+          }
+        ]
+      },
+      {
+        "outcome": "failed",
+        "first_pass_valid": false,
+        "attempts": 2,
+        "citation_count": 0,
+        "validation": [
+          "claim text is not supported by quoted passage text",
+          "claim text is not supported by quoted passage text"
+        ],
+        "total_ms": 15016.0,
+        "case_id": "mammal-reservoirs",
+        "repeat": 2,
+        "variant": "baseline-low",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 16860,
+            "outcome": "completed",
+            "input_token_count": 4266,
+            "output_token_count": 744,
+            "reasoning_token_count": 284,
+            "output_characters": 1838,
+            "duration_ms": 7969.5
+          },
+          {
+            "input_characters": 16860,
+            "outcome": "completed",
+            "input_token_count": 4288,
+            "output_token_count": 682,
+            "reasoning_token_count": 195,
+            "output_characters": 1915,
+            "duration_ms": 7055.56
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 2,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 3313.0,
+        "case_id": "mammal-reservoirs",
+        "repeat": 2,
+        "variant": "candidate-low",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 18011,
+            "outcome": "completed",
+            "input_token_count": 5883,
+            "output_token_count": 233,
+            "reasoning_token_count": 117,
+            "output_characters": 418,
+            "duration_ms": 3303.18
+          }
+        ]
+      }
+    ]
+  },
+  "model_screen": {
+    "baseline_ref": "3e95c3091ff3559061ee9a3c09bfe40ff4cbcdd7",
+    "evidence_sha256": "4eb075d2d3853cca88731947d1536f7b239e3ec068a8ed737a71dd24349c0b1a",
+    "scope": "live provider generation on fixed published evidence; not production retrieval",
+    "comparison": "models",
+    "rows": [
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 1,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 6547.0,
+        "case_id": "tick-surveillance",
+        "repeat": 1,
+        "variant": "gpt-6-luna-none",
+        "model": "gpt-6-luna",
+        "calls": [
+          {
+            "input_characters": 19217,
+            "outcome": "completed",
+            "input_token_count": 6755,
+            "output_token_count": 109,
+            "reasoning_token_count": 0,
+            "output_characters": 528,
+            "duration_ms": 6543.27
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 2,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 1562.0,
+        "case_id": "tick-surveillance",
+        "repeat": 1,
+        "variant": "gpt-5.6-terra-none",
+        "model": "gpt-5.6-terra",
+        "calls": [
+          {
+            "input_characters": 19217,
+            "outcome": "completed",
+            "input_token_count": 6755,
+            "output_token_count": 131,
+            "reasoning_token_count": 0,
+            "output_characters": 563,
+            "duration_ms": 1574.5
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 2,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 1688.0,
+        "case_id": "mammal-reservoirs",
+        "repeat": 1,
+        "variant": "gpt-5.6-terra-none",
+        "model": "gpt-5.6-terra",
+        "calls": [
+          {
+            "input_characters": 18011,
+            "outcome": "completed",
+            "input_token_count": 5883,
+            "output_token_count": 104,
+            "reasoning_token_count": 0,
+            "output_characters": 352,
+            "duration_ms": 1672.38
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 2,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 1969.0,
+        "case_id": "mammal-reservoirs",
+        "repeat": 1,
+        "variant": "gpt-6-luna-none",
+        "model": "gpt-6-luna",
+        "calls": [
+          {
+            "input_characters": 18011,
+            "outcome": "completed",
+            "input_token_count": 5883,
+            "output_token_count": 107,
+            "reasoning_token_count": 0,
+            "output_characters": 384,
+            "duration_ms": 1965.32
+          }
+        ]
+      }
+    ]
+  },
+  "final_confirmation": {
+    "baseline_ref": "3e95c3091ff3559061ee9a3c09bfe40ff4cbcdd7",
+    "evidence_sha256": "4eb075d2d3853cca88731947d1536f7b239e3ec068a8ed737a71dd24349c0b1a",
+    "scope": "live provider generation on fixed published evidence; not production retrieval",
+    "comparison": "selected",
+    "implementation_sha256": "acde9c3947c2bda52dcd91ee3256e0586be6bafc67720c8821fda2d3a59131ac",
+    "rows": [
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 1,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 6218.51,
+        "case_id": "tick-surveillance",
+        "repeat": 1,
+        "variant": "selected-default",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 19217,
+            "outcome": "completed",
+            "input_token_count": 6757,
+            "output_token_count": 125,
+            "reasoning_token_count": 0,
+            "output_characters": 616,
+            "duration_ms": 6211.35
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 1,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 1925.9,
+        "case_id": "mammal-reservoirs",
+        "repeat": 1,
+        "variant": "selected-default",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 18011,
+            "outcome": "completed",
+            "input_token_count": 5885,
+            "output_token_count": 101,
+            "reasoning_token_count": 0,
+            "output_characters": 369,
+            "duration_ms": 1920.12
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 1,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 1889.18,
+        "case_id": "tick-surveillance",
+        "repeat": 2,
+        "variant": "selected-default",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 19217,
+            "outcome": "completed",
+            "input_token_count": 6757,
+            "output_token_count": 108,
+            "reasoning_token_count": 0,
+            "output_characters": 529,
+            "duration_ms": 1884.19
+          }
+        ]
+      },
+      {
+        "outcome": "answered",
+        "first_pass_valid": true,
+        "attempts": 1,
+        "citation_count": 1,
+        "validation": [
+          "passed"
+        ],
+        "claim_count": 2,
+        "total_ms": 1738.38,
+        "case_id": "mammal-reservoirs",
+        "repeat": 2,
+        "variant": "selected-default",
+        "model": "gpt-5.6-luna",
+        "calls": [
+          {
+            "input_characters": 18011,
+            "outcome": "completed",
+            "input_token_count": 5885,
+            "output_token_count": 103,
+            "reasoning_token_count": 0,
+            "output_characters": 368,
+            "duration_ms": 1733.07
+          }
+        ]
+      }
+    ]
+  }
+}

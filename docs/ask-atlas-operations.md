@@ -12,8 +12,8 @@ can select SQL, Cypher, a tool name, or an unrestricted retrieval path.
 | --- | --- |
 | HTTP rate/concurrency | Structured: 30 attempts/10 minutes/IP; Mixed and governed chat share 10 attempts/10 minutes/IP because both can invoke the paid literature service. Each bucket has 3 concurrent requests/IP. Paid-capable routes also share a process-wide ceiling of 60 attempts/10 minutes and 6 concurrent requests even if IP identities change. The existing global API limiter remains. Rejections are 429 with `Retry-After`. Counters are process local; the deployed single-worker topology is required by ADR 0007. |
 | Structured tools | Finite intent/question forms, at most three validated registered tool calls, bounded request fields, release and canonical evidence validation. No model call. |
-| Literature | Existing one retrieval, budget reservation through the governed Snowflake procedure (currently $0.05 reservation per chat), at most two generation attempts, no SDK retries, 28-second service deadline, each generation call at most 16 seconds, 32,000-character provider-input guard and 2,048 output-token ceiling per attempt. An incomplete provider response or exhausted input bound cannot be admitted as an answer. The character guard is not a token counter. |
-| Exhaustion | Budget denial, input/output exhaustion and deadline failure return no ungrounded claim. Mixed mode discards an earlier branch when literature budget is refused or exhausted; it returns `SOURCE_UNAVAILABLE` with no sources used. |
+| Literature | Existing one retrieval, no Snowflake spending-approval check or reservation (product-owner-authorized bypass), at most two generation attempts, no SDK retries, 28-second service deadline, each generation call at most 16 seconds, 32,000-character provider-input guard and 2,048 output-token ceiling per attempt. An incomplete provider response or exhausted input bound cannot be admitted as an answer. The character guard is not a token counter. |
+| Exhaustion | Input/output exhaustion and deadline failure return no ungrounded claim. Mixed mode discards an earlier branch when the literature request bounds are exhausted; it returns `SOURCE_UNAVAILABLE` with no sources used. |
 
 Neo4j retrieval has an absolute monotonic cap of 5 seconds or the remaining
 service budget, whichever is shorter. Its request-scoped async driver covers
@@ -23,6 +23,14 @@ worker returns; there is no detached retrieval thread or managed transaction
 retry. A timeout retains the existing typed 503 and `neo4j_timeout` completion.
 The 28-second workflow deadline remains cooperative for other dependencies.
 See [#265 cancellation evidence and rollout limits](api-265-bounded-retrieval.md).
+
+Generation defaults to `gpt-5.6-luna` with reasoning effort `none`. Strict
+Structured Outputs selects one enumerated exact sentence/adjacent-sentence
+reference per atomic claim, at most two claims. Canonical citations and answer
+text are assembled server-side and still pass the existing grounding validator.
+The one corrective attempt receives the allowlisted validation reason. See the
+[controlled live generation benchmark](ask-atlas-generation-benchmark.md) for
+measured improvements, source provenance and production acceptance limits.
 
 The request completion has a bounded `operational_outcome`: `answered`,
 `abstained`, `validation_failure`, `dependency_failure`, `provider_failure`,
@@ -49,16 +57,23 @@ inside service time; generated JSON parsing is nested inside generation. Never
 sum parent and child spans, count retries as requests, or treat sampled traces
 as population rates. Provider logs record input/output token counts only if the
 provider reports them. Structured answers have no model tokens. No reliable
-per-request USD cost is available from these events: reservation is a ceiling,
-not spend; missing provider usage is **unmeasured**, not zero. Reconcile actual
+per-request USD cost is available from these events: historical reservations
+were ceilings, not spend, and the current route makes no reservation. Missing
+provider usage is **unmeasured**, not zero. Reconcile actual
 usage with authorized provider billing and current pricing before any cost
 claim. The #20 `Measurements` fields likewise remain null for unobserved
 latency, tokens, cost and Phoenix export.
-The existing literature retrieval embeds the bounded (1,000-character) message
-before generation budget reservation, so a denied reservation can still incur
-one embedding charge. The paid-route rate and concurrency ceilings also bound
-that pre-reservation path. The reservation is not a hard dollar cap on actual
-provider billing.
+On 2026-10-18 the product owner explicitly authorized disabling Snowflake
+spending approval and acknowledged that available budget is no longer checked.
+The service's `budget_reservation` block is commented out: chat no longer calls
+`SP_RESERVE_KG_LLM_BUDGET`, inserts a reservation, or emits a budget-stage timing.
+The existing procedure adapter remains available for a reviewed restoration.
+Rate/concurrency limits and provider input/output/time bounds remain active;
+these are not dollar-spend caps. Grounding, provenance, conversation authorization
+and persistence remain unchanged. A new chat may still open its lazy Snowflake
+connection later for provenance or persistence; removing pre-generation connection
+setup does not guarantee the entire setup cost disappears from a successful turn.
+The separate public `capacity_limited` schema vocabulary remains compatible.
 
 ## Diagnose one reported failure
 
@@ -103,7 +118,7 @@ uv run pytest -q -o addopts='' tests/test_ask_atlas_mixed_composition.py
 Record the exact candidate SHA, policy/config/model identifiers, fixture
 dataset version, CI result, deployment ID and deployed SHA. Hold promotion if
 the complete #20 comparison gate or the manually selected v2 regression fails;
-if privacy, grounding, provenance, budget bounds or critical request paths fail;
+if privacy, grounding, provenance, input/output/deadline bounds or critical request paths fail;
 or if required CI/OpenAPI/Docker checks fail. An unavailable live provider or
 export check is **LIMITED/BLOCKED**, never PASS. Review its operational impact
 before a PM-approved promotion. Keep #191 open for deferred live comparison.

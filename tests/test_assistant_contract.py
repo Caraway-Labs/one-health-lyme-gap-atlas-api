@@ -47,7 +47,7 @@ class Answerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, Any]:
         self.calls += 1
         self.questions.append(message)
@@ -163,24 +163,25 @@ def test_graph_unavailable_and_empty_corpus_do_not_call_model() -> None:
     assert answerer.calls == 0
 
 
-def test_capacity_limited_has_non_applicable_evidence_state() -> None:
+def test_spending_approval_is_bypassed_and_grounded_answer_still_persists() -> None:
     class DeniedBudget:
         def authorize(self, conversation_id: str, token_hash: str) -> bool:
             return True
 
         def reserve(self, request_id: str) -> bool:
-            return False
+            raise AssertionError("Spending approval must not run")
 
         def persist(self, **kwargs: Any) -> None:
-            raise AssertionError("capacity response must not persist")
+            self.persisted = True
 
     evidence, payload = one_paper_case()
     answerer = Answerer(payload)
     service = KnowledgeChatService(Retriever(evidence), answerer, DeniedBudget(), "test-secret")
     response = service.chat(KnowledgeChatRequest(message="What was found?"), "request-1", "network")
-    assert response.status == "capacity_limited"
-    assert response.evidence_state == "not_applicable"
-    assert answerer.calls == 0
+    assert response.status == "answered"
+    assert response.citations
+    assert service._store.persisted is True
+    assert answerer.calls == 1
 
 
 @pytest.mark.parametrize(
