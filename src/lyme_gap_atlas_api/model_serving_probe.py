@@ -110,7 +110,12 @@ def probe_models(settings: ApiSettings) -> dict[str, Any]:
                         timeout=timeout,
                     )
                 except Exception as error:
-                    if getattr(error, "sqlstate", None) != "42S02":
+                    # Snowflake 2003 uses 02000 for an inaccessible schema,
+                    # and 42S02 for an inaccessible table. Neither proves
+                    # existence or a denied grant; other errors remain failures.
+                    if getattr(error, "errno", None) != 2003 or getattr(
+                        error, "sqlstate", None
+                    ) not in {"42S02", "02000"}:
                         return report | {"read_status": "denial_unverified"}
                     report["base_tables_inaccessible"] += 1
                 else:

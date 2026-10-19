@@ -80,6 +80,12 @@ class Session:
                 self.rows = []
             elif self.fault == "wrong_denial":
                 raise RuntimeError("fixture-secret")
+            elif self.fault == "schema_denial":
+                raise ProgrammingError(msg="fixture-secret", errno=2003, sqlstate="02000")
+            elif self.fault == "no_data_other_error":
+                raise ProgrammingError(msg="fixture-secret", errno=9999, sqlstate="02000")
+            elif self.fault == "unrelated_sqlstate":
+                raise ProgrammingError(msg="fixture-secret", errno=2003, sqlstate="HY000")
             else:
                 raise ProgrammingError(msg="fixture-secret", errno=2003, sqlstate="42S02")
         else:
@@ -108,18 +114,21 @@ class Session:
         "timeout",
         "base_access",
         "wrong_denial",
+        "schema_denial",
+        "no_data_other_error",
+        "unrelated_sqlstate",
     ],
 )
 def test_service_model_and_denial_boundaries(monkeypatch, fault):
     session = Session(fault)
     monkeypatch.setattr(probe, "connect", lambda _: session)
     result = probe.probe_models(settings())
-    assert result["publication_matches"] == (fault is None)
+    assert result["publication_matches"] == (fault in {None, "schema_denial"})
     assert len(session.calls) <= 7
     assert "fixture-secret" not in json.dumps(result)
     if fault in {"personal", "elevated"}:
         assert len(session.calls) == 1
-    if fault is None:
+    if fault in {None, "schema_denial"}:
         assert result["base_tables_inaccessible"] == 4
         assert result["county_rows"] == 6288
     if fault == "timeout":
