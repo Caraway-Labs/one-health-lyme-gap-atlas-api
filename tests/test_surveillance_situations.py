@@ -202,6 +202,23 @@ def test_http_and_bounded_parameterized_reads(monkeypatch: pytest.MonkeyPatch) -
     assert not any("FEATURE_STORE" in call[0] for call in calls)
 
 
+@pytest.mark.parametrize("reason", ["NOT_PUBLISHED", "INCOMPATIBLE_RELEASE"])
+def test_http_unavailable_does_not_fabricate_class(
+    monkeypatch: pytest.MonkeyPatch, reason: str
+) -> None:
+    source = rows()
+    a = source[0][0]
+    a.update(availability="UNAVAILABLE", unavailable_reason=reason, class_id=None)
+    source[0] = (a, {"class_id": None})
+    fake_connection(monkeypatch, [[RELEASE], [(RELEASE[0],)], source, [RELEASE]])
+    response = client().get("/v1/counties/02013/surveillance-situations")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["four_state"]["data"] is None
+    assert response.json()["four_state"]["unavailable_reason"] == reason
+    assert response.json()["tick_pathogen"]["availability"] == "AVAILABLE"
+
+
 def test_unknown_county(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_connection(monkeypatch, [[RELEASE], [], [RELEASE]])
     assert client().get("/v1/counties/99999/surveillance-situations").status_code == 404
