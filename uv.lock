@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [manifest]
-overrides = [{ name = "one-health-lyme-gap-atlas-shared", extras = ["snowflake", "observability"], git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=83ccbe76047185f6aacaff551afd8b03d88aa5cf" }]
+overrides = [{ name = "one-health-lyme-gap-atlas-shared", extras = ["snowflake", "observability"], git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=1663267c6a3121d7cbb1d40b95a6dc50ee5e1642" }]
 
 [[package]]
 name = "affine"
@@ -946,7 +946,7 @@ requires-dist = [
     { name = "neo4j", specifier = ">=6,<7" },
     { name = "one-health-lyme-gap-atlas-data", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-data.git?rev=2476bfec3b89b513adf9ce2348fe94be44abf915" },
     { name = "one-health-lyme-gap-atlas-knowledge-graph", git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-knowledge-graph.git?rev=kg-v1.0.0" },
-    { name = "one-health-lyme-gap-atlas-shared", extras = ["snowflake", "observability"], git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=83ccbe76047185f6aacaff551afd8b03d88aa5cf" },
+    { name = "one-health-lyme-gap-atlas-shared", extras = ["snowflake", "observability"], git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=1663267c6a3121d7cbb1d40b95a6dc50ee5e1642" },
     { name = "openai", specifier = ">=2.8,<3" },
     { name = "openapi-spec-validator", marker = "extra == 'dev'", specifier = ">=0.7,<0.9" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.51b0,<1" },
@@ -997,8 +997,8 @@ dependencies = [
 
 [[package]]
 name = "one-health-lyme-gap-atlas-shared"
-version = "1.0.0"
-source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=83ccbe76047185f6aacaff551afd8b03d88aa5cf#83ccbe76047185f6aacaff551afd8b03d88aa5cf" }
+version = "2.0.0"
+source = { git = "https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-shared-python.git?rev=1663267c6a3121d7cbb1d40b95a6dc50ee5e1642#1663267c6a3121d7cbb1d40b95a6dc50ee5e1642" }
 dependencies = [
     { name = "pydantic" },
 ]

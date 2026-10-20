@@ -265,9 +265,9 @@ class AtlasFastAPI(FastAPI):
         ]["200"]["content"]["application/json"]["examples"] = deepcopy(
             {"unpublished": PENDING_GEOGRAPHY_EXAMPLE}
         )
-        situation_example = schema["paths"]["/v1/counties/{fips}/surveillance-situations"][
-            "get"
-        ]["responses"]["200"]["content"]["application/json"]["examples"]["unpublished"]["value"]
+        situation_example = schema["paths"]["/v1/counties/{fips}/surveillance-situations"]["get"][
+            "responses"
+        ]["200"]["content"]["application/json"]["examples"]["unpublished"]["value"]
         for variant in ("four_state", "tick_pathogen"):
             situation_example[variant].update(
                 batch_id=None, batch_version=None, input_release_id=None, data=None
@@ -284,12 +284,21 @@ class AtlasFastAPI(FastAPI):
 
 def _score_settings(
     ecological_share: Annotated[int, Query(ge=40, le=85, multiple_of=5)] = 65,
-    low_incidence_breakpoint: Annotated[int, Query(ge=5, le=25)] = 10,
+    smooth_k: Annotated[int, Query(ge=5, le=200)] = 50,
     missing_human_weakness: Annotated[int, Query(ge=40, le=90, multiple_of=5)] = 75,
+    low_incidence_breakpoint: Annotated[int | None, Query(deprecated=True)] = None,
 ) -> ScoreSettings:
+    if low_incidence_breakpoint is not None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Legacy low_incidence_breakpoint is incompatible with Surveillance Gap Score v1.1; "
+                "refresh the client and use smooth_k (governed default 50)."
+            ),
+        )
     return ScoreSettings(
         ecological_share=ecological_share,
-        low_incidence_breakpoint=low_incidence_breakpoint,
+        smooth_k=smooth_k,
         missing_human_weakness=missing_human_weakness,
     )
 

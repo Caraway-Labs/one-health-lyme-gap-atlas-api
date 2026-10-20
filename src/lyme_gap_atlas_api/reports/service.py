@@ -220,7 +220,11 @@ class ReportService:
             schema_version=metadata.schema_version,
             methodology_version=metadata.methodology_version,
             scoring_settings=settings.model_dump(),
-            limitations=metadata.limitations,
+            limitations=(
+                f"Surveillance Gap Score v1.1; smooth k={settings.smooth_k}; "
+                f"missing human H={settings.missing_human_weakness} is a legacy assumption. "
+                + metadata.limitations
+            ),
             sources=[ReportSource(**source.model_dump()) for source in metadata.sources],
         )
 

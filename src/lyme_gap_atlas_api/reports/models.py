@@ -42,6 +42,7 @@ class ReportProvenance(BaseModel):
     dataset_version: str
     schema_version: str
     methodology_version: str
+    scoring_methodology_version: str = "surveillance-gap-score-v1.1"
     scoring_settings: dict[str, int]
     limitations: str
     sources: list[ReportSource]
