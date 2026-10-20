@@ -1,0 +1,12 @@
+fips=06049
+county=Modoc County, California
+color=#a9d2db
+score=19.5
+response=Continue routine review
+pages=2
+filename=Modoc_CA_AtlasBrief.pdf
+score_label=19.5
+no Recommended posture
+no Follow-up areas
+has_gap_review_score=True
+has_fips_label=True

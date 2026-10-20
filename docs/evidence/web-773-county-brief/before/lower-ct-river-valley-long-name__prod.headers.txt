@@ -1,0 +1,2 @@
+content-type: application/pdf
+content-disposition: attachment; filename="Lower_Connecticut_River_Valley_Planning_Region_CT_AtlasBrief.pdf"

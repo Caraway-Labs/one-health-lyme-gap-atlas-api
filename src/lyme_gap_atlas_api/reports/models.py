@@ -115,9 +115,11 @@ class CountyDataBrief(BaseModel):
     county_heading: str
     response_title: str
     response_status: Literal["assigned", "unavailable"]
+    response_color: str
     score_label: str
     fips: str
     why_it_surfaced: str
+    factors_intro: str
     categories: list[BriefRow]
     interpretation: str
     posture: str

@@ -1,0 +1,12 @@
+fips=06037
+county=Los Angeles County, California
+color=#e9602b
+score=85.6
+response=Prioritize targeted follow-up
+pages=2
+filename=Los_Angeles_CA_AtlasBrief.pdf
+score_label=85.6
+no Recommended posture
+no Follow-up areas
+has_gap_review_score=True
+has_fips_label=True

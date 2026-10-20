@@ -113,9 +113,27 @@ def test_worth_routine_brief_uses_published_gaps_not_prototype_notes() -> None:
     assert brief.workstreams[0].label == "Human disease surveillance"
     assert "missing published count is not a finding of zero cases" in brief.workstreams[0].text
     assert brief.questions[0].text.startswith("Are current surveillance processes")
+    assert [row.number for row in brief.categories] == ["1", "2", "3", "4", "5", "6"]
+    assert [row.number for row in brief.workstreams] == ["1", "2", "3", "4", "5"]
+    assert [row.number for row in brief.questions] == ["1", "2", "3", "4"]
+    assert brief.score_label == "7.6"
+    assert "gap review score of 7.6" in brief.why_it_surfaced
+    assert "model-assisted" not in brief.why_it_surfaced
+    assert "Recommended posture" not in brief.posture
     assert "Design prototype" not in brief.why_it_surfaced
     assert "What the data show" not in brief.why_it_surfaced
+    assert [item.label for item in brief.resources[:7]] == [
+        "Lyme surveillance data",
+        "Tick and pathogen data",
+        "Clinical testing guidance",
+        "Social vulnerability index",
+        "Health insurance data",
+        "Rural-urban classification",
+        "County review methodology",
+    ]
     assert any(item.url.startswith("https://") for item in brief.resources)
+    assert "County identifier (FIPS): 19195" in brief.traceability
+    assert any(item.startswith("Score methodology:") for item in brief.traceability)
 
 
 def test_response_questions_differ_for_every_published_color() -> None:
@@ -149,8 +167,12 @@ def test_unavailable_review_level_uses_neutral_questions() -> None:
 
     assert outside.response_title == "Review level unavailable"
     assert outside.response_status == "unavailable"
+    assert outside.score_label == "7.6"
     assert outside.questions[0].text.startswith("Why is a follow-up category not assigned")
     assert unscored.response_title == "Gap score unavailable"
+    assert unscored.score_label == "Unavailable"
+    assert "7.6" not in unscored.why_it_surfaced
+    assert "7.6" not in " ".join(unscored.traceability)
     assert unscored.questions[0].text.startswith("Why is a published Atlas gap score")
     assert outside.questions[0].text != unscored.questions[0].text
 

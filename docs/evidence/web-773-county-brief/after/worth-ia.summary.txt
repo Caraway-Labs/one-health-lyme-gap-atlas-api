@@ -1,0 +1,12 @@
+fips=19195
+county=Worth County, Iowa
+color=#a9d2db
+score=7.6
+response=Continue routine review
+pages=2
+filename=Worth_IA_AtlasBrief.pdf
+score_label=7.6
+no Recommended posture
+no Follow-up areas
+has_gap_review_score=True
+has_fips_label=True

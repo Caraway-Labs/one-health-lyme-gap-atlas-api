@@ -1,0 +1,2 @@
+content-type: application/pdf
+content-disposition: attachment; filename="Modoc_CA_AtlasBrief.pdf"

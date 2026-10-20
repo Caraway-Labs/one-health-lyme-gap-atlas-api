@@ -73,7 +73,7 @@ configure it with `PDF_CACHE_ENABLED=true`, `PDF_CACHE_TTL_SECONDS=300`, and
 `PDF_CACHE_MAX_ENTRIES=128`. A cache hit returns the original artifact, including its
 generation timestamp, until the TTL expires or a material report input changes.
 
-For Investigate exports, use the opt-in `county-v2` [observation context contract](docs/county-report-investigate-contract.md). The default county download is `county-v3`, the published two-page County Data Brief. Explicit `county-v1` remains available and unchanged.
+For Investigate exports, use the opt-in `county-v2` [observation context contract](docs/county-report-investigate-contract.md). The default county download is `county-v3`, the published two-page County Data Brief in plain epidemiologist language (Gap review score, Why it surfaced, six review factors, and Suggested follow-up). Explicit `county-v1` remains available and unchanged.
 
 ## PDF export operations
 

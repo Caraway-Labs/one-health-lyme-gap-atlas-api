@@ -1,0 +1,2 @@
+content-type: application/pdf
+content-disposition: attachment; filename="Dillingham_Census_Area_AK_AtlasBrief.pdf"

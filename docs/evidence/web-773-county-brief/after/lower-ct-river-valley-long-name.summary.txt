@@ -1,0 +1,12 @@
+fips=09130
+county=Lower Connecticut River Valley Planning Region, Connecticut
+color=#a9d2db
+score=15.2
+response=Continue routine review
+pages=2
+filename=Lower_Connecticut_River_Valley_Planning_Region_CT_AtlasBrief.pdf
+score_label=15.2
+no Recommended posture
+no Follow-up areas
+has_gap_review_score=True
+has_fips_label=True

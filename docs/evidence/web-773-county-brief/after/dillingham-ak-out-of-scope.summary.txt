@@ -1,0 +1,12 @@
+fips=02070
+county=Dillingham Census Area, Alaska
+color=#e4e9ea
+score=24.3
+response=Review level unavailable
+pages=2
+filename=Dillingham_Census_Area_AK_AtlasBrief.pdf
+score_label=24.3
+no Recommended posture
+no Follow-up areas
+has_gap_review_score=True
+has_fips_label=True

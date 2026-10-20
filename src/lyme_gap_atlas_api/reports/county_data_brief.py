@@ -18,7 +18,12 @@ from typing import Literal, TypeGuard, TypeVar
 from ..models import CountyDetail
 from .models import BriefLink, BriefRow, CountyDataBrief
 
-COPY_VERSION = "explorer-follow-up-web-e6c0aa2"
+COPY_VERSION = "explorer-follow-up-web-e6c0aa2-editorial-773"
+FACTORS_INTRO = (
+    "These factors summarize the published data used in the Atlas. "
+    "They do not show how much each factor contributed to the county's overall score."
+)
+_NEUTRAL_COLOR = "#e4e9ea"
 BRANDING = "ONE HEALTH LYME GAP ATLAS"
 REPORT_TITLE = "COUNTY DATA BRIEF"
 ATLAS_ORIGIN = "https://onehealthatlas.org"
@@ -78,12 +83,8 @@ _GAP_EXPLANATION = (
     "Available published data do not support calculation of an Atlas gap score for this county."
 )
 _REVIEW_UNAVAILABLE = "Review level unavailable"
-_PUBLISHED_SOURCE = (
-    "Based on published Atlas gap-score category. "
-    "This is not a model-assisted surveillance priority."
-)
 _VERIFICATION_NOTE = (
-    "These rows are evidence-verification considerations, not a scored recommendation "
+    "These topics are for checking published records. They are not a scored recommendation "
     "or an instruction to escalate surveillance."
 )
 _GOVERNANCE_QUESTIONS = (
@@ -97,8 +98,8 @@ _GOVERNANCE_QUESTIONS = (
 _RESPONSE_EXPLANATIONS = {
     "Conduct targeted follow-up": "Investigate a specific, evidence-supported uncertainty.",
     "Continue routine review": (
-        "Maintain established surveillance. Do not initiate an investigation solely "
-        "because the county is scored."
+        "Use existing surveillance and program processes. Do not initiate an investigation "
+        "solely because this county is scored."
     ),
     "Coordinate a local assessment": (
         "Bring together relevant public-health programs when important questions "
@@ -184,215 +185,164 @@ _GAP_QUESTIONS = (
 _RESPONSE_ROWS: dict[str, dict[FollowUpId, str]] = {
     "Continue routine review": {
         "clinical-laboratory-reporting": (
-            "Maintain awareness of existing Lyme disease reporting and laboratory surveillance "
-            "procedures. Consider whether routine reporting updates warrant review; the Atlas "
-            "does not establish that reporting is incomplete."
+            "Maintain awareness of existing reporting and laboratory surveillance procedures. "
+            "Consider whether routine reporting updates warrant review."
         ),
         "community-context-outreach": (
-            "Continue existing prevention education and outreach activities as locally "
-            "appropriate. Use social vulnerability, insurance coverage, and rurality as "
-            "contextual information, not evidence of transmission or underreporting."
+            "Continue existing prevention education and outreach activities as appropriate."
         ),
         "coordination-documentation": (
-            "Document the published evidence, its principal limitations, and any information "
-            "to revisit during routine program review. No additional coordination or "
-            "escalation is implied by this response."
+            "Document the published data, any new information, and key limitations during "
+            "routine program review. No additional investigation is required based on the "
+            "current score."
         ),
         "human-disease-surveillance": (
             "Continue routine review of Lyme disease surveillance data through established "
-            "program processes. Note limitations in published county counts, including "
-            "reporting period and residence-based assignment, without assuming additional "
-            "case investigation is needed."
+            "program processes."
         ),
         "vector-pathogen-surveillance": (
-            "Review new tick and pathogen surveillance information as part of established "
-            "program activities. Record gaps in published coverage without interpreting "
-            "missing records as absence or initiating sampling solely because data are unavailable."
+            "Review new tick and pathogen information as part of established program activities."
         ),
     },
     "Monitor the pattern": {
         "clinical-laboratory-reporting": (
             "Monitor whether changes in laboratory reporting, testing volume, or "
-            "case-ascertainment practices could affect surveillance patterns. Investigate a "
-            "reporting pathway only if local information identifies a specific concern."
+            "case-ascertainment practices could affect surveillance patterns."
         ),
         "community-context-outreach": (
             "Review whether existing prevention messages and outreach coverage remain "
-            "appropriate as surveillance information changes. Use local knowledge to identify "
-            "communication needs rather than assuming outreach gaps from county-level indicators."
+            "appropriate as surveillance information changes."
         ),
         "coordination-documentation": (
             "Record the findings or changes that would warrant closer review, and identify "
-            "which routine surveillance sources should be revisited. Keep monitoring "
-            "proportional to program capacity and established practice."
+            "which routine surveillance sources should be revisited."
         ),
         "human-disease-surveillance": (
             "Watch for changes in published Lyme disease reports and locally available "
-            "surveillance summaries. Compare similar reporting periods and account for "
-            "case-definition and reporting-method changes before interpreting an apparent trend."
+            "surveillance summaries."
         ),
         "vector-pathogen-surveillance": (
             "Track newly available tick presence and pathogen detection records, including "
-            "collection dates and geographic coverage where known. Consider whether emerging "
-            "findings change the current interpretation of the county's evidence."
+            "collection dates and geographic coverage where known."
         ),
     },
     "Verify with local information": {
         "clinical-laboratory-reporting": (
             "Review existing clinical and laboratory reporting information when local case "
-            "ascertainment remains unclear. Determine whether reporting practices or "
-            "case-classification methods explain differences without assuming reporting failure."
+            "ascertainment remains unclear."
         ),
         "community-context-outreach": (
             "Use locally held information to interpret healthcare access, rurality, and social "
-            "vulnerability before deciding whether changes to prevention outreach are justified. "
-            "County-level context alone does not establish an outreach deficiency."
+            "vulnerability before changing prevention outreach."
         ),
         "coordination-documentation": (
-            "Identify unresolved evidence questions and the state or local program partners "
-            "who may hold relevant information. Record what has been verified and what remains "
-            "uncertain before deciding whether further action is needed."
+            "Identify unresolved questions and the state or local program partners who may "
+            "hold relevant information."
         ),
         "human-disease-surveillance": (
             "Compare published county Lyme disease case information with state or local "
-            "surveillance records. Where available, examine residence, likely exposure location, "
-            "unallocated reports, reporting completeness, and differences in reporting periods."
+            "surveillance records."
         ),
         "vector-pathogen-surveillance": (
             "Consult local vector surveillance records to clarify tick presence, pathogen "
-            "findings, collection coverage, and whether newer information exists outside "
-            "published datasets. Distinguish missing records from documented negative findings."
+            "findings, and collection coverage."
         ),
     },
     "Conduct targeted follow-up": {
         "clinical-laboratory-reporting": (
-            "Where local evidence identifies a case-ascertainment question, conduct a focused "
-            "review of relevant clinical or laboratory reporting pathways. Consider "
-            "case-definition requirements and reporting practices without presuming "
-            "reporting failure."
+            "Where local records identify a case-ascertainment question, conduct a focused "
+            "review of relevant clinical or laboratory reporting pathways."
         ),
         "community-context-outreach": (
-            "Assess whether the verified surveillance concern has a practical prevention or "
-            "communication implication. Consider existing local education activities and "
-            "community access needs before recommending targeted outreach."
+            "Assess whether a verified surveillance concern has a practical prevention or "
+            "communication implication."
         ),
         "coordination-documentation": (
             "Define a focused question, identify the existing program or partner best "
             "positioned to address it, and document what information would resolve the "
-            "uncertainty. Local program staff determine whether, when, and how follow-up proceeds."
+            "uncertainty."
         ),
         "human-disease-surveillance": (
             "Identify the particular discrepancy or limitation in published human surveillance "
-            "evidence that warrants closer review. Compare relevant local case records, "
-            "classification practices, and available exposure information to determine whether "
-            "the apparent gap has an identifiable explanation."
+            "data that warrants closer review."
         ),
         "vector-pathogen-surveillance": (
             "Examine the specific tick or pathogen surveillance question raised by the "
-            "available evidence. Review collection methods, timing, geographic coverage, and "
-            "existing test results before considering whether targeted additional surveillance "
-            "would meaningfully reduce uncertainty."
+            "available records."
         ),
     },
     "Coordinate a local assessment": {
         "clinical-laboratory-reporting": (
             "Where relevant, involve surveillance and laboratory-reporting partners to clarify "
-            "reporting workflows, testing information, and case-ascertainment practices. Keep "
-            "surveillance case definitions distinct from clinical diagnosis and treatment guidance."
+            "reporting workflows and case-ascertainment practices."
         ),
         "community-context-outreach": (
             "Include public-health education or community partners when the local assessment "
-            "identifies a communication or access concern. Use community context to tailor "
-            "possible responses, not to infer disease burden or assign blame for reporting gaps."
+            "identifies a communication or access concern."
         ),
         "coordination-documentation": (
-            "Consider a coordinated review among relevant epidemiology, vector surveillance, "
-            "laboratory, and prevention partners. Agree locally on key questions, available "
-            "evidence, and criteria for any subsequent action; Atlas does not assign tasks "
-            "or deadlines."
+            "Consider a coordinated review among relevant epidemiology, vector, laboratory, "
+            "and prevention partners. Atlas does not assign tasks or deadlines."
         ),
         "human-disease-surveillance": (
             "Bring together available human disease surveillance information from appropriate "
-            "state or local programs to examine the reported pattern. Review relevant case "
-            "counts, case-classification differences, geographic assignment, and unresolved "
-            "reporting limitations."
+            "state or local programs to examine the reported pattern."
         ),
         "vector-pathogen-surveillance": (
             "Coordinate with vector surveillance or entomology partners to assess tick "
-            "distribution, pathogen findings, sampling coverage, and available local records. "
-            "Identify whether existing information is sufficient or whether focused "
-            "surveillance would inform the assessment."
+            "distribution, pathogen findings, and sampling coverage."
         ),
     },
     "Prioritize targeted follow-up": {
         "clinical-laboratory-reporting": (
-            "Where local findings indicate a meaningful case-ascertainment or reporting "
-            "concern, consider focused discussion with relevant surveillance, clinical, or "
-            "laboratory-reporting partners. Any education or workflow review should respond "
-            "to an identified need, not an assumption of reporting failure."
+            "Where local findings indicate a meaningful case-ascertainment concern, consider "
+            "focused discussion with relevant surveillance or laboratory-reporting partners."
         ),
         "community-context-outreach": (
-            "Consider whether locally verified evidence supports focused prevention education "
-            "or outreach in particular communities or settings. Use local knowledge of "
-            "communication needs and healthcare access; the Atlas response category alone "
-            "does not justify a public warning."
+            "Consider whether locally verified information supports focused prevention "
+            "education or outreach. The review category alone does not justify a public warning."
         ),
         "coordination-documentation": (
-            "Consider prioritizing a defined, coordinated follow-up question using existing "
-            "jurisdictional decision processes. Document supporting evidence, remaining "
-            "uncertainties, possible actions, and local criteria for proceeding or stepping back."
+            "Consider prioritizing a defined follow-up question using existing jurisdictional "
+            "decision processes. Document supporting data, remaining uncertainties, and local "
+            "criteria for proceeding or stepping back."
         ),
         "human-disease-surveillance": (
             "Consider prioritizing focused review of locally available Lyme disease "
-            "surveillance information. Reconcile consequential published limitations, relevant "
-            "case and exposure information, and applicable reporting practices to determine "
-            "whether further public-health action is warranted."
+            "surveillance information."
         ),
         "vector-pathogen-surveillance": (
-            "Consider prioritizing review with vector surveillance partners of relevant tick "
-            "and pathogen findings, including species, collection coverage, timing, and "
-            "methods. Determine whether existing data are sufficient or whether narrowly "
-            "targeted surveillance would inform a concrete decision."
+            "Consider prioritizing review with vector surveillance partners of the relevant "
+            "tick and pathogen findings."
         ),
     },
 }
 _GAP_ROWS: dict[FollowUpId, str] = {
     "clinical-laboratory-reporting": (
         "Review reporting information only if locally held surveillance records suggest a "
-        "specific question. An unavailable Atlas gap score does not establish a clinical "
-        "or laboratory reporting problem."
+        "specific question."
     ),
     "community-context-outreach": (
-        "Identify which community-context measures are available and which are missing. "
-        "Do not infer a prevention or outreach need from an unavailable gap score."
+        "Identify which community-context measures are available and which are missing."
     ),
     "coordination-documentation": (
-        "Document why the gap score or follow-up category is unavailable and what "
-        "information might clarify that state. Do not assign priority, urgency, "
-        "responsibility, or a deadline."
+        "Document why the gap score or follow-up category is unavailable. Do not assign "
+        "priority, urgency, responsibility, or a deadline."
     ),
     "human-disease-surveillance": (
-        "Identify what published human surveillance information is available and what is "
-        "missing. Consult state or local records where appropriate before interpreting an "
-        "unavailable county count as zero cases."
+        "Identify what published human surveillance information is available and what is missing."
     ),
     "vector-pathogen-surveillance": (
-        "Check whether tick and pathogen records exist outside the current published "
-        "source. Distinguish unavailable records from documented negative findings, and "
-        "do not initiate field collection solely because a record is absent."
+        "Check whether tick and pathogen records exist outside the current published source."
     ),
 }
 _RESOURCES: tuple[tuple[str, str], ...] = (
     (
-        "Lyme surveillance case definition",
+        "Lyme surveillance data",
         "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2022/",
     ),
     (
-        "County case data and residence-versus-exposure limitations",
-        "https://www.cdc.gov/ticks/data-research/facts-stats/geographic-distribution-of-tickborne-disease-cases.html",
-    ),
-    (
-        "Tick and pathogen record definitions and limitations",
+        "Tick and pathogen data",
         "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
     ),
     (
@@ -400,11 +350,19 @@ _RESOURCES: tuple[tuple[str, str], ...] = (
         "https://www.cdc.gov/lyme/hcp/diagnosis-testing/index.html",
     ),
     (
-        "CDC Lyme disease prevention",
-        "https://www.cdc.gov/lyme/prevention/index.html",
+        "Social vulnerability index",
+        "https://www.atsdr.cdc.gov/place-health/php/svi/svi-frequently-asked-questions-faqs.html",
     ),
     (
-        "Releases and methodology",
+        "Health insurance data",
+        "https://www.census.gov/programs-surveys/sahie.html",
+    ),
+    (
+        "Rural-urban classification",
+        "https://www.ers.usda.gov/data-products/rural-urban-continuum-codes",
+    ),
+    (
+        "County review methodology",
         f"{ATLAS_ORIGIN}/docs/releases-and-methodology",
     ),
 )
@@ -444,9 +402,11 @@ def build_county_data_brief(detail: CountyDetail, generated_at: datetime) -> Cou
         county_heading=f"{detail.county}, {detail.state_name}",
         response_title=level.title,
         response_status=level.status,
-        score_label=_score_label(detail.score.score),
+        response_color=_response_color(detail, level),
+        score_label=_displayed_score(detail, level),
         fips=detail.fips,
         why_it_surfaced=_why_it_surfaced(detail, level),
+        factors_intro=FACTORS_INTRO,
         categories=_category_rows(detail),
         interpretation=_interpretation(detail),
         posture=posture,
@@ -523,7 +483,7 @@ def _questions_for(level: _Level) -> list[BriefRow]:
     else:
         questions = _RESPONSE_QUESTIONS[title]
     return [
-        BriefRow(number=f"{index:02d}", label="Question", text=text)
+        BriefRow(number=str(index), label="Question", text=text)
         for index, text in enumerate(questions, start=1)
     ]
 
@@ -539,52 +499,54 @@ def _workstreams(detail: CountyDetail, level: _Level) -> list[BriefRow]:
     rows: list[BriefRow] = []
     for index, category_id in enumerate(_CATEGORY_ORDER, start=1):
         text = _with_category_copy(level, category_id, recommendations[category_id])
-        rows.append(BriefRow(number=f"{index:02d}", label=_CATEGORY_LABELS[category_id], text=text))
+        rows.append(BriefRow(number=str(index), label=_CATEGORY_LABELS[category_id], text=text))
     return rows
+
+
+_UNASSIGNED_LEADS: dict[FollowUpId, str] = {
+    "clinical-laboratory-reporting": (
+        "Maintain awareness of existing reporting and laboratory surveillance procedures."
+    ),
+    "community-context-outreach": (
+        "Use available community-context measures only as context for access and outreach."
+    ),
+    "coordination-documentation": "",
+    "human-disease-surveillance": (
+        "Review the published human surveillance information that is available."
+    ),
+    "vector-pathogen-surveillance": (
+        "Review the published tick and pathogen information that is available."
+    ),
+}
 
 
 def _with_category_copy(level: _Level, category_id: FollowUpId, evidence: str) -> str:
     title = _copy_title(level)
-    if title is None:
+    base = _UNASSIGNED_LEADS[category_id] if title is None else _rows_for(title)[category_id]
+    if not base:
         return evidence
-    base = _rows_for(title)[category_id]
-    if evidence.startswith(base):
-        return evidence
+    if not evidence or evidence.startswith(base):
+        return evidence if evidence else base
     return f"{base} {evidence}"
 
 
-def _category_base(level: _Level, category_id: FollowUpId) -> str | None:
-    title = _copy_title(level)
-    if title is None:
-        return None
-    return _rows_for(title)[category_id]
-
-
-def _human_recommendation(detail: CountyDetail, level: _Level) -> str:
-    unallocated = _unallocated_sentence(detail)
+def _human_recommendation(detail: CountyDetail, _level: _Level) -> str:
     if _human_published(detail):
-        observed_zero = detail.case_count_floor_2023 == 0
-        evidence = (
-            "Compare the published observed zero with local surveillance records. An observed "
-            "zero is not a missing record and does not establish that transmission is absent."
-            if observed_zero
-            else (
-                "Compare the published county case-count floor with state or local surveillance "
-                "records, including reporting completeness and residence-versus-exposure "
-                "differences where investigation notes already exist."
+        if detail.case_count_floor_2023 == 0:
+            return (
+                "Compare the published observed zero with local surveillance records. An observed "
+                "zero is not a missing record and does not establish that transmission is absent."
             )
+        return (
+            "Compare the published county case-count floor with state or local surveillance "
+            "records, including reporting completeness and residence-versus-exposure differences "
+            "where investigation notes already exist."
         )
-    else:
-        evidence = (
-            "Check whether additional county case information is available through local "
-            "surveillance records, including suppressed or unallocated reports. A missing "
-            "published count is not a finding of zero cases."
-        )
-    base = _category_base(level, "human-disease-surveillance")
-    prefixed = f"{base} {evidence}" if base else evidence
-    if unallocated is None:
-        return prefixed
-    return f"{prefixed} {unallocated}"
+    return (
+        "Check whether additional county case information is available through local records, "
+        "including suppressed or unallocated reports. A missing published count is not a finding "
+        "of zero cases."
+    )
 
 
 def _vector_recommendation(detail: CountyDetail) -> str:
@@ -636,10 +598,9 @@ def _vector_recommendation(detail: CountyDetail) -> str:
         )
     if tick_missing:
         return (
-            "No published tick or matching pathogen record is available for this county. "
-            "Determine whether records exist outside the current source. Do not treat the gap "
-            "as absence, and do not start field collection only because the published record "
-            "is missing."
+            "Record gaps in published coverage without interpreting missing records as absence "
+            "or initiating sampling solely because data are unavailable. Determine whether "
+            "records exist outside the current source."
         )
     return (
         f"The published tick status is {detail.tick_status}. This is not a finding of tick "
@@ -649,16 +610,11 @@ def _vector_recommendation(detail: CountyDetail) -> str:
 
 def _clinical_recommendation(detail: CountyDetail) -> str:
     if not _human_published(detail):
-        return (
-            "Review local laboratory and clinical reporting pathways if available surveillance "
-            "records suggest questions about case ascertainment. This is not a finding that "
-            "laboratories failed to report."
-        )
+        return "This is not a finding that laboratories failed to report."
     if _pathogen_kind(detail) == "present":
         return (
-            "Check whether clinical and laboratory reporting pathways can be compared with the "
-            "published human and pathogen records. This county evidence does not indicate a "
-            "test for any individual patient."
+            "Compare reporting pathways with the published human and pathogen records. "
+            "This county record does not indicate a test for any individual patient."
         )
     return (
         "Check whether current reporting pathways match the human surveillance information "
@@ -676,10 +632,9 @@ def _community_recommendation(detail: CountyDetail) -> str:
     )
     if available == 3:
         return (
-            "Social vulnerability, health insurance coverage, and rural–urban classification "
-            "are available as context. Consider whether existing prevention education reaches "
-            "the communities those measures describe before adding outreach. They are not "
-            "evidence of transmission or underreporting."
+            "Use social vulnerability, health insurance coverage, and rural-urban classification "
+            "as context for access and outreach. These measures are not proof of transmission "
+            "or underreporting."
         )
     if available == 0:
         return (
@@ -690,59 +645,63 @@ def _community_recommendation(detail: CountyDetail) -> str:
     return (
         "Community context is incomplete in the published record. Review the measures that "
         "are available, and the ones that are missing, before deciding whether outreach is "
-        "appropriate. These measures are not evidence of transmission or underreporting."
+        "appropriate. These measures are not proof of transmission or underreporting."
     )
 
 
 def _coordination_recommendation(level: _Level) -> str:
-    if level.status == "unavailable":
-        return (
-            "Document which evidence is missing and identify possible sources for "
-            "clarification. These notes support local verification. Atlas does not assign "
-            "an owner, a deadline, or an escalation."
-        )
+    if _copy_title(level) is not None:
+        return ""
     return (
-        "Document the outstanding evidence questions and identify appropriate surveillance "
-        "or vector-program partners for local verification. Atlas does not assign that work "
-        "or a completion date."
+        "Document which data are missing and identify possible sources for clarification. "
+        "These notes support local verification. Atlas does not assign an owner, a deadline, "
+        "or an escalation."
     )
 
 
 def _category_rows(detail: CountyDetail) -> list[BriefRow]:
     items = (
-        ("01", "Published Lyme case data", _human_sentence(detail)),
-        ("02", "Tick presence", _tick_sentence(detail)),
-        ("03", "Borrelia burgdorferi detection", _pathogen_sentence(detail)),
-        ("04", "Social vulnerability", _svi_sentence(detail)),
-        ("05", "Health insurance coverage", _insurance_sentence(detail)),
-        ("06", "Rurality", _rural_sentence(detail)),
+        ("1", "Published Lyme case data", _human_sentence(detail)),
+        ("2", "Tick presence", _tick_sentence(detail)),
+        ("3", "Borrelia burgdorferi detection", _pathogen_sentence(detail)),
+        ("4", "Social vulnerability", _svi_sentence(detail)),
+        ("5", "Health insurance coverage", _insurance_sentence(detail)),
+        ("6", "Rurality", _rural_sentence(detail)),
     )
     return [BriefRow(number=number, label=label, text=text) for number, label, text in items]
 
 
 def _why_it_surfaced(detail: CountyDetail, level: _Level) -> str:
-    place = f"{detail.county}, {detail.state_name}"
-    if level.status == "assigned":
+    gaps = _surveillance_gap_sentence(detail)
+    if level.reason == "gap-score-unavailable":
+        lead = f"{detail.county} does not have a published gap review score. {level.explanation}"
+        closing = "This brief is not a measure of individual risk."
+    elif level.status == "assigned":
+        score = _score_label(detail.score.score)
         lead = (
-            f"The Atlas displays a published response of {level.title} for {place}. "
-            f"The published gap score is {_score_label(detail.score.score)}."
+            f"{detail.county} has a published gap review score of {score}, "
+            f"placing it in the {level.title} category."
         )
+        closing = "This score is not a measure of individual risk."
     else:
-        lead = f"{level.explanation} This brief is for {place}."
-    caveat = (
-        "The notes below describe the published county record. They do not show how much "
-        "each field contributed to the gap score, and they are not a measure of individual risk."
-    )
-    return f"{lead} {_PUBLISHED_SOURCE} {caveat}"
+        score = _score_label(detail.score.score)
+        lead = (
+            f"{detail.county} has a published gap review score of {score}. {level.explanation}"
+        )
+        closing = "This score is not a measure of individual risk."
+    sentences = [lead]
+    if gaps:
+        sentences.append(gaps)
+        sentences.append("Local information may help interpret these gaps.")
+    sentences.append(closing)
+    return " ".join(sentences)
 
 
 def _interpretation(detail: CountyDetail) -> str:
     notes = [
-        "Lyme cases are assigned by county of residence, not necessarily the location of exposure.",
-        "These data describe published surveillance, not individual risk.",
-        "These values describe the published record. They do not show how much each field "
-        "changed this county’s gap score. The percentage uninsured is context; the score "
-        "uses the uninsured percentile.",
+        "Lyme disease data are grouped by county of residence, not necessarily the location "
+        "of exposure.",
+        "These values describe published surveillance, not individual risk.",
     ]
     if not _human_published(detail):
         notes.append("A missing published case count is not an observed zero.")
@@ -757,6 +716,7 @@ def _interpretation(detail: CountyDetail) -> str:
             "A documented negative pathogen finding is distinct from a missing record "
             "and is not, by itself, a countywide absence finding."
         )
+    notes.append("The percentage uninsured is context; the score uses the uninsured percentile.")
     return " ".join(notes)
 
 
@@ -780,7 +740,7 @@ def _human_sentence(detail: CountyDetail) -> str:
             )
     else:
         sentence = (
-            "No county-level 2023 Lyme case count was published. "
+            "No county-level 2023 Lyme disease case count was published. "
             "A missing record is not treated as zero cases."
         )
     if unallocated is None:
@@ -885,44 +845,10 @@ def _rural_sentence(detail: CountyDetail) -> str:
     )
 
 
-def _links(detail: CountyDetail) -> list[BriefLink]:
-    links = [BriefLink(label=label, url=url) for label, url in _RESOURCES]
-    scapularis_documented = _normalized(detail.scapularis_status) in _DOCUMENTED_TICK
-    pacificus_documented = _normalized(detail.pacificus_status) in _DOCUMENTED_TICK
-    if not pacificus_documented or scapularis_documented:
-        links.append(
-            BriefLink(
-                label="Blacklegged tick surveillance guidance",
-                url="https://www.cdc.gov/ticks/resources/TickSurveillance_Iscapularis-P.pdf",
-            )
-        )
-    if not scapularis_documented or pacificus_documented:
-        links.append(
-            BriefLink(
-                label="Western blacklegged tick surveillance guidance",
-                url="https://www.cdc.gov/ticks/resources/TickSurveillance_Ipacificus-P.pdf",
-            )
-        )
-    if _finite(detail.svi_percentile):
-        links.append(
-            BriefLink(
-                label="SVI interpretation",
-                url="https://www.atsdr.cdc.gov/place-health/php/svi/svi-frequently-asked-questions-faqs.html",
-            )
-        )
-    seen: set[str] = set()
-    unique: list[BriefLink] = []
-    for link in links:
-        if link.url in seen:
-            continue
-        seen.add(link.url)
-        unique.append(link)
-    for source in detail.release.sources:
-        if not source.url.startswith("https://") or source.url in seen:
-            continue
-        seen.add(source.url)
-        unique.append(BriefLink(label=source.label, url=source.url))
-    return unique
+def _links(_detail: CountyDetail) -> list[BriefLink]:
+    """Keep the brief link row to the curated official sources shown in the design."""
+
+    return [BriefLink(label=label, url=url) for label, url in _RESOURCES]
 
 
 def _traceability(detail: CountyDetail, generated_at: datetime) -> list[str]:
@@ -932,18 +858,63 @@ def _traceability(detail: CountyDetail, generated_at: datetime) -> list[str]:
     )
     moment = generated_at if generated_at.tzinfo else generated_at.replace(tzinfo=UTC)
     stamp = moment.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    level = _review_level(detail)
     return [
-        f"County FIPS {detail.fips}",
-        f"Published gap score {_score_label(detail.score.score)}",
-        f"Published response: {_review_level(detail).title}",
-        f"Data release {detail.release.release_id}",
-        f"Data methodology {detail.release.methodology_version}",
-        f"Score methodology {detail.scoring_methodology_version}; smooth k=50",
-        f"Template county-v3 · copy {COPY_VERSION}",
+        f"County: {detail.county}, {detail.state_name}",
+        f"County identifier (FIPS): {detail.fips}",
+        f"Published gap review score: {_displayed_score(detail, level)}",
+        f"Review category: {level.title}",
+        f"Data release: {detail.release.release_id}",
+        f"Data methodology: {detail.release.methodology_version}",
+        f"Score methodology: {detail.scoring_methodology_version}; smooth k=50",
+        "Template version: county data brief v3.0",
         "Observation periods: Lyme case records 2023; social vulnerability 2022; rurality 2023.",
+        "Lyme case records: 2023",
+        "Social vulnerability: 2022",
+        "Rurality: 2023",
         f"Source vintages: {vintages}",
-        f"Generated {stamp}",
+        f"Release date: {moment.astimezone(UTC).strftime('%Y-%m-%d')}",
+        f"Generated: {stamp}",
+        f"Website: {ATLAS_ORIGIN.replace('https://', '')}",
+        "Published release only. What-if score settings are not applied.",
+        f"Copy: {COPY_VERSION}",
     ]
+
+
+def _response_color(detail: CountyDetail, level: _Level) -> str:
+    color = detail.color.strip().lower()
+    if level.status != "assigned" or color not in _RESPONSE_BY_COLOR:
+        return _NEUTRAL_COLOR
+    return color
+
+
+def _displayed_score(detail: CountyDetail, level: _Level) -> str:
+    if level.reason == "gap-score-unavailable":
+        return "Unavailable"
+    return _score_label(detail.score.score)
+
+
+def _surveillance_gap_sentence(detail: CountyDetail) -> str | None:
+    missing = []
+    if not _human_published(detail):
+        missing.append("Lyme disease case")
+    if _tick_record_missing(detail):
+        missing.append("tick")
+    if _pathogen_kind(detail) == "missing":
+        missing.append("pathogen")
+    if not missing:
+        return None
+    if len(missing) == 3:
+        return (
+            "The county has no county-level published Lyme disease case, tick, or pathogen "
+            "records in the current datasets."
+        )
+    if len(missing) == 1:
+        return f"No county-level published {missing[0]} record is in the current datasets."
+    return (
+        "No county-level published "
+        f"{missing[0]} or {missing[1]} records are in the current datasets."
+    )
 
 
 def _species_phrase(name: str, status: str | None) -> str | None:

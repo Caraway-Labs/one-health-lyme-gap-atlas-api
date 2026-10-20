@@ -196,13 +196,15 @@ def test_asset_limits_are_enforced() -> None:
                 "ONE HEALTH LYME GAP ATLAS",
                 "COUNTY DATA BRIEF",
                 "Why it surfaced",
-                "County data / Six review factors",
+                "County data: Six review factors",
                 "Adams, Colorado",
                 "Published Lyme case data",
-                "Five suggested follow-up workstreams",
+                "Suggested follow-up",
                 "Human disease surveillance",
                 "Questions before acting",
-                "Official resources",
+                "Data sources and more information",
+                "County identifier (FIPS)",
+                "Gap review score",
                 "alpha-2026-08-06",
             ),
         ),
@@ -239,6 +241,8 @@ def test_real_typst_templates_render_meaningful_report_content(
         assert "ONE HEALTH / LYME GAP ATLAS" not in rendered_text
         assert "What the data show" not in rendered_text
         assert "Design prototype" not in rendered_text
+        assert "Recommended posture" not in rendered_text
+        assert "Follow-up areas" not in rendered_text
     assert "text(size:" not in rendered_text
     assert "v(18pt)" not in rendered_text
     assert "v(10pt)" not in rendered_text
