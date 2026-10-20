@@ -4227,15 +4227,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -4250,6 +4250,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -4420,15 +4434,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -4443,6 +4457,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -5132,15 +5160,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -5155,6 +5183,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -5387,15 +5429,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -5410,6 +5452,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -5623,15 +5679,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -5646,6 +5702,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -6187,6 +6257,12 @@
       },
       "AtlasMetadata": {
         "properties": {
+          "scoring_methodology_version": {
+            "type": "string",
+            "const": "surveillance-gap-score-v1.1",
+            "title": "Scoring Methodology Version",
+            "default": "surveillance-gap-score-v1.1"
+          },
           "release_id": {
             "type": "string",
             "title": "Release Id"
@@ -7009,6 +7085,40 @@
       },
       "CountyDetail": {
         "properties": {
+          "scoring_methodology_version": {
+            "type": "string",
+            "const": "surveillance-gap-score-v1.1",
+            "title": "Scoring Methodology Version",
+            "default": "surveillance-gap-score-v1.1"
+          },
+          "incidence_floor_2023": {
+            "title": "Incidence Floor 2023",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "svi_percentile": {
+            "title": "Svi Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "uninsured_percentile": {
+            "title": "Uninsured Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "rucc_2023": {
+            "title": "Rucc 2023",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "fips": {
             "type": "string",
             "title": "Fips"
@@ -7070,13 +7180,6 @@
               "null"
             ]
           },
-          "incidence_floor_2023": {
-            "title": "Incidence Floor 2023",
-            "type": [
-              "number",
-              "null"
-            ]
-          },
           "state_unallocated_records_2023": {
             "title": "State Unallocated Records 2023",
             "type": [
@@ -7098,31 +7201,10 @@
               "null"
             ]
           },
-          "svi_percentile": {
-            "title": "Svi Percentile",
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "uninsured_percentile": {
-            "title": "Uninsured Percentile",
-            "type": [
-              "number",
-              "null"
-            ]
-          },
           "uninsured_percent": {
             "title": "Uninsured Percent",
             "type": [
               "number",
-              "null"
-            ]
-          },
-          "rucc_2023": {
-            "title": "Rucc 2023",
-            "type": [
-              "integer",
               "null"
             ]
           },
@@ -7132,6 +7214,10 @@
         },
         "type": "object",
         "required": [
+          "incidence_floor_2023",
+          "svi_percentile",
+          "uninsured_percentile",
+          "rucc_2023",
           "fips",
           "county",
           "state",
@@ -7146,20 +7232,52 @@
           "color",
           "population",
           "case_count_floor_2023",
-          "incidence_floor_2023",
           "state_unallocated_records_2023",
           "scapularis_status",
           "pacificus_status",
-          "svi_percentile",
-          "uninsured_percentile",
           "uninsured_percent",
-          "rucc_2023",
           "release"
         ],
         "title": "CountyDetail"
       },
       "CountyScoreSummary": {
         "properties": {
+          "scoring_methodology_version": {
+            "type": "string",
+            "const": "surveillance-gap-score-v1.1",
+            "title": "Scoring Methodology Version",
+            "default": "surveillance-gap-score-v1.1"
+          },
+          "incidence_floor_2023": {
+            "title": "Incidence Floor 2023",
+            "description": "Published 2023 minimum reported incidence per 100,000; null is not zero.",
+            "minimum": 0.0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "svi_percentile": {
+            "title": "Svi Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "uninsured_percentile": {
+            "title": "Uninsured Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "rucc_2023": {
+            "title": "Rucc 2023",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "fips": {
             "type": "string",
             "title": "Fips"
@@ -7898,6 +8016,15 @@
           "low_incidence_breakpoint": {
             "title": "Low Incidence Breakpoint",
             "maximum": 25.0,
+            "minimum": 5.0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "smooth_k": {
+            "title": "Smooth K",
+            "maximum": 200.0,
             "minimum": 5.0,
             "type": [
               "integer",
@@ -10562,6 +10689,12 @@
       },
       "ScoreCollection": {
         "properties": {
+          "scoring_methodology_version": {
+            "type": "string",
+            "const": "surveillance-gap-score-v1.1",
+            "title": "Scoring Methodology Version",
+            "default": "surveillance-gap-score-v1.1"
+          },
           "release_id": {
             "type": "string",
             "title": "Release Id"

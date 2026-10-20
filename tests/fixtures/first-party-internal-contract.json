@@ -996,6 +996,15 @@
             }
           ],
           "title": "Item Ids"
+        },
+        "smooth_k": {
+          "title": "Smooth K",
+          "maximum": 200.0,
+          "minimum": 5.0,
+          "type": [
+            "integer",
+            "null"
+          ]
         }
       },
       "additionalProperties": false,

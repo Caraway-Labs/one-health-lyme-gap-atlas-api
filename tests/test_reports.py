@@ -98,7 +98,7 @@ def test_county_data_brief_uses_published_settings(reports: ReportService) -> No
     published = reports.county_report("08001", ScoreSettings(), template_version="county-v3")
     what_if = reports.county_report(
         "08001",
-        ScoreSettings(ecological_share=85, low_incidence_breakpoint=25, missing_human_weakness=40),
+        ScoreSettings(ecological_share=85, smooth_k=100, missing_human_weakness=40),
         template_version="county-v3",
     )
 

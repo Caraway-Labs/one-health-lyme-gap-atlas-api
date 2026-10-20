@@ -489,7 +489,8 @@ def test_county_pdf_export_has_safe_headers_and_provenance() -> None:
     assert report.geography.identifier == "08001"
     assert report.provenance.dataset_version == "alpha-2026-08-06"
     assert report.provenance.methodology_version == "alpha-0.2.0"
-    assert report.provenance.limitations == "Not individual risk."
+    assert report.provenance.limitations.endswith("Not individual risk.")
+    assert "Surveillance Gap Score v1.1; smooth k=50" in report.provenance.limitations
 
 
 def test_pdf_cache_uses_all_report_inputs_and_honors_etag() -> None:

@@ -21,7 +21,7 @@ from lyme_gap_atlas_shared.snowflake import connect
 
 from lyme_gap_atlas_api.models import CountyDetail
 
-SHARED_SHA = "83ccbe76047185f6aacaff551afd8b03d88aa5cf"
+SHARED_SHA = "1663267c6a3121d7cbb1d40b95a6dc50ee5e1642"
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -42,7 +42,7 @@ def test_installed_shared_version_source_and_explicit_extras() -> None:
         "one-health-lyme-gap-atlas-shared[snowflake,observability] @ "
     )
     assert shared_requirement.endswith(f"@{SHARED_SHA}")
-    assert shared_lock["version"] == installed.version == "1.0.0"
+    assert shared_lock["version"] == installed.version == "2.0.0"
     assert shared_lock["source"]["git"].endswith(f"#{SHARED_SHA}")
     assert source["vcs_info"]["commit_id"] == SHARED_SHA
     assert source["vcs_info"]["requested_revision"] == SHARED_SHA

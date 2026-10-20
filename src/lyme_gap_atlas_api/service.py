@@ -42,7 +42,7 @@ class AtlasService:
     def metadata(self, dataset_version: str | None = None) -> AtlasMetadata:
         snapshot = self.snapshot()
         self._require_version(snapshot, dataset_version)
-        return snapshot.metadata
+        return snapshot.metadata.model_copy(update={"score_defaults": ScoreSettings().model_dump()})
 
     def geometry(self, dataset_version: str | None = None) -> dict[str, Any]:
         """Return only governed SVI display GeoJSON, joined by canonical county FIPS.
@@ -95,15 +95,11 @@ class AtlasService:
             **summary.model_dump(),
             population=record.population,
             case_count_floor_2023=record.case_count_floor_2023,
-            incidence_floor_2023=record.incidence_floor_2023,
             state_unallocated_records_2023=record.state_unallocated_records_2023,
             scapularis_status=record.scapularis_status,
             pacificus_status=record.pacificus_status,
-            svi_percentile=record.svi_percentile,
-            uninsured_percentile=record.uninsured_percentile,
             uninsured_percent=record.uninsured_percent,
-            rucc_2023=record.rucc_2023,
-            release=snapshot.metadata,
+            release=self.metadata(dataset_version),
         )
 
     def ranking_csv(self, settings: ScoreSettings, state: str, query: str, evidence: str) -> str:
@@ -123,6 +119,8 @@ class AtlasService:
                 "tick_status",
                 "burgdorferi_status",
                 "evidence_completeness",
+                "scoring_methodology_version",
+                "smooth_k",
             ]
         )
         for rank, item in enumerate(filtered, 1):
@@ -138,6 +136,8 @@ class AtlasService:
                     item.tick_status,
                     item.burgdorferi_status,
                     item.evidence_completeness,
+                    item.scoring_methodology_version,
+                    settings.smooth_k,
                 ]
             )
         return output.getvalue()
@@ -151,7 +151,11 @@ class AtlasService:
             state=record.state,
             state_name=record.state_name,
             in_contiguous_tick_scope=record.in_contiguous_tick_scope,
+            svi_percentile=record.svi_percentile,
+            uninsured_percentile=record.uninsured_percentile,
+            rucc_2023=record.rucc_2023,
             human_status=record.human_status,
+            incidence_floor_2023=record.incidence_floor_2023,
             tick_status=record.tick_status,
             burgdorferi_status=record.burgdorferi_status,
             evidence_completeness=record.evidence_completeness,
