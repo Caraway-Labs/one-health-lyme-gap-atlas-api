@@ -38,8 +38,10 @@ provenance/settings. All ML routes and persisted model outputs are unchanged.
 ## Rollback
 
 Retain pre-release API main 238a61fe58a151020286d4efd43f73ae66fcb5e2 and Web main
-5ada80eddfda4d6acd476b70d10b1c28c0a478e2 as source references, and capture the actual
-prior ACTIVE deployment IDs before promotion. Revert the coordinated Web/API PRs
+3649b9b as the Web source reference (the approved county-boundary map PR merged
+during integration and must be preserved on rollback), and capture the actual
+prior ACTIVE deployment IDs and full source hashes before promotion. These
+observed references supersede earlier planning snapshots. Revert the coordinated Web/API PRs
 through protected PR/CI. API reverts the shared pin to
 83ccbe76047185f6aacaff551afd8b03d88aa5cf; no data rollback. Updated Web rejects
 legacy API scoring until its own rollback finishes. Verify ACTIVE exact revert
