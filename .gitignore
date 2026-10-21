@@ -14,4 +14,6 @@ coverage.json
 htmlcov/
 .coverage
 test-results/
+.ci-bin/
+artifacts/
 

@@ -8,6 +8,7 @@ from lyme_gap_atlas_shared import ScoreSettings
 from pypdf import PdfReader
 from test_reports import FakeRepository
 
+from lyme_gap_atlas_api.models import SourceMetadata
 from lyme_gap_atlas_api.reports.models import CountyReport, StateReport
 from lyme_gap_atlas_api.reports.renderer import (
     RenderCompilationError,
@@ -196,13 +197,15 @@ def test_asset_limits_are_enforced() -> None:
                 "ONE HEALTH LYME GAP ATLAS",
                 "COUNTY DATA BRIEF",
                 "Why it surfaced",
-                "County data / Six review factors",
+                "County data: Six review factors",
                 "Adams, Colorado",
                 "Published Lyme case data",
-                "Five suggested follow-up workstreams",
+                "Suggested follow-up",
                 "Human disease surveillance",
                 "Questions before acting",
-                "Official resources",
+                "Data sources and more information",
+                "County identifier (FIPS)",
+                "Gap review score",
                 "alpha-2026-08-06",
             ),
         ),
@@ -227,6 +230,19 @@ def test_real_typst_templates_render_meaningful_report_content(
 ) -> None:
     reports = ReportService(AtlasService(FakeRepository()))
     report = report_factory(reports)
+    source_url = "https://example.org/release-specific-source"
+    if template_key == "county-v3":
+        from lyme_gap_atlas_api.reports.county_data_brief import build_county_data_brief
+
+        detail = AtlasService(FakeRepository()).county("08001", ScoreSettings())
+        detail.release.sources = [
+            SourceMetadata(
+                key="unique", label="Release source", vintage="2023", url=source_url, note=""
+            )
+        ]
+        report = report.model_copy(
+            update={"brief": build_county_data_brief(detail, report.identity.generated_at)}
+        )
     payload = TypstRenderer(_limits(), binary=(real_typst_binary,)).render(report, template_key)
     rendered_text = " ".join(
         "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(payload)).pages).split()
@@ -236,9 +252,18 @@ def test_real_typst_templates_render_meaningful_report_content(
         assert expected in rendered_text
     if template_key == "county-v3":
         assert len(PdfReader(BytesIO(payload)).pages) == 2
+        uris = [
+            annotation.get_object()["/A"].get("/URI")
+            for page in PdfReader(BytesIO(payload)).pages
+            for annotation in page.get("/Annots", [])
+            if annotation.get_object().get("/A", {}).get("/S") == "/URI"
+        ]
+        assert source_url in uris
         assert "ONE HEALTH / LYME GAP ATLAS" not in rendered_text
         assert "What the data show" not in rendered_text
         assert "Design prototype" not in rendered_text
+        assert "Recommended posture" not in rendered_text
+        assert "Follow-up areas" not in rendered_text
     assert "text(size:" not in rendered_text
     assert "v(18pt)" not in rendered_text
     assert "v(10pt)" not in rendered_text

@@ -97,16 +97,14 @@ class TypstRenderer:
             (template_copy.parent / "input.json").write_text(
                 json.dumps(report.model_dump(mode="json"), separators=(",", ":")), encoding="utf-8"
             )
+            command = [*self._binary, "compile", "--root", str(workspace)]
+            font_dir = staged_templates / "fonts"
+            if font_dir.is_dir():
+                command.extend(("--font-path", str(font_dir)))
+            command.extend((str(template_copy), str(output)))
             try:
                 completed = subprocess.run(
-                    [
-                        *self._binary,
-                        "compile",
-                        "--root",
-                        str(workspace),
-                        str(template_copy),
-                        str(output),
-                    ],
+                    command,
                     cwd=workspace,
                     capture_output=True,
                     check=False,

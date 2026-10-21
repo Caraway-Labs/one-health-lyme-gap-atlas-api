@@ -1,0 +1,15 @@
+fips=06037
+county=Los Angeles County, California
+color=#e9602b
+score=85.6
+response=Prioritize targeted follow-up
+pages=2
+filename=Los_Angeles_CA_AtlasBrief.pdf
+release=governed-2026-10-15-january-climate-prod
+generated_at=2026-10-21T04:29:45.741656+00:00
+clickable_urls=11
+score_label=85.6
+no Recommended posture
+no Follow-up areas
+has_gap_review_score=True
+has_fips_label=True

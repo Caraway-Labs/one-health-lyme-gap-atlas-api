@@ -1,0 +1,15 @@
+fips=06049
+county=Modoc County, California
+color=#a9d2db
+score=19.5
+response=Continue routine review
+pages=2
+filename=Modoc_CA_AtlasBrief.pdf
+release=governed-2026-10-15-january-climate-prod
+generated_at=2026-10-21T04:29:45.741656+00:00
+clickable_urls=11
+score_label=19.5
+no Recommended posture
+no Follow-up areas
+has_gap_review_score=True
+has_fips_label=True
