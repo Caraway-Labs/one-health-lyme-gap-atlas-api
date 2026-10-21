@@ -116,15 +116,18 @@ def main() -> int:
     after_dir = root / "after"
     before_dir.mkdir(parents=True, exist_ok=True)
     after_dir.mkdir(parents=True, exist_ok=True)
-    generated_at = datetime(2026, 10, 20, 18, 0, tzinfo=UTC)
+    generated_at = datetime.now(UTC)
     renderer = TypstRenderer(
         RenderLimits.from_settings(ApiSettings()),
-        binary=(str(Path(".ci-bin/typst.exe").resolve()),),
+        binary=("typst",),
     )
 
     for fips, slug in SAMPLES:
         print(f"fetch {fips} ({slug})", flush=True)
         detail = _fetch(fips)
+        (after_dir / f"{slug}.input.json").write_text(
+            detail.model_dump_json(indent=2), encoding="utf-8"
+        )
         report = _report(detail, generated_at)
         assert report.brief is not None
         filename = f"{_atlas_brief_filename(report)}.pdf"
@@ -133,6 +136,18 @@ def main() -> int:
         after_path.write_bytes(payload)
         reader = PdfReader(after_path)
         pages = len(reader.pages)
+        assert pages == 2, f"{fips}: expected two pages, got {pages}"
+        assert all(
+            float(page.mediabox.width) == 612 and float(page.mediabox.height) == 792
+            for page in reader.pages
+        ), f"{fips}: expected US Letter pages"
+        urls = {
+            annotation.get_object()["/A"].get("/URI")
+            for page in reader.pages
+            for annotation in page.get("/Annots", [])
+            if annotation.get_object().get("/A", {}).get("/S") == "/URI"
+        }
+        assert {link.url for link in report.brief.resources} <= urls
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
         (after_dir / f"{slug}.summary.txt").write_text(
             "\n".join(
@@ -144,6 +159,9 @@ def main() -> int:
                     f"response={report.brief.response_title}",
                     f"pages={pages}",
                     f"filename={filename}",
+                    f"release={detail.release.release_id}",
+                    f"generated_at={generated_at.isoformat()}",
+                    f"clickable_urls={len(urls)}",
                     f"score_label={report.brief.score_label}",
                     (
                         "has Recommended posture"

@@ -146,6 +146,38 @@ def test_response_questions_differ_for_every_published_color() -> None:
     assert len(set(questions.values())) == 6
 
 
+def test_report_date_does_not_claim_to_be_release_date() -> None:
+    detail = _detail()
+    first = build_county_data_brief(detail, datetime(2026, 10, 18, tzinfo=UTC))
+    second = build_county_data_brief(detail, datetime(2026, 10, 19, tzinfo=UTC))
+    for brief in (first, second):
+        assert "Data release: governed-fixture" in brief.traceability
+        assert not any(line.startswith("Release date:") for line in brief.traceability)
+    assert "Report date: 2026-10-18" in first.traceability
+    assert "Report date: 2026-10-19" in second.traceability
+    assert "Generated: 2026-10-18 00:00 UTC" in first.traceability
+    assert "Generated: 2026-10-19 00:00 UTC" in second.traceability
+    assert detail.release.generated_at == datetime(2026, 10, 15, tzinfo=UTC)
+
+
+def test_release_links_are_preserved_deduplicated_and_https_only() -> None:
+    detail = _detail()
+    source = detail.release.sources[0]
+    unique = "https://example.org/release-specific-source"
+    detail.release.sources = [
+        source.model_copy(update={"url": unique}),
+        source.model_copy(update={"url": unique}),
+        source.model_copy(update={"url": "http://example.org/insecure"}),
+        source.model_copy(update={"url": None}),
+    ]
+    brief = build_county_data_brief(detail, datetime(2026, 10, 18, tzinfo=UTC))
+    assert [link.url for link in brief.resources].count(unique) == 1
+    assert all(link.url.startswith("https://") for link in brief.resources)
+    assert brief.resources[0].url == (
+        "https://www.cdc.gov/lyme/data-research/facts-stats/surveillance-data-1.html"
+    )
+
+
 def test_observed_zero_is_not_described_as_missing() -> None:
     brief = _brief(
         human_status="published_count_floor",

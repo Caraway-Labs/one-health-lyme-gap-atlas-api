@@ -102,4 +102,4 @@ def test_default_pdf_brief_names_score_and_data_methods_separately() -> None:
     assert report.brief is not None
     traceability = " ".join(report.brief.traceability)
     assert "surveillance-gap-score-v1.1; smooth k=50" in traceability
-    assert "Data methodology alpha-0.2.0" in traceability
+    assert "Data methodology: alpha-0.2.0" in traceability

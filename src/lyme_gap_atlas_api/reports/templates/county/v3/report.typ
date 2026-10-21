@@ -86,7 +86,7 @@
   margin: (top: 0.64in, bottom: 0.5in, left: 0.64in, right: 0.64in),
   header: {
     set text(size: 8pt, fill: navy, weight: "bold", tracking: 0.05em, hyphenate: false)
-    block(width: 100%, inset: (bottom: 5pt), stroke: (bottom: 1.35pt + navy))[
+    block(width: 100%, inset: (bottom: 5pt), stroke: (bottom: 2pt + teal))[
       #grid(
         columns: (1fr, auto),
         column-gutter: 12pt,
@@ -160,8 +160,10 @@
 
 #pagebreak()
 
-== Suggested follow-up
-#text(size: 10pt)[#brief.at("posture")]
+#block(width: 100%, fill: pale, inset: (x: 11pt, y: 9pt), radius: 2pt)[
+  #heading(level: 2)[Suggested follow-up]
+  #text(size: 10pt)[#brief.at("posture")]
+]
 
 #v(4pt)
 #numbered-rows(brief.at("workstreams"), 1.7in)
@@ -169,7 +171,8 @@
 == Questions before acting
 #question-rows(brief.at("questions"))
 
-== Data sources and more information
+#block(width: 100%, fill: pale, inset: (x: 11pt, y: 7pt), radius: 2pt)[
+#heading(level: 2)[Data sources and more information]
 #text(size: 9pt, fill: muted)[
   Definitions, data sources, and methods are available on the Atlas website.
 ]
@@ -183,6 +186,7 @@
     pieces.push(link(item.at("url"))[#item.at("label")])
   }
   #pieces.join()
+]
 ]
 
 #v(10pt)
@@ -213,7 +217,7 @@
     [
       #text(size: 8.5pt, fill: navy, weight: "bold")[Document information]
       #v(2pt)
-      #text(size: 8pt)[#first-with("Release date: ")]
+      #text(size: 8pt)[#first-with("Report date: ")]
       #linebreak()
       #text(size: 8pt)[#first-with("Template version: ")]
       #linebreak()

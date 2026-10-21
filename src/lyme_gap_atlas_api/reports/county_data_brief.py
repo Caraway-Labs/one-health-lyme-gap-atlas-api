@@ -339,7 +339,7 @@ _GAP_ROWS: dict[FollowUpId, str] = {
 _RESOURCES: tuple[tuple[str, str], ...] = (
     (
         "Lyme surveillance data",
-        "https://ndc.services.cdc.gov/case-definitions/lyme-disease-2022/",
+        "https://www.cdc.gov/lyme/data-research/facts-stats/surveillance-data-1.html",
     ),
     (
         "Tick and pathogen data",
@@ -685,9 +685,7 @@ def _why_it_surfaced(detail: CountyDetail, level: _Level) -> str:
         closing = "This score is not a measure of individual risk."
     else:
         score = _score_label(detail.score.score)
-        lead = (
-            f"{detail.county} has a published gap review score of {score}. {level.explanation}"
-        )
+        lead = f"{detail.county} has a published gap review score of {score}. {level.explanation}"
         closing = "This score is not a measure of individual risk."
     sentences = [lead]
     if gaps:
@@ -845,10 +843,15 @@ def _rural_sentence(detail: CountyDetail) -> str:
     )
 
 
-def _links(_detail: CountyDetail) -> list[BriefLink]:
-    """Keep the brief link row to the curated official sources shown in the design."""
-
-    return [BriefLink(label=label, url=url) for label, url in _RESOURCES]
+def _links(detail: CountyDetail) -> list[BriefLink]:
+    """Retain release-specific provenance alongside the curated resources."""
+    links = [BriefLink(label=label, url=url) for label, url in _RESOURCES]
+    seen = {link.url for link in links}
+    for source in detail.release.sources:
+        if source.url and source.url.startswith("https://") and source.url not in seen:
+            links.append(BriefLink(label=f"{source.label} ({source.vintage})", url=source.url))
+            seen.add(source.url)
+    return links
 
 
 def _traceability(detail: CountyDetail, generated_at: datetime) -> list[str]:
@@ -873,7 +876,7 @@ def _traceability(detail: CountyDetail, generated_at: datetime) -> list[str]:
         "Social vulnerability: 2022",
         "Rurality: 2023",
         f"Source vintages: {vintages}",
-        f"Release date: {moment.astimezone(UTC).strftime('%Y-%m-%d')}",
+        f"Report date: {moment.astimezone(UTC).strftime('%Y-%m-%d')}",
         f"Generated: {stamp}",
         f"Website: {ATLAS_ORIGIN.replace('https://', '')}",
         "Published release only. What-if score settings are not applied.",

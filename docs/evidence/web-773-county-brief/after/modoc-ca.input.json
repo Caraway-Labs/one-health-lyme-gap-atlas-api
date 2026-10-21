@@ -1,0 +1,301 @@
+{
+  "scoring_methodology_version": "surveillance-gap-score-v1.1",
+  "incidence_floor_2023": null,
+  "svi_percentile": 0.8186,
+  "uninsured_percentile": 0.5256,
+  "rucc_2023": 8,
+  "fips": "06049",
+  "county": "Modoc County",
+  "state": "CA",
+  "state_name": "California",
+  "in_contiguous_tick_scope": true,
+  "human_status": "no_county_linked_record",
+  "tick_status": "No records",
+  "burgdorferi_status": "No records",
+  "evidence_completeness": 50,
+  "score": {
+    "score": 19.5,
+    "human_weakness": 75.0,
+    "ecological": 0.0,
+    "community": 74.2,
+    "tick_signal": 0.0,
+    "pathogen_signal": 0.0,
+    "svi_signal": 81.9,
+    "access_signal": 52.6,
+    "rural_signal": 87.5
+  },
+  "priority": "Lower Atlas priority — Not a safety finding",
+  "color": "#a9d2db",
+  "population": 8651,
+  "case_count_floor_2023": null,
+  "state_unallocated_records_2023": 43,
+  "scapularis_status": "No records",
+  "pacificus_status": "No records",
+  "uninsured_percent": 8.7,
+  "release": {
+    "scoring_methodology_version": "surveillance-gap-score-v1.1",
+    "release_id": "governed-2026-10-15-january-climate-prod",
+    "schema_version": "2.0.0",
+    "generated_at": "2026-10-15T13:51:25.324973-07:00",
+    "loaded_at": "2026-10-15T14:08:33.953000-07:00",
+    "scope": "US_COUNTIES",
+    "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+    "score_defaults": {
+      "ecological_share": 65,
+      "smooth_k": 50,
+      "missing_human_weakness": 75
+    },
+    "methodology_version": "semantic-2.0.0",
+    "limitations": "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission.",
+    "sources": [
+      {
+        "key": "context_nlcd_2025",
+        "label": "MRLC Annual NLCD 2025 reviewed demo cohort",
+        "vintage": "C1V2-2025",
+        "url": "https://www.mrlc.gov/downloads/sciweb1/shared/mrlc/data-bundles/Annual_NLCD_LndCov_2025_CU_C1V2.zip",
+        "note": "Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+      },
+      {
+        "key": "context_rucc",
+        "label": "USDA ERS Rural-Urban Continuum Codes",
+        "vintage": "2023",
+        "url": "https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/",
+        "note": "RUCC is a contextual county classification; vintages are not automatically comparable and it is not a causal or individual risk measure."
+      },
+      {
+        "key": "context_svi",
+        "label": "CDC/ATSDR Social Vulnerability Index",
+        "vintage": "2022 (2018-2022 ACS)",
+        "url": "https://www.atsdr.cdc.gov/placeandhealth/svi/data_documentation_download.html",
+        "note": "Contextual population and vulnerability measures are not causal drivers or individual risk factors. The same reviewed source supplies county identity and geometry."
+      },
+      {
+        "key": "human",
+        "label": "CDC Lyme surveillance",
+        "vintage": "2023",
+        "url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+        "note": "County-of-residence surveillance. County-linked values are published privacy-protected floors, not complete incidence estimates."
+      },
+      {
+        "key": "pathogen",
+        "label": "CDC ArboNET tickborne pathogen status",
+        "vintage": "through 2025-12-31",
+        "url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+        "note": "This is a distinct restricted pathogen source. No records is not absence; 33 absent canonical counties are classified as unknown source coverage."
+      },
+      {
+        "key": "tick",
+        "label": "CDC ArboNET county tick status",
+        "vintage": "through 2025-12-31",
+        "url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+        "note": "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk."
+      }
+    ],
+    "states": [
+      {
+        "code": "AK",
+        "name": "Alaska"
+      },
+      {
+        "code": "AL",
+        "name": "Alabama"
+      },
+      {
+        "code": "AR",
+        "name": "Arkansas"
+      },
+      {
+        "code": "AZ",
+        "name": "Arizona"
+      },
+      {
+        "code": "CA",
+        "name": "California"
+      },
+      {
+        "code": "CO",
+        "name": "Colorado"
+      },
+      {
+        "code": "CT",
+        "name": "Connecticut"
+      },
+      {
+        "code": "DC",
+        "name": "District of Columbia"
+      },
+      {
+        "code": "DE",
+        "name": "Delaware"
+      },
+      {
+        "code": "FL",
+        "name": "Florida"
+      },
+      {
+        "code": "GA",
+        "name": "Georgia"
+      },
+      {
+        "code": "HI",
+        "name": "Hawaii"
+      },
+      {
+        "code": "IA",
+        "name": "Iowa"
+      },
+      {
+        "code": "ID",
+        "name": "Idaho"
+      },
+      {
+        "code": "IL",
+        "name": "Illinois"
+      },
+      {
+        "code": "IN",
+        "name": "Indiana"
+      },
+      {
+        "code": "KS",
+        "name": "Kansas"
+      },
+      {
+        "code": "KY",
+        "name": "Kentucky"
+      },
+      {
+        "code": "LA",
+        "name": "Louisiana"
+      },
+      {
+        "code": "MA",
+        "name": "Massachusetts"
+      },
+      {
+        "code": "MD",
+        "name": "Maryland"
+      },
+      {
+        "code": "ME",
+        "name": "Maine"
+      },
+      {
+        "code": "MI",
+        "name": "Michigan"
+      },
+      {
+        "code": "MN",
+        "name": "Minnesota"
+      },
+      {
+        "code": "MO",
+        "name": "Missouri"
+      },
+      {
+        "code": "MS",
+        "name": "Mississippi"
+      },
+      {
+        "code": "MT",
+        "name": "Montana"
+      },
+      {
+        "code": "NC",
+        "name": "North Carolina"
+      },
+      {
+        "code": "ND",
+        "name": "North Dakota"
+      },
+      {
+        "code": "NE",
+        "name": "Nebraska"
+      },
+      {
+        "code": "NH",
+        "name": "New Hampshire"
+      },
+      {
+        "code": "NJ",
+        "name": "New Jersey"
+      },
+      {
+        "code": "NM",
+        "name": "New Mexico"
+      },
+      {
+        "code": "NV",
+        "name": "Nevada"
+      },
+      {
+        "code": "NY",
+        "name": "New York"
+      },
+      {
+        "code": "OH",
+        "name": "Ohio"
+      },
+      {
+        "code": "OK",
+        "name": "Oklahoma"
+      },
+      {
+        "code": "OR",
+        "name": "Oregon"
+      },
+      {
+        "code": "PA",
+        "name": "Pennsylvania"
+      },
+      {
+        "code": "RI",
+        "name": "Rhode Island"
+      },
+      {
+        "code": "SC",
+        "name": "South Carolina"
+      },
+      {
+        "code": "SD",
+        "name": "South Dakota"
+      },
+      {
+        "code": "TN",
+        "name": "Tennessee"
+      },
+      {
+        "code": "TX",
+        "name": "Texas"
+      },
+      {
+        "code": "UT",
+        "name": "Utah"
+      },
+      {
+        "code": "VA",
+        "name": "Virginia"
+      },
+      {
+        "code": "VT",
+        "name": "Vermont"
+      },
+      {
+        "code": "WA",
+        "name": "Washington"
+      },
+      {
+        "code": "WI",
+        "name": "Wisconsin"
+      },
+      {
+        "code": "WV",
+        "name": "West Virginia"
+      },
+      {
+        "code": "WY",
+        "name": "Wyoming"
+      }
+    ]
+  }
+}
