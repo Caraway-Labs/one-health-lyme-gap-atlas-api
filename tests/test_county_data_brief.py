@@ -1,6 +1,8 @@
 """County Data Brief copy stays aligned with the Explorer follow-up port."""
 
+import re
 from datetime import UTC, datetime
+from pathlib import Path
 
 from lyme_gap_atlas_shared.domain import Score
 
@@ -17,6 +19,30 @@ _COLORS = {
     "#f49a32": "Coordinate a local assessment",
     "#e9602b": "Prioritize targeted follow-up",
 }
+
+
+def test_category_labels_have_aa_text_contrast() -> None:
+    template = (
+        Path(__file__).parents[1] / "src/lyme_gap_atlas_api/reports/templates/county/v3/report.typ"
+    ).read_text(encoding="utf-8")
+    match = re.search(r'#let pill-ink = rgb\("([0-9a-f]{6})"\)', template)
+    assert match is not None
+
+    def luminance(color: str) -> float:
+        channels = [int(color[index : index + 2], 16) / 255 for index in (0, 2, 4)]
+        linear = [
+            channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+            for channel in channels
+        ]
+        return sum(
+            value * weight for value, weight in zip(linear, (0.2126, 0.7152, 0.0722), strict=True)
+        )
+
+    foreground = luminance(match.group(1))
+    for color in (*_COLORS, "#e4e9ea"):
+        background = luminance(color.lstrip("#"))
+        ratio = (max(background, foreground) + 0.05) / (min(background, foreground) + 0.05)
+        assert ratio >= 4.5, f"Category {color} contrast is {ratio:.2f}:1"
 
 
 def _detail(**overrides: object) -> CountyDetail:

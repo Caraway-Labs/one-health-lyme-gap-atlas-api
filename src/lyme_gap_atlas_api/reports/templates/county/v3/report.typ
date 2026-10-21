@@ -35,7 +35,7 @@
 
 #let footer-place = upper(geography.at("name")) + ", " + upper(geography.at("state_code"))
 #let response-color = lower(brief.at("response_color"))
-#let pill-ink = if response-color in ("#a9d2db", "#87b982", "#efc64a", "#e4e9ea") { navy } else { white }
+#let pill-ink = rgb("10212b")
 #let score-known = brief.at("score_label") != "Unavailable"
 
 #let lines-with(prefix) = trace.filter(item => item.starts-with(prefix))

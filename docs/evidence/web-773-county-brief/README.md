@@ -52,6 +52,10 @@ Corrections to the partial implementation:
   URL filtering/deduplication and a release-specific clickable PDF annotation.
 - Matched the supplied reference's teal header rule and pale-blue follow-up
   and source panels, retaining its readable body size and all scientific copy.
+- Corrected category-label contrast: the same dark foreground now exceeds
+  4.5:1 against all six governed category colors and the neutral state
+  (minimum 4.84:1). Category background colors and meanings are unchanged.
+  A regression calculates contrast from the actual template foreground.
 
 Refreshed `after/` PDFs use live public county payloads saved as `*.input.json`.
 The original `before/` artifacts remain the historical baseline; fresh public
