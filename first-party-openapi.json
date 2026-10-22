@@ -2910,7 +2910,7 @@
           "Intelligence feed"
         ],
         "summary": "Read source-attributed publication metadata",
-        "description": "Read only from governed INTELLIGENCE_FEED_V2. No excerpts, article bodies or media. Publisher dates remain null when unknown; inclusive date filters exclude unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
+        "description": "Read only from governed INTELLIGENCE_FEED_V2. Includes eligible publisher descriptions as complete sanitized plain text and original publisher category labels; labels are not validated scientific taxonomy. No linked article bodies or media acquisition. Publisher dates remain null when unknown; inclusive date filters exclude unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
         "operationId": "listIntelligenceFeed",
         "parameters": [
           {
@@ -7727,6 +7727,9 @@
               "null"
             ]
           },
+          "publisher_metadata": {
+            "$ref": "#/components/schemas/FeedPublisherMetadata"
+          },
           "source": {
             "$ref": "#/components/schemas/BriefingSource"
           }
@@ -7745,6 +7748,7 @@
           "contract_version",
           "publication_date_state",
           "publisher",
+          "publisher_metadata",
           "source"
         ],
         "title": "FeedEntry"
@@ -7835,6 +7839,37 @@
           "next_page_token"
         ],
         "title": "FeedMeta"
+      },
+      "FeedPublisherMetadata": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublisherDescription"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "categories": {
+            "items": {
+              "type": "string",
+              "maxLength": 4096,
+              "pattern": "^[^<>\\x00-\\x1f]*$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Categories"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "description",
+          "categories"
+        ],
+        "title": "FeedPublisherMetadata"
       },
       "FeedSource": {
         "properties": {
@@ -10342,6 +10377,48 @@
         ],
         "title": "PublisherDateStates"
       },
+      "PublisherDescription": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "maxLength": 4096,
+            "pattern": "^[^<>\\x00-\\x1f]*$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "present",
+              "empty",
+              "not_provided"
+            ],
+            "title": "State"
+          },
+          "format": {
+            "type": "string",
+            "const": "plain_text",
+            "title": "Format"
+          },
+          "origin": {
+            "type": "string",
+            "const": "publisher",
+            "title": "Origin"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "state",
+          "format",
+          "origin"
+        ],
+        "title": "PublisherDescription",
+        "description": "Complete feed-provided plain text, never an inferred or shortened summary."
+      },
       "PublisherMedia": {
         "properties": {
           "url": {
@@ -10437,6 +10514,16 @@
           },
           "date_states": {
             "$ref": "#/components/schemas/PublisherDateStates"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublisherDescription"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,

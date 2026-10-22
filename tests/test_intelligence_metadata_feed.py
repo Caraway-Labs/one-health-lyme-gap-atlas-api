@@ -23,6 +23,9 @@ class MetadataRepository(Repository):
         document.update(
             contract_version="2.0.0",
             publisher="CDC",
+            publisher_metadata=document.get(
+                "publisher_metadata", {"description": None, "categories": []}
+            ),
             publication_date_state=document["field_states"]["published_at"],
         )
         document["provenance"].update(
@@ -64,8 +67,49 @@ def test_metadata_only_and_unknown_publication_date() -> None:
         entry["provenance"]["artifact_sha256"]
         == repository.document["provenance"]["artifact_sha256"]
     )
-    assert not ({"excerpt", "description", "body", "images", "publisher_metadata"} & set(entry))
-    assert repository.calls[0][1] == "cdc-eid-expedited"
+    assert not ({"excerpt", "description", "body", "images"} & set(entry))
+    assert entry["publisher_metadata"] == {"description": None, "categories": []}
+
+
+@pytest.mark.parametrize(
+    "text,state", [(None, "not_provided"), ("", "empty"), ("Publisher summary", "present")]
+)
+def test_feed_retains_original_publisher_description_and_category_labels(text, state):
+    repository = MetadataRepository()
+    repository.document["publisher_metadata"] = {
+        "description": {
+            "text": text,
+            "state": state,
+            "format": "plain_text",
+            "origin": "publisher",
+        },
+        "categories": ["Tick borne disease", "CDC research"],
+    }
+    response = client(repository).get("/v1/intelligence/feed?page_size=1")
+    assert response.status_code == 200
+    assert (
+        response.json()["data"][0]["publisher_metadata"]
+        == repository.document["publisher_metadata"]
+    )
+
+
+@pytest.mark.parametrize(
+    "description",
+    [
+        {"text": "<script>bad()</script>", "state": "present"},
+        {"text": None, "state": "empty"},
+        {"text": "x" * 4097, "state": "present"},
+    ],
+)
+def test_feed_rejects_unsafe_or_inconsistent_descriptions(description):
+    repository = MetadataRepository()
+    repository.document["publisher_metadata"] = {
+        "description": {**description, "format": "plain_text", "origin": "publisher"},
+        "categories": [],
+    }
+    response = client(repository).get("/v1/intelligence/feed")
+    assert response.status_code == 503
+    assert "<script>" not in response.text
 
 
 def test_empty_disabled_and_unavailable() -> None:

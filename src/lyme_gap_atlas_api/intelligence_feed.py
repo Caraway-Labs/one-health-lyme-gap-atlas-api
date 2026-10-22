@@ -20,7 +20,12 @@ from .briefings import (
 )
 from .config import ApiSettings
 from .dependency_telemetry import connect
-from .intelligence_projection import IntelligenceItemProjectionV2, ProjectionProvenance
+from .intelligence_projection import (
+    IntelligenceItemProjectionV2,
+    MetadataText,
+    ProjectionProvenance,
+    PublisherDescription,
+)
 from .public_contract import PublicQueryError
 from .public_docs import problem_response
 from .public_routes import PROBLEMS
@@ -82,7 +87,13 @@ FEED_COLUMNS = (
     "contract_version",
     "publication_date_state",
     "publisher",
+    "publisher_metadata",
 )
+
+
+class FeedPublisherMetadata(BriefingModel):
+    description: PublisherDescription | None
+    categories: Annotated[tuple[MetadataText, ...], Field(max_length=100)]
 
 
 class FeedEntry(BriefingModel):
@@ -99,6 +110,7 @@ class FeedEntry(BriefingModel):
     contract_version: Literal["2.0.0"]
     publication_date_state: State
     publisher: Text | None
+    publisher_metadata: FeedPublisherMetadata
     source: BriefingSource
 
     @model_validator(mode="after")
@@ -213,6 +225,8 @@ class SnowflakeFeedRepository:
                 ", FIELD_STATES:published_at::VARCHAR AS PUBLICATION_DATE_STATE"
                 ", IFF(IS_NULL_VALUE(PUBLISHER_METADATA:publisher), NULL,"
                 " PUBLISHER_METADATA:publisher::VARCHAR) AS PUBLISHER"
+                ", OBJECT_CONSTRUCT_KEEP_NULL('description', PUBLISHER_METADATA:description,"
+                " 'categories', PUBLISHER_METADATA:categories) AS PUBLISHER_METADATA"
                 ", SOURCE_ID, REGISTRY_VERSION, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
             )
         if kind == "sources":
@@ -299,7 +313,7 @@ class FeedService:
                 entries = []
                 for row in rows[:size]:
                     document = dict(zip(FEED_COLUMNS, row[:-4], strict=True))
-                    for field in ("provenance", "limitations"):
+                    for field in ("provenance", "limitations", "publisher_metadata"):
                         if isinstance(document[field], str):
                             document[field] = json.loads(document[field])
                     document["source"] = dict(
@@ -452,8 +466,10 @@ def sources(
     operation_id="listIntelligenceFeed",
     summary="Read source-attributed publication metadata",
     responses=FEED_PROBLEMS,
-    description="Read only from governed INTELLIGENCE_FEED_V2. No excerpts, article bodies "
-    "or media. Publisher dates remain null when unknown; inclusive date filters exclude "
+    description="Read only from governed INTELLIGENCE_FEED_V2. Includes eligible publisher "
+    "descriptions as complete sanitized plain text and original publisher category labels; "
+    "labels are not validated scientific taxonomy. No linked article bodies or media acquisition. "
+    "Publisher dates remain null when unknown; inclusive date filters exclude "
     "unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, "
     "no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
 )
