@@ -183,6 +183,21 @@ class SnowflakeFeedRepository:
             f"{_sql_identifier(self.settings.presentation_database)}."
             f"{_sql_identifier(self.settings.snowflake_presentation_schema)}.{view_name}"
         )
+        if kind == "sources":
+            # /feed reads V2 independently of the legacy /items flag. Keep
+            # identities from both published projections available to filters.
+            namespace = (
+                f"{_sql_identifier(self.settings.presentation_database)}."
+                f"{_sql_identifier(self.settings.snowflake_presentation_schema)}"
+            )
+            source_columns = (
+                "ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION, FETCHED_AT, "
+                "CONTENT_SHA256, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION, PUBLISHED_AT"
+            )
+            view = (
+                f"(SELECT {source_columns} FROM {namespace}.INTELLIGENCE_FEED_V "
+                f"UNION ALL SELECT {source_columns} FROM {namespace}.INTELLIGENCE_FEED_V2)"
+            )
         clauses, params = [], []
         if source_id is not None:
             clauses.append("SOURCE_ID = %s")
