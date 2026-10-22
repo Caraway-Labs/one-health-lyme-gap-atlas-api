@@ -72,7 +72,13 @@ def test_metadata_only_and_unknown_publication_date() -> None:
 
 
 @pytest.mark.parametrize(
-    "text,state", [(None, "not_provided"), ("", "empty"), ("Publisher summary", "present")]
+    "text,state",
+    [
+        (None, "not_provided"),
+        ("", "empty"),
+        ("Publisher summary", "present"),
+        ("x" * 4096, "present"),
+    ],
 )
 def test_feed_retains_original_publisher_description_and_category_labels(text, state):
     repository = MetadataRepository()
@@ -98,6 +104,8 @@ def test_feed_retains_original_publisher_description_and_category_labels(text, s
     [
         {"text": "<script>bad()</script>", "state": "present"},
         {"text": None, "state": "empty"},
+        {"text": "unexpected", "state": "not_provided"},
+        {"text": None, "state": "present"},
         {"text": "x" * 4097, "state": "present"},
     ],
 )
@@ -110,6 +118,39 @@ def test_feed_rejects_unsafe_or_inconsistent_descriptions(description):
     response = client(repository).get("/v1/intelligence/feed")
     assert response.status_code == 503
     assert "<script>" not in response.text
+
+
+def test_metadata_pages_and_revision_state_invalidate_continuation():
+    class Pages(MetadataRepository):
+        def read(self, kind, source, start, end, offset, size):
+            self.document["publisher_metadata"] = {
+                "description": {
+                    "text": "Summary",
+                    "state": "present",
+                    "format": "plain_text",
+                    "origin": "publisher",
+                },
+                "categories": ["Original publisher label"],
+            }
+            _, rows = super().read(kind, source, start, end, 0, 500)
+            first, second = list(rows[0]), list(rows[0])
+            first[0], second[0] = "1" * 64, "2" * 64
+            return self.marker, [tuple(first), tuple(second)][offset : offset + size + 1]
+
+    repository = Pages()
+    http = client(repository)
+    first = http.get("/v1/intelligence/feed?page_size=1").json()
+    token = first["meta"]["next_page_token"]
+    assert token
+    second = http.get("/v1/intelligence/feed", params={"page_size": 1, "page_token": token})
+    assert second.status_code == 200
+    assert second.json()["data"][0]["publisher_metadata"] == first["data"][0]["publisher_metadata"]
+    assert second.json()["data"][0]["item_id"] != first["data"][0]["item_id"]
+    repository.marker = "revised-metadata-state"
+    assert (
+        http.get("/v1/intelligence/feed", params={"page_size": 1, "page_token": token}).status_code
+        == 400
+    )
 
 
 def test_empty_disabled_and_unavailable() -> None:
