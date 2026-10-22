@@ -20,7 +20,7 @@ services:
     dockerfile_path: Dockerfile
     http_port: 8080
     instance_count: 1
-    instance_size_slug: apps-s-1vcpu-2gb
+    instance_size_slug: apps-d-2vcpu-4gb
     health_check:
       http_path: /health/ready
       initial_delay_seconds: 20
