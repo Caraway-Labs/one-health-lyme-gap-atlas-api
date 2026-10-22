@@ -387,18 +387,35 @@ def test_expired_deadline_does_not_start_driver(monkeypatch: Any) -> None:
 
 def test_six_concurrent_stalls_release_all_sessions() -> None:
     async def run() -> None:
-        peer = BoltPeer(stall="pull")
+        peer = BoltPeer()
         baseline = asyncio.all_tasks()
         async with peer_uri(peer) as uri:
+            # Verify the real fixture and driver before measuring six concurrent
+            # cancellations. The measured calls still create their own drivers.
+            async with asyncio.timeout(10):
+                await retriever(uri)._retrieve("fixture", [0.1], time.monotonic() + 10)
+                await peer.pull_ready.wait()
+            accepted_before = peer.accepted
+            peer.stall = "pull"
+            ready = asyncio.Barrier(7)
+            durations: list[float] = []
 
             async def request() -> None:
+                await ready.wait()
+                request_started = time.monotonic()
                 with pytest.raises(TimeoutError):
-                    await retriever(uri)._retrieve("fixture", [0.1], time.monotonic() + BUDGET)
+                    await retriever(uri)._retrieve("fixture", [0.1], request_started + BUDGET)
+                durations.append(time.monotonic() - request_started)
 
+            requests = [asyncio.create_task(request()) for _ in range(6)]
             started = time.monotonic()
-            await asyncio.gather(*(request() for _ in range(6)))
-            assert time.monotonic() - started < MAX_ELAPSED
-            assert peer.accepted == 6
+            async with asyncio.timeout(MAX_ELAPSED):
+                await ready.wait()
+                await asyncio.gather(*requests)
+            elapsed = time.monotonic() - started
+            assert elapsed < MAX_ELAPSED, (elapsed, durations)
+            assert len(durations) == 6 and all(BUDGET * 0.8 <= d < MAX_ELAPSED for d in durations)
+            assert peer.accepted - accepted_before == 6
         await asyncio.sleep(0)
         assert asyncio.all_tasks() == baseline
 

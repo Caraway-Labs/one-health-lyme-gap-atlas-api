@@ -1,9 +1,10 @@
 """API #56 public-read protection and conditional HTTP behavior."""
 
-import threading
-from concurrent.futures import ThreadPoolExecutor
+import asyncio
 
+import anyio
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 from test_public_metadata import MetadataFixture
 
 from lyme_gap_atlas_api.app import create_app
@@ -61,36 +62,46 @@ def test_page_size_ceiling_is_consistent() -> None:
 
 
 def test_concurrent_public_reads_are_bounded() -> None:
-    entered = threading.Event()
-    release = threading.Event()
-    lock = threading.Lock()
+    async def run() -> None:
+        entered = asyncio.Event()
+        release = asyncio.Event()
 
-    class SlowMetadata(MetadataFixture):
-        count = 0
+        class SlowMetadata(MetadataFixture):
+            count = 0
 
-        def load_metadata(self):
-            with lock:
+            def mark_entered(self):
                 self.count += 1
                 if self.count == 2:
                     entered.set()
-            assert release.wait(10)
-            return super().load_metadata()
 
-    api = TestClient(
-        create_app(
+            def load_metadata(self):
+                # Coordinate on the ASGI loop; worker-local wall timers could
+                # release occupied slots before the rejection assertion ran.
+                anyio.from_thread.run_sync(self.mark_entered)
+                anyio.from_thread.run(release.wait)
+                return super().load_metadata()
+
+        metadata = SlowMetadata()
+        app = create_app(
             settings=ApiSettings(public_concurrent_requests_per_ip=2),
-            metadata_repository=SlowMetadata(),
+            metadata_repository=metadata,
         )
-    )
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        first = pool.submit(api.get, "/v1/indicators")
-        second = pool.submit(api.get, "/v1/indicators")
-        try:
-            assert entered.wait(10)
-            limited = api.get("/v1/indicators")
-            assert limited.status_code == 429
-            assert limited.headers["Retry-After"] == "1"
-        finally:
-            release.set()
-        assert first.result().status_code == 200
-        assert second.result().status_code == 200
+        async with AsyncClient(transport=ASGITransport(app), base_url="http://fixture") as api:
+            async with asyncio.timeout(10):
+                first = asyncio.create_task(api.get("/v1/indicators"))
+                second = asyncio.create_task(api.get("/v1/indicators"))
+                try:
+                    await entered.wait()
+                    limited = await api.get("/v1/indicators")
+                    assert limited.status_code == 429
+                    assert limited.headers["Retry-After"] == "1"
+                    assert metadata.count == 2
+                finally:
+                    release.set()
+                    responses = await asyncio.gather(first, second)
+                assert all(response.status_code == 200 for response in responses)
+                assert metadata.count == 2
+                assert (await api.get("/v1/indicators")).status_code == 200
+                assert metadata.count == 3
+
+    asyncio.run(run())
