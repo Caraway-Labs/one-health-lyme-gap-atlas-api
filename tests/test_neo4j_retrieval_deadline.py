@@ -46,6 +46,7 @@ class BoltPeer:
         self.disconnected = 0
         self.begin_count = 0
         self.reached: set[str] = set()
+        self.pull_ready = asyncio.Event()
 
     async def reply(self, writer: asyncio.StreamWriter, tag: bytes, fields: list[Any]) -> None:
         buffer = PackableBuffer()
@@ -56,6 +57,8 @@ class BoltPeer:
 
     async def pause(self, reader: asyncio.StreamReader, phase: str) -> bool:
         self.reached.add(phase)
+        if phase == "pull":
+            self.pull_ready.set()
         if phase == "pull" and self.delay:
             await asyncio.sleep(self.delay)
         if self.stall != phase:
@@ -267,10 +270,11 @@ class Embeddings:
         return type("Result", (), {"data": [type("Vector", (), {"embedding": [0.1]})()]})()
 
 
+@pytest.mark.parametrize("client_setup_delay", [0.0, MAX_ELAPSED + 0.05])
 def test_http_timeout_is_typed_classified_and_has_no_generation(
-    monkeypatch: Any, caplog: Any
+    monkeypatch: Any, caplog: Any, client_setup_delay: float
 ) -> None:
-    from fastapi.testclient import TestClient
+    from httpx import ASGITransport, AsyncClient
 
     from lyme_gap_atlas_api.app import create_app
     from lyme_gap_atlas_api.config import ApiSettings
@@ -280,26 +284,55 @@ def test_http_timeout_is_typed_classified_and_has_no_generation(
     logging.getLogger().addHandler(caplog.handler)
 
     async def run() -> None:
-        peer = BoltPeer(stall="pull")
+        peer = BoltPeer()
         async with peer_uri(peer) as uri:
             r = retriever(uri)
             r._openai = Embeddings()  # type: ignore[assignment]
+            # Complete a real pinned-driver exchange before starting the HTTP
+            # cancellation clock. This warms imports/protocol setup and signals
+            # that the fixture can reach the intended PULL phase.
+            async with asyncio.timeout(10):
+                await r._retrieve("fixture", [0.1], time.monotonic() + 10)
+                await peer.pull_ready.wait()
+            peer.stall = "pull"
+            peer.begin_count = 0
+            peer.reached.clear()
             service = chat.KnowledgeChatService(r, None, None, "fixture")  # type: ignore[arg-type]
             app = create_app(
                 settings=ApiSettings(knowledge_chat_enabled=True), knowledge_chat_service=service
             )
-            with caplog.at_level(logging.INFO), TestClient(app) as client:
-                started = time.monotonic()
-                response = await anyio.to_thread.run_sync(
-                    lambda: client.post("/v1/knowledge-graph/chat", json={"message": "fixture"})
-                )
-                assert time.monotonic() - started < MAX_ELAPSED
+            # Run the in-process HTTP client on the Bolt peer's event loop.
+            # TestClient plus to_thread added a second portal/worker hop before
+            # service entry, so CI thread scheduling consumed the cancellation
+            # assertion's wall clock. Prepare the ordinary ASGI sync worker first.
+            await anyio.to_thread.run_sync(lambda: None)
+            with caplog.at_level(logging.INFO):
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://fixture"
+                ) as client:
+                    # Deliberately slow client preparation must not masquerade as
+                    # slow backend cancellation. The request bound stays 1s.
+                    await asyncio.sleep(client_setup_delay)
+                    started = time.monotonic()
+                    async with asyncio.timeout(MAX_ELAPSED):
+                        response = await client.post(
+                            "/v1/knowledge-graph/chat", json={"message": "fixture"}
+                        )
+                    assert time.monotonic() - started < MAX_ELAPSED
             assert response.status_code == 503
             assert response.json()["status"] == "evidence_unavailable"
             assert response.json()["claims"] == []
-            assert peer.begin_count == 1
+            # The service deadline also covers connection setup: cancellation
+            # may legitimately precede BEGIN. Retrying a transaction is forbidden.
+            assert peer.begin_count <= 1
         assert any(
-            r.msg == "knowledge_chat_total" and r.context["outcome"] == "neo4j_timeout"
+            r.msg == "knowledge_chat_total"
+            and r.context["outcome"] == "neo4j_timeout"
+            and r.context["generation_attempts"] == 0
+            and r.context["service_duration_ms"] < MAX_ELAPSED * 1000
+            and BUDGET * 800
+            <= r.context["stage_latencies_ms"]["neo4j_retrieval"]
+            < MAX_ELAPSED * 1000
             for r in caplog.records
         )
 
