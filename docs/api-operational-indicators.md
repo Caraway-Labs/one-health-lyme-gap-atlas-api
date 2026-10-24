@@ -58,7 +58,7 @@ to unrelated complete logs to construct a mixed denominator.
 | Operational availability | (E − X) / E | Request handled without unexpected failure; expected input/auth/protection outcomes can be available without delivering a result. Display classification coverage E/P, capacity share of all observed product requests C/P, and delivery alongside this. |
 | Delivery success | D / S | Valid response delivery; expected 4xx/protection are not delivered results. Display S/P status coverage. |
 | Unexpected failure | X / E | Complement of operational availability; independent of transport status. |
-| Transport error | included completed HTTP 5xx / S | Counts capacity 503 too; label HTTP 5xx, never label this infrastructure failure. Display S/P. |
+| Transport error | included completed HTTP 5xx / S | Counts capacity 503 too (not Ask Atlas chat typed outcomes, which are 200 since #303; use `knowledge_chat_total.outcome` for those); label HTTP 5xx, never label this infrastructure failure. Display S/P. |
 | Client rejection | bounded expected validation/auth/not-found/payload rejections / S | 4xx explain demand and product use; not automatically server failures. Unsupported methods are separate from P. |
 | Protection/capacity among evaluable requests | C / E | Local HTTP 429, bounded concurrency/rate-limit rejection, Ask Atlas budget `capacity_limited`; split reason and route. Display classification coverage E/P and the separate capacity share of all observed product requests C/P. No implicit saturation, queue-depth, CPU, or headroom claim. |
 | Request latency | p50, p95, qualified p99 of completed server span duration | Same route/method/outcome cohort, observed count N and units alongside. Includes application/dependency waiting; not browser end-to-end time. |
@@ -94,7 +94,7 @@ one-to-one request correlation and deduplication, never a sum of child counts.
 | `answered` | Delivered success | Grounded answer passed validation. |
 | `no_evidence` | Delivered intentional abstention | No relevant corpus evidence; not dependency failure. |
 | `safety_refusal` | Delivered intentional refusal | Correct policy behavior; not infrastructure failure. |
-| `capacity_limited` | Expected local capacity outcome, generally HTTP 503 | Track C and delivery loss; not automatically X. |
+| `capacity_limited` | Expected local capacity outcome; HTTP 200 on `POST /v1/knowledge-graph/chat` since #303 (other routes may still use 503) | Track C and delivery loss; not automatically X. |
 | `invalid_conversation_capability` / input/auth rejections | Expected client outcome | Track rejection, not X. |
 | `embedding_failure`, `retrieval_dependency_unavailable`, `neo4j_timeout`, `neo4j_query_failure`, `retrieval_failure` | Unexpected dependency/retrieval failure | X even when safely returned as `evidence_unavailable`. |
 | `generation_timeout`, `deadline_exhausted`, `provider_rejection`, `generation_transport_error`, `generation_error` | Unexpected dependency/time failure | X; distinguish upstream rejection from local budget capacity. |

@@ -319,7 +319,7 @@ def test_http_timeout_is_typed_classified_and_has_no_generation(
                             "/v1/knowledge-graph/chat", json={"message": "fixture"}
                         )
                     assert time.monotonic() - started < MAX_ELAPSED
-            assert response.status_code == 503
+            assert response.status_code == 200
             assert response.json()["status"] == "evidence_unavailable"
             assert response.json()["claims"] == []
             # The service deadline also covers connection setup: cancellation

@@ -957,7 +957,9 @@ def test_chat_rejects_invented_citations_after_one_repair() -> None:
     response = TestClient(create_app(FakeRepository(), settings, service)).post(
         "/v1/knowledge-graph/chat", json={"message": "Invent a citation"}
     )
-    assert response.status_code == 503
+    # Typed outcomes are 200: the DigitalOcean edge rewrites an origin 503 into a 504 page.
+    assert response.status_code == 200
+    assert response.headers["retry-after"] == "30"
     assert response.json()["status"] == "evidence_unavailable"
     assert answerer.calls == 2
 
