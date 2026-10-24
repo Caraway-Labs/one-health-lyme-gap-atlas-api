@@ -17,6 +17,8 @@ County SVI, population, insurance and RUCC observations use the existing observa
 resource with explicit vintage selection; see the [county context contract](docs/county-socioeconomic-context.md).
 Start with the [public API guide](docs/public-api-guide.md) for tested requests,
 interpretation, pagination, errors, and reproducibility.
+Use the [API writing style guide](docs/api-writing-style.md) for shared wording,
+templates, and definitions used in public API documentation.
 The [OpenAPI quality gate](docs/openapi-quality.md) documents semantic review
 diffs and validated public/first-party CI artifacts for downstream consumers.
 The [documentation surface contract](docs/documentation-surfaces.md) defines

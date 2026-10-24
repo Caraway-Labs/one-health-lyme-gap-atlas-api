@@ -3,6 +3,9 @@
 FastAPI/Pydantic route definitions own both generated contracts. Run the existing
 locked dev setup, tests and export, then the semantic gate:
 
+Use the [API writing style guide](api-writing-style.md) for public summaries,
+descriptions, parameter and schema wording, errors, examples, and shared terms.
+
 ```powershell
 uv sync --extra dev --locked
 uv run pytest -q
