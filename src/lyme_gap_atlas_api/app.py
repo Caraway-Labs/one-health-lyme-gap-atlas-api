@@ -426,9 +426,7 @@ def create_app(
                 persist_in_background=True,
                 prefetch_provenance=True,
             )
-    snowflake_monitor = SnowflakeMonitor(
-        config, repository.ready if repository is not None else None
-    )
+    snowflake_monitor = SnowflakeMonitor(config, service.ready if repository is not None else None)
     probe_started = False
 
     @asynccontextmanager
