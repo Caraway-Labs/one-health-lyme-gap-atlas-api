@@ -13,10 +13,11 @@ import ssl
 import time
 import uuid
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass
-from threading import Thread, get_ident
+from threading import Lock, Thread, get_ident
 from typing import Any, Literal, Protocol, TypedDict, cast
 
 import anyio.from_thread
@@ -58,6 +59,8 @@ _RETRIEVAL_DEADLINE: ContextVar[float | None] = ContextVar(
     "knowledge_chat_retrieval_deadline", default=None
 )
 _NEO4J_RETRIEVAL_SECONDS = 5.0
+_PERSIST_WORKERS = 4
+_PERSIST_QUEUE_LIMIT = 32
 
 
 class _RequestSnowflakeSession:
@@ -1116,6 +1119,7 @@ class KnowledgeChatService:
         generation_timeout_seconds: float = 16.0,
         clock: Callable[[], float] = time.monotonic,
         snowflake_settings: SnowflakeSettings | None = None,
+        persist_in_background: bool = False,
     ) -> None:
         self._retriever = retriever
         self._answerer = answerer
@@ -1126,6 +1130,17 @@ class KnowledgeChatService:
         self._generation_timeout_seconds = generation_timeout_seconds
         self._clock = clock
         self._snowflake_settings = snowflake_settings
+        # Conversation persistence is write-only bookkeeping: the response never
+        # depends on it, so production returns first and saves afterwards.
+        self._persist_executor = (
+            ThreadPoolExecutor(
+                max_workers=_PERSIST_WORKERS, thread_name_prefix="kg-chat-persist"
+            )
+            if persist_in_background and budget_store is not None
+            else None
+        )
+        self._persist_pending = 0
+        self._persist_lock = Lock()
 
     def _hash(self, value: str) -> str:
         return hmac.new(self._secret, value.encode(), hashlib.sha256).hexdigest()
@@ -1151,6 +1166,67 @@ class KnowledgeChatService:
             response=response,
         )
         return True
+
+    def _persist_in_background(
+        self,
+        request: KnowledgeChatRequest,
+        response: KnowledgeChatResponse,
+        token: str,
+        network_hash: str,
+    ) -> None:
+        """Queue persistence; never raises and never blocks the request thread.
+
+        The worker thread has no request-scoped Snowflake session (contextvars are
+        not copied by the executor), so it opens and closes its own connection.
+        A failed write is logged with the request id and error class only. It is
+        not retried here because procedure idempotency for a partly written
+        conversation is not established.
+        """
+        executor = self._persist_executor
+        request_id = response.request_id
+        if executor is None:
+            return
+        with self._persist_lock:
+            if self._persist_pending >= _PERSIST_QUEUE_LIMIT:
+                dropped = True
+            else:
+                self._persist_pending += 1
+                dropped = False
+        if dropped:
+            self._log_persistence_failure(request_id, "queue_full")
+            return
+
+        def work() -> None:
+            request_token = _REQUEST_ID.set(request_id)
+            try:
+                with _timed_stage(request_id, "conversation_persistence"):
+                    self._persist(request, response, token, network_hash)
+            except Exception as exc:
+                self._log_persistence_failure(request_id, failure_class(exc))
+            finally:
+                _REQUEST_ID.reset(request_token)
+                with self._persist_lock:
+                    self._persist_pending -= 1
+
+        try:
+            executor.submit(work)
+        except RuntimeError:
+            with self._persist_lock:
+                self._persist_pending -= 1
+            self._log_persistence_failure(request_id, "executor_shutdown")
+
+    @staticmethod
+    def _log_persistence_failure(request_id: str, error_class: str) -> None:
+        logger.warning(
+            "knowledge_chat_persistence_failed",
+            extra={
+                "context": {
+                    "request_id": request_id,
+                    "background": True,
+                    "error_type": error_class,
+                }
+            },
+        )
 
     def chat(
         self,
@@ -1262,6 +1338,9 @@ class KnowledgeChatService:
             )
 
         def persist(result: KnowledgeChatResponse) -> None:
+            if self._persist_executor is not None:
+                self._persist_in_background(request, result, token, safety_id)
+                return
             with _timed_stage(request_id, "conversation_persistence"):
                 self._persist(request, result, token, safety_id)
 

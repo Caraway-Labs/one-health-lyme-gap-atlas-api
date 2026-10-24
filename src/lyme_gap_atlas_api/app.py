@@ -416,6 +416,7 @@ def create_app(
                 deadline_seconds=config.kg_chat_deadline_seconds,
                 generation_timeout_seconds=config.kg_generation_timeout_seconds,
                 snowflake_settings=config,
+                persist_in_background=True,
             )
     probe_started = False
 
