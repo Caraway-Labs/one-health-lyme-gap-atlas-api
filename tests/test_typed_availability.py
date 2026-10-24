@@ -288,11 +288,13 @@ def test_geography_availability_retains_public_rate_protection():
     assert response.headers["retry-after"]
 
 
-def test_other_collection_metadata_wire_shape_and_legacy_geography_are_unchanged():
+def test_other_collection_metadata_wire_shape_is_unchanged_and_identity_route_is_typed_200():
     assert set(CollectionMeta().model_dump()) == {"response_at", "next_page_token"}
     response = geography_client().get("/v1/geographies/county/01001")
-    assert response.status_code == 503
-    assert response.json()["code"] == "CANONICAL_DATA_UNAVAILABLE"
+    assert response.status_code == 200
+    assert response.json()["availability"] == "UNAVAILABLE"
+    assert response.json()["reason"] == "CANONICAL_GEOGRAPHY_UNPUBLISHED"
+    assert response.json()["data"] is None
 
 
 def test_availability_examples_keep_required_nulls_in_both_schema_exports():

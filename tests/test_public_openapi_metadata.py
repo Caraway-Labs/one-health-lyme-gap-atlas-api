@@ -48,13 +48,26 @@ def test_public_metadata_and_stable_operation_ids() -> None:
         assert name not in models
 
 
-def test_pending_geography_openapi_error_matches_specific_runtime_code() -> None:
+def test_pending_geography_openapi_documents_typed_200_not_a_permanent_503() -> None:
     schema = create_app(settings=ApiSettings()).openapi()
-    response = schema["paths"]["/v1/geographies/{geography_type}/{geography_id}"]["get"][
-        "responses"
-    ]["503"]
-    example = response["content"]["application/problem+json"]["examples"]["illustrative"]["value"]
-    assert example["code"] == "CANONICAL_DATA_UNAVAILABLE"
+    operation = schema["paths"]["/v1/geographies/{geography_type}/{geography_id}"]["get"]
+    responses = operation["responses"]
+    assert "503" not in responses
+    assert "422" not in responses
+    branches = responses["200"]["content"]["application/json"]["schema"]["anyOf"]
+    assert [branch["$ref"] for branch in branches] == [
+        "#/components/schemas/ResourceEnvelope_Geography_",
+        "#/components/schemas/GeographyUnavailable",
+    ]
+    unavailable = schema["components"]["schemas"]["GeographyUnavailable"]
+    assert set(unavailable["required"]) == {
+        "availability",
+        "reason",
+        "data",
+        "geography",
+        "limitations",
+    }
+    assert unavailable["properties"]["reason"]["const"] == "CANONICAL_GEOGRAPHY_UNPUBLISHED"
 
 
 def test_observation_variants_are_named_anyof_branches_for_sdk_generation() -> None:

@@ -52,7 +52,7 @@ TAGS = [
     },
     {
         "name": "geographies",
-        "description": "Typed geography identity; delivery is not yet available.",
+        "description": "Typed geography identity; canonical delivery pending (200 UNAVAILABLE).",
     },
     {"name": "atlas", "description": "Existing release analytics and separate display geometry."},
     {"name": "counties", "description": "Existing county details and versioned PDF reports."},

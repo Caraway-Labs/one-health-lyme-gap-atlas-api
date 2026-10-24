@@ -347,8 +347,9 @@ history and App Platform CPU/memory alerts supply backend pressure evidence.
 Public errors use RFC 9457 `application/problem+json` with stable `code`:
 `INVALID_REQUEST`, `RESOURCE_NOT_FOUND`, `UNSUPPORTED_FILTER`,
 `UNSUPPORTED_STRATIFICATION`, `QUERY_TOO_BROAD`, or `SERVICE_UNAVAILABLE`.
-`CANONICAL_DATA_UNAVAILABLE` remains the more specific code for pending
-canonical geography delivery. A stable application error body does not imply
+Pending canonical geography identity delivery is no longer an error: the identity
+route returns HTTP 200 with `availability: UNAVAILABLE`, `reason:
+CANONICAL_GEOGRAPHY_UNPUBLISHED` and `data: null` ([ADR 0021](adr/0021-geography-identity-typed-unavailable.md)). A stable application error body does not imply
 that a hosting provider's ingress preserves origin 5xx responses; verify that
 separately through each public hostname.
 The first four client errors require the appropriate downstream service to
