@@ -23,6 +23,9 @@ class MetadataRepository(Repository):
         document.update(
             contract_version="2.0.0",
             publisher="CDC",
+            publisher_metadata=document.get(
+                "publisher_metadata", {"description": None, "categories": []}
+            ),
             publication_date_state=document["field_states"]["published_at"],
         )
         document["provenance"].update(
@@ -64,8 +67,90 @@ def test_metadata_only_and_unknown_publication_date() -> None:
         entry["provenance"]["artifact_sha256"]
         == repository.document["provenance"]["artifact_sha256"]
     )
-    assert not ({"excerpt", "description", "body", "images", "publisher_metadata"} & set(entry))
-    assert repository.calls[0][1] == "cdc-eid-expedited"
+    assert not ({"excerpt", "description", "body", "images"} & set(entry))
+    assert entry["publisher_metadata"] == {"description": None, "categories": []}
+
+
+@pytest.mark.parametrize(
+    "text,state",
+    [
+        (None, "not_provided"),
+        ("", "empty"),
+        ("Publisher summary", "present"),
+        ("x" * 4096, "present"),
+    ],
+)
+def test_feed_retains_original_publisher_description_and_category_labels(text, state):
+    repository = MetadataRepository()
+    repository.document["publisher_metadata"] = {
+        "description": {
+            "text": text,
+            "state": state,
+            "format": "plain_text",
+            "origin": "publisher",
+        },
+        "categories": ["Tick borne disease", "CDC research"],
+    }
+    response = client(repository).get("/v1/intelligence/feed?page_size=1")
+    assert response.status_code == 200
+    assert (
+        response.json()["data"][0]["publisher_metadata"]
+        == repository.document["publisher_metadata"]
+    )
+
+
+@pytest.mark.parametrize(
+    "description",
+    [
+        {"text": "<script>bad()</script>", "state": "present"},
+        {"text": None, "state": "empty"},
+        {"text": "unexpected", "state": "not_provided"},
+        {"text": None, "state": "present"},
+        {"text": "x" * 4097, "state": "present"},
+    ],
+)
+def test_feed_rejects_unsafe_or_inconsistent_descriptions(description):
+    repository = MetadataRepository()
+    repository.document["publisher_metadata"] = {
+        "description": {**description, "format": "plain_text", "origin": "publisher"},
+        "categories": [],
+    }
+    response = client(repository).get("/v1/intelligence/feed")
+    assert response.status_code == 503
+    assert "<script>" not in response.text
+
+
+def test_metadata_pages_and_revision_state_invalidate_continuation():
+    class Pages(MetadataRepository):
+        def read(self, kind, source, start, end, offset, size):
+            self.document["publisher_metadata"] = {
+                "description": {
+                    "text": "Summary",
+                    "state": "present",
+                    "format": "plain_text",
+                    "origin": "publisher",
+                },
+                "categories": ["Original publisher label"],
+            }
+            _, rows = super().read(kind, source, start, end, 0, 500)
+            first, second = list(rows[0]), list(rows[0])
+            first[0], second[0] = "1" * 64, "2" * 64
+            return self.marker, [tuple(first), tuple(second)][offset : offset + size + 1]
+
+    repository = Pages()
+    http = client(repository)
+    first = http.get("/v1/intelligence/feed?page_size=1").json()
+    token = first["meta"]["next_page_token"]
+    assert token
+    second = http.get("/v1/intelligence/feed", params={"page_size": 1, "page_token": token})
+    assert second.status_code == 200
+    assert second.json()["data"][0]["publisher_metadata"] == first["data"][0]["publisher_metadata"]
+    assert second.json()["data"][0]["item_id"] != first["data"][0]["item_id"]
+    repository.marker = "revised-metadata-state"
+    assert (
+        http.get("/v1/intelligence/feed", params={"page_size": 1, "page_token": token}).status_code
+        == 400
+    )
 
 
 def test_empty_disabled_and_unavailable() -> None:

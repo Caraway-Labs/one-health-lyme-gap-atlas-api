@@ -90,6 +90,25 @@ class PublisherMedia(BriefingModel):
         return self
 
 
+class PublisherDescription(BriefingModel):
+    """Complete feed-provided plain text, never an inferred or shortened summary."""
+
+    text: MetadataText | None
+    state: Literal["present", "empty", "not_provided"]
+    format: Literal["plain_text"]
+    origin: Literal["publisher"]
+
+    @model_validator(mode="after")
+    def description_state(self) -> Self:
+        if (
+            (self.state == "not_provided" and self.text is not None)
+            or (self.state == "empty" and self.text != "")
+            or (self.state == "present" and not self.text)
+        ):
+            raise ValueError("INTELLIGENCE_DESCRIPTION_STATE_INVALID")
+        return self
+
+
 class PublisherMetadata(BriefingModel):
     publisher: Text | None
     source_family: Literal[
@@ -101,6 +120,7 @@ class PublisherMetadata(BriefingModel):
     language: Annotated[str, Field(max_length=64, pattern=r"^[^<>\x00-\x1f]*$")] | None
     media: Annotated[tuple[PublisherMedia, ...], Field(max_length=100)]
     date_states: PublisherDateStates
+    description: PublisherDescription | None = None
 
 
 class DerivedMetadata(BriefingModel):
