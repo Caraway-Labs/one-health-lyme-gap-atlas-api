@@ -67,7 +67,7 @@ class Resource:
 )
 def test_snowflake_actual_calls(spans, monkeypatch, failure, category):
     resource = Resource(failure)
-    monkeypatch.setattr(telemetry, "shared_connect", lambda *args, **kwargs: resource)
+    monkeypatch.setattr(telemetry, "snowflake_connect", lambda *args, **kwargs: resource)
     with trace.get_tracer("test").start_as_current_span("request") as parent:
 
         def run():
@@ -121,7 +121,7 @@ def test_span_start_failure_preserves_call(monkeypatch):
 def test_public_route_dependency_is_child_of_server(spans, monkeypatch):
     resource = Resource()
     resource.fetchall = lambda: []
-    monkeypatch.setattr(telemetry, "shared_connect", lambda *args, **kwargs: resource)
+    monkeypatch.setattr(telemetry, "snowflake_connect", lambda *args, **kwargs: resource)
     client = TestClient(create_app(settings=ApiSettings()))
     response = client.get("/v1/indicators")
     # Successful I/O with no admitted metadata retains the existing fail-closed 503.
@@ -199,7 +199,7 @@ def test_optional_attribute_and_end_failure(monkeypatch):
 def test_proxy_preserves_other_sdk_methods(spans, monkeypatch):
     resource = Resource()
     resource.version = SECRET
-    monkeypatch.setattr(telemetry, "shared_connect", lambda *args, **kwargs: resource)
+    monkeypatch.setattr(telemetry, "snowflake_connect", lambda *args, **kwargs: resource)
     with telemetry.connect(ApiSettings()) as connection:
         assert connection.version == SECRET
         with connection.cursor() as cursor:

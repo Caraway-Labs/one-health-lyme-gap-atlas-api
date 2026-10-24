@@ -1,15 +1,19 @@
-# Process-scoped Snowflake read sessions (API #287)
+# Bounded Snowflake read connection pool (API #287, #317)
 
-Public read paths (`SnowflakeObservationRepository.request_session`, `SnowflakeTier1PriorityRepository`) borrow a **thread-local** Snowflake connection from `snowflake_read_session.ReadSessionPool`. This is not the Ask Atlas request-scoped write session (`docs/ask-atlas-snowflake-reuse.md`).
+Public read paths (`SnowflakeObservationRepository.request_session`, `SnowflakeTier1PriorityRepository`) borrow a connection from the process-wide `snowflake_read_session.ReadSessionPool`. This is not the Ask Atlas request-scoped write session (`docs/ask-atlas-snowflake-reuse.md`).
 
 ## Behavior
 
-- **Scope:** one live connection per worker thread in the API process.
-- **Checkout:** `read_connection(settings)` calls instrumented `dependency_telemetry.connect` only when no healthy cached connection exists for the thread.
-- **Idle eviction:** default **300 s** since last successful checkout; the connection is closed and removed.
-- **Health:** closed connections are replaced on the next checkout.
-- **Errors:** any exception escaping `read_connection` drops and closes the thread's session so the next request reconnects.
-- **CDC / close_on_exit_error:** observations CDC path may call `drop_current()` after handler errors in addition to the automatic drop on exception.
+- **Bounded size:** at most `read_pool_max_size` (default **16**, 1-64; previous effective cap was the anyio threadpool, about 40) live connections per process, independent of the anyio threadpool size.
+- **Checkout queue:** a request waits at most `read_pool_checkout_timeout_seconds` (default **5 s**) for a free connection, then raises `AtlasDataUnavailableError` (the existing 503 problem response). It never hangs.
+- **One borrower at a time:** the connector is thread-confined, so a connection is lent to a single request/thread until it is returned; re-entrant use on the same thread shares the lease.
+- **Check-in:** `read_connection` returns the connection on a successful exit. Any exception closes it (`drop_current`) and frees the slot; which errors should merely return the connection is a later refinement (#320).
+- **Health on checkout:** `is_closed()` first (local, free). Only when the connection has been idle longer than `read_pool_validate_after_idle_seconds` (default **30 s**) is one `SELECT 1` sent. A failing connection is closed and replaced before the request's statements run; request statements are never retried.
+- **Idle eviction:** connections idle longer than `read_pool_idle_seconds` (default **300 s**) are closed on checkout and by a daemon reaper thread (every 60 s).
+- **Shutdown:** the FastAPI lifespan calls `close_all()`: idle connections close immediately, borrowed ones are closed when returned.
+- **Keep-alive:** the connector's `client_session_keep_alive` is evaluated and left off: it adds a heartbeat thread and traffic per pooled connection, and the idle-validated checkout plus idle TTL already replace dead sessions before use.
+- **Env vars:** `READ_POOL_MAX_SIZE`, `READ_POOL_CHECKOUT_TIMEOUT_SECONDS`, `READ_POOL_IDLE_SECONDS`, `READ_POOL_VALIDATE_AFTER_IDLE_SECONDS`.
+- **CDC / close_on_exit_error:** observations CDC path may call `drop_current()` after handler errors in addition to the automatic drop on exception; `drop_current()` is idempotent.
 
 ## County context reads (API #288)
 
@@ -25,4 +29,4 @@ Successful `CONTEXT_FIELDS` observation searches (`population_2022`, etc.) use *
 
 ## Operations
 
-Tune idle TTL via `ReadSessionPool(idle_seconds=...)` only in tests; production uses the module default. Warehouse `AUTO_SUSPEND` (600 s on COMPUTE_WH) remains a separate operational knob.
+Tune the pool with the settings above. Warehouse `AUTO_SUSPEND` (600 s on COMPUTE_WH) remains a separate operational knob. A single place creates connections (`ReadSessionPool._create`) and a single path returns them (`checkin`), so session-state reset and pool metrics can hook in there.

@@ -116,7 +116,7 @@ def main() -> None:
         )
 
     with (
-        patch("lyme_gap_atlas_api.dependency_telemetry.shared_connect", connect),
+        patch("lyme_gap_atlas_api.dependency_telemetry.snowflake_connect", connect),
         patch.object(runtime, "_project", singleton),
         patch.object(batch, "produce_cdc_batch_v1", produce),
     ):

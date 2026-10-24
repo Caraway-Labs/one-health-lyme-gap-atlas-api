@@ -118,7 +118,7 @@ def controlled_project(query, root, measure, county, environment, *, release_id)
 
 def service(monkeypatch, factory, *, project=controlled_project):
     monkeypatch.setattr(
-        "lyme_gap_atlas_api.dependency_telemetry.shared_connect",
+        "lyme_gap_atlas_api.dependency_telemetry.snowflake_connect",
         lambda config, **kwargs: factory(config),
     )
     if project is not None:

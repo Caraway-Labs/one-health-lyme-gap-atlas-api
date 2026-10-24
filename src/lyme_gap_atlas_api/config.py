@@ -15,7 +15,11 @@ class ApiSettings(SnowflakeSettings):
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["https://carawaylabs.com", "http://localhost:3000"]
     )
+    snowflake_monitor_interval_seconds: float = Field(default=60, ge=1, le=3600)
+    snowflake_startup_check_timeout_seconds: float = Field(default=10, ge=2, le=30)
     cache_ttl_seconds: int = Field(default=300, ge=30, le=3600)
+    snapshot_max_stale_seconds: int = Field(default=900, ge=0, le=86_400)
+    snapshot_refresh_backoff_seconds: int = Field(default=30, ge=1, le=3600)
     rate_limit_per_minute: int = Field(default=120, ge=10, le=10_000)
     public_rate_limit_per_minute: int = Field(default=60, ge=1)
     public_concurrent_requests_per_ip: int = Field(default=5, ge=1)
@@ -24,6 +28,10 @@ class ApiSettings(SnowflakeSettings):
     public_query_result_ceiling: int = Field(default=10_000, ge=1)
     public_max_query_bytes: int = Field(default=8_192, ge=512, le=65_536)
     public_query_timeout_seconds: int = Field(default=15, ge=1, le=60)
+    read_pool_max_size: int = Field(default=16, ge=1, le=64)
+    read_pool_checkout_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    read_pool_idle_seconds: float = Field(default=300.0, gt=0, le=3600)
+    read_pool_validate_after_idle_seconds: float = Field(default=30.0, ge=0, le=3600)
     intelligence_feed_read_enabled: bool = False
     intelligence_feed_projection_version: Literal["v1", "v2"] = "v1"
     environmental_context_enabled: bool = False
