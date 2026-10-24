@@ -67,8 +67,10 @@ from .knowledge_chat import (
     KnowledgeChatService,
     Neo4jRetriever,
     OpenAIAnswerer,
+    OpenAIConnectionWarmer,
     SnowflakeBudgetStore,
     SnowflakeCorpusProvenanceStore,
+    build_openai_http_client,
 )
 from .middleware import (
     FeedbackLimitMiddleware,
@@ -396,12 +398,15 @@ def create_app(
         ttl_seconds=config.pdf_cache_ttl_seconds,
         max_entries=config.pdf_cache_max_entries,
     )
+    openai_warmer: OpenAIConnectionWarmer | None = None
     if knowledge_chat_service is None and config.knowledge_chat_enabled:
         neo4j_password = config.neo4j_runtime_password
         openai_key = config.openai_api_key
         hash_secret = config.kg_hash_secret
         if config.neo4j_uri and neo4j_password and openai_key and hash_secret:
-            openai = OpenAI(api_key=openai_key.get_secret_value())
+            openai_http = build_openai_http_client()
+            openai = OpenAI(api_key=openai_key.get_secret_value(), http_client=openai_http)
+            openai_warmer = OpenAIConnectionWarmer(openai_http, f"{openai.base_url}models")
             knowledge_chat_service = KnowledgeChatService(
                 Neo4jRetriever(
                     config.neo4j_uri,
@@ -434,7 +439,13 @@ def create_app(
             start_reader_probe(config)
             start_county_context_probe(config)
             start_model_serving_probe(config)
-        yield
+        if openai_warmer is not None:
+            openai_warmer.start()
+        try:
+            yield
+        finally:
+            if openai_warmer is not None:
+                openai_warmer.stop()
 
     app = AtlasFastAPI(
         docs_url=None,
