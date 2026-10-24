@@ -7,6 +7,7 @@ import time
 from collections import deque
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager, suppress
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 from snowflake.connector import SnowflakeConnection
@@ -15,6 +16,7 @@ from snowflake.connector import errors as sf_errors
 from .dependency_telemetry import connect
 from .public_contract import PublicQueryError
 from .repository import AtlasDataUnavailableError
+from .snowflake_pool_metrics import READ_METRICS
 from .snowflake_session_baseline import (
     apply_baseline,
     baseline_timeout_seconds,
@@ -106,8 +108,10 @@ class ReadSessionPool:
             if held is not None:  # re-entrant use on the same thread shares the lease
                 held.depth += 1
                 return held.connection
+        started = perf_counter()
         max_size, timeout, idle_seconds, validate_after = self._limits(settings)
         self._observed_idle = idle_seconds
+        exhausted = False
         deadline = self._clock() + timeout
         stale: list[_Lease] = []
         lease: _Lease | None = None
@@ -124,6 +128,7 @@ class ReadSessionPool:
                         break
                     remaining = deadline - self._clock()
                     if remaining <= 0:
+                        exhausted = True
                         raise AtlasDataUnavailableError(
                             "Snowflake read connection pool is exhausted"
                         )
@@ -131,15 +136,33 @@ class ReadSessionPool:
         finally:
             for item in stale:
                 self._close(item.connection)
+            READ_METRICS.record_eviction(len(stale))
+            if exhausted:
+                self._observe("exhausted", started, max_size)
         if lease is not None:
             if self._is_healthy(lease, validate_after):
+                self._observe("reused", started, max_size)
                 return lease.connection
             # Dead session: swap its slot for a reservation, then replace it.
             with self._cond:
                 self._in_use.pop(thread_id, None)
                 self._reserved += 1
             self._close(lease.connection)
-        return self._create(settings, thread_id)
+            READ_METRICS.record_discard("health_check_failed")
+        connection = self._create(settings, thread_id)
+        self._observe("created" if lease is None else "replaced_dead", started, max_size)
+        return connection
+
+    def _observe(self, outcome: str, started: float, max_size: int) -> None:
+        with suppress(Exception):
+            sizes = self.stats()
+            READ_METRICS.record_checkout(
+                outcome,
+                perf_counter() - started,
+                in_use=sizes["in_use"],
+                idle=sizes["idle"],
+                max_size=max_size,
+            )
 
     def _create(self, settings: ApiSettings, thread_id: int) -> SnowflakeConnection:
         """The single place a new pooled connection is created."""
@@ -150,6 +173,7 @@ class ReadSessionPool:
         except BaseException:
             if connection is not None:
                 self._close(connection)
+                READ_METRICS.record_discard("baseline_failed")
             with self._cond:
                 self._reserved -= 1
                 self._cond.notify()
@@ -201,6 +225,13 @@ class ReadSessionPool:
             self._cond.notify()
         if not keep:
             self._close(lease.connection)
+            READ_METRICS.record_discard(
+                "stale_epoch"
+                if lease.epoch != self._epoch
+                else "dirty_lease"
+                if lease.dirty
+                else "connection_closed"
+            )
 
     def mark_dirty(self) -> None:
         """Flag this thread's lease so it is closed, not reused, at check-in."""
@@ -239,7 +270,7 @@ class ReadSessionPool:
         with connection.cursor() as cursor:
             cursor.execute(timeout_statement(seconds), timeout=execute_timeout)
 
-    def drop_current(self) -> None:
+    def drop_current(self, reason: str = "unspecified") -> None:
         """Discard (close) this thread's connection; safe to call repeatedly."""
         with self._cond:
             lease = self._in_use.pop(threading.get_ident(), None)
@@ -247,6 +278,7 @@ class ReadSessionPool:
                 self._cond.notify()
         if lease is not None:
             self._close(lease.connection)
+            READ_METRICS.record_discard(reason)
 
     def reap_idle(self, idle_seconds: float | None = None) -> int:
         """Close idle connections unused longer than the idle limit; returns the count."""
@@ -259,6 +291,7 @@ class ReadSessionPool:
                 self._cond.notify_all()
         for item in expired:
             self._close(item.connection)
+        READ_METRICS.record_eviction(len(expired))
         return len(expired)
 
     def close_all(self) -> None:
@@ -401,9 +434,10 @@ def read_connection(settings: ApiSettings) -> Iterator[SnowflakeConnection]:
     try:
         yield connection
     except BaseException as exc:
-        if discard_reason(exc, connection) is None:
+        reason = discard_reason(exc, connection)
+        if reason is None:
             pool.checkin()
         else:
-            pool.drop_current()
+            pool.drop_current(reason)
         raise
     pool.checkin()

@@ -12,12 +12,14 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
+from time import perf_counter
 from typing import Any
 
 from snowflake.connector import SnowflakeConnection
 
 from .dependency_telemetry import connect as default_connect
+from .snowflake_pool_metrics import WRITE_METRICS
 
 DEFAULT_MAX_SIZE = 4
 DEFAULT_CHECKOUT_TIMEOUT_SECONDS = 5.0
@@ -77,7 +79,9 @@ class WriteSessionPool:
         self, settings: Any, connect_fn: Callable[[Any], SnowflakeConnection] = default_connect
     ) -> SnowflakeConnection:
         """Lend a live connection exclusively, waiting a bounded time for a slot."""
+        started = perf_counter()
         max_size, timeout, idle_seconds, validate_after = self._limits(settings)
+        exhausted = False
         deadline = self._clock() + timeout
         stale: list[_Lease] = []
         lease: _Lease | None = None
@@ -98,6 +102,7 @@ class WriteSessionPool:
                         break
                     remaining = deadline - self._clock()
                     if remaining <= 0:
+                        exhausted = True
                         raise WritePoolExhaustedError(
                             "Snowflake write connection pool is exhausted"
                         )
@@ -105,15 +110,36 @@ class WriteSessionPool:
         finally:
             for item in stale:
                 self._close(item.connection)
+                if item.settings is not settings:
+                    WRITE_METRICS.record_discard("settings_changed")
+                else:
+                    WRITE_METRICS.record_eviction()
+            if exhausted:
+                self._observe("exhausted", started, max_size)
         if lease is not None:
             if self._is_healthy(lease, validate_after):
+                self._observe("reused", started, max_size)
                 return lease.connection
             # Dead session: swap its slot for a reservation, then replace it.
             with self._cond:
                 self._in_use.pop(id(lease.connection), None)
                 self._reserved += 1
             self._close(lease.connection)
-        return self._create(settings, connect_fn)
+            WRITE_METRICS.record_discard("health_check_failed")
+        connection = self._create(settings, connect_fn)
+        self._observe("created" if lease is None else "replaced_dead", started, max_size)
+        return connection
+
+    def _observe(self, outcome: str, started: float, max_size: int) -> None:
+        with suppress(Exception):
+            sizes = self.stats()
+            WRITE_METRICS.record_checkout(
+                outcome,
+                perf_counter() - started,
+                in_use=sizes["in_use"],
+                idle=sizes["idle"],
+                max_size=max_size,
+            )
 
     def _create(
         self, settings: Any, connect_fn: Callable[[Any], SnowflakeConnection]
@@ -160,13 +186,19 @@ class WriteSessionPool:
             self._cond.notify()
         if not keep:
             self._close(connection)
+            WRITE_METRICS.record_discard(
+                "stale_epoch" if lease.epoch != self._epoch else "connection_closed"
+            )
 
-    def discard(self, connection: SnowflakeConnection) -> None:
+    def discard(self, connection: SnowflakeConnection, reason: str = "borrow_error") -> None:
         """Close a connection after any error or doubt; safe to call repeatedly."""
         with self._cond:
-            if self._in_use.pop(id(connection), None) is not None:
+            tracked = self._in_use.pop(id(connection), None) is not None
+            if tracked:
                 self._cond.notify()
         self._close(connection)
+        if tracked:
+            WRITE_METRICS.record_discard(reason)
 
     @contextmanager
     def borrow(
