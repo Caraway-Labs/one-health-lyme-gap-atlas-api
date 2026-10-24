@@ -85,6 +85,10 @@ class SnowflakeMonitor:
                             if remaining <= 0 or self._stop.is_set():
                                 raise TimeoutError
                             if self._connection is None:
+                                # SDK timeout properties truncate to integer seconds;
+                                # never start a login whose timeout would become zero.
+                                if remaining < 1:
+                                    raise TimeoutError
                                 self._connection = connect(self.settings, timeout_seconds=remaining)
                             remaining = deadline - time.monotonic()
                             if remaining <= 0 or self._stop.is_set():

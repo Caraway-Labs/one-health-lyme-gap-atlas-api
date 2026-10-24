@@ -111,12 +111,12 @@ def test_reconnect_respects_remaining_check_budget(connection, monkeypatch):
     assert monitor.check()
 
     def fail(sql, *, timeout):
-        clock[0] += 4
+        clock[0] += 2.5
         raise TimeoutError
 
     first.execute = fail
     assert not monitor.check()
-    assert connect.call_count == 1  # Expired budget never starts another login.
+    assert connect.call_count == 1  # Subsecond budget must not become an SDK zero timeout.
     assert monitor.startup_succeeded
 
 
