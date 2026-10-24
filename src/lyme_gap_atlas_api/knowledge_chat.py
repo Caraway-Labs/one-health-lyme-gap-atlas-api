@@ -21,6 +21,7 @@ from threading import Event, Lock, Thread, get_ident
 from typing import Any, Literal, Protocol, TypedDict, cast
 
 import anyio.from_thread
+import httpx
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from lyme_gap_atlas_shared.snowflake import connect
@@ -32,7 +33,6 @@ from neo4j.exceptions import (
     ServiceUnavailable,
     SessionExpired,
 )
-import httpx
 from openai import (
     APIConnectionError,
     APIStatusError,
