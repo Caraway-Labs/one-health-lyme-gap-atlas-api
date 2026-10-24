@@ -73,8 +73,9 @@ class SnowflakeObservationRepository:
                 try:
                     yield type(self)(self.settings, _connection=borrowed)
                 except BaseException as exc:
-                    if close_on_exit_error and discard_reason(exc, borrowed) is not None:
-                        get_read_session_pool().drop_current()
+                    reason = discard_reason(exc, borrowed) if close_on_exit_error else None
+                    if reason is not None:
+                        get_read_session_pool().drop_current(reason)
                     raise
         except BaseException as exc:
             if isinstance(exc, (AtlasDataUnavailableError, PublicQueryError)):
