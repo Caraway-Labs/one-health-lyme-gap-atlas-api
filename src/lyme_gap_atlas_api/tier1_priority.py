@@ -17,6 +17,7 @@ from pydantic import (
 from .config import ApiSettings
 from .dependency_telemetry import connect
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .tier1_timing import phase
 
 
 class PriorityReason(BaseModel):
@@ -174,7 +175,11 @@ class SnowflakeTier1PriorityRepository:
 
     def county(self, fips: str) -> tuple[Any, ...] | None:
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with (
+                phase("tier1_query"),
+                connect(self.settings) as connection,
+                connection.cursor() as cursor,
+            ):
                 cursor.execute(
                     "SELECT COUNTY_FIPS, PRIORITY_TIER, PRIORITY_PERCENTILE, "
                     "RAW_MODEL_SCORE, EVIDENCE_SUFFICIENCY, MODEL_VERSION, "
@@ -210,6 +215,10 @@ class Tier1PriorityService:
         row = self.repository.county(fips)
         if row is None:
             return None
+        with phase("tier1_mapping"):
+            return self._county_from_row(fips, row)
+
+    def _county_from_row(self, fips: str, row: tuple[Any, ...]) -> Tier1CountyPriority:
         try:
             if row[0] != fips:
                 raise ValueError("Tier 1 county identity does not match request")
