@@ -6086,7 +6086,14 @@
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Typed outcome. `status` is answered, no_evidence, safety_refusal, evidence_unavailable or capacity_limited. Retryable outcomes also carry Retry-After. They are not 5xx because the DigitalOcean edge replaces an origin 503 with its own 504 page and drops this body.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6101,23 +6108,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnowledgeChatResponse"
                 }
               }
             }

@@ -168,7 +168,7 @@ def test_internal_product_routes_remain_registered_and_callable() -> None:
     assert client.get("/health/live").json() == {"status": "ok"}
     assert client.get("/v1/me/profile").status_code in {401, 503}
     response = client.post("/v1/knowledge-graph/chat", json={"message": "test question"})
-    assert response.status_code == 503
+    assert response.status_code == 200
     assert response.json()["status"] == "evidence_unavailable"
 
 
