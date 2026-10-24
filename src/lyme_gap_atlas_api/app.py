@@ -159,6 +159,7 @@ from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
 from .snowflake_monitor import ReadinessDependencies, ReadinessResponse, SnowflakeMonitor
+from .snowflake_read_session import get_read_session_pool
 from .surveillance_delivery import SurveillanceResolver
 from .surveillance_situations import (
     CountySurveillanceSituations,
@@ -462,6 +463,7 @@ def create_app(
             await asyncio.to_thread(snowflake_monitor.stop)
             if openai_warmer is not None:
                 openai_warmer.stop()
+            await anyio.to_thread.run_sync(get_read_session_pool().close_all)
 
     app = AtlasFastAPI(
         docs_url=None,
