@@ -293,3 +293,27 @@ def test_check_spans_are_background_roots_and_readiness_has_no_dependency_childr
         for s in exporter.get_finished_spans()
         if s.name.startswith("atlas.dependency.snowflake.") and s.context.trace_id == request_trace
     ]
+
+
+def test_startup_rejects_one_second_integer_connector_boundary():
+    with pytest.raises(ValueError):
+        ApiSettings(snowflake_startup_check_timeout_seconds=1)
+
+
+def test_minimum_startup_budget_attempts_connect_with_a_progressing_clock(connection, monkeypatch):
+    value, connect = connection
+    settings = ApiSettings(snowflake_startup_check_timeout_seconds=2)
+    now = [0.0]
+
+    def progressing_clock():
+        now[0] += 0.01
+        return now[0]
+
+    monkeypatch.setattr(module.time, "monotonic", progressing_clock)
+    monitor = module.SnowflakeMonitor(settings)
+    assert monitor.check(settings.snowflake_startup_check_timeout_seconds)
+    connect.assert_called_once()
+    assert 1 <= connect.call_args.kwargs["timeout_seconds"] < 2
+    assert value.executions
+    assert monitor.startup_succeeded
+    monitor._close()

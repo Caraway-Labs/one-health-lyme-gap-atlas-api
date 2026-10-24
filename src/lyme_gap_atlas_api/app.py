@@ -13,6 +13,7 @@ from copy import deepcopy
 from datetime import date
 from typing import Annotated, Any, Literal
 
+import anyio.to_thread
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -72,6 +73,7 @@ from .knowledge_chat import (
     SnowflakeBudgetStore,
     SnowflakeCorpusProvenanceStore,
     build_openai_http_client,
+    warm_openai_sdk,
 )
 from .middleware import (
     FeedbackLimitMiddleware,
@@ -448,6 +450,7 @@ def create_app(
                 snowflake_monitor.initial_check.wait, config.snowflake_startup_check_timeout_seconds
             )
             if openai_warmer is not None:
+                await anyio.to_thread.run_sync(warm_openai_sdk)
                 openai_warmer.start()
             yield
         finally:

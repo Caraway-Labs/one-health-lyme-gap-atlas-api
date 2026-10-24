@@ -20,7 +20,10 @@ unavailable." Existing data cache behavior is unchanged.
 One daemon worker owns a long-lived connection, checks every
 `SNOWFLAKE_MONITOR_INTERVAL_SECONDS` (default 60, measured after each completed
 check), and performs at most one reconnect when an existing session fails.
-`SNOWFLAKE_STARTUP_CHECK_TIMEOUT_SECONDS` defaults to 10. Subsequent checks use
+`SNOWFLAKE_STARTUP_CHECK_TIMEOUT_SECONDS` defaults to 10 and accepts 2–30 seconds.
+The two-second minimum leaves room for local setup before the connector
+truncates its login/socket timeout to integer seconds; a one-second budget
+could otherwise expire before an initial login is attempted. Subsequent checks use
 a three-second monotonic budget across query/reconnect attempts. The monitor
 uses the approved shared credential construction with monitor-only login,
 network/socket and statement timeouts; product connection policy is unchanged.
