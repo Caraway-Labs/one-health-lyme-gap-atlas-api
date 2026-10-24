@@ -1708,18 +1708,22 @@ def create_app(
         response_model=KnowledgeChatResponse,
         tags=["knowledge graph"],
         responses={
-            429: {"model": ProblemDetails},
-            503: {
-                "model": KnowledgeChatResponse,
+            200: {
+                "description": (
+                    "Typed outcome. `status` is answered, no_evidence, safety_refusal, "
+                    "evidence_unavailable or capacity_limited. Retryable outcomes also "
+                    "carry Retry-After. They are not 5xx because the DigitalOcean edge "
+                    "replaces an origin 503 with its own 504 page and drops this body."
+                ),
                 "headers": {"Retry-After": {"schema": {"type": "string"}}},
             },
+            429: {"model": ProblemDetails},
         },
     )
     def knowledge_graph_chat(
         request: Request, payload: KnowledgeChatRequest, response: Response
     ) -> KnowledgeChatResponse:
         if not config.knowledge_chat_enabled or knowledge_chat_service is None:
-            response.status_code = 503
             response.headers["Retry-After"] = "60"
             return KnowledgeChatResponse(
                 request_id=request.state.request_id,
@@ -1745,7 +1749,6 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         if result.status in {"evidence_unavailable", "capacity_limited"}:
-            response.status_code = 503
             response.headers["Retry-After"] = "30"
         return result
 
