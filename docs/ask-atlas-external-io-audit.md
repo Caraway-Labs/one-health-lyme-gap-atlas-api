@@ -1,5 +1,9 @@
 # Ask Atlas external I/O audit (API #126)
 
+> **Superseded in part by [snowflake-connection-standard.md](snowflake-connection-standard.md).**
+> The audit baseline below predates the Snowflake pools. The Snowflake connection row
+> and the teardown statements are corrected inline; the remaining findings are historical.
+
 Parent epic: #124. Measurements and hypotheses: #123. Connection ownership: #125.
 
 Audit baseline: `b547565ab6f430ccdc144e8d184cf5539a838750`.
@@ -10,7 +14,7 @@ the route declaration to `async def` would put blocking drivers on the event loo
 
 | Operation | Implementation / execution boundary | Bound and dependency |
 | --- | --- | --- |
-| Capability verification, budget, provenance, persistence | Synchronous Snowflake connector in route worker | Shared connector login 15s and configured network timeout; serial stored procedures; request-local connection reuse is owned by #125 |
+| Capability verification, budget, provenance, persistence | Synchronous Snowflake connector in route worker | Shared connector login 15s and configured network timeout; serial stored procedures; request-local connection reuse is owned by #125 *(update: the request connection is borrowed from the write pool, #342; login timeout is 15 s, the network timeout is configured, and the session is autocommit, #330/#334)* |
 | Neo4j readiness | Synchronous driver `verify_connectivity` in worker | 3s connection/acquisition configuration; happens before retrieval |
 | Query embedding | Synchronous OpenAI client in worker; process client reuses HTTP transport | SDK retries disabled, nominal 5s timeout; required before vector retrieval |
 | Neo4j retrieval | Synchronous `execute_query` in worker | Query timeout 5s; fixed hybrid template; only after embedding |
@@ -47,7 +51,9 @@ operations. Candidate-PMID provenance could only overlap generation after provin
 its independence and handling unused work/errors; no such change is made here.
 
 Cancellation of an awaiting request does not instantly stop synchronous driver
-I/O. Worker execution and driver timeouts, followed by request-owned teardown,
+I/O. Worker execution and driver timeouts, followed by request-owned teardown
+(release to the write pool after a clean request, discard after any error; the
+connection is no longer simply closed),
 must finish safely; abandoning a worker while sharing/closing its connection
 would be unsafe. The nominal service deadline is not a hard end-to-end timeout:
 post-generation database calls can exceed the five-second reserve. These remain

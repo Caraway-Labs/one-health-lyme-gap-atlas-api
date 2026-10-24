@@ -17,7 +17,7 @@ per-request availability guarantee. Data routes retain their existing exception
 handler and 503 problem detail: "The governed Atlas data service is temporarily
 unavailable." Existing data cache behavior is unchanged.
 
-One daemon worker owns a long-lived connection, checks every
+One daemon worker (see [the standard](snowflake-connection-standard.md), section 7, for the default-wiring caveat: `create_app` supplies `AtlasService.ready` as the probe, which opens a short-lived connection per check; the long-lived connection described here is used when no probe is supplied) owns a long-lived connection, checks every
 `SNOWFLAKE_MONITOR_INTERVAL_SECONDS` (default 60, measured after each completed
 check), and performs at most one reconnect when an existing session fails.
 `SNOWFLAKE_STARTUP_CHECK_TIMEOUT_SECONDS` defaults to 10 and accepts 2–30 seconds.
