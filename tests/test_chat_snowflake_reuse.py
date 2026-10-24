@@ -50,8 +50,13 @@ class Connection:
         self.closed = False
         self.commits = 0
         self.rollbacks = 0
-        self._session_parameters: dict[str, Any] = {}
         self.calls: list[tuple[str, Any]] = []
+
+    def __getattribute__(self, name: str) -> Any:
+        # Strict fake: any private connector attribute read fails the test.
+        if name.startswith("_") and not (name.startswith("__") and name.endswith("__")):
+            raise AssertionError(f"private connector attribute accessed: {name}")
+        return object.__getattribute__(self, name)
 
     def __enter__(self) -> "Connection":
         return self
@@ -106,7 +111,7 @@ def test_answer_reuses_one_connection_and_preserves_sequential_turns(
     assert len(connections) == 1
     connection = connections[0]
     assert connection.closed
-    assert connection.commits == 2
+    assert connection.commits == 0
     assert [sql.split("SP_")[1].split("(")[0] for sql, _ in connection.calls] == [
         "LOOKUP_RETRIEVAL_CORPUS_PROVENANCE",
         "PERSIST_KG_CONVERSATION_TURN",
@@ -220,7 +225,7 @@ def test_optional_provenance_failure_rolls_back_then_persists(monkeypatch: Any) 
     monkeypatch.setattr(chat, "connect", lambda settings: connection)
     result = service(ApiSettings()).chat(KnowledgeChatRequest(message="study?"), "r", "n")
     assert result.status == "answered"
-    assert connection.closed and connection.rollbacks == 1 and connection.commits == 1
+    assert connection.closed and connection.rollbacks == 0 and connection.commits == 0
     assert sum("PERSIST" in sql for sql, _ in connection.calls) == 2
 
 
@@ -244,7 +249,7 @@ def test_second_turn_failure_never_replays_first_turn(monkeypatch: Any) -> None:
     monkeypatch.setattr(chat, "connect", lambda settings: connection)
     result = service(ApiSettings()).chat(KnowledgeChatRequest(message="study?"), "r", "n")
     assert result.status == "evidence_unavailable"
-    assert connection.closed and connection.rollbacks == 1
+    assert connection.closed and connection.rollbacks == 0
     assert [params[5] for sql, params in connection.calls if "PERSIST" in sql] == [
         "user",
         "assistant",
@@ -283,7 +288,7 @@ def test_cancellation_unwinds_connection_and_request_context(monkeypatch: Any) -
         chat._chat_snowflake_connection(settings),
     ):
         raise KeyboardInterrupt
-    assert connection.closed and connection.rollbacks == 1
+    assert connection.closed and connection.rollbacks == 0
     assert chat._SNOWFLAKE_SESSION.get() is None
 
 
@@ -306,15 +311,12 @@ def test_copied_context_cannot_share_connection_with_another_thread(monkeypatch:
                 future.result(timeout=5)
     assert connection.closed
 
-@pytest.mark.parametrize("autocommit", [None, False, True])
 @pytest.mark.parametrize("fails", [False, True])
-def test_effective_autocommit_matches_connector_exit(
-    monkeypatch: Any, autocommit: bool | None, fails: bool
-) -> None:
+def test_request_session_issues_no_commit_or_rollback(monkeypatch: Any, fails: bool) -> None:
+    # Relies on autocommit=True from the API connect() (see
+    # tests/test_snowflake_connection.py); keeps the extra round trip removed.
     settings = ApiSettings()
     connection = Connection()
-    if autocommit is not None:
-        connection._session_parameters["AUTOCOMMIT"] = autocommit
     monkeypatch.setattr(chat, "connect", lambda settings: connection)
     original = RuntimeError("operation failed")
     with chat._request_snowflake_session(settings):
@@ -325,35 +327,43 @@ def test_effective_autocommit_matches_connector_exit(
         else:
             with chat._chat_snowflake_connection(settings):
                 pass
-    assert connection.commits == int(not fails and autocommit is not True)
-    assert connection.rollbacks == int(fails and autocommit is not True)
+    assert connection.commits == 0 and connection.rollbacks == 0
+    assert connection.calls == []
     assert connection.closed
     assert chat._SNOWFLAKE_SESSION.get() is None
 
 
-@pytest.mark.parametrize("transaction", ["commit", "rollback"])
-def test_transaction_failure_still_closes_and_resets(
-    monkeypatch: Any, transaction: str
+def test_session_works_through_telemetry_boundary_without_private_access(
+    monkeypatch: Any,
 ) -> None:
+    from lyme_gap_atlas_api.dependency_telemetry import _SnowflakeBoundary
+
     settings = ApiSettings()
     connection = Connection()
-    failure = RuntimeError("transaction failed")
+    monkeypatch.setattr(chat, "connect", lambda s: _SnowflakeBoundary(connection, "connection"))
+    with chat._request_snowflake_session(settings):
+        with chat._chat_snowflake_connection(settings):
+            pass
+        with pytest.raises(ValueError), chat._chat_snowflake_connection(settings):
+            raise ValueError("boom")
+    assert (connection.commits, connection.rollbacks) == (0, 0)
 
-    def fail() -> None:
-        raise failure
 
-    monkeypatch.setattr(connection, transaction, fail)
-    monkeypatch.setattr(chat, "connect", lambda settings: connection)
-    with (
-        pytest.raises(RuntimeError) as caught,
-        chat._request_snowflake_session(settings),
-        chat._chat_snowflake_connection(settings),
-    ):
-        if transaction == "rollback":
-            raise ValueError("operation failed")
-    assert caught.value is failure  # Connector baseline propagates transaction failure.
-    assert connection.closed
-    assert chat._SNOWFLAKE_SESSION.get() is None
+def test_chat_module_source_never_reads_private_connector_attributes() -> None:
+    import ast
+    import inspect
+
+    tree = ast.parse(inspect.getsource(chat))
+    offenders = {
+        n.attr
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Attribute)
+        and n.attr.startswith("_")
+        and not n.attr.startswith("__")
+        and isinstance(n.value, ast.Name)
+        and n.value.id == "connection"
+    }
+    assert offenders == set()
 
 
 @pytest.mark.parametrize("failure_stage", ["transport", "binding"])

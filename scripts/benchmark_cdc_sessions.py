@@ -111,7 +111,7 @@ def main() -> None:
 
     # Delay the actual common SDK constructor, preserving dependency instrumentation.
     with (
-        patch("lyme_gap_atlas_api.dependency_telemetry.shared_connect", connect),
+        patch("lyme_gap_atlas_api.dependency_telemetry.snowflake_connect", connect),
         patch.object(runtime, "_project", project),
     ):
         for measure in ["scapularis_status", "burgdorferi_status"]:

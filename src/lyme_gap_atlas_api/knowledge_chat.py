@@ -27,7 +27,6 @@ import anyio.from_thread
 import httpx
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
-from lyme_gap_atlas_shared.snowflake import connect
 from neo4j import READ_ACCESS, AsyncGraphDatabase, GraphDatabase
 from neo4j.exceptions import (
     AuthError,
@@ -56,6 +55,7 @@ from .models import (
     SourceUsed,
 )
 from .neo4j_diagnostics import _server_error_category, log_serving_graph_probe
+from .snowflake_connection import connect
 from .telemetry_logging import emit_completion, operational_logger
 
 logger = operational_logger(__name__)
@@ -153,19 +153,10 @@ def _chat_snowflake_connection(settings: SnowflakeSettings) -> Iterator[Any]:
     session = _SNOWFLAKE_SESSION.get()
     if session is not None and session.settings is settings:
         connection = session.get()
-        # Match the locked connector's __exit__ decision using effective session
-        # parameters (login can update them), while deferring close to teardown.
-        try:
-            yield connection
-        except BaseException:
-            if not connection._session_parameters.get("AUTOCOMMIT", False):
-                with _snowflake_timing("transaction_rollback"):
-                    connection.rollback()
-            raise
-        else:
-            if not connection._session_parameters.get("AUTOCOMMIT", False):
-                with _snowflake_timing("transaction_commit"):
-                    connection.commit()
+        # The API-owned connect() sets autocommit=True, so each statement is its own
+        # transaction: no per-operation COMMIT/ROLLBACK round trip and no reads of
+        # connector internals. Close is deferred to request teardown.
+        yield connection
     else:
         # Standalone adapters and injected test stores retain their original lifecycle.
         with connect(settings) as connection:
