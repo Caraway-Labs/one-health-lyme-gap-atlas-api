@@ -77,7 +77,7 @@ definition beyond the fields and behavior that contract specifies.
 | FIPS | A geographic identifier; county IDs have five characters and state IDs have two, with leading zeros preserved. | [Resources and semantics](public-api-v1-contract.md#resources-and-semantics) |
 | `measure` | A distinct variable that can be selected in an observation query. | [Resources and semantics](public-api-v1-contract.md#resources-and-semantics) |
 | `indicator` | A public-health concept that can group or describe related measures. | [Resources and semantics](public-api-v1-contract.md#resources-and-semantics) |
-| `methodology` | The method used to produce or interpret data; its identifier and version describe the method. | [Source and methodology resources](public-api-v1-contract.md#source-and-methodology-resources-api-55) |
+| `methodology` | The method used to produce or interpret data; its identifier and version describe the method. | [Source and methodology resources](public-api-v1-contract.md#source-and-methodology-resources-55) |
 | `provenance` | Information identifying the source and processing context for a result. | [Resources and semantics](public-api-v1-contract.md#resources-and-semantics) |
 | `limitations` | Factual qualifications that describe what a result does not establish or where its evidence is bounded. | [Typed observation selection availability](public-api-v1-contract.md#typed-observation-selection-availability-api-237) |
 | `availability` | A field describing whether the requested selection has published results under the documented conditions. It does not describe biological presence. | [Typed observation selection availability](public-api-v1-contract.md#typed-observation-selection-availability-api-237) |
@@ -166,11 +166,15 @@ environmental_context coverage, and have no supported strata. Environmental
 context is descriptive weather, with no causal, disease-risk or ML claim.”
 
 **After:** “Query published county observations using one measure and a bounded
-county and time selection. Results include the published period, measure ID,
-county ID, and observation ID in a stable order. Current publication includes
-annual surveillance for 2023 and, when enabled, reviewed January 2025 weather
-measures. Weather provides descriptive context; it does not show cause or
-disease risk.”
+county and time selection. Results are ordered by measure ID, county FIPS,
+period start, then observation ID. Page tokens are opaque and bound to the
+filters and release.
+
+Current publication includes annual surveillance for 2023 and, when enabled,
+reviewed January 2025 environmental measures with labeled daily periods. These
+measures include `environmental_context` coverage and have no supported strata.
+Environmental context describes weather; it makes no causal, disease-risk, or
+machine-learning claim.”
 
 ### 2. Observation query rules
 
