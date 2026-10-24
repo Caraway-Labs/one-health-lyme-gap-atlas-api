@@ -1,5 +1,7 @@
 # Bounded Snowflake read connection pool (API #287, #317, #318, #319)
 
+The cross-pool rules and how a route chooses its connection are in [snowflake-connection-standard.md](snowflake-connection-standard.md).
+
 Every public read path borrows (observations, Tier 1, metadata, provenance, surveillance situations, intelligence feed, `SnowflakeAtlasRepository.load_snapshot`, and the `_cursor()` fallbacks in observations/environmental context; API #318) borrow a connection from the process-wide `snowflake_read_session.ReadSessionPool`. This is not the Ask Atlas request-scoped write session (`docs/ask-atlas-snowflake-reuse.md`).
 
 ## Behavior
@@ -7,7 +9,7 @@ Every public read path borrows (observations, Tier 1, metadata, provenance, surv
 - **Bounded size:** at most `read_pool_max_size` (default **16**, 1-64; previous effective cap was the anyio threadpool, about 40) live connections per process, independent of the anyio threadpool size.
 - **Checkout queue:** a request waits at most `read_pool_checkout_timeout_seconds` (default **5 s**) for a free connection, then raises `AtlasDataUnavailableError` (the existing 503 problem response). It never hangs.
 - **One borrower at a time:** the connector is thread-confined, so a connection is lent to a single request/thread until it is returned; re-entrant use on the same thread shares the lease.
-- **Check-in:** `read_connection` returns the connection on a successful exit. Any exception closes it (`drop_current`) and frees the slot; which errors should merely return the connection is a later refinement (#320).
+- **Check-in:** `read_connection` returns the connection on a successful exit. On an exception, `discard_reason` decides: a narrow set of benign errors (own validation errors, finished-statement SQL/data errors) check the connection in; everything else closes it (`drop_current`) and frees the slot (#339).
 - **Session baseline (#319):** defined once in `snowflake_session_baseline.py` and applied by `ReadSessionPool._create` when a connection is created (one cursor, once per connection, never per request): `STATEMENT_TIMEOUT_IN_SECONDS = min(public_query_timeout_seconds, 30)`, `USE SECONDARY ROLES NONE` (so every pooled route must work on the primary role alone), and the `QUERY_TAG` set at connect. The same cursor then runs `SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_DATABASE(), CURRENT_WAREHOUSE()` and compares it, case-insensitively, with the configured user/role/database/warehouse (an unset value is not asserted). A failure closes the connection and raises `AtlasDataUnavailableError` without logging the values.
 - **Overrides:** callers must not change session state directly. Use `with session_overrides(connection, statement_timeout=N):`; it restores the baseline in `finally`. The lease is *dirty* from the override until the restore is confirmed, and a dirty lease (or one flagged with `mark_dirty()`) is closed at check-in instead of reused. The standalone CDC `_read` path (not pooled) still runs its own `_setup_session`.
 - **Health on checkout:** `is_closed()` first (local, free). Only when the connection has been idle longer than `read_pool_validate_after_idle_seconds` (default **30 s**) is one `SELECT 1` sent. A failing connection is closed and replaced before the request's statements run; request statements are never retried.
@@ -25,7 +27,7 @@ Successful `CONTEXT_FIELDS` observation searches (`population_2022`, etc.) use *
 
 ## Direct `connect()` exceptions (API #318)
 
-Public read modules must call `read_connection(settings)`, never `connect()`; `tests/test_public_reads_use_pool.py` fails on a direct `connect` import outside an explicit allow-list: the probes (isolated readiness connections), `feedback.py` (writes, #325), `knowledge_chat.py` (request-scoped chat session), `snowflake_monitor.py`, `cdc_surveillance.py` (alters session state; follow-up), and `SnowflakeAtlasRepository.ready()` (no longer used by readiness since #310).
+Public read modules must call `read_connection(settings)`, never `connect()`; `tests/test_public_reads_use_pool.py` fails on a direct `connect` import outside an explicit allow-list: the probes (isolated readiness connections), `feedback.py` and `knowledge_chat.py` (they pass `connect` into the separate write pool, #325/#342), `snowflake_monitor.py`, `cdc_surveillance.py` (alters session state; follow-up), and `SnowflakeAtlasRepository.ready()` (a short-lived connection; it is the monitor probe in the default wiring and is not called by `/health/ready` itself).
 
 ## Limits
 

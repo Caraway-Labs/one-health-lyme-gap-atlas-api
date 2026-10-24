@@ -111,6 +111,10 @@ configured `SNOWFLAKE_PRESENTATION_DATABASE` and
 both its connection and presentation databases to
 `ONE_HEALTH_LYME_GAP_ATLAS_PROD`. See `.env.example`; never use `SYSADMIN` in
 this service.
+Snowflake connection handling (read pool, write pool, session baseline,
+readiness, stale-serve and the no-silent-replay rule) is recorded in the
+[Snowflake connection standard](docs/snowflake-connection-standard.md); new routes
+must follow it.
 Neo4j Community runtime authorization is recorded as accepted debt in the
 knowledge-graph repository's ADR 0008: API retrieval remains constrained by
 the application, network, and feature-flag controls rather than database roles.
