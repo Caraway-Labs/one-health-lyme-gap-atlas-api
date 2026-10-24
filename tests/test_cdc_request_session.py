@@ -23,6 +23,8 @@ from lyme_gap_atlas_api.public_observations import (
 )
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
 from lyme_gap_atlas_api.snowflake_read_session import get_read_session_pool
+from lyme_gap_atlas_api.snowflake_session_baseline import IDENTITY_SQL as POOL_IDENTITY_SQL
+from lyme_gap_atlas_api.snowflake_session_baseline import baseline_statements
 
 
 @pytest.fixture(autouse=True)
@@ -32,9 +34,14 @@ def _isolated_read_pool() -> None:
     get_read_session_pool().close_all()
 
 
+REAL_SESSION_BASELINE = True
+SETUP_SQL = baseline_statements(settings(public_query_timeout_seconds=5)) + (POOL_IDENTITY_SQL,)
+
+
 class Session:
     def __init__(self, fail=None, barrier=None, release=RELEASE):
-        self.calls = []
+        self.calls = []  # per-request statements only
+        self.setup_calls = []  # pool baseline + identity assertion, once per new connection
         self.cursor_closes = 0
         self.closes = 0
         self.closed = False
@@ -74,6 +81,20 @@ class Cursor:
 
     def execute(self, sql, params=(), *, timeout):
         s = self.session
+        if sql in SETUP_SQL:
+            s.setup_calls.append((sql, params, timeout))
+            if sql == POOL_IDENTITY_SQL:
+                self.rows = [
+                    (
+                        "OH_LYME_API_SVC",
+                        "OH_LYME_PROD_READ",
+                        "ONE_HEALTH_LYME_GAP_ATLAS_PROD",
+                        "COMPUTE_WH",
+                    )
+                ]
+                self.setup_identity = True
+            return
+        self.setup_identity = False
         s.calls.append((sql, params, timeout))
         if s.barrier and len(s.calls) == 1:
             s.barrier.wait(timeout=5)
@@ -99,6 +120,8 @@ class Cursor:
             self.rows = [(s.release,)]
 
     def fetchone(self):
+        if getattr(self, "setup_identity", False):
+            return self.rows[0]
         return (self.session.release,)
 
     def fetchmany(self, limit):
@@ -166,28 +189,31 @@ def test_single_session_setup_per_request_and_per_county_identity(monkeypatch, m
     assert recorder.counts["authority_query"] == (1 if n <= 50 else n)
     assert len(response.data) == n
     assert len(opened) == 1 and s.closes == 0
-    assert len(s.calls) == (5 if n <= 50 else 3 + 2 * n)
+    assert len(s.calls) == (3 if n <= 50 else 1 + 2 * n)
     assert s.cursor_closes == (
         3 if n <= 50 else 2 + n
     )  # setup, release, then one cursor per county
-    assert s.calls[:2] == [
+    # The baseline ran once, at pool creation; the request issued no ALTER/USE of its own.
+    assert s.setup_calls == [
         ("ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS=5", (), 5),
         ("USE SECONDARY ROLES NONE", (), 5),
+        (POOL_IDENTITY_SQL, (), 5),
     ]
-    assert "CURRENT_RELEASE_V" in s.calls[2][0]
+    assert not any(c[0].startswith(("ALTER SESSION", "USE ")) for c in s.calls)
+    assert "CURRENT_RELEASE_V" in s.calls[0][0]
     if n <= 50:
-        assert s.calls[3][0] == runtime.IDENTITY_SQL
-        assert s.calls[4][0] == batch_runtime._authority_sql(n)
-        assert s.calls[4][1][3:] == tuple(counties)
+        assert s.calls[1][0] == runtime.IDENTITY_SQL
+        assert s.calls[2][0] == batch_runtime._authority_sql(n)
+        assert s.calls[2][1][3:] == tuple(counties)
     else:
-        assert [c[0] for c in s.calls[3:]] == [runtime.IDENTITY_SQL, runtime.AUTHORITY_SQL] * n
+        assert [c[0] for c in s.calls[1:]] == [runtime.IDENTITY_SQL, runtime.AUTHORITY_SQL] * n
         assert [c[1][2] for c in s.calls if c[0] == runtime.AUTHORITY_SQL] == counties
-    assert all(c[2] == 5 for c in s.calls)
+    assert all(c[2] == 5 for c in s.calls + s.setup_calls)
     assert svc.repository._connection is None
     assert svc.cdc_adapter._producer_override is None
 
 
-@pytest.mark.parametrize("failure", range(1, 6))
+@pytest.mark.parametrize("failure", range(1, 4))
 def test_setup_release_identity_authority_timeout_closes_without_partial_results(
     monkeypatch, failure
 ):
@@ -230,7 +256,7 @@ def test_preflight_before_connection_and_wrong_release_cleanup(monkeypatch):
     with pytest.raises(AtlasDataUnavailableError):
         svc.search(ObservationQuery(**params(county=["13081"])))
     # Our own domain error after completed statements keeps the pooled session.
-    assert s.closes == 0 and len(s.calls) == 3
+    assert s.closes == 0 and len(s.calls) == 1
 
 
 @pytest.mark.parametrize(
@@ -273,7 +299,7 @@ def test_overlapping_requests_use_distinct_sessions(monkeypatch):
             pool.map(lambda _: svc.search(ObservationQuery(**params(county=["13081"]))), range(2))
         )
     assert len(sessions) == 2 and sessions[0] is not sessions[1]
-    assert all(s.closes == 0 and len(s.calls) == 5 for s in sessions)
+    assert all(s.closes == 0 and len(s.calls) == 3 for s in sessions)
     assert results[0].data == results[1].data
 
 
@@ -305,11 +331,12 @@ def test_http_pagination_and_unsampled_safe_timing(monkeypatch, caplog, measure)
         assert items[0]["value_state"] == "NO_RECORDS"
         assert items[0]["surveillance_context"]["evidence"]["normalized_state"] == "unknown"
     assert second.json()["meta"]["next_page_token"] is None
-    assert sum(len(s.calls) for s in sessions) == 10
+    assert sum(len(s.calls) for s in sessions) == 6
     if len(sessions) == 1:
-        assert len(sessions[0].calls) == 10
+        assert len(sessions[0].calls) == 6
     else:
-        assert [len(s.calls) for s in sessions] == [5, 5]
+        assert [len(s.calls) for s in sessions] == [3, 3]
+    assert all(len(s.setup_calls) == 3 for s in sessions)  # baseline once per connection
     assert all(s.closes == 0 for s in sessions)
     completions = [
         r.context
@@ -319,14 +346,15 @@ def test_http_pagination_and_unsampled_safe_timing(monkeypatch, caplog, measure)
     ]
     assert len(completions) == 2
     assert sum(e["cdc_operation_counts"].get("connect", 0) for e in completions) >= 1
-    for event, expected, processed in zip(completions, [5, 5], [2, 1], strict=True):
+    for event, processed in zip(completions, [2, 1], strict=True):
         assert event["cdc_serving_path"] == "batch"
         assert event["cdc_processed_counties"] == processed
         counts = event["cdc_operation_counts"]
         assert counts.get("connect", 0) in {0, 1}
         assert counts.get("connection_teardown", 0) == 0
-        assert counts["execute"] == expected
-        assert counts["fetchmany"] == expected - 2
+        # 3 request statements, plus the 3 baseline statements if this request connected
+        assert counts["execute"] == 3 + 3 * counts.get("connect", 0)
+        assert counts["fetchmany"] == 3
         assert event["cdc_timing_ms"]["service"] >= event["cdc_timing_ms"]["producer"]
         assert event["cdc_timing_ms"]["producer_processing"] >= 0
         text = json.dumps(event)
@@ -336,7 +364,7 @@ def test_http_pagination_and_unsampled_safe_timing(monkeypatch, caplog, measure)
 
 def test_http_failure_retains_timings_and_does_not_return_partial_success(monkeypatch, caplog):
     monkeypatch.setattr("lyme_gap_atlas_api.app.configure_logging", lambda: None)
-    s = Session(fail=5)  # the single batch authority read
+    s = Session(fail=3)  # the single batch authority read
     svc = service(monkeypatch, lambda _: s)
     app = create_app(settings=svc.repository.settings, observation_repository=svc.repository)
     app.state.observation_service = svc
@@ -346,7 +374,7 @@ def test_http_failure_retains_timings_and_does_not_return_partial_success(monkey
     assert response.headers["content-type"] == "application/problem+json"
     assert "data" not in response.json() and "private" not in response.text
     event = next(r.context for r in caplog.records if r.message == "api_request_completed")
-    assert event["cdc_operation_counts"]["execute"] == 5
+    assert event["cdc_operation_counts"]["execute"] == 6  # 3 baseline + 3 request
     counts = event["cdc_operation_counts"]
     assert counts.get("close", counts.get("connection_teardown", 0)) == 1
     assert event["cdc_timing_ms"]["service"] > 0

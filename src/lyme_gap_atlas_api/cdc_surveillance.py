@@ -21,6 +21,7 @@ from .public_contract import (
     ValueState,
 )
 from .repository import AtlasDataUnavailableError
+from .snowflake_session_baseline import baseline_statements, baseline_timeout_seconds
 from .surveillance_delivery import (
     BundleBinding,
     EvidenceDelivery,
@@ -74,13 +75,12 @@ def _read(measure: str, county: str, *, settings: ApiSettings | None = None) -> 
 
 
 def _setup_session(connection: SnowflakeConnection, settings: ApiSettings) -> None:
-    timeout = min(settings.public_query_timeout_seconds, 30)
+    """Standalone (non-pooled) connections only; pooled ones get the pool baseline."""
+    timeout = baseline_timeout_seconds(settings)
     try:
         with phase("session_setup"), connection.cursor() as cursor:
-            cursor.execute(
-                f"ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS={timeout}", timeout=timeout
-            )
-            cursor.execute("USE SECONDARY ROLES NONE", timeout=timeout)
+            for statement in baseline_statements(settings):
+                cursor.execute(statement, timeout=timeout)
     except Exception:
         raise AtlasDataUnavailableError("Governed CDC surveillance is unavailable") from None
 
@@ -231,8 +231,7 @@ class CDCObservationAdapter:
 
     @contextmanager
     def request_session(self, connection: SnowflakeConnection) -> Iterator["CDCObservationAdapter"]:
-        """Borrow one request's session; never mutate the application adapter."""
-        _setup_session(connection, self.settings)
+        """Borrow one request's pooled session (pool applies baseline); never mutate the adapter."""
         yield CDCObservationAdapter(
             self.settings,
             self._producer_override

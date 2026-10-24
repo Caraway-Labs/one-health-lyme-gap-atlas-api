@@ -20,8 +20,11 @@ from lyme_gap_atlas_api.snowflake_read_session import (
     discard_reason,
     get_read_session_pool,
     read_connection,
+    session_overrides,
 )
+from lyme_gap_atlas_api.snowflake_session_baseline import IDENTITY_SQL
 
+REAL_SESSION_BASELINE = True
 CONNECT = "lyme_gap_atlas_api.snowflake_read_session.connect"
 
 
@@ -35,6 +38,7 @@ def _isolated_read_pool() -> None:
 class FakeCursor:
     def __init__(self, connection: "FakeConnection") -> None:
         self.connection = connection
+        self.last_sql = ""
 
     def __enter__(self) -> "FakeCursor":
         return self
@@ -45,9 +49,21 @@ class FakeCursor:
     def execute(self, sql: str, **_: Any) -> None:
         if self.connection.killed:
             raise RuntimeError("session expired")
+        self.last_sql = sql
+        if not self.connection.baseline_done and (
+            sql.startswith(("ALTER SESSION", "USE SECONDARY")) or sql == IDENTITY_SQL
+        ):
+            self.connection.baseline_log.append(sql)
+            self.connection.baseline_done = sql == IDENTITY_SQL
+            return
+        if sql.startswith("ALTER SESSION"):
+            self.connection.override_log.append(sql)
+            return
         self.connection.statements.append(sql)
 
-    def fetchone(self) -> tuple[int]:
+    def fetchone(self) -> tuple[Any, ...]:
+        if self.last_sql == IDENTITY_SQL:
+            return self.connection.identity
         return (1,)
 
 
@@ -57,7 +73,16 @@ class FakeConnection:
         self.closed = False
         self.killed = False  # server-side kill: is_closed() stays False
         self.close_calls = 0
-        self.statements: list[str] = []
+        self.statements: list[str] = []  # request-level statements
+        self.baseline_done = False
+        self.baseline_log: list[str] = []  # pool baseline + identity assertion
+        self.override_log: list[str] = []  # explicit session overrides and restores
+        self.identity: tuple[str, ...] = (
+            "OH_USER",
+            "OH_ROLE",
+            "ONE_HEALTH_LYME_GAP_ATLAS",
+            "COMPUTE_WH",
+        )
 
     def is_closed(self) -> bool:
         return self.closed
@@ -502,3 +527,160 @@ def test_lifespan_shutdown_closes_pool(monkeypatch: Any) -> None:
             pass
         assert not connections[0].closed
     assert connections[0].closed
+
+
+def test_baseline_applied_once_per_connection_and_not_on_reuse(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings(public_query_timeout_seconds=7)
+    for _ in range(3):
+        with read_connection(settings):
+            pass
+    assert len(connections) == 1
+    assert connections[0].baseline_log == [
+        "ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS=7",
+        "USE SECONDARY ROLES NONE",
+        IDENTITY_SQL,
+    ]
+
+
+def test_baseline_timeout_is_capped_at_thirty_seconds(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    with read_connection(ApiSettings(public_query_timeout_seconds=60)):
+        pass
+    assert connections[0].baseline_log[0] == "ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS=30"
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("snowflake_user", "OTHER_USER"),
+        ("snowflake_role", "OTHER_ROLE"),
+        ("snowflake_database", "OTHER_DB"),
+        ("snowflake_warehouse", "OTHER_WH"),
+    ],
+)
+def test_identity_mismatch_raises_and_closes_connection(
+    monkeypatch: Any, field: str, value: str
+) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings(
+        **{"snowflake_user": "OH_USER", "snowflake_role": "OH_ROLE", field: value}
+    )
+    pool = _pool()
+    with pytest.raises(AtlasDataUnavailableError) as raised:
+        pool.checkout(settings)
+    assert value not in str(raised.value) and "OH_" not in str(raised.value)
+    assert connections[0].closed
+    assert pool.stats() == {"idle": 0, "in_use": 0, "creating": 0}
+
+
+def test_identity_matches_case_insensitively(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings(snowflake_user="oh_user", snowflake_role="Oh_Role")
+    pool = _pool()
+    pool.checkout(settings)
+    assert not connections[0].closed
+    pool.checkin()
+
+
+def test_baseline_statement_failure_closes_connection(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+
+    def connect(_settings: Any) -> FakeConnection:
+        connections.append(FakeConnection())
+        connections[-1].killed = True
+        return connections[-1]
+
+    monkeypatch.setattr(CONNECT, connect)
+    pool = _pool()
+    with pytest.raises(AtlasDataUnavailableError):
+        pool.checkout(ApiSettings())
+    assert connections[0].closed
+    assert pool.stats() == {"idle": 0, "in_use": 0, "creating": 0}
+
+
+def test_dirty_lease_is_discarded_at_checkin_and_next_checkout_reconnects(
+    monkeypatch: Any,
+) -> None:
+    connections = _factory(monkeypatch)
+    pool = _pool()
+    settings = ApiSettings()
+    pool.checkout(settings)
+    pool.mark_dirty()
+    pool.checkin()
+    assert connections[0].closed and pool.stats()["idle"] == 0
+    pool.checkout(settings)
+    pool.checkin()
+    assert len(connections) == 2
+    assert len(connections[1].baseline_log) == 3  # the replacement got its own baseline
+
+
+def test_override_restores_baseline_and_keeps_connection(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings(public_query_timeout_seconds=9)
+    with (
+        read_connection(settings) as connection,
+        session_overrides(connection, statement_timeout=2),
+    ):
+        assert connections[0].override_log == ["ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS=2"]
+    assert connections[0].override_log[-1] == "ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS=9"
+    with read_connection(settings):
+        pass
+    assert len(connections) == 1 and not connections[0].closed  # clean restore is reused
+
+
+def test_override_restores_baseline_when_body_raises(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings(public_query_timeout_seconds=9)
+    with (
+        pytest.raises(PublicQueryError),
+        read_connection(settings) as connection,
+        session_overrides(connection, statement_timeout=2),
+    ):
+        raise PublicQueryError("UNSUPPORTED_FILTER", "x")
+    assert connections[0].override_log[-1].endswith("=9")
+    assert not connections[0].closed
+
+
+def test_unconfirmed_restore_discards_connection(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings(public_query_timeout_seconds=9)
+    with (
+        read_connection(settings) as connection,
+        session_overrides(connection, statement_timeout=2),
+    ):
+        connections[0].killed = True  # restore cannot be confirmed
+    assert connections[0].closed
+    with read_connection(settings):
+        pass
+    assert len(connections) == 2
+
+
+def test_failed_override_discards_connection(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings()
+    with pytest.raises(RuntimeError), read_connection(settings) as connection:
+        connections[0].killed = True
+        with session_overrides(connection, statement_timeout=2):
+            pass
+    assert connections[0].closed
+
+
+def test_session_overrides_requires_pooled_connection(monkeypatch: Any) -> None:
+    _factory(monkeypatch)
+    with pytest.raises(ValueError), session_overrides(FakeConnection(), statement_timeout=2):
+        pass
+
+
+def test_session_overrides_without_changes_is_a_noop(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    with read_connection(ApiSettings()) as connection, session_overrides(connection):
+        pass
+    assert connections[0].override_log == [] and not connections[0].closed
+
+
+@pytest.mark.parametrize("row", [None, 5, ("U", "R", "ONE_HEALTH_LYME_GAP_ATLAS"), (1, 2, 3, 4)])
+def test_malformed_identity_row_is_a_mismatch(row: Any) -> None:
+    from lyme_gap_atlas_api.snowflake_session_baseline import identity_matches
+
+    assert not identity_matches(ApiSettings(), row)
