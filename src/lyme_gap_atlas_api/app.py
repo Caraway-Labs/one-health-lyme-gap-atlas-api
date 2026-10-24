@@ -160,6 +160,7 @@ from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtl
 from .service import AtlasService
 from .snowflake_monitor import ReadinessDependencies, ReadinessResponse, SnowflakeMonitor
 from .snowflake_read_session import get_read_session_pool
+from .snowflake_write_session import get_write_session_pool
 from .surveillance_delivery import SurveillanceResolver
 from .surveillance_situations import (
     CountySurveillanceSituations,
@@ -464,6 +465,7 @@ def create_app(
             if openai_warmer is not None:
                 openai_warmer.stop()
             await anyio.to_thread.run_sync(get_read_session_pool().close_all)
+            await anyio.to_thread.run_sync(get_write_session_pool().close_all)
 
     app = AtlasFastAPI(
         docs_url=None,

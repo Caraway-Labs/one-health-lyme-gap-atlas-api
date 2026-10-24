@@ -56,6 +56,7 @@ from .models import (
 )
 from .neo4j_diagnostics import _server_error_category, log_serving_graph_probe
 from .snowflake_connection import connect
+from .snowflake_write_session import get_write_session_pool
 from .telemetry_logging import emit_completion, operational_logger
 
 logger = operational_logger(__name__)
@@ -79,21 +80,33 @@ _PROVENANCE_MIN_WAIT_SECONDS = 0.5
 
 
 class _RequestSnowflakeSession:
-    """Lazy, exclusive worker-thread ownership; never a cross-request pool."""
+    """Lazy, exclusive worker-thread ownership of one write-pool connection per request.
+
+    The connection goes back to the write pool only if the whole request succeeded and no
+    statement raised; any error, cancellation or doubt closes it (``failed``).
+    """
 
     def __init__(self, settings: SnowflakeSettings, stack: ExitStack) -> None:
         self.settings = settings
         self.stack = stack
         self.owner = get_ident()
         self.connection: Any = None
+        self.failed = False
+
+    def _finish(self) -> None:
+        pool = get_write_session_pool()
+        if self.failed:
+            pool.discard(self.connection)
+        else:
+            pool.release(self.connection)
 
     def get(self) -> Any:
         if get_ident() != self.owner:
             raise RuntimeError("Snowflake request session cannot cross worker threads")
         if self.connection is None:
             with _snowflake_timing("connection_setup"):
-                self.connection = connect(self.settings)
-                self.stack.callback(self.connection.close)
+                self.connection = get_write_session_pool().checkout(self.settings, connect)
+                self.stack.callback(self._finish)
         elif self.connection.is_closed():
             # Never retry an uncertain reservation or write on a new connection.
             raise RuntimeError("Snowflake request session is closed")
@@ -139,6 +152,10 @@ def _request_snowflake_session(settings: SnowflakeSettings | None) -> Iterator[N
         token = _SNOWFLAKE_SESSION.set(session)
         try:
             yield
+        except BaseException:
+            if session is not None:
+                session.failed = True
+            raise
         finally:
             try:
                 if session is not None and session.connection is not None:
@@ -155,8 +172,12 @@ def _chat_snowflake_connection(settings: SnowflakeSettings) -> Iterator[Any]:
         connection = session.get()
         # The API-owned connect() sets autocommit=True, so each statement is its own
         # transaction: no per-operation COMMIT/ROLLBACK round trip and no reads of
-        # connector internals. Close is deferred to request teardown.
-        yield connection
+        # connector internals. Release/discard is deferred to request teardown.
+        try:
+            yield connection
+        except BaseException:
+            session.failed = True  # a failed statement leaves the session in doubt
+            raise
     else:
         # Standalone adapters and injected test stores retain their original lifecycle.
         with connect(settings) as connection:

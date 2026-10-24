@@ -20,6 +20,7 @@ from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from .dependency_telemetry import connect
 from .models import FeedbackSubmissionRequest, FeedbackSubmissionResponse
 from .public_docs import problem_type_uri
+from .snowflake_write_session import get_write_session_pool
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +278,10 @@ class SnowflakeFeedbackStore:
     ) -> FeedbackStoreResult:
         database = self._settings.snowflake_database
         try:
-            with connect(self._settings) as connection, connection.cursor() as cursor:
+            with (
+                get_write_session_pool().borrow(self._settings, connect) as connection,
+                connection.cursor() as cursor,
+            ):
                 cursor.execute(
                     f"CALL {database}.GOVERNANCE.SP_SUBMIT_USER_FEEDBACK"
                     "(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
@@ -326,7 +330,10 @@ class SnowflakeFeedbackStore:
     def redact_for_account(self, account_id: str, reason: str) -> FeedbackRedactionResult:
         database = self._settings.snowflake_database
         try:
-            with connect(self._settings) as connection, connection.cursor() as cursor:
+            with (
+                get_write_session_pool().borrow(self._settings, connect) as connection,
+                connection.cursor() as cursor,
+            ):
                 cursor.execute(
                     f"CALL {database}.GOVERNANCE.SP_REDACT_FEEDBACK_FOR_ACCOUNT(%s,%s)",
                     (account_id, reason),
@@ -359,7 +366,10 @@ class SnowflakeFeedbackStore:
     def list_export_rows(self, account_id: str) -> list[FeedbackExportRow]:
         database = self._settings.snowflake_database
         try:
-            with connect(self._settings) as connection, connection.cursor() as cursor:
+            with (
+                get_write_session_pool().borrow(self._settings, connect) as connection,
+                connection.cursor() as cursor,
+            ):
                 cursor.execute(
                     f"CALL {database}.GOVERNANCE.SP_EXPORT_FEEDBACK_FOR_ACCOUNT(%s)",
                     (account_id,),
