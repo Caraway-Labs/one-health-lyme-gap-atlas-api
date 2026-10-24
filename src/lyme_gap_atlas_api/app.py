@@ -7,7 +7,7 @@ import re
 import time
 import unicodedata
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import date
@@ -159,6 +159,7 @@ from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
 from .snowflake_monitor import ReadinessDependencies, ReadinessResponse, SnowflakeMonitor
+from .snowflake_read_session import get_read_session_pool
 from .surveillance_delivery import SurveillanceResolver
 from .surveillance_situations import (
     CountySurveillanceSituations,
@@ -391,7 +392,12 @@ def create_app(
                 }
             },
         )
-    service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
+    service = AtlasService(
+        repository or SnowflakeAtlasRepository(config),
+        config.cache_ttl_seconds,
+        max_stale_seconds=config.snapshot_max_stale_seconds,
+        refresh_backoff_seconds=config.snapshot_refresh_backoff_seconds,
+    )
     tier1_priority = Tier1PriorityService(
         tier1_priority_repository or SnowflakeTier1PriorityRepository(config)
     )
@@ -457,6 +463,7 @@ def create_app(
             await asyncio.to_thread(snowflake_monitor.stop)
             if openai_warmer is not None:
                 openai_warmer.stop()
+            await anyio.to_thread.run_sync(get_read_session_pool().close_all)
 
     app = AtlasFastAPI(
         docs_url=None,
@@ -535,6 +542,17 @@ def create_app(
     app.add_middleware(FeedbackLimitMiddleware)
     app.add_middleware(PrivacyRequestLimitMiddleware)
     app.add_middleware(RequestContextMiddleware)
+
+    @app.middleware("http")
+    async def withhold_public_cache_while_stale(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        # A stale-while-error snapshot must not be cached downstream as if it were fresh.
+        if service.is_stale and response.headers.get("cache-control", "").startswith("public"):
+            response.headers["Cache-Control"] = "private, no-store"
+        return response
+
     # Starlette applies the most recently added middleware first. Keep CORS outermost
     # so browser clients can read an error returned by a short-circuiting limiter.
     app.add_middleware(
