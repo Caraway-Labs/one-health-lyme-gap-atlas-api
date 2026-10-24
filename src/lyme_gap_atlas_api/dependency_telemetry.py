@@ -7,8 +7,10 @@ from time import perf_counter
 from typing import Any, cast
 
 import httpx
+import snowflake.connector
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
 from lyme_gap_atlas_shared.snowflake import connect as shared_connect
+from lyme_gap_atlas_shared.snowflake import connection_parameters
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from snowflake.connector import SnowflakeConnection
@@ -22,6 +24,7 @@ DEPENDENCIES = frozenset({"snowflake", "supabase"})
 OPERATIONS = frozenset(
     {
         "connect",
+        "check",
         "connection_enter",
         "connection_teardown",
         "cursor",
@@ -138,8 +141,26 @@ class _SnowflakeBoundary:
             return self._resource.__exit__(*args)
 
 
-def connect(settings: SnowflakeSettings, *, include_database: bool = True) -> SnowflakeConnection:
+def connect(
+    settings: SnowflakeSettings,
+    *,
+    include_database: bool = True,
+    timeout_seconds: float | None = None,
+) -> SnowflakeConnection:
     """Reuse approved shared connection construction; do not duplicate credentials."""
     with dependency_span("snowflake", "connect"):
-        connection = shared_connect(settings, include_database=include_database)
+        if timeout_seconds is None:
+            connection = shared_connect(settings, include_database=include_database)
+        else:
+            parameters = connection_parameters(settings, include_database=include_database)
+            parameters.update(
+                login_timeout=timeout_seconds,
+                network_timeout=min(timeout_seconds, 3),
+                socket_timeout=min(timeout_seconds, 3),
+                # Bound SDK retries for the monitor only; product policy is unchanged.
+                backoff_policy=lambda: iter([0]),
+                client_session_keep_alive=False,
+                client_telemetry_enabled=False,
+            )
+            connection = snowflake.connector.connect(**parameters)
     return cast(SnowflakeConnection, _SnowflakeBoundary(connection, "connection"))
