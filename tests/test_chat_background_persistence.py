@@ -153,3 +153,29 @@ def test_default_service_still_persists_synchronously() -> None:
     assert response.status == "answered"
     assert len(store.calls) == 1
     assert store.threads == [threading.get_ident()]
+
+
+def test_shutdown_executor_logs_and_releases_the_pending_slot(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO)
+    store = GatedStore(gate=False)
+    service, _ = service_for(store)
+    service._persist_executor.shutdown(wait=True)  # type: ignore[union-attr]
+    response = ask(service)
+    assert response.status == "answered"
+    failures = [r for r in caplog.records if r.getMessage() == "knowledge_chat_persistence_failed"]
+    assert [r.context["error_type"] for r in failures] == ["executor_shutdown"]  # type: ignore[attr-defined]
+    assert service._persist_pending == 0
+    assert store.calls == []
+
+
+def test_background_helper_without_executor_is_a_no_op() -> None:
+    store = GatedStore(gate=False)
+    clock = Clock()
+    service = KnowledgeChatService(
+        Retriever(), Answerer([valid_payload()], clock), store, "test-secret", clock=clock
+    )
+    response = ask(service)
+    service._persist_in_background(KnowledgeChatRequest(message=QUESTION), response, "t", "n")
+    assert len(store.calls) == 1
