@@ -244,11 +244,16 @@ class AtlasFastAPI(FastAPI):
         for path, path_item in schema["paths"].items():
             if not _canonical_validation_is_400(path):
                 continue
+            # The geography identity route no longer has a 503 (ADR 0021): its unpublished
+            # state is a typed 200, so 503 is not required for the full-map check.
+            required = canonical_error_statuses
+            if path == "/v1/geographies/{geography_type}/{geography_id}":
+                required = canonical_error_statuses - {"503"}
             for operation in path_item.values():
                 if not isinstance(operation, dict):
                     continue
                 responses = operation.get("responses", {})
-                if canonical_error_statuses <= responses.keys():
+                if required <= responses.keys():
                     responses.pop("422", None)
         if "BriefingArtifact" not in schema.get("components", {}).get("schemas", {}):
             add_briefing_openapi(schema)
@@ -634,9 +639,6 @@ def create_app(
                         "/v1/methodologies/",
                     )
                 )
-                else "CANONICAL_DATA_UNAVAILABLE"
-                if exc.status_code == 503
-                and str(exc.detail) == "Canonical data delivery is not yet available."
                 else "SERVICE_UNAVAILABLE"
                 if exc.status_code == 503
                 else None

@@ -1724,7 +1724,7 @@
           "geographies"
         ],
         "summary": "Get geography identity (delivery pending)",
-        "description": "Validated county/state FIPS identity; currently returns 503 CANONICAL_DATA_UNAVAILABLE. No geometry is returned.",
+        "description": "Validated county/state FIPS identity. While canonical identity delivery is unpublished the response is HTTP 200 with availability UNAVAILABLE, reason CANONICAL_GEOGRAPHY_UNPUBLISHED and data null; the identity is validated for shape only. No geometry is returned. Responses use Cache-Control: no-store.",
         "operationId": "geography_v1_geographies__geography_type___geography_id__get",
         "parameters": [
           {
@@ -1747,11 +1747,19 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful current-release resource.",
+            "description": "Typed answer. While canonical geography identity delivery is unpublished this is availability UNAVAILABLE with data null (HTTP 200, not 5xx, because the hosting edge replaces origin 5xx responses with an HTML 504).",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResourceEnvelope_Geography_"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ResourceEnvelope_Geography_"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GeographyUnavailable"
+                    }
+                  ],
+                  "title": "Response Geography V1 Geographies  Geography Type   Geography Id  Get"
                 }
               }
             }
@@ -1880,38 +1888,6 @@
                       "code": "INVALID_REQUEST"
                     }
                   }
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Canonical data delivery is not yet available.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "examples": {
-                  "illustrative": {
-                    "summary": "Synthetic error example",
-                    "value": {
-                      "type": "https://onehealthatlas.org/problems/http-503",
-                      "title": "Request failed",
-                      "status": 503,
-                      "detail": "Canonical data delivery is not yet available.",
-                      "instance": "/v1/geographies/{geography_type}/{geography_id}",
-                      "request_id": "example-request-id",
-                      "code": "CANONICAL_DATA_UNAVAILABLE"
-                    }
-                  }
-                }
-              }
-            },
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds before retry when supplied by the service.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -4527,7 +4503,7 @@
     },
     {
       "name": "geographies",
-      "description": "Typed geography identity; delivery is not yet available."
+      "description": "Typed geography identity; canonical delivery pending (200 UNAVAILABLE)."
     },
     {
       "name": "atlas",
@@ -5667,6 +5643,48 @@
         ],
         "title": "GeographyIdentity",
         "description": "Stable FIPS join identity, independent of display or analysis polygons."
+      },
+      "GeographyUnavailable": {
+        "properties": {
+          "availability": {
+            "type": "string",
+            "const": "UNAVAILABLE",
+            "title": "Availability"
+          },
+          "reason": {
+            "type": "string",
+            "const": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+            "title": "Reason"
+          },
+          "data": {
+            "type": "null",
+            "title": "Data",
+            "description": "No canonical geography resource or geometry is fabricated."
+          },
+          "geography": {
+            "$ref": "#/components/schemas/GeographyIdentity",
+            "description": "The validated identity that was requested, echoed back."
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Limitations",
+            "description": "Publication and representation boundaries, not scientific absence."
+          }
+        },
+        "type": "object",
+        "required": [
+          "availability",
+          "reason",
+          "data",
+          "geography",
+          "limitations"
+        ],
+        "title": "GeographyUnavailable",
+        "description": "Typed, successful answer that canonical geography identity is not published yet.\n\nReturned with HTTP 200 by the legacy identity route (ADR 0021). It carries no release\nbecause answering must stay instant and independent of the governed directory."
       },
       "CanonicalGeographyAvailability": {
         "properties": {
