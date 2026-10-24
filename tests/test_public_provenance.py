@@ -1,5 +1,6 @@
 """API #55 source/method resolution and governed null semantics."""
 
+from _pooled import lend
 from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
@@ -132,7 +133,7 @@ def test_repository_queries_only_public_views_with_bound_identifiers(monkeypatch
             return Cursor()
 
     monkeypatch.setattr(
-        "lyme_gap_atlas_api.public_provenance.connect", lambda _settings: Connection()
+        "lyme_gap_atlas_api.public_provenance.read_connection", lend(lambda _settings: Connection())
     )
     repository = SnowflakeProvenanceRepository(ApiSettings())
     repository.sources("release", 2, 0)

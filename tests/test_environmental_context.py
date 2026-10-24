@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
+from _pooled import lend
 from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
@@ -154,7 +155,7 @@ def test_disabled_environmental_reads_never_open_connection(monkeypatch):
     def forbidden(*args, **kwargs):
         pytest.fail("disabled adapter opened a connection")
 
-    monkeypatch.setattr("lyme_gap_atlas_api.environmental_context.connect", forbidden)
+    monkeypatch.setattr("lyme_gap_atlas_api.environmental_context.read_connection", forbidden)
     with pytest.raises(AtlasDataUnavailableError):
         EnvironmentalRepository(ApiSettings()).metadata()
 
@@ -351,7 +352,7 @@ def test_reader_uses_configured_timeout_and_sanitizes_driver_failure(monkeypatch
             return [(1,)]
 
     settings = ApiSettings(environmental_context_enabled=True, public_query_timeout_seconds=7)
-    monkeypatch.setattr(module, "connect", lambda supplied: Session())
+    monkeypatch.setattr(module, "read_connection", lend(lambda supplied: Session()))
     repository = EnvironmentalRepository(settings)
     assert repository.measure_exists("nclimgrid_prcp_county_day", "release")
     assert calls[0][1:] == (("nclimgrid_prcp_county_day", "release"), 7)
@@ -361,7 +362,7 @@ def test_reader_uses_configured_timeout_and_sanitizes_driver_failure(monkeypatch
     def denied(supplied):
         raise RuntimeError("private-driver-detail")
 
-    monkeypatch.setattr(module, "connect", denied)
+    monkeypatch.setattr(module, "read_connection", lend(denied))
     with pytest.raises(AtlasDataUnavailableError) as failure:
         repository.metadata()
     assert "private-driver-detail" not in str(failure.value)
@@ -407,7 +408,7 @@ def test_empty_and_disabled_metadata_use_actual_repository_activation_boundary(m
         def fetchall(self):
             return self.rows
 
-    monkeypatch.setattr(module, "connect", lambda settings: Session())
+    monkeypatch.setattr(module, "read_connection", lend(lambda settings: Session()))
     climate_calls = []
     monkeypatch.setattr(
         EnvironmentalRepository, "metadata", lambda self: climate_calls.append(True) or []

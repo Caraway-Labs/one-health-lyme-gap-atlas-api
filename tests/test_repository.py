@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 import pytest
+from _pooled import lend
 
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.repository import (
@@ -94,7 +95,10 @@ class _Connection:
 def test_load_snapshot_uses_configured_governed_presentation_database(monkeypatch) -> None:
     cursor = _Cursor()
     connection = _Connection(cursor)
-    monkeypatch.setattr("lyme_gap_atlas_api.repository.connect", lambda _settings: connection)
+    monkeypatch.setattr(
+        "lyme_gap_atlas_api.snowflake_read_session.read_connection",
+        lend(lambda _settings: connection),
+    )
     settings = ApiSettings(
         snowflake_database="ONE_HEALTH_LYME_GAP_ATLAS",
         snowflake_presentation_database="ONE_HEALTH_LYME_GAP_ATLAS_PROD",
@@ -134,7 +138,10 @@ def test_load_snapshot_rejects_counties_from_promoted_release(monkeypatch) -> No
 
     cursor = PromotedCountyCursor()
     connection = _Connection(cursor)
-    monkeypatch.setattr("lyme_gap_atlas_api.repository.connect", lambda _settings: connection)
+    monkeypatch.setattr(
+        "lyme_gap_atlas_api.snowflake_read_session.read_connection",
+        lend(lambda _settings: connection),
+    )
 
     with pytest.raises(AtlasDataUnavailableError, match="does not match"):
         SnowflakeAtlasRepository(ApiSettings()).load_snapshot()

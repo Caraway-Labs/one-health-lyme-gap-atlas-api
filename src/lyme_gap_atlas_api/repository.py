@@ -52,8 +52,11 @@ class SnowflakeAtlasRepository:
             raise AtlasDataUnavailableError("Atlas data service is unavailable") from exc
 
     def load_snapshot(self) -> Snapshot:
+        # Imported here: snowflake_read_session imports this module for its error type.
+        from .snowflake_read_session import read_connection
+
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with read_connection(self.settings) as connection, connection.cursor() as cursor:
                 cursor.execute(
                     f"""SELECT RELEASE_ID, SCHEMA_VERSION, GENERATED_AT, LOADED_AT, SCOPE,
                           BUNDLE_SHA256, TO_JSON(SCORE_DEFAULTS), METHODOLOGY_VERSION, LIMITATIONS

@@ -13,7 +13,6 @@ from snowflake.connector import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
 from .config import ApiSettings
-from .dependency_telemetry import connect
 from .public_contract import (
     EnvironmentalContext,
     EvidenceReference,
@@ -23,6 +22,7 @@ from .public_contract import (
     ObservationQuery,
 )
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .snowflake_read_session import read_connection
 
 MEASURES = frozenset(f"nclimgrid_{m}_county_day" for m in ("prcp", "tmin", "tmax", "tavg"))
 NUMERIC_FIELDS = (
@@ -140,7 +140,7 @@ class EnvironmentalRepository:
             with self._connection.cursor() as cursor:
                 yield cursor
         else:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with read_connection(self.settings) as connection, connection.cursor() as cursor:
                 yield cursor
 
     @property
