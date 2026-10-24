@@ -17,7 +17,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass
-from threading import Lock, Thread, get_ident
+from threading import Event, Lock, Thread, get_ident
 from typing import Any, Literal, Protocol, TypedDict, cast
 
 import anyio.from_thread
@@ -32,7 +32,14 @@ from neo4j.exceptions import (
     ServiceUnavailable,
     SessionExpired,
 )
-from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
+import httpx
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    DefaultHttpxClient,
+    OpenAI,
+)
 from opentelemetry import trace
 
 from .assistant_policy import classify_question, load_assistant_policy
@@ -464,6 +471,91 @@ class BudgetStore(Protocol):
 
 class CorpusProvenanceStore(Protocol):
     def lookup(self, pmids: list[str]) -> dict[str, dict[str, Any]]: ...
+
+
+_OPENAI_KEEPALIVE_SECONDS = 120.0
+_OPENAI_WARM_INTERVAL_SECONDS = 60.0
+_OPENAI_LOGGED_PATHS = ("/v1/embeddings", "/v1/responses")
+
+
+def _log_provider_response(response: httpx.Response) -> None:
+    """Record OpenAI's own server time so it can be separated from connection time."""
+    path = response.request.url.path
+    if not path.startswith(_OPENAI_LOGGED_PATHS):
+        return
+    processing = response.headers.get("openai-processing-ms", "")
+    logger.info(
+        "knowledge_chat_provider_http",
+        extra={
+            "context": {
+                "request_id": _REQUEST_ID.get(),
+                "path": path,
+                "status_code": response.status_code,
+                "openai_processing_ms": int(processing) if processing.isdigit() else None,
+            }
+        },
+    )
+
+
+def build_openai_http_client() -> httpx.Client:
+    """Shared pool that keeps idle OpenAI connections alive between sparse requests.
+
+    ``OpenAI.with_options(...)`` copies reuse this pool, so a warm connection serves
+    both embeddings and generation. SDK default timeouts and redirect handling are kept.
+    """
+    return DefaultHttpxClient(
+        limits=httpx.Limits(
+            max_connections=100,
+            max_keepalive_connections=10,
+            keepalive_expiry=_OPENAI_KEEPALIVE_SECONDS,
+        ),
+        event_hooks={"response": [_log_provider_response]},
+    )
+
+
+class OpenAIConnectionWarmer:
+    """Keeps one TCP/TLS connection to OpenAI open while the chat service is idle.
+
+    The request is unauthenticated and costs nothing (the provider answers 401); its
+    only purpose is to hold a live connection in the shared pool.
+    """
+
+    def __init__(
+        self,
+        http_client: httpx.Client,
+        url: str,
+        interval_seconds: float = _OPENAI_WARM_INTERVAL_SECONDS,
+    ) -> None:
+        self._client = http_client
+        self._url = url
+        self._interval = interval_seconds
+        self._stop = Event()
+        self._thread: Thread | None = None
+
+    def start(self) -> None:
+        if self._thread is not None:
+            return
+        self._thread = Thread(target=self._run, name="openai-connection-warmer", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2)
+
+    def warm(self) -> None:
+        try:
+            self._client.get(self._url, timeout=5)
+        except Exception as error:
+            logger.debug(
+                "openai_connection_warm_failed",
+                extra={"context": {"error_type": failure_class(error)}},
+            )
+
+    def _run(self) -> None:
+        self.warm()
+        while not self._stop.wait(self._interval):
+            self.warm()
 
 
 class EmbeddingFailure(RuntimeError):
