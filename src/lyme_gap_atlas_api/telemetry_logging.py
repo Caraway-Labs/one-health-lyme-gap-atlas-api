@@ -11,9 +11,9 @@ from opentelemetry import trace
 from .cdc_timing import IO_OPERATIONS as CDC_IO_OPERATIONS
 from .cdc_timing import PHASES as CDC_PHASES
 from .climate_timing import IO_OPERATIONS, PHASES
+from .telemetry import FAILURES, METHODS, OUTCOMES, REQUEST_CORRELATION, ROUTES
 from .tier1_timing import IO_OPERATIONS as TIER1_IO_OPERATIONS
 from .tier1_timing import PHASES as TIER1_PHASES
-from .telemetry import FAILURES, METHODS, OUTCOMES, REQUEST_CORRELATION, ROUTES
 
 
 class OperationalLogger(logging.LoggerAdapter):  # type: ignore[type-arg]

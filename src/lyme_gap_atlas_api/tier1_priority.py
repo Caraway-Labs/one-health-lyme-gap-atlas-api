@@ -175,7 +175,11 @@ class SnowflakeTier1PriorityRepository:
 
     def county(self, fips: str) -> tuple[Any, ...] | None:
         try:
-            with phase("tier1_query"), connect(self.settings) as connection, connection.cursor() as cursor:
+            with (
+                phase("tier1_query"),
+                connect(self.settings) as connection,
+                connection.cursor() as cursor,
+            ):
                 cursor.execute(
                     "SELECT COUNTY_FIPS, PRIORITY_TIER, PRIORITY_PERCENTILE, "
                     "RAW_MODEL_SCORE, EVIDENCE_SUFFICIENCY, MODEL_VERSION, "

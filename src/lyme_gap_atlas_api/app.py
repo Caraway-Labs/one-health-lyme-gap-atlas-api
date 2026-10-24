@@ -161,7 +161,6 @@ from .surveillance_situations import (
 )
 from .telemetry import PrivateInstrumentationProvider, server_request_hook, server_response_hook
 from .telemetry_logging import operational_logger, operational_request_id, protect_dependency_logs
-from .tier1_timing import Tier1Timing, phase as tier1_phase, tier1_request_timing
 from .tier1_priority import (
     SnowflakeTier1PriorityRepository,
     Tier1CountyPriority,
@@ -169,6 +168,8 @@ from .tier1_priority import (
     Tier1PriorityRepository,
     Tier1PriorityService,
 )
+from .tier1_timing import Tier1Timing, tier1_request_timing
+from .tier1_timing import phase as tier1_phase
 
 logger = operational_logger(__name__)
 
