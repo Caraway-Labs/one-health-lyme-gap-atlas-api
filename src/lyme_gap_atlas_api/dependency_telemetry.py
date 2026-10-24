@@ -7,10 +7,7 @@ from time import perf_counter
 from typing import Any, cast
 
 import httpx
-import snowflake.connector
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
-from lyme_gap_atlas_shared.snowflake import connect as shared_connect
-from lyme_gap_atlas_shared.snowflake import connection_parameters
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from snowflake.connector import SnowflakeConnection
@@ -18,6 +15,7 @@ from snowflake.connector import SnowflakeConnection
 from .cdc_timing import CURRENT as CDC_CURRENT
 from .climate_timing import CURRENT
 from .context_timing import CURRENT as CONTEXT_CURRENT
+from .snowflake_connection import connect as snowflake_connect
 from .tier1_timing import CURRENT as TIER1_CURRENT
 
 DEPENDENCIES = frozenset({"snowflake", "supabase"})
@@ -147,20 +145,9 @@ def connect(
     include_database: bool = True,
     timeout_seconds: float | None = None,
 ) -> SnowflakeConnection:
-    """Reuse approved shared connection construction; do not duplicate credentials."""
+    """Single instrumented entry point; construction is API-owned."""
     with dependency_span("snowflake", "connect"):
-        if timeout_seconds is None:
-            connection = shared_connect(settings, include_database=include_database)
-        else:
-            parameters = connection_parameters(settings, include_database=include_database)
-            parameters.update(
-                login_timeout=timeout_seconds,
-                network_timeout=min(timeout_seconds, 3),
-                socket_timeout=min(timeout_seconds, 3),
-                # Bound SDK retries for the monitor only; product policy is unchanged.
-                backoff_policy=lambda: iter([0]),
-                client_session_keep_alive=False,
-                client_telemetry_enabled=False,
-            )
-            connection = snowflake.connector.connect(**parameters)
+        connection = snowflake_connect(
+            settings, include_database=include_database, timeout_seconds=timeout_seconds
+        )
     return cast(SnowflakeConnection, _SnowflakeBoundary(connection, "connection"))
