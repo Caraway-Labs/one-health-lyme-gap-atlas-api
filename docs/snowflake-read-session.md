@@ -1,4 +1,4 @@
-# Bounded Snowflake read connection pool (API #287, #317, #318)
+# Bounded Snowflake read connection pool (API #287, #317, #318, #319)
 
 Every public read path borrows (observations, Tier 1, metadata, provenance, surveillance situations, intelligence feed, `SnowflakeAtlasRepository.load_snapshot`, and the `_cursor()` fallbacks in observations/environmental context; API #318) borrow a connection from the process-wide `snowflake_read_session.ReadSessionPool`. This is not the Ask Atlas request-scoped write session (`docs/ask-atlas-snowflake-reuse.md`).
 
@@ -8,6 +8,8 @@ Every public read path borrows (observations, Tier 1, metadata, provenance, surv
 - **Checkout queue:** a request waits at most `read_pool_checkout_timeout_seconds` (default **5 s**) for a free connection, then raises `AtlasDataUnavailableError` (the existing 503 problem response). It never hangs.
 - **One borrower at a time:** the connector is thread-confined, so a connection is lent to a single request/thread until it is returned; re-entrant use on the same thread shares the lease.
 - **Check-in:** `read_connection` returns the connection on a successful exit. Any exception closes it (`drop_current`) and frees the slot; which errors should merely return the connection is a later refinement (#320).
+- **Session baseline (#319):** defined once in `snowflake_session_baseline.py` and applied by `ReadSessionPool._create` when a connection is created (one cursor, once per connection, never per request): `STATEMENT_TIMEOUT_IN_SECONDS = min(public_query_timeout_seconds, 30)`, `USE SECONDARY ROLES NONE` (so every pooled route must work on the primary role alone), and the `QUERY_TAG` set at connect. The same cursor then runs `SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_DATABASE(), CURRENT_WAREHOUSE()` and compares it, case-insensitively, with the configured user/role/database/warehouse (an unset value is not asserted). A failure closes the connection and raises `AtlasDataUnavailableError` without logging the values.
+- **Overrides:** callers must not change session state directly. Use `with session_overrides(connection, statement_timeout=N):`; it restores the baseline in `finally`. The lease is *dirty* from the override until the restore is confirmed, and a dirty lease (or one flagged with `mark_dirty()`) is closed at check-in instead of reused. The standalone CDC `_read` path (not pooled) still runs its own `_setup_session`.
 - **Health on checkout:** `is_closed()` first (local, free). Only when the connection has been idle longer than `read_pool_validate_after_idle_seconds` (default **30 s**) is one `SELECT 1` sent. A failing connection is closed and replaced before the request's statements run; request statements are never retried.
 - **Idle eviction:** connections idle longer than `read_pool_idle_seconds` (default **300 s**) are closed on checkout and by a daemon reaper thread (every 60 s).
 - **Shutdown:** the FastAPI lifespan calls `close_all()`: idle connections close immediately, borrowed ones are closed when returned.
@@ -33,4 +35,4 @@ Public read modules must call `read_connection(settings)`, never `connect()`; `t
 
 ## Operations
 
-Tune the pool with the settings above. Warehouse `AUTO_SUSPEND` (600 s on COMPUTE_WH) remains a separate operational knob. A single place creates connections (`ReadSessionPool._create`) and a single path returns them (`checkin`), so session-state reset and pool metrics can hook in there.
+Tune the pool with the settings above. Warehouse `AUTO_SUSPEND` (600 s on COMPUTE_WH) remains a separate operational knob. A single place creates connections (`ReadSessionPool._create`) and a single path returns them (`checkin`), so session baseline, state reset and pool metrics hook in there.

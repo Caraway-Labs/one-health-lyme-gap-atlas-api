@@ -6,7 +6,7 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager, suppress
+from contextlib import AbstractContextManager, contextmanager, suppress
 from typing import TYPE_CHECKING
 
 from snowflake.connector import SnowflakeConnection
@@ -15,6 +15,11 @@ from snowflake.connector import errors as sf_errors
 from .dependency_telemetry import connect
 from .public_contract import PublicQueryError
 from .repository import AtlasDataUnavailableError
+from .snowflake_session_baseline import (
+    apply_baseline,
+    baseline_timeout_seconds,
+    timeout_statement,
+)
 
 if TYPE_CHECKING:
     from .config import ApiSettings
@@ -31,8 +36,12 @@ _SESSION_LOSS_PHRASES = ("timeout", "timed out", "cancel", "session", "token", "
 class _Lease:
     """A pooled connection; ``last_used`` is the last check-in (or creation) time."""
 
-    def __init__(self, connection: SnowflakeConnection, now: float, epoch: int) -> None:
+    def __init__(
+        self, connection: SnowflakeConnection, now: float, epoch: int, baseline_timeout: int
+    ) -> None:
         self.connection = connection
+        self.baseline_timeout = baseline_timeout
+        self.dirty = False  # state may differ from the baseline: discard at check-in
         self.last_used = now
         self.epoch = epoch
         self.depth = 1
@@ -43,7 +52,10 @@ class ReadSessionPool:
 
     A connection is lent to one thread at a time (the connector is thread-confined),
     returned on a successful context exit and on errors ``discard_reason`` classifies as
-    benign, and closed on any other error. Limits default to
+    benign, and closed on any other error. A new connection gets the session baseline
+    (``snowflake_session_baseline``) once and its identity verified; callers change
+    session state only via ``session_overrides``, and a lease marked dirty (an override
+    whose restore is unconfirmed, or ``mark_dirty``) is closed at check-in. Limits default to
     the checkout-time ``ApiSettings`` unless overridden in the constructor.
     """
 
@@ -131,16 +143,22 @@ class ReadSessionPool:
 
     def _create(self, settings: ApiSettings, thread_id: int) -> SnowflakeConnection:
         """The single place a new pooled connection is created."""
+        connection: SnowflakeConnection | None = None
         try:
             connection = connect(settings)
+            apply_baseline(connection, settings)
         except BaseException:
+            if connection is not None:
+                self._close(connection)
             with self._cond:
                 self._reserved -= 1
                 self._cond.notify()
             raise
         with self._cond:
             self._reserved -= 1
-            self._in_use[thread_id] = _Lease(connection, self._clock(), self._epoch)
+            self._in_use[thread_id] = _Lease(
+                connection, self._clock(), self._epoch, baseline_timeout_seconds(settings)
+            )
         self._start_reaper()
         return connection
 
@@ -172,13 +190,54 @@ class ReadSessionPool:
             if lease.depth > 0:
                 return
             del self._in_use[thread_id]
-            keep = lease.epoch == self._epoch and not self._is_closed(lease.connection)
+            keep = (
+                lease.epoch == self._epoch
+                and not lease.dirty
+                and not self._is_closed(lease.connection)
+            )
             if keep:
                 lease.last_used = self._clock()
                 self._idle.append(lease)
             self._cond.notify()
         if not keep:
             self._close(lease.connection)
+
+    def mark_dirty(self) -> None:
+        """Flag this thread's lease so it is closed, not reused, at check-in."""
+        with self._cond:
+            lease = self._in_use.get(threading.get_ident())
+            if lease is not None:
+                lease.dirty = True
+
+    @contextmanager
+    def session_overrides(
+        self, connection: SnowflakeConnection, *, statement_timeout: int | None = None
+    ) -> Iterator[None]:
+        """Explicitly override session state on this thread's lease, then restore baseline.
+
+        The lease is dirty from the override until the baseline restore is confirmed, so
+        an unconfirmed restore means the connection is discarded at check-in, never lent on.
+        """
+        with self._cond:
+            lease = self._in_use.get(threading.get_ident())
+        if lease is None or lease.connection is not connection:
+            raise ValueError("session_overrides requires a connection borrowed from this pool")
+        if statement_timeout is None:
+            yield
+            return
+        lease.dirty = True
+        self._set_timeout(connection, statement_timeout, lease.baseline_timeout)
+        try:
+            yield
+        finally:
+            with suppress(Exception):  # failure leaves the lease dirty
+                self._set_timeout(connection, lease.baseline_timeout, lease.baseline_timeout)
+                lease.dirty = False
+
+    @staticmethod
+    def _set_timeout(connection: SnowflakeConnection, seconds: int, execute_timeout: int) -> None:
+        with connection.cursor() as cursor:
+            cursor.execute(timeout_statement(seconds), timeout=execute_timeout)
 
     def drop_current(self) -> None:
         """Discard (close) this thread's connection; safe to call repeatedly."""
@@ -269,6 +328,15 @@ class ReadSessionPool:
                 connection.close()
         except Exception:
             pass
+
+
+def session_overrides(
+    connection: SnowflakeConnection, *, statement_timeout: int | None = None
+) -> AbstractContextManager[None]:
+    """Override session state on a ``read_connection``; the baseline is restored after."""
+    return get_read_session_pool().session_overrides(
+        connection, statement_timeout=statement_timeout
+    )
 
 
 def _has_context(exc: BaseException) -> bool:
