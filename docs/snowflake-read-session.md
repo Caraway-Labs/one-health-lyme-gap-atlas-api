@@ -15,6 +15,8 @@ Public read paths (`SnowflakeObservationRepository.request_session`, `SnowflakeT
 
 Successful `CONTEXT_FIELDS` observation searches (`population_2022`, etc.) use **one** `execute` that resolves `CURRENT_RELEASE_V` and fetches rows in a single statement. When that statement returns a release but no observation rows, the API runs **`measure_exists`** once to distinguish measure-not-found from selection-not-admitted.
 
+`api_request_completed` for these routes includes `context_timing_ms` / `context_operation_counts`. Snowflake failures log `context_observation_query_failed` with `snowflake_error_type` only (no SQL text).
+
 ## Limits
 
 - Do not share this pool with write paths (knowledge chat, feedback, privacy).

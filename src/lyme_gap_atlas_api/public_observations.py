@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 from .cdc_timing import phase as cdc_phase
 from .climate_timing import phase
 from .config import ApiSettings
+from .context_timing import phase as context_phase
 from .county_context import (
     context_observation,
     context_query,
@@ -43,6 +44,9 @@ from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
 from .snowflake_read_session import get_read_session_pool, read_connection
 from .surveillance_delivery import SurveillanceResolver, resolve_context
+from .telemetry_logging import operational_logger
+
+logger = operational_logger(__name__)
 
 
 class ObservationRepository(Protocol):
@@ -126,6 +130,16 @@ class SnowflakeObservationRepository:
         except AtlasDataUnavailableError:
             raise
         except Exception as exc:
+            logger.info(
+                "context_observation_query_failed",
+                extra={
+                    "context": {
+                        "failure_class": "dependency_error",
+                        "outcome": "dependency_error",
+                        "snowflake_error_type": type(exc).__name__,
+                    }
+                },
+            )
             raise AtlasDataUnavailableError("Governed county context is unavailable") from exc
 
     def current_release(self) -> str:
@@ -432,14 +446,14 @@ class ObservationService:
             except (ValueError, KeyError, TypeError) as exc:
                 raise PublicQueryError("INVALID_REQUEST", "Invalid page_token.") from exc
         check()
-        with phase("release_lookup"), phase("observation_query"):
+        with context_phase("release_lookup"), context_phase("observation_query"):
             release, rows = repository.query_context(query, offset)
         if token_release is not None and release != token_release:
             raise AtlasDataUnavailableError("Current observation release changed")
         check()
         more = len(rows) > query.page_size
         if not rows and offset == 0:
-            with phase("measure_lookup"):
+            with context_phase("measure_lookup"):
                 if not repository.measure_exists(query.measure_id, release):
                     raise PublicQueryError(
                         "RESOURCE_NOT_FOUND", "Measure has no published county observations."
@@ -447,7 +461,7 @@ class ObservationService:
             raise PublicQueryError(
                 "RESOURCE_NOT_FOUND", "No admitted county context for this selection."
             )
-        with phase("mapping"):
+        with context_phase("mapping"):
             items = [context_observation(row) for row in rows]
             pairs = {(item.measure_id, item.geography.geography_id) for item in items}
             if len(pairs) != len(items) or any(

@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from .climate_timing import ClimateTiming, climate_request_timing
 from .config import ApiSettings
+from .context_timing import ContextTiming, context_request_timing
+from .county_context_ids import CONTEXT_FIELDS
 from .environmental_context import MEASURES
 from .geography_availability import CanonicalGeographyAvailability, county_availability
 from .public_contract import (
@@ -575,6 +577,11 @@ def observations(
         timing = ClimateTiming()
         request.state.climate_timing = timing
         with climate_request_timing(timing):
+            result = service.search(query)
+    elif query.measure_id in CONTEXT_FIELDS:
+        context_timing = ContextTiming()
+        request.state.context_timing = context_timing
+        with context_request_timing(context_timing):
             result = service.search(query)
     else:
         result = service.search(query)
