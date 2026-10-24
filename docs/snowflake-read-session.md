@@ -4,7 +4,7 @@ Public read paths (`SnowflakeObservationRepository.request_session`, `SnowflakeT
 
 ## Behavior
 
-- **Bounded size:** at most `read_pool_max_size` (default **8**, 1-64) live connections per process, independent of the anyio threadpool size.
+- **Bounded size:** at most `read_pool_max_size` (default **16**, 1-64; previous effective cap was the anyio threadpool, about 40) live connections per process, independent of the anyio threadpool size.
 - **Checkout queue:** a request waits at most `read_pool_checkout_timeout_seconds` (default **5 s**) for a free connection, then raises `AtlasDataUnavailableError` (the existing 503 problem response). It never hangs.
 - **One borrower at a time:** the connector is thread-confined, so a connection is lent to a single request/thread until it is returned; re-entrant use on the same thread shares the lease.
 - **Check-in:** `read_connection` returns the connection on a successful exit. Any exception closes it (`drop_current`) and frees the slot; which errors should merely return the connection is a later refinement (#320).

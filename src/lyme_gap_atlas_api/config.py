@@ -28,7 +28,7 @@ class ApiSettings(SnowflakeSettings):
     public_query_result_ceiling: int = Field(default=10_000, ge=1)
     public_max_query_bytes: int = Field(default=8_192, ge=512, le=65_536)
     public_query_timeout_seconds: int = Field(default=15, ge=1, le=60)
-    read_pool_max_size: int = Field(default=8, ge=1, le=64)
+    read_pool_max_size: int = Field(default=16, ge=1, le=64)
     read_pool_checkout_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     read_pool_idle_seconds: float = Field(default=300.0, gt=0, le=3600)
     read_pool_validate_after_idle_seconds: float = Field(default=30.0, ge=0, le=3600)
