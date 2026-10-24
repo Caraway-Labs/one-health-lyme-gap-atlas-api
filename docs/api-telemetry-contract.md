@@ -197,3 +197,84 @@ is unavailable, not zero. No raw authority serialization is added for logging.
 The service interval includes connection teardown; existing request duration
 and SERVER span retain their documented transport boundaries. No new sampling,
 private record values, SQL, county arrays or authority versions are emitted.
+
+## Snowflake pool telemetry (API #326, epic #316)
+
+Both Snowflake pools (`read`: `snowflake_read_session.py`, `write`:
+`snowflake_write_session.py`) report through `snowflake_pool_metrics.py`. There is
+no OpenTelemetry metrics pipeline in this API and none is added: events are fixed-name
+span events on the current span, fixed-name structured logs for the rare events, and an
+in-process counter snapshot, `snowflake_pool_metrics.pool_stats()` (diagnostic only; not
+served by any endpoint). Login duration is **not** duplicated: the existing
+`atlas.dependency.snowflake.connect` CLIENT span measures it, and a login happens
+exactly when a checkout outcome is `created` or `replaced_dead`.
+
+| Signal | Name | Attributes / fields |
+| --- | --- | --- |
+| Span event, every real checkout (re-entrant same-thread borrows are not checkouts) | `atlas.snowflake.pool.checkout` | `atlas.pool.name`, `atlas.pool.outcome`, `atlas.pool.wait_ms`, `atlas.pool.in_use`, `atlas.pool.idle`, `atlas.pool.max_size` |
+| Span event + log `snowflake_pool_discard` (info) | `atlas.snowflake.pool.discard` | `atlas.pool.name`, `atlas.pool.discard_reason` |
+| Span event + log `snowflake_pool_idle_eviction` (info) | `atlas.snowflake.pool.idle_eviction` | `atlas.pool.name`, `atlas.pool.evicted` (count) |
+| Log `snowflake_pool_exhausted` (warning), also the `exhausted` checkout outcome | n/a | `pool`, `wait_ms` |
+| `pool_stats()` | n/a | per pool: `checkouts` by outcome, `logins`, `exhausted`, `discards` by reason, `idle_evictions`, `wait_ms` {count,sum,max,fixed buckets}, `max_size`, live `size` {idle,in_use,creating} |
+
+Allowed label values (anything else collapses to `other`; numbers are never labels):
+
+* pool: `read`, `write`.
+* checkout outcome: `reused`, `created`, `replaced_dead`, `exhausted`.
+* discard reason (read pool): the `discard_reason` classifier values `connection_closed`,
+  `cancelled_or_interrupted`, `timeout`, `wrapped_error`, `session_or_statement_lost`,
+  `connector_error`, `unknown_error`, plus pool-side `health_check_failed`, `dirty_lease`,
+  `stale_epoch`, `baseline_failed`, `unspecified`. Write pool: `borrow_error`,
+  `health_check_failed`, `connection_closed`, `stale_epoch`, `settings_changed`.
+* checkout wait buckets (ms, upper bounds): 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, `+Inf`.
+
+Redaction: no SQL or query text, statement results, credentials, tokens, account/user/role/
+database names, user data, exception messages, connection or query IDs, or request IDs
+appear in any pool attribute, log field or snapshot. `pool_stats()` exposes only integers.
+Every recorder is wrapped in `suppress(Exception)`, so a faulty exporter or logger never
+raises into a request, and the pool state machine does not depend on it.
+
+Deriving rates (Tempo/Loki; counters are per process, so sum across replicas):
+
+* Logins per request: events where `atlas.pool.outcome` is `created` or `replaced_dead`,
+  divided by `api_request_completed` count for the same window. Before pooling this was
+  one login per borrow.
+* Reuse ratio: `reused` / all checkout events. Checkout wait p50/p95: percentile of
+  `atlas.pool.wait_ms` over checkout events, grouped by `atlas.pool.name`.
+* Exhaustion rate: count of `snowflake_pool_exhausted` logs (or outcome `exhausted` events).
+* Discards by reason: count of `snowflake_pool_discard` grouped by `reason`; evictions:
+  sum of `count` in `snowflake_pool_idle_eviction`.
+* Login latency: p95 of the existing `atlas.dependency.snowflake.connect` span duration.
+* Saturation: `atlas.pool.in_use` against `atlas.pool.max_size` on checkout events.
+
+Dashboard specs for a follow-up in the workspace `infra/observability` (not changed here).
+Panels per pool (`pool` variable): (1) logins per 5 minutes and logins per request;
+(2) checkout wait p50/p95 by pool; (3) outcome mix (stacked); (4) exhaustion count;
+(5) discards by reason (stacked); (6) idle evictions; (7) `in_use` vs `max_size`;
+(8) connect span p95. Example Loki LogQL (field names as emitted by the shared JSON
+formatter): `sum by (reason) (count_over_time({app="atlas-api"} | json | message="snowflake_pool_discard" [5m]))`
+and `sum(count_over_time({app="atlas-api"} | json | message="snowflake_pool_exhausted" [5m]))`.
+Example TraceQL: `{ name="atlas.snowflake.pool.checkout" && event.atlas.pool.outcome="exhausted" }`
+and `{ span.atlas.dependency.operation="connect" } | quantile_over_time(duration, .95)`.
+
+Repeatable benchmark: `uv run python scripts/benchmark_snowflake_connections.py`
+(fakes by default, no credentials) compares a `no_pool` mode (one login per borrow) with the
+real pools, over the public read paths and the feedback / Ask Atlas write borrow patterns,
+reporting logins per call, checkout wait p50/p95 and exhaustion count. The opt-in `--staging`
+run refuses unless `ATLAS_BENCHMARK_ALLOW_STAGING=1` and `ATLAS_BENCHMARK_CONFIRM_DATABASE`
+equals the configured database, and refuses any database/role that looks like production or
+an admin role. It is never run by tests or CI.
+
+Baseline (fake run: 200 requests, concurrency 16, pool size 8, simulated login 20 ms,
+statement 3 ms; simulated and not production evidence; wait times are scheduler-dependent):
+
+| Scenario | Logins per call before (no pool) | Logins per call after (pooled) |
+| --- | ---: | ---: |
+| public read, single borrow | 1.0 | 0.04 (8 logins / 200 calls) |
+| public read, nested (detail) | 2.0 | 0.04 |
+| public read, three sequential borrows | 3.0 | 0.04 |
+| feedback submit (write pool) | 1.0 | 0.04 |
+| Ask Atlas session (write pool) | 1.0 | 0.04 |
+
+After-pool logins are the cold-start fill of the pool (one per slot, 8), not a per-call
+cost; zero pool exhaustions and zero failed requests in these runs.
