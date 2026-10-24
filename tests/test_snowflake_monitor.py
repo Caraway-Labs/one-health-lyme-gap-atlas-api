@@ -317,3 +317,56 @@ def test_minimum_startup_budget_attempts_connect_with_a_progressing_clock(connec
     assert value.executions
     assert monitor.startup_succeeded
     monitor._close()
+
+
+def test_shutdown_requested_before_check_never_starts_dependency_io(connection):
+    value, connect = connection
+    monitor = module.SnowflakeMonitor(ApiSettings())
+    monitor._stop.set()
+    assert not monitor.check()
+    connect.assert_not_called()
+    assert not value.executions
+    assert not monitor.startup_succeeded
+
+
+def test_unexpected_connectivity_result_cannot_latch_ready(connection):
+    value, connect = connection
+    value.fetchone = lambda: None
+    monitor = module.SnowflakeMonitor(ApiSettings())
+    assert not monitor.check()
+    connect.assert_called_once()
+    assert value.closed == 1
+    assert not monitor.startup_succeeded
+    assert monitor.dependency_state == "degraded"
+
+
+def test_successful_query_returning_after_deadline_is_rejected_and_closed(connection, monkeypatch):
+    value, connect = connection
+    now = [0.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: now[0])
+    execute = value.execute
+
+    def late_query(sql, *, timeout):
+        execute(sql, timeout=timeout)
+        now[0] += 4
+
+    value.execute = late_query
+    monitor = module.SnowflakeMonitor(ApiSettings())
+    assert not monitor.check(3)
+    assert value.executions == [("SELECT 1", 3)]
+    assert value.closed == 1
+    assert not monitor.startup_succeeded
+
+
+def test_injected_probe_success_after_deadline_cannot_latch_ready(monkeypatch):
+    now = [0.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: now[0])
+
+    def late_probe():
+        now[0] += 4
+        return True
+
+    monitor = module.SnowflakeMonitor(ApiSettings(), late_probe)
+    assert not monitor.check(3)
+    assert not monitor.startup_succeeded
+    assert monitor.dependency_state == "degraded"
