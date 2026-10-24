@@ -70,7 +70,7 @@ def test_request_root_and_redaction(instrumented, caplog, supplied, path, status
         "unmatched"
         if status in {404, 500}
         else "/v1/geographies/{geography_type}/{geography_id}"
-        if status == 503
+        if path.startswith("/v1/geographies/")
         else path
     )
     payload = json.dumps(
