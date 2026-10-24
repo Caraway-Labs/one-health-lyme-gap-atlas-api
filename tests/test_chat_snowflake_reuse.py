@@ -1,6 +1,7 @@
 """Exclusive request lifetime, unchanged procedure ordering, and failure cleanup."""
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from contextvars import copy_context
 from threading import Barrier, get_ident
 from typing import Any
@@ -110,7 +111,7 @@ def test_answer_reuses_one_connection_and_preserves_sequential_turns(
     assert result.status == "answered"
     assert len(connections) == 1
     connection = connections[0]
-    assert connection.closed
+    assert not connection.closed  # returned to the write pool after a clean request
     assert connection.commits == 0
     assert [sql.split("SP_")[1].split("(")[0] for sql, _ in connection.calls] == [
         "LOOKUP_RETRIEVAL_CORPUS_PROVENANCE",
@@ -147,7 +148,7 @@ def test_unused_budget_procedure_failure_does_not_block_answer(monkeypatch: Any)
     assert result.status == "answered"
     assert len(connection.calls) == 3
     assert not any("RESERVE" in sql for sql, _ in connection.calls)
-    assert connection.closed
+    assert not connection.closed  # no statement raised, so it went back to the pool
 
 
 def test_concurrent_requests_never_share_sessions(monkeypatch: Any) -> None:
@@ -179,7 +180,7 @@ def test_concurrent_requests_never_share_sessions(monkeypatch: Any) -> None:
         )
     assert all(result.status == "answered" for result in results)
     assert len(connections) == 2
-    assert all(connection.closed and len(connection.calls) == 3 for connection in connections)
+    assert all(not connection.closed and len(connection.calls) == 3 for connection in connections)
 
 
 def test_session_is_lazy_and_closed_connection_is_not_replaced(monkeypatch: Any) -> None:
@@ -309,7 +310,8 @@ def test_copied_context_cannot_share_connection_with_another_thread(monkeypatch:
             future = executor.submit(context.run, other_worker)
             with pytest.raises(RuntimeError, match="worker threads"):
                 future.result(timeout=5)
-    assert connection.closed
+    assert not connection.closed  # the rejected cross-thread call never touched it
+
 
 @pytest.mark.parametrize("fails", [False, True])
 def test_request_session_issues_no_commit_or_rollback(monkeypatch: Any, fails: bool) -> None:
@@ -329,7 +331,7 @@ def test_request_session_issues_no_commit_or_rollback(monkeypatch: Any, fails: b
                 pass
     assert connection.commits == 0 and connection.rollbacks == 0
     assert connection.calls == []
-    assert connection.closed
+    assert connection.closed == fails  # discarded after an error, pooled after success
     assert chat._SNOWFLAKE_SESSION.get() is None
 
 
@@ -399,3 +401,98 @@ def test_locked_cursor_failed_second_execute_does_not_log_stale_query(
     assert all("query_id" not in record for record in records)
     assert records[-1]["outcome"] == "failure"
     assert "private transport" not in caplog.text
+
+
+def test_clean_requests_reuse_one_connection_across_requests(
+    monkeypatch: Any, _fresh_write_session_pool: Any
+) -> None:
+    connections: list[Connection] = []
+
+    def connect(settings: Any) -> Connection:
+        connections.append(Connection())
+        return connections[-1]
+
+    monkeypatch.setattr(chat, "connect", connect)
+    settings = ApiSettings()
+    for _ in range(3):
+        with (
+            chat._request_snowflake_session(settings),
+            chat._chat_snowflake_connection(settings) as connection,
+        ):
+            assert connection is connections[0]
+    assert len(connections) == 1 and not connections[0].closed
+    assert _fresh_write_session_pool.stats() == {"idle": 1, "in_use": 0, "creating": 0}
+    _fresh_write_session_pool.close_all()
+    assert connections[0].closed
+
+
+@pytest.mark.parametrize("failure", [RuntimeError("boom"), KeyboardInterrupt()])
+def test_errored_request_discards_connection_and_next_request_reconnects(
+    monkeypatch: Any, failure: BaseException, _fresh_write_session_pool: Any
+) -> None:
+    connections: list[Connection] = []
+
+    def connect(settings: Any) -> Connection:
+        connections.append(Connection())
+        return connections[-1]
+
+    monkeypatch.setattr(chat, "connect", connect)
+    settings = ApiSettings()
+    with (
+        pytest.raises(type(failure)),
+        chat._request_snowflake_session(settings),
+        chat._chat_snowflake_connection(settings),
+    ):
+        raise failure
+    assert connections[0].closed
+    assert _fresh_write_session_pool.stats()["idle"] == 0
+    with (
+        chat._request_snowflake_session(settings),
+        chat._chat_snowflake_connection(settings) as connection,
+    ):
+        assert connection is connections[1]
+    assert len(connections) == 2
+
+
+def test_swallowed_statement_error_still_discards_connection(monkeypatch: Any) -> None:
+    connection = Connection()
+    monkeypatch.setattr(chat, "connect", lambda settings: connection)
+    settings = ApiSettings()
+    with (
+        chat._request_snowflake_session(settings),
+        suppress(RuntimeError),
+        chat._chat_snowflake_connection(settings),
+    ):
+        raise RuntimeError("caller handles this")
+    assert connection.closed
+
+
+def test_exhausted_write_pool_fails_checkout_without_connecting(monkeypatch: Any) -> None:
+    settings = ApiSettings(write_pool_max_size=1, write_pool_checkout_timeout_seconds=0.05)
+    connections: list[Connection] = []
+
+    def connect(settings: Any) -> Connection:
+        connections.append(Connection())
+        return connections[-1]
+
+    monkeypatch.setattr(chat, "connect", connect)
+    result: list[BaseException] = []
+
+    def other() -> None:
+        try:
+            with (
+                chat._request_snowflake_session(settings),
+                chat._chat_snowflake_connection(settings),
+            ):
+                pass
+        except BaseException as exc:
+            result.append(exc)
+
+    with (
+        chat._request_snowflake_session(settings),
+        chat._chat_snowflake_connection(settings),
+        ThreadPoolExecutor(max_workers=1) as executor,
+    ):
+        executor.submit(other).result(timeout=5)
+    assert len(result) == 1 and "exhausted" in str(result[0])
+    assert len(connections) == 1

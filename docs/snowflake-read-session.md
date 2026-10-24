@@ -29,7 +29,7 @@ Public read modules must call `read_connection(settings)`, never `connect()`; `t
 
 ## Limits
 
-- Do not share this pool with write paths (knowledge chat, feedback, privacy).
+- Do not share this pool with write paths (knowledge chat, feedback, privacy); they use the separate pool in `docs/snowflake-write-session.md`.
 - Connections are not safe across threads; FastAPI sync workers must checkout on the same thread that serves the request.
 - Pooling does not change SQL, OpenAPI, or public contracts.
 

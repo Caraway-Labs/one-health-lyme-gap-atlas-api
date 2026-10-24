@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from typing import Any
 
 import pytest
 
@@ -58,3 +59,14 @@ def _stub_session_baseline(request: pytest.FixtureRequest, monkeypatch: pytest.M
     if getattr(request.module, "REAL_SESSION_BASELINE", False):
         return
     monkeypatch.setattr("lyme_gap_atlas_api.snowflake_read_session.apply_baseline", lambda *_: None)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_write_session_pool(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Isolate the process-wide write pool so fake connections never leak across tests."""
+    from lyme_gap_atlas_api import snowflake_write_session
+
+    pool = snowflake_write_session.WriteSessionPool()
+    monkeypatch.setattr(snowflake_write_session, "_POOL", pool)
+    yield pool
+    pool.close_all()
