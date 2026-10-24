@@ -171,3 +171,19 @@ def test_cache_expires_and_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
     assert bounded.get("p2")[0] and bounded.get("p3")[0]
     bounded.put("p3", ROW)
     assert bounded.get("p2")[0]
+
+
+def test_prefetch_edge_paths_never_raise() -> None:
+    clock = Clock()
+    bare = KnowledgeChatService(
+        Retriever(), Answerer([valid_payload()], clock), None, "test-secret", clock=clock
+    )
+    assert bare._provenance_rows(["12345678"]).rows == {}
+    assert bare._start_provenance_prefetch([], "req-e") is None
+
+    service, _ = service_for(Provenance())
+    assert service._start_provenance_prefetch([], "req-e") is None
+    service._provenance_executor.shutdown(wait=True)  # type: ignore[union-attr]
+    evidence = chat.Evidence("p1", "excerpt", "summary", "12345678", "Title", "https://x.test/1")
+    assert service._start_provenance_prefetch([evidence], "req-e") is None
+    assert ask(service).citations[0].pmcid == "PMC999"  # falls back to the synchronous lookup
