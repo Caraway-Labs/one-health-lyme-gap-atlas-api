@@ -153,19 +153,10 @@ def _chat_snowflake_connection(settings: SnowflakeSettings) -> Iterator[Any]:
     session = _SNOWFLAKE_SESSION.get()
     if session is not None and session.settings is settings:
         connection = session.get()
-        # The connector exposes no public autocommit getter and this session never
-        # enables autocommit, so (like the connector's own __exit__ when AUTOCOMMIT
-        # is unset) always end the unit of work explicitly; close is deferred to
-        # request teardown. COMMIT/ROLLBACK with no open transaction is a no-op.
-        try:
-            yield connection
-        except BaseException:
-            with _snowflake_timing("transaction_rollback"):
-                connection.rollback()
-            raise
-        else:
-            with _snowflake_timing("transaction_commit"):
-                connection.commit()
+        # The API-owned connect() sets autocommit=True, so each statement is its own
+        # transaction: no per-operation COMMIT/ROLLBACK round trip and no reads of
+        # connector internals. Close is deferred to request teardown.
+        yield connection
     else:
         # Standalone adapters and injected test stores retain their original lifecycle.
         with connect(settings) as connection:
