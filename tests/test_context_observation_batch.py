@@ -45,8 +45,11 @@ def test_context_query_with_release_sql_shape() -> None:
     schema = "DB.SCHEMA"
     sql, params = context_query_with_release(view, schema, _query(), 0)
     assert "CURRENT_RELEASE_V LIMIT 2" in sql
-    assert "LEFT JOIN LATERAL" in sql
+    assert "LEFT JOIN LATERAL" not in sql
+    assert "LEFT JOIN" in sql and "v.release_version=rel.RELEASE_ID" in sql
+    assert "TO_JSON(v.value) AS value_json" in sql
     assert "COUNT(*) FROM release_rows)=1" in sql
+    assert "ORDER BY v.measure_id" in sql and "LIMIT %s OFFSET %s" in sql
     assert params[0 : len(CONTEXT_FIELDS)] == tuple(CONTEXT_FIELDS)
     assert params[len(CONTEXT_FIELDS)] == "population_2022"
     assert params[len(CONTEXT_FIELDS) + 1] == "01003"

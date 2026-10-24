@@ -64,8 +64,9 @@ def _view_column_list(alias: str) -> str:
     )
 
 
-def _outer_observation_columns() -> str:
-    return ",".join(f"o.{key}" for key in FIELDS)
+def _batch_observation_select(alias: str) -> str:
+    """Observation columns for the batch read (same projection as ``COLUMNS``)."""
+    return _view_column_list(alias)
 
 
 def context_query_with_release(
@@ -77,24 +78,20 @@ def context_query_with_release(
     fips = sorted(query.geography_id)
     identities = ",".join(["%s"] * len(CONTEXT_FIELDS))
     counties = ",".join(["%s"] * len(fips))
-    view_cols = _view_column_list("v")
-    outer_cols = _outer_observation_columns()
+    observation_cols = _batch_observation_select("v")
     statement = (
         "WITH release_rows AS ("
         f"SELECT RELEASE_ID FROM {release_schema}.CURRENT_RELEASE_V LIMIT 2"
         ") "
-        f"SELECT rel.RELEASE_ID,{outer_cols} "
+        f"SELECT rel.RELEASE_ID,{observation_cols} "
         "FROM release_rows rel "
-        "LEFT JOIN LATERAL ("
-        f"SELECT {view_cols} FROM {view} v "
-        f"WHERE v.measure_id IN ({identities}) AND v.measure_id=%s "
+        f"LEFT JOIN {view} v ON v.release_version=rel.RELEASE_ID "
+        f"AND v.measure_id IN ({identities}) AND v.measure_id=%s "
         f"AND v.county_fips IN ({counties}) "
         "AND v.context_contract_version=%s AND v.vintage_year=%s "
-        "AND v.release_version=rel.RELEASE_ID "
+        "WHERE (SELECT COUNT(*) FROM release_rows)=1 "
         "ORDER BY v.measure_id,v.county_fips,v.observation_id "
         "LIMIT %s OFFSET %s"
-        ") o ON TRUE "
-        "WHERE (SELECT COUNT(*) FROM release_rows)=1"
     )
     params: tuple[Any, ...] = (
         *CONTEXT_FIELDS,
