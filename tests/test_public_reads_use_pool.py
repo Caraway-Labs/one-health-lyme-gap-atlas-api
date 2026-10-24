@@ -27,8 +27,9 @@ ALLOWED_DIRECT_CONNECT = {
     "county_context_probe.py": "readiness probe on an isolated connection",
     "environmental_reader_probe.py": "readiness probe on an isolated connection",
     "model_serving_probe.py": "readiness probe on an isolated connection",
-    "feedback.py": "stored-procedure writes stay on isolated connections (story #325)",
-    "knowledge_chat.py": "request-scoped chat session (#125)",
+    "snowflake_write_session.py": "the one place a pooled write connection is created",
+    "feedback.py": "passes connect to the separate write pool (story #325)",
+    "knowledge_chat.py": "passes connect to the separate write pool (#125, #325)",
     "cdc_surveillance.py": "alters session state; not in #318 scope (follow-up)",
     "repository.py": "ready() is unused by readiness since #310; load_snapshot is pooled",
 }
