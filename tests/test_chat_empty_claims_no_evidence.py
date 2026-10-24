@@ -44,7 +44,7 @@ def test_empty_claims_return_no_evidence_without_retry() -> None:
     assert len(answerer.calls) == 1
     assert store.persist_calls == 1
     assert completion["outcome"] == "no_evidence"
-    assert completion["validation_outcome"] == "no_claims"
+    assert completion["validation_outcome"] == "answer has no grounded claims"
     assert completion["generation_attempts"] == 1
 
 
@@ -75,3 +75,13 @@ def test_no_evidence_persistence_failure_fails_closed() -> None:
     assert response.status == "evidence_unavailable"
     assert len(answerer.calls) == 1
     assert completion["outcome"] == "persistence_failure"
+
+
+def test_no_claims_origin_survives_the_closed_telemetry_vocabulary(
+    capsys: Any,
+) -> None:
+    from lyme_gap_atlas_api.telemetry_logging import VALIDATIONS
+
+    assert "answer has no grounded claims" in VALIDATIONS
+    _, _, completion = ask([EMPTY])
+    assert completion["validation_outcome"] in VALIDATIONS

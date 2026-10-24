@@ -1619,7 +1619,7 @@ class KnowledgeChatService:
                 # Well-formed output that supports no claim from the retrieved passages
                 # is a corpus gap, not a fault: no retry, no model-knowledge fallback.
                 if diagnostics is not None:
-                    diagnostics["validation_outcome"] = "no_claims"
+                    diagnostics["validation_outcome"] = "answer has no grounded claims"
                 result = KnowledgeChatResponse(
                     **base,
                     status="no_evidence",
