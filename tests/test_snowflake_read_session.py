@@ -670,3 +670,17 @@ def test_session_overrides_requires_pooled_connection(monkeypatch: Any) -> None:
     _factory(monkeypatch)
     with pytest.raises(ValueError), session_overrides(FakeConnection(), statement_timeout=2):
         pass
+
+
+def test_session_overrides_without_changes_is_a_noop(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    with read_connection(ApiSettings()) as connection, session_overrides(connection):
+        pass
+    assert connections[0].override_log == [] and not connections[0].closed
+
+
+@pytest.mark.parametrize("row", [None, 5, ("U", "R", "ONE_HEALTH_LYME_GAP_ATLAS"), (1, 2, 3, 4)])
+def test_malformed_identity_row_is_a_mismatch(row: Any) -> None:
+    from lyme_gap_atlas_api.snowflake_session_baseline import identity_matches
+
+    assert not identity_matches(ApiSettings(), row)
