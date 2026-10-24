@@ -304,8 +304,9 @@ def test_http_pagination_and_unsampled_safe_timing(monkeypatch, caplog, measure)
         assert items[0]["value_state"] == "NO_RECORDS"
         assert items[0]["surveillance_context"]["evidence"]["normalized_state"] == "unknown"
     assert second.json()["meta"]["next_page_token"] is None
-    assert [len(s.calls) for s in sessions] == [5, 5]
-    assert all(s.closes == 0 for s in sessions)
+    assert len(sessions) == 1
+    assert len(sessions[0].calls) == 10
+    assert sessions[0].closes == 0
     completions = [
         r.context
         for r in caplog.records
@@ -313,11 +314,13 @@ def test_http_pagination_and_unsampled_safe_timing(monkeypatch, caplog, measure)
         and getattr(r, "context", {}).get("path") == "/v1/observations"
     ]
     assert len(completions) == 2
-    for event, expected, processed in zip(completions, [5, 5], [2, 1], strict=True):
+    for index, (event, expected, processed) in enumerate(
+        zip(completions, [5, 5], [2, 1], strict=True)
+    ):
         assert event["cdc_serving_path"] == "batch"
         assert event["cdc_processed_counties"] == processed
         counts = event["cdc_operation_counts"]
-        assert counts["connect"] == 1
+        assert counts["connect"] == (1 if index == 0 else 0)
         assert counts.get("connection_teardown", 0) == 0
         assert counts["execute"] == expected
         assert counts["fetchmany"] == expected - 2
