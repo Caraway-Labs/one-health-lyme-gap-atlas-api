@@ -16,7 +16,12 @@ if TYPE_CHECKING:
 from .cdc_timing import phase as cdc_phase
 from .climate_timing import phase
 from .config import ApiSettings
-from .county_context import context_observation, context_query
+from .county_context import (
+    context_observation,
+    context_query,
+    context_query_with_release,
+    parse_context_batch_rows,
+)
 from .county_context_ids import CONTEXT_CONTRACT, CONTEXT_FIELDS
 from .dependency_telemetry import connect
 from .environmental_context import MEASURES, EnvironmentalRepository, environmental_observation
@@ -63,7 +68,7 @@ class SnowflakeObservationRepository:
         try:
             with read_connection(self.settings) as borrowed:
                 try:
-                    yield SnowflakeObservationRepository(self.settings, _connection=borrowed)
+                    yield type(self)(self.settings, _connection=borrowed)
                 except BaseException:
                     if close_on_exit_error:
                         get_read_session_pool().drop_current()
@@ -98,6 +103,30 @@ class SnowflakeObservationRepository:
             f"{_sql_identifier(self.settings.snowflake_presentation_schema)}."
             "CURRENT_COUNTY_OBSERVATIONS_V"
         )
+
+    @property
+    def _release_schema(self) -> str:
+        return (
+            f"{_sql_identifier(self.settings.presentation_database)}."
+            f"{_sql_identifier(self.settings.snowflake_presentation_schema)}"
+        )
+
+    def query_context(
+        self, query: ObservationQuery, offset: int
+    ) -> tuple[str, list[tuple[Any, ...]]]:
+        statement, params = context_query_with_release(
+            self.view, self._release_schema, query, offset
+        )
+        try:
+            with self._cursor() as cursor:
+                cursor.execute(
+                    statement, params, timeout=self.settings.public_query_timeout_seconds
+                )
+                return parse_context_batch_rows(list(cursor.fetchall()))
+        except AtlasDataUnavailableError:
+            raise
+        except Exception as exc:
+            raise AtlasDataUnavailableError("Governed county context is unavailable") from exc
 
     def current_release(self) -> str:
         schema = (
@@ -250,6 +279,12 @@ class ObservationService:
         if cdc:
             assert adapter is not None
             adapter.validate_query(query)
+        if (
+            not cdc
+            and query.measure_id in CONTEXT_FIELDS
+            and isinstance(repository, SnowflakeObservationRepository)
+        ):
+            return self._search_context_snowflake(query, repository, check)
         with phase("release_lookup"), cdc_phase("release_lookup"):
             release = repository.current_release()
         if not isinstance(release, str) or not release.strip():
@@ -358,6 +393,83 @@ class ObservationService:
                 raise AtlasDataUnavailableError("Unexpected dated collection shape")
             dated_items.append(item)
         return CollectionEnvelope[Observation](data=dated_items, meta=meta, links=CollectionLinks())
+
+    def _search_context_snowflake(
+        self,
+        query: ObservationQuery,
+        repository: SnowflakeObservationRepository,
+        check: Callable[[], None],
+    ) -> ObservationCollection:
+        check()
+        fingerprint = hashlib.sha256(
+            json.dumps(
+                query.model_dump(
+                    mode="json",
+                    exclude={"page_token", "page_size"}
+                    | ({"vintage_year"} if query.vintage_year is None else set()),
+                ),
+                sort_keys=True,
+            ).encode()
+        ).hexdigest()
+        token_release: str | None = None
+        offset = 0
+        if query.page_token is not None:
+            if len(query.page_token) > 2048:
+                raise PublicQueryError("INVALID_REQUEST", "Invalid page_token.")
+            try:
+                payload = decode(query.page_token)
+                token_release = payload["release"]
+                offset = payload["offset"]
+                if (
+                    payload["query"] != fingerprint
+                    or not isinstance(token_release, str)
+                    or not token_release.strip()
+                    or type(offset) is not int
+                    or offset < 1
+                    or offset > 10_000
+                ):
+                    raise ValueError
+            except (ValueError, KeyError, TypeError) as exc:
+                raise PublicQueryError("INVALID_REQUEST", "Invalid page_token.") from exc
+        check()
+        with phase("release_lookup"), phase("observation_query"):
+            release, rows = repository.query_context(query, offset)
+        if token_release is not None and release != token_release:
+            raise AtlasDataUnavailableError("Current observation release changed")
+        check()
+        more = len(rows) > query.page_size
+        if not rows and offset == 0:
+            with phase("measure_lookup"):
+                if not repository.measure_exists(query.measure_id, release):
+                    raise PublicQueryError(
+                        "RESOURCE_NOT_FOUND", "Measure has no published county observations."
+                    )
+            raise PublicQueryError(
+                "RESOURCE_NOT_FOUND", "No admitted county context for this selection."
+            )
+        with phase("mapping"):
+            items = [context_observation(row) for row in rows]
+            pairs = {(item.measure_id, item.geography.geography_id) for item in items}
+            if len(pairs) != len(items) or any(
+                item.measure_id != query.measure_id
+                or item.release_id != release
+                or item.geography.geography_id not in query.geography_id
+                for item in items
+            ):
+                raise AtlasDataUnavailableError("Inconsistent governed county context")
+            items = items[: query.page_size]
+        check()
+        token = self._token(fingerprint, release, offset + query.page_size) if more else None
+        meta = CollectionMeta(
+            next_page_token=token,
+            availability="AVAILABLE",
+            reason=None,
+            release_id=release,
+            limitations=[],
+        )
+        return CollectionEnvelope[CountyContextObservation](
+            data=items, meta=meta, links=CollectionLinks()
+        )
 
     @staticmethod
     def _token(fingerprint: str, release: str, offset: int) -> str:

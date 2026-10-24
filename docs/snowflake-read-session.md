@@ -11,6 +11,10 @@ Public read paths (`SnowflakeObservationRepository.request_session`, `SnowflakeT
 - **Errors:** any exception escaping `read_connection` drops and closes the thread's session so the next request reconnects.
 - **CDC / close_on_exit_error:** observations CDC path may call `drop_current()` after handler errors in addition to the automatic drop on exception.
 
+## County context reads (API #288)
+
+Successful `CONTEXT_FIELDS` observation searches (`population_2022`, etc.) use **one** `execute` that resolves `CURRENT_RELEASE_V` and fetches rows in a single statement. When that statement returns a release but no observation rows, the API runs **`measure_exists`** once to distinguish measure-not-found from selection-not-admitted.
+
 ## Limits
 
 - Do not share this pool with write paths (knowledge chat, feedback, privacy).
