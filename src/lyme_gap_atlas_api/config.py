@@ -16,6 +16,8 @@ class ApiSettings(SnowflakeSettings):
         default_factory=lambda: ["https://carawaylabs.com", "http://localhost:3000"]
     )
     cache_ttl_seconds: int = Field(default=300, ge=30, le=3600)
+    snapshot_max_stale_seconds: int = Field(default=900, ge=0, le=86_400)
+    snapshot_refresh_backoff_seconds: int = Field(default=30, ge=1, le=3600)
     rate_limit_per_minute: int = Field(default=120, ge=10, le=10_000)
     public_rate_limit_per_minute: int = Field(default=60, ge=1)
     public_concurrent_requests_per_ip: int = Field(default=5, ge=1)
