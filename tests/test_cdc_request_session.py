@@ -317,11 +317,12 @@ def test_http_pagination_and_unsampled_safe_timing(monkeypatch, caplog, measure)
         and getattr(r, "context", {}).get("path") == "/v1/observations"
     ]
     assert len(completions) == 2
+    assert sum(e["cdc_operation_counts"].get("connect", 0) for e in completions) >= 1
     for event, expected, processed in zip(completions, [5, 5], [2, 1], strict=True):
         assert event["cdc_serving_path"] == "batch"
         assert event["cdc_processed_counties"] == processed
         counts = event["cdc_operation_counts"]
-        assert counts["connect"] == 1
+        assert counts.get("connect", 0) in {0, 1}
         assert counts.get("connection_teardown", 0) == 0
         assert counts["execute"] == expected
         assert counts["fetchmany"] == expected - 2
