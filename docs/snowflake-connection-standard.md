@@ -159,15 +159,14 @@ Full text: [snowflake-readiness.md](snowflake-readiness.md).
   by a monotonic deadline (3 s after startup), and emit only the transition logs
   `snowflake_dependency_degraded` / `snowflake_dependency_recovered` plus an
   `atlas.dependency.snowflake.check` span.
-- Implementation fact to keep in mind: in the production wiring `create_app` passes
-  `AtlasService.ready` as the monitor's probe, which calls
-  `SnowflakeAtlasRepository.ready()`, which opens a short-lived connection with the
-  standard product connect parameters (login, `SELECT 1`, close) on every check. The
-  monitor's own long-lived connection with monitor-only timeouts
-  (`snowflake_connection.monitor_connection_parameters`) is used only when no probe is
-  supplied. [snowflake-readiness.md](snowflake-readiness.md) describes the long-lived
-  mode; neither mode uses the read or write pool, which is the rule that matters:
-  readiness must not consume request capacity.
+- Wiring: in production (`create_app` called without an injected repository) the monitor has no
+  probe, so its own worker thread owns one long-lived connection built by
+  `snowflake_connection.monitor_connection_parameters` (monitor-only timeouts, no keep-alive) and
+  reuses it across checks, with at most one reconnect when the session fails. Only when a test
+  injects a repository does `create_app` pass `AtlasService.ready` as the probe
+  (`app.py`: `SnowflakeMonitor(config, service.ready if repository is not None else None)`).
+  Neither mode uses the read or write pool, which is the rule that matters: readiness must not
+  consume request capacity. See [snowflake-readiness.md](snowflake-readiness.md).
 - The feedback process-topology gate and the enabled-chat wiring gate still apply to
   readiness.
 
