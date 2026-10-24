@@ -1,5 +1,9 @@
 # API #234 canonical geography acceptance evidence
 
+> **Superseded 2026-10-24 (API #343, [ADR 0021](adr/0021-geography-identity-typed-unavailable.md)):**
+> the identity route now returns a typed HTTP 200 `UNAVAILABLE` (no 503). The text below is the
+> historical evidence for the earlier 503 behavior.
+
 The API implementation already treats canonical geography identity delivery
 as pending. For supported county and state FIPS keys,
 `GET /v1/geographies/{geography_type}/{geography_id}` responds with HTTP 503,

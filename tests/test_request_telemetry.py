@@ -46,7 +46,7 @@ def instrumented(monkeypatch):
     "path,status",
     [
         ("/health/live", 200),
-        ("/v1/geographies/county/01001", 503),
+        ("/v1/geographies/county/01001", 200),
         (f"/unknown/{SECRET}?q={SECRET}", 404),
         ("/test-error", 500),
     ],
