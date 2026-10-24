@@ -1603,6 +1603,17 @@ class KnowledgeChatService:
                 evidence = self._retriever.search(contextual_question, request_id)
             finally:
                 _RETRIEVAL_DEADLINE.reset(retrieval_token)
+            evidence, duplicate_passages = _dedupe_passages(evidence)
+            if duplicate_passages:
+                logger.warning(
+                    "knowledge_chat_duplicate_passage_ids",
+                    extra={
+                        "context": {
+                            "request_id": request_id,
+                            "duplicate_passage_count": duplicate_passages,
+                        }
+                    },
+                )
             diagnostics = _DIAGNOSTICS.get()
             if diagnostics is not None:
                 diagnostics["retrieval_passage_count"] = len(evidence)
@@ -1727,8 +1738,30 @@ class KnowledgeChatService:
                 with _timed_stage(request_id, f"grounding_validation_attempt_{attempt}"):
                     if reference_failure is not None:
                         raise ValueError(reference_failure)
-                    claims, citations = _validate_grounding(generated, evidence)
-                    evidence_state = _validate_evidence_state(generated, citations)
+                    claims, citations, dropped = _grounded_claims(generated, evidence)
+                    if not claims or not str(generated.get("answer", "")).strip():
+                        raise ValueError(dropped[0] if dropped else "answer has no grounded claims")
+                    evidence_state = _validate_evidence_state(
+                        generated, citations, partial=bool(dropped)
+                    )
+                if dropped:
+                    logger.info(
+                        "knowledge_chat_grounding_partial",
+                        extra={
+                            "context": {
+                                "request_id": request_id,
+                                "attempt": attempt,
+                                "kept_claim_count": len(claims),
+                                "dropped_claim_count": len(dropped),
+                                "reasons": [
+                                    reason
+                                    if reason in _GROUNDING_REASONS
+                                    else "invalid_generated_shape"
+                                    for reason in dropped
+                                ],
+                            }
+                        },
+                    )
             except Exception as exc:
                 correction = _grounding_reason(exc)
                 if diagnostics is not None:
@@ -1825,58 +1858,106 @@ def _enrich_citations(
     return enriched
 
 
-def _validate_grounding(
-    generated: dict[str, Any], evidence: list[Evidence]
-) -> tuple[list[KnowledgeClaim], list[KnowledgeCitation]]:
-    available = {item.passage_id: item for item in evidence}
-    claims: list[KnowledgeClaim] = []
-    citation_map: dict[str, KnowledgeCitation] = {}
-    for raw in generated.get("claims", []):
-        passage_ids = list(dict.fromkeys(raw.get("passage_ids", [])))
-        pmids = set(raw.get("pmids", []))
-        if not passage_ids or any(item not in available for item in passage_ids):
-            raise ValueError("unsupported passage citation")
-        actual_pmids = {available[item].pmid for item in passage_ids}
-        if pmids != actual_pmids:
-            raise ValueError("invented or missing PMID")
-        quotes = _support_quotes(raw.get("support_quotes"), passage_ids)
-        for passage_id in passage_ids:
-            quote = quotes[passage_id]
-            if (
-                not isinstance(quote, str)
-                or not quote.strip()
-                or quote not in available[passage_id].excerpt
-            ):
-                raise ValueError("support quote is absent from cited passage")
-        _validate_claim_text(str(raw["text"]), list(quotes.values()))
-        citation_ids: list[str] = []
-        for pmid in sorted(actual_pmids):
-            items = [available[item] for item in passage_ids if available[item].pmid == pmid]
-            citation_id = f"pmid:{pmid}"
-            citation_ids.append(citation_id)
-            existing = citation_map.get(citation_id)
-            claim_ids = list(
-                dict.fromkeys((existing.claim_ids if existing else []) + [raw["claim_id"]])
-            )
-            cited_passages = list(
-                dict.fromkeys(
-                    (existing.passage_ids if existing else []) + [item.passage_id for item in items]
-                )
-            )
-            citation_map[citation_id] = KnowledgeCitation(
-                citation_id=citation_id,
+def _dedupe_passages(evidence: list[Evidence]) -> tuple[list[Evidence], int]:
+    """Keep the first row for each passage id (rows are ranked best first).
+
+    Grounding resolves a claim's passage id back to one retrieved row. Two rows
+    sharing an id (for example the same passage reached through two paper
+    nodes) made the cited PMID depend on which row won the lookup, which
+    rejected otherwise valid claims as "invented or missing PMID".
+    """
+    seen: set[str] = set()
+    unique: list[Evidence] = []
+    for item in evidence:
+        if item.passage_id in seen:
+            continue
+        seen.add(item.passage_id)
+        unique.append(item)
+    return unique, len(evidence) - len(unique)
+
+
+def _ground_claim(
+    raw: Any, available: dict[str, Evidence]
+) -> tuple[KnowledgeClaim, list[KnowledgeCitation]]:
+    """Validate one claim against the retrieved passages it cites."""
+    passage_ids = list(dict.fromkeys(raw.get("passage_ids", [])))
+    pmids = set(raw.get("pmids", []))
+    if not passage_ids or any(item not in available for item in passage_ids):
+        raise ValueError("unsupported passage citation")
+    actual_pmids = {available[item].pmid for item in passage_ids}
+    if pmids != actual_pmids:
+        raise ValueError("invented or missing PMID")
+    quotes = _support_quotes(raw.get("support_quotes"), passage_ids)
+    for passage_id in passage_ids:
+        quote = quotes[passage_id]
+        if (
+            not isinstance(quote, str)
+            or not quote.strip()
+            or quote not in available[passage_id].excerpt
+        ):
+            raise ValueError("support quote is absent from cited passage")
+    _validate_claim_text(str(raw["text"]), list(quotes.values()))
+    citations: list[KnowledgeCitation] = []
+    for pmid in sorted(actual_pmids):
+        items = [available[item] for item in passage_ids if available[item].pmid == pmid]
+        citations.append(
+            KnowledgeCitation(
+                citation_id=f"pmid:{pmid}",
                 pmid=pmid,
                 title=items[0].title,
                 pubmed_url=items[0].pubmed_url,
-                claim_ids=claim_ids,
-                passage_ids=cited_passages,
+                claim_ids=[raw["claim_id"]],
+                passage_ids=list(dict.fromkeys(item.passage_id for item in items)),
             )
-        claims.append(
-            KnowledgeClaim(claim_id=raw["claim_id"], text=raw["text"], citation_ids=citation_ids)
         )
+    claim = KnowledgeClaim(
+        claim_id=raw["claim_id"],
+        text=raw["text"],
+        citation_ids=[citation.citation_id for citation in citations],
+    )
+    return claim, citations
+
+
+def _grounded_claims(
+    generated: dict[str, Any], evidence: list[Evidence]
+) -> tuple[list[KnowledgeClaim], list[KnowledgeCitation], list[str]]:
+    """Ground each claim on its own: valid claims, merged citations, dropped reasons."""
+    available = {item.passage_id: item for item in evidence}
+    claims: list[KnowledgeClaim] = []
+    citation_map: dict[str, KnowledgeCitation] = {}
+    dropped: list[str] = []
+    for raw in generated.get("claims", []):
+        try:
+            claim, claim_citations = _ground_claim(raw, available)
+        except ValueError as exc:
+            dropped.append(str(exc))
+            continue
+        claims.append(claim)
+        for citation in claim_citations:
+            existing = citation_map.get(citation.citation_id)
+            if existing is not None:
+                citation = citation.model_copy(
+                    update={
+                        "claim_ids": list(dict.fromkeys(existing.claim_ids + citation.claim_ids)),
+                        "passage_ids": list(
+                            dict.fromkeys(existing.passage_ids + citation.passage_ids)
+                        ),
+                    }
+                )
+            citation_map[citation.citation_id] = citation
+    return claims, list(citation_map.values()), dropped
+
+
+def _validate_grounding(
+    generated: dict[str, Any], evidence: list[Evidence]
+) -> tuple[list[KnowledgeClaim], list[KnowledgeCitation]]:
+    """Strict form: every claim must ground, otherwise the first failure is raised."""
+    claims, citations, dropped = _grounded_claims(generated, evidence)
+    if dropped:
+        raise ValueError(dropped[0])
     if not claims or not str(generated.get("answer", "")).strip():
         raise ValueError("answer has no grounded claims")
-    return claims, list(citation_map.values())
+    return claims, citations
 
 
 def _support_quotes(value: Any, passage_ids: list[str]) -> dict[str, Any]:
@@ -1951,7 +2032,7 @@ def _validate_claim_text(text: str, quotes: list[str]) -> None:
 
 
 def _validate_evidence_state(
-    generated: dict[str, Any], citations: list[KnowledgeCitation]
+    generated: dict[str, Any], citations: list[KnowledgeCitation], *, partial: bool = False
 ) -> EvidenceState:
     raw = generated.get("evidence_state")
     allowed = {
@@ -1964,6 +2045,10 @@ def _validate_evidence_state(
     }
     if raw not in allowed:
         raise ValueError("invalid evidence state")
+    if partial:
+        # A claim was dropped, so the model's characterization of the whole answer
+        # no longer applies. Never keep or raise it; report the conservative state.
+        return "limited"
     cited_papers = {citation.pmid for citation in citations}
     if len(cited_papers) == 1:
         return "single_study"
