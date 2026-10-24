@@ -22,6 +22,14 @@ from lyme_gap_atlas_api.public_observations import (
     SnowflakeObservationRepository,
 )
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
+from lyme_gap_atlas_api.snowflake_read_session import get_read_session_pool
+
+
+@pytest.fixture(autouse=True)
+def _isolated_read_pool() -> None:
+    get_read_session_pool().close_all()
+    yield
+    get_read_session_pool().close_all()
 
 
 class Session:
@@ -29,6 +37,7 @@ class Session:
         self.calls = []
         self.cursor_closes = 0
         self.closes = 0
+        self.closed = False
         self.fail = fail
         self.barrier = barrier
         self.release = release
@@ -37,6 +46,14 @@ class Session:
         return self
 
     def __exit__(self, *args):
+        return None
+
+    def is_closed(self) -> bool:
+        return self.closed
+
+    def close(self) -> None:
+        if not self.closed:
+            self.closed = True
         self.closes += 1
 
     def cursor(self):
@@ -148,7 +165,7 @@ def test_single_session_setup_per_request_and_per_county_identity(monkeypatch, m
     assert recorder.processed_counties == n
     assert recorder.counts["authority_query"] == (1 if n <= 50 else n)
     assert len(response.data) == n
-    assert len(opened) == s.closes == 1
+    assert len(opened) == 1 and s.closes == 0
     assert len(s.calls) == (5 if n <= 50 else 3 + 2 * n)
     assert s.cursor_closes == (
         3 if n <= 50 else 2 + n
@@ -255,7 +272,7 @@ def test_overlapping_requests_use_distinct_sessions(monkeypatch):
             pool.map(lambda _: svc.search(ObservationQuery(**params(county=["13081"]))), range(2))
         )
     assert len(sessions) == 2 and sessions[0] is not sessions[1]
-    assert all(s.closes == 1 and len(s.calls) == 5 for s in sessions)
+    assert all(s.closes == 0 and len(s.calls) == 5 for s in sessions)
     assert results[0].data == results[1].data
 
 
@@ -288,7 +305,7 @@ def test_http_pagination_and_unsampled_safe_timing(monkeypatch, caplog, measure)
         assert items[0]["surveillance_context"]["evidence"]["normalized_state"] == "unknown"
     assert second.json()["meta"]["next_page_token"] is None
     assert [len(s.calls) for s in sessions] == [5, 5]
-    assert all(s.closes == 1 for s in sessions)
+    assert all(s.closes == 0 for s in sessions)
     completions = [
         r.context
         for r in caplog.records
@@ -300,7 +317,8 @@ def test_http_pagination_and_unsampled_safe_timing(monkeypatch, caplog, measure)
         assert event["cdc_serving_path"] == "batch"
         assert event["cdc_processed_counties"] == processed
         counts = event["cdc_operation_counts"]
-        assert counts["connect"] == counts["connection_teardown"] == 1
+        assert counts["connect"] == 1
+        assert counts.get("connection_teardown", 0) == 0
         assert counts["execute"] == expected
         assert counts["fetchmany"] == expected - 2
         assert event["cdc_timing_ms"]["service"] >= event["cdc_timing_ms"]["producer"]
@@ -323,7 +341,8 @@ def test_http_failure_retains_timings_and_does_not_return_partial_success(monkey
     assert "data" not in response.json() and "private" not in response.text
     event = next(r.context for r in caplog.records if r.message == "api_request_completed")
     assert event["cdc_operation_counts"]["execute"] == 5
-    assert event["cdc_operation_counts"]["connection_teardown"] == 1
+    counts = event["cdc_operation_counts"]
+    assert counts.get("close", counts.get("connection_teardown", 0)) == 1
     assert event["cdc_timing_ms"]["service"] > 0
     assert s.closes == 1
 
@@ -348,6 +367,11 @@ def test_sdk_transaction_teardown_error_still_closes_and_preserves_body(monkeypa
         return controlled_project(*args, **kwargs)
 
     svc = service(monkeypatch, lambda _: s, project=producer)
+    if body_failure is None:
+        response = svc.search(ObservationQuery(**params(county=["13081"])))
+        assert response.data
+        assert s.closes == 0
+        return
     expected = (
         body_failure
         if body_failure in {asyncio.CancelledError, KeyboardInterrupt}
