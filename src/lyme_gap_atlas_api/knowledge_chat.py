@@ -6,13 +6,14 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import re
 import secrets
 import socket
 import ssl
 import time
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager, suppress
 from contextvars import ContextVar
@@ -474,8 +475,52 @@ class CorpusProvenanceStore(Protocol):
 
 
 _OPENAI_KEEPALIVE_SECONDS = 120.0
-_OPENAI_WARM_INTERVAL_SECONDS = 60.0
+_OPENAI_WARM_INTERVAL_SECONDS = 20.0
 _OPENAI_LOGGED_PATHS = ("/v1/embeddings", "/v1/responses")
+
+
+class _ConnectionTrace:
+    """httpcore trace callback: did this request open a connection, and how long did it take?
+
+    ``connect_tcp`` includes name resolution; ``start_tls`` is the handshake. A request
+    served from the keep-alive pool records neither event.
+    """
+
+    def __init__(self) -> None:
+        self._started: dict[str, float] = {}
+        self.durations: dict[str, float] = {}
+
+    def __call__(self, event_name: str, info: Mapping[str, Any]) -> None:
+        base, _, phase = event_name.rpartition(".")
+        now = time.perf_counter()
+        if phase == "started":
+            self._started[base] = now
+        elif phase in ("complete", "failed") and base in self._started:
+            self.durations[base] = now - self._started[base]
+
+    @property
+    def new_connection(self) -> bool:
+        return "connection.connect_tcp" in self._started
+
+    def milliseconds(self, base: str) -> int | None:
+        value = self.durations.get(base)
+        return None if value is None else round(value * 1000)
+
+
+def _attach_trace(request: httpx.Request) -> None:
+    request.extensions["trace"] = _ConnectionTrace()
+
+
+def _trace_fields(response: httpx.Response) -> dict[str, Any]:
+    trace = response.request.extensions.get("trace")
+    if not isinstance(trace, _ConnectionTrace):
+        return {}
+    return {
+        "new_connection": trace.new_connection,
+        "connect_ms": trace.milliseconds("connection.connect_tcp"),
+        "tls_ms": trace.milliseconds("connection.start_tls"),
+        "headers_wait_ms": trace.milliseconds("http11.receive_response_headers"),
+    }
 
 
 def _log_provider_response(response: httpx.Response) -> None:
@@ -492,6 +537,7 @@ def _log_provider_response(response: httpx.Response) -> None:
                 "path": path,
                 "status_code": response.status_code,
                 "openai_processing_ms": int(processing) if processing.isdigit() else None,
+                **_trace_fields(response),
             }
         },
     )
@@ -509,7 +555,7 @@ def build_openai_http_client() -> httpx.Client:
             max_keepalive_connections=10,
             keepalive_expiry=_OPENAI_KEEPALIVE_SECONDS,
         ),
-        event_hooks={"response": [_log_provider_response]},
+        event_hooks={"request": [_attach_trace], "response": [_log_provider_response]},
     )
 
 
@@ -517,7 +563,9 @@ class OpenAIConnectionWarmer:
     """Keeps one TCP/TLS connection to OpenAI open while the chat service is idle.
 
     The request is unauthenticated and costs nothing (the provider answers 401); its
-    only purpose is to hold a live connection in the shared pool.
+    only purpose is to hold a live connection in the shared pool. Each ping that had
+    to open a new connection, or that failed, is logged with connect/TLS timings so a
+    pool that keeps being torn down is visible.
     """
 
     def __init__(
@@ -544,13 +592,32 @@ class OpenAIConnectionWarmer:
             self._thread.join(timeout=2)
 
     def warm(self) -> None:
+        started = time.perf_counter()
         try:
-            self._client.get(self._url, timeout=5)
+            response = self._client.get(self._url, timeout=5)
         except Exception as error:
-            logger.debug(
+            logger.info(
                 "openai_connection_warm_failed",
-                extra={"context": {"error_type": failure_class(error)}},
+                extra={
+                    "context": {
+                        "error_type": failure_class(error),
+                        "elapsed_ms": round((time.perf_counter() - started) * 1000),
+                    }
+                },
             )
+            return
+        fields = _trace_fields(response)
+        logger.log(
+            logging.INFO if fields.get("new_connection") else logging.DEBUG,
+            "openai_connection_warm",
+            extra={
+                "context": {
+                    "elapsed_ms": round((time.perf_counter() - started) * 1000),
+                    "status_code": response.status_code,
+                    **fields,
+                }
+            },
+        )
 
     def _run(self) -> None:
         self.warm()
