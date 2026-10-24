@@ -15,8 +15,8 @@ from pydantic import (
 )
 
 from .config import ApiSettings
-from .dependency_telemetry import connect
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .snowflake_read_session import read_connection
 from .tier1_timing import phase
 
 
@@ -177,7 +177,7 @@ class SnowflakeTier1PriorityRepository:
         try:
             with (
                 phase("tier1_query"),
-                connect(self.settings) as connection,
+                read_connection(self.settings) as connection,
                 connection.cursor() as cursor,
             ):
                 cursor.execute(

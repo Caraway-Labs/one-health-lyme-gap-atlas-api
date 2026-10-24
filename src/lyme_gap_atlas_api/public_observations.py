@@ -1,9 +1,10 @@
 """Bounded current-release county observation access for public V1."""
 
+import asyncio
 import hashlib
 import json
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from datetime import date
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -35,6 +36,7 @@ from .public_contract import (
 )
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .snowflake_read_session import get_read_session_pool, read_connection
 from .surveillance_delivery import SurveillanceResolver, resolve_context
 
 
@@ -57,27 +59,20 @@ class SnowflakeObservationRepository:
     def request_session(
         self, *, close_on_exit_error: bool = False
     ) -> Iterator["SnowflakeObservationRepository"]:
-        """One exclusively owned session for one synchronous request, never a pool."""
-        body_error: BaseException | None = None
-        connection: SnowflakeConnection | None = None
+        """Borrow a process-scoped read connection for this worker thread."""
         try:
-            connection = connect(self.settings)
-            with connection as borrowed:
+            with read_connection(self.settings) as borrowed:
                 try:
                     yield SnowflakeObservationRepository(self.settings, _connection=borrowed)
-                except BaseException as error:
-                    body_error = error
+                except BaseException:
+                    if close_on_exit_error:
+                        get_read_session_pool().drop_current()
                     raise
         except BaseException as exc:
-            if close_on_exit_error and connection is not None and exc is not body_error:
-                # SDK commit/rollback may raise before close. Cleanup must not
-                # replace the original request error or cancellation.
-                with suppress(BaseException):
-                    connection.close()
-            if body_error is not None:
-                if exc is body_error:
-                    raise
-                raise body_error from None
+            if isinstance(exc, (AtlasDataUnavailableError, PublicQueryError)):
+                raise
+            if isinstance(exc, (asyncio.CancelledError, KeyboardInterrupt, TimeoutError)):
+                raise
             if isinstance(exc, Exception):
                 raise AtlasDataUnavailableError("Governed observations are unavailable") from exc
             raise
