@@ -1707,6 +1707,22 @@ class KnowledgeChatService:
                 return unavailable("malformed_generated_json")
             except Exception:
                 return unavailable("generation_error")
+            if reference_failure is None and generated.get("claims") == []:
+                # Well-formed output that supports no claim from the retrieved passages
+                # is a corpus gap, not a fault: no retry, no model-knowledge fallback.
+                if diagnostics is not None:
+                    diagnostics["validation_outcome"] = "answer has no grounded claims"
+                result = KnowledgeChatResponse(
+                    **base,
+                    status="no_evidence",
+                    answer=NO_EVIDENCE,
+                    evidence_state="no_relevant_corpus_evidence",
+                )
+                try:
+                    persist(result)
+                    return result, "no_evidence"
+                except Exception:
+                    return unavailable("persistence_failure")
             try:
                 with _timed_stage(request_id, f"grounding_validation_attempt_{attempt}"):
                     if reference_failure is not None:
