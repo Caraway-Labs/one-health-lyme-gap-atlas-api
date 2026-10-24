@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import subprocess
+import sys
 import threading
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -127,6 +129,7 @@ def test_app_starts_and_stops_the_warmer_only_when_chat_is_wired(
             return True
 
     monkeypatch.setattr(app_module, "OpenAIConnectionWarmer", FakeWarmer)
+    monkeypatch.setattr(app_module, "warm_openai_sdk", lambda: events.append("warmup"))
     monkeypatch.setattr(app_module, "Neo4jRetriever", FakeRetriever)
     settings = ApiSettings(
         snowflake_account="test",
@@ -140,7 +143,7 @@ def test_app_starts_and_stops_the_warmer_only_when_chat_is_wired(
         kg_hash_secret=SecretStr("hash"),
     )
     with TestClient(create_app(cast(AtlasRepository, object()), settings)):
-        assert events == ["init https://api.openai.com/v1/models", "start"]
+        assert events == ["init https://api.openai.com/v1/models", "warmup", "start"]
     assert events[-1] == "stop"
 
     events.clear()
@@ -249,3 +252,78 @@ def test_warm_failure_is_logged_at_info_without_detail(
     assert len(failed) == 1
     assert "private network detail" not in caplog.text
     assert "error_type" in failed[0].context  # type: ignore[attr-defined]
+
+
+def test_sdk_warmup_runs_the_production_call_paths_offline(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        return chat._warmup_transport_handler(request)
+
+    answers: list[str] = []
+    original = chat.OpenAIAnswerer.answer
+
+    def spy(self: Any, message: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        answers.append(message)
+        return original(self, message, *args, **kwargs)
+
+    monkeypatch.setattr(chat.OpenAIAnswerer, "answer", spy)
+    chat.warm_openai_sdk(httpx.MockTransport(handler))
+    assert paths == ["/v1/embeddings", "/v1/responses"]
+    assert answers == ["warm-up"]
+    event = next(r for r in caplog.records if r.getMessage() == "openai_sdk_warmup")
+    context = event.context  # type: ignore[attr-defined]
+    assert context["outcome"] == "success"
+    assert isinstance(context["embedding_ms"], int)
+    assert isinstance(context["generation_ms"], int)
+
+
+def test_sdk_warmup_failure_is_logged_and_never_raises(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise RuntimeError("private warm-up detail")
+
+    chat.warm_openai_sdk(httpx.MockTransport(handler))
+    event = next(r for r in caplog.records if r.getMessage() == "openai_sdk_warmup")
+    assert event.context["outcome"] == "failure"  # type: ignore[attr-defined]
+    assert event.context["embedding_ms"] is None  # type: ignore[attr-defined]
+    assert "private warm-up detail" not in caplog.text
+
+
+FIRST_CALL_SCRIPT = """
+import time
+import httpx
+from openai import OpenAI
+from lyme_gap_atlas_api import knowledge_chat as chat
+
+if {warm}:
+    chat.warm_openai_sdk()
+canned = httpx.MockTransport(chat._warmup_transport_handler)
+client = OpenAI(api_key="x", http_client=httpx.Client(transport=canned))
+started = time.perf_counter()
+client.with_options(max_retries=0, timeout=5).embeddings.create(
+    model="text-embedding-3-small", input="question", dimensions=1024
+)
+print(round((time.perf_counter() - started) * 1000))
+"""
+
+
+def test_warmup_removes_the_first_embedding_call_cost() -> None:
+    """A fresh process pays seconds on its first embedding call; after warm-up, milliseconds."""
+
+    def first_call_ms(warm: bool) -> int:
+        result = subprocess.run(
+            [sys.executable, "-c", FIRST_CALL_SCRIPT.format(warm=warm)],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=120,
+        )
+        return int(result.stdout.strip().splitlines()[-1])
+
+    assert first_call_ms(True) < 500

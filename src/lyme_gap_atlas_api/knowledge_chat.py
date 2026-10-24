@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -13,6 +14,7 @@ import socket
 import ssl
 import time
 import uuid
+from array import array
 from collections.abc import Callable, Iterator, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager, suppress
@@ -556,6 +558,95 @@ def build_openai_http_client() -> httpx.Client:
             keepalive_expiry=_OPENAI_KEEPALIVE_SECONDS,
         ),
         event_hooks={"request": [_attach_trace], "response": [_log_provider_response]},
+    )
+
+
+_WARMUP_EMBEDDING = base64.b64encode(array("f", [0.0] * 1024).tobytes()).decode()
+_WARMUP_GENERATION = '{"evidence_state":"limited","claims":[]}'
+
+
+def _warmup_transport_handler(request: httpx.Request) -> httpx.Response:
+    """Canned OpenAI responses; the warm-up never leaves the process."""
+    if request.url.path.endswith("/embeddings"):
+        return httpx.Response(
+            200,
+            json={
+                "object": "list",
+                "model": "text-embedding-3-small",
+                "usage": {"prompt_tokens": 1, "total_tokens": 1},
+                "data": [{"object": "embedding", "index": 0, "embedding": _WARMUP_EMBEDDING}],
+            },
+        )
+    return httpx.Response(
+        200,
+        json={
+            "id": "warmup",
+            "object": "response",
+            "created_at": 0,
+            "status": "completed",
+            "model": "warmup",
+            "parallel_tool_calls": False,
+            "tool_choice": "auto",
+            "tools": [],
+            "output": [
+                {
+                    "id": "warmup-message",
+                    "type": "message",
+                    "role": "assistant",
+                    "status": "completed",
+                    "content": [
+                        {"type": "output_text", "text": _WARMUP_GENERATION, "annotations": []}
+                    ],
+                }
+            ],
+        },
+    )
+
+
+def warm_openai_sdk(transport: httpx.BaseTransport | None = None) -> None:
+    """Pay the OpenAI SDK's one-time start-up cost before the first user request.
+
+    The first embeddings call in a process costs seconds locally (lazy imports and
+    request/response type construction) and the first generation call about half a
+    second, while later calls take milliseconds. Production showed the same pattern: the
+    first request after each deploy spent ~1.6 s client-side before the HTTP exchange.
+    This runs the real embedding call and ``OpenAIAnswerer.answer`` against a canned
+    in-process transport, so nothing is sent to OpenAI and nothing is billed.
+    """
+    started = time.perf_counter()
+    outcome = "success"
+    embedding_ms = generation_ms = None
+    try:
+        canned = transport or httpx.MockTransport(_warmup_transport_handler)
+        client = OpenAI(api_key="warmup-not-a-secret", http_client=httpx.Client(transport=canned))
+        step = time.perf_counter()
+        client.with_options(max_retries=0, timeout=5).embeddings.create(
+            model="text-embedding-3-small", input="warm-up", dimensions=1024
+        )
+        embedding_ms = round((time.perf_counter() - step) * 1000)
+        step = time.perf_counter()
+        passage = Evidence(
+            "warmup-0",
+            "Warm up sentence.",
+            "",
+            "0",
+            "Warm-up",
+            "https://pubmed.ncbi.nlm.nih.gov/0/",
+        )
+        OpenAIAnswerer(client, "warmup").answer("warm-up", [passage], "warmup", timeout_seconds=5)
+        generation_ms = round((time.perf_counter() - step) * 1000)
+    except Exception:
+        outcome = "failure"
+    logger.info(
+        "openai_sdk_warmup",
+        extra={
+            "context": {
+                "outcome": outcome,
+                "embedding_ms": embedding_ms,
+                "generation_ms": generation_ms,
+                "elapsed_ms": round((time.perf_counter() - started) * 1000),
+            }
+        },
     )
 
 
