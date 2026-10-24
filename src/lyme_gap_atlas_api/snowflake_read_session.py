@@ -10,8 +10,10 @@ from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING
 
 from snowflake.connector import SnowflakeConnection
+from snowflake.connector import errors as sf_errors
 
 from .dependency_telemetry import connect
+from .public_contract import PublicQueryError
 from .repository import AtlasDataUnavailableError
 
 if TYPE_CHECKING:
@@ -19,6 +21,11 @@ if TYPE_CHECKING:
 
 DEFAULT_IDLE_SECONDS = 300.0
 _VALIDATION_TIMEOUT_SECONDS = 5
+
+# Connector errnos/phrases meaning the statement was cancelled or the session/token is gone;
+# the connector reports some of these as ProgrammingError, so they must still discard.
+_SESSION_LOSS_ERRNOS = frozenset({604, 390111, 390114, 390195, 390318})
+_SESSION_LOSS_PHRASES = ("timeout", "timed out", "cancel", "session", "token", "expired")
 
 
 class _Lease:
@@ -35,7 +42,8 @@ class ReadSessionPool:
     """Bounded pool of read connections; not for write paths.
 
     A connection is lent to one thread at a time (the connector is thread-confined),
-    returned on a successful context exit and closed on any error. Limits default to
+    returned on a successful context exit and on errors ``discard_reason`` classifies as
+    benign, and closed on any other error. Limits default to
     the checkout-time ``ApiSettings`` unless overridden in the constructor.
     """
 
@@ -263,6 +271,50 @@ class ReadSessionPool:
             pass
 
 
+def _has_context(exc: BaseException) -> bool:
+    return exc.__cause__ is not None or exc.__context__ is not None
+
+
+def discard_reason(exc: BaseException, connection: SnowflakeConnection | None = None) -> str | None:
+    """Classify an error that escaped a pooled connection's use.
+
+    Returns ``None`` when the connection may safely be reused (check it in), otherwise a
+    low-cardinality reason string for discarding it (suitable as a metric label). Keep is
+    deliberately narrow and only applies when the session is demonstrably idle and open:
+
+    - ``PublicQueryError`` (our own validation) and ``AtlasDataUnavailableError`` raised
+      by our own code with no ``__cause__``/``__context__`` (the type also wraps real
+      connection failures, so any chained error means discard).
+    - connector ``ProgrammingError``/``DataError`` (a SQL or data error the server
+      reported for a finished statement), unless its errno or message indicates a timeout,
+      cancellation or lost session.
+
+    Everything else discards: timeouts, ``CancelledError``, ``KeyboardInterrupt`` and other
+    ``BaseException``s, network/auth/``OperationalError``/``DatabaseError`` and other
+    connector errors, a closed connection, and unknown types. When unsure, discard, so a
+    possibly mid-statement session is never reused.
+    """
+    if connection is not None and ReadSessionPool._is_closed(connection):
+        return "connection_closed"
+    if not isinstance(exc, Exception):
+        return "cancelled_or_interrupted"
+    if isinstance(exc, TimeoutError):
+        return "timeout"
+    if isinstance(exc, PublicQueryError):
+        return None if not _has_context(exc) else "wrapped_error"
+    if isinstance(exc, AtlasDataUnavailableError):
+        return None if not _has_context(exc) else "wrapped_error"
+    if isinstance(exc, (sf_errors.ProgrammingError, sf_errors.DataError)):
+        errno = getattr(exc, "errno", None)
+        text = str(exc).lower()
+        if errno in _SESSION_LOSS_ERRNOS or any(p in text for p in _SESSION_LOSS_PHRASES):
+            return "session_or_statement_lost"
+        return None
+    if isinstance(exc, sf_errors.Error):
+        return "connector_error"
+    return "unknown_error"
+
+
 _POOL = ReadSessionPool()
 
 
@@ -272,12 +324,18 @@ def get_read_session_pool() -> ReadSessionPool:
 
 @contextmanager
 def read_connection(settings: ApiSettings) -> Iterator[SnowflakeConnection]:
-    """Lend a pooled read connection to this request; closed (not returned) on error."""
+    """Lend a pooled read connection to this request.
+
+    Returned on success or a benign error; closed otherwise (see ``discard_reason``).
+    """
     pool = get_read_session_pool()
     connection = pool.checkout(settings)
     try:
         yield connection
-    except BaseException:
-        pool.drop_current()
+    except BaseException as exc:
+        if discard_reason(exc, connection) is None:
+            pool.checkin()
+        else:
+            pool.drop_current()
         raise
     pool.checkin()

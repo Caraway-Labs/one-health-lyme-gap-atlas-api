@@ -1,5 +1,6 @@
 """Offline proof of the bounded read-session pool; not production latency evidence."""
 
+import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, get_ident
@@ -7,12 +8,16 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from snowflake.connector import errors as sf_errors
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
+from lyme_gap_atlas_api.public_contract import PublicQueryError
+from lyme_gap_atlas_api.public_observations import SnowflakeObservationRepository
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
 from lyme_gap_atlas_api.snowflake_read_session import (
     ReadSessionPool,
+    discard_reason,
     get_read_session_pool,
     read_connection,
 )
@@ -200,6 +205,113 @@ def test_exception_drops_session(monkeypatch: Any) -> None:
         pass
     assert len(connections) == 2
     assert connections[0].close_calls == 1
+
+
+def _wrapped_unavailable() -> AtlasDataUnavailableError:
+    try:
+        try:
+            raise sf_errors.OperationalError("network down")
+        except sf_errors.OperationalError as cause:
+            raise AtlasDataUnavailableError("unavailable") from cause
+    except AtlasDataUnavailableError as exc:
+        return exc
+
+
+def test_public_query_error_keeps_connection(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings()
+    with pytest.raises(PublicQueryError), read_connection(settings) as first:
+        raise PublicQueryError("QUERY_TOO_BROAD", "too broad")
+    assert get_read_session_pool().stats() == {"idle": 1, "in_use": 0, "creating": 0}
+    with read_connection(settings) as second:
+        pass
+    assert second is first
+    assert len(connections) == 1
+    assert connections[0].close_calls == 0
+
+
+def test_own_unavailable_error_keeps_connection(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings()
+    with pytest.raises(AtlasDataUnavailableError), read_connection(settings):
+        raise AtlasDataUnavailableError("no active batch")
+    with read_connection(settings):
+        pass
+    assert len(connections) == 1
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        sf_errors.OperationalError("network down"),
+        sf_errors.DatabaseError("db"),
+        sf_errors.ProgrammingError("Authentication token has expired", errno=390114),
+        sf_errors.ProgrammingError("SQL execution was cancelled by the client", errno=604),
+        TimeoutError("statement timed out"),
+        asyncio.CancelledError(),
+        KeyboardInterrupt(),
+        RuntimeError("unknown"),
+        _wrapped_unavailable(),
+    ],
+)
+def test_connection_level_errors_discard(monkeypatch: Any, error: BaseException) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings()
+    with pytest.raises(type(error)), read_connection(settings):
+        raise error
+    assert get_read_session_pool().stats()["idle"] == 0
+    assert connections[0].close_calls == 1
+    with read_connection(settings):
+        pass
+    assert len(connections) == 2
+
+
+def test_sql_programming_error_keeps_open_connection(monkeypatch: Any) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings()
+    error = sf_errors.ProgrammingError("SQL compilation error: syntax", errno=1003)
+    with pytest.raises(sf_errors.ProgrammingError), read_connection(settings):
+        raise error
+    with read_connection(settings):
+        pass
+    assert len(connections) == 1
+
+
+def test_discard_reason_values_and_closed_connection() -> None:
+    assert discard_reason(PublicQueryError("X", "x")) is None
+    assert discard_reason(sf_errors.DataError("bad value")) is None
+    assert discard_reason(TimeoutError()) == "timeout"
+    assert discard_reason(asyncio.CancelledError()) == "cancelled_or_interrupted"
+    assert discard_reason(sf_errors.OperationalError("x")) == "connector_error"
+    assert discard_reason(_wrapped_unavailable()) == "wrapped_error"
+    assert discard_reason(RuntimeError("x")) == "unknown_error"
+    closed = FakeConnection()
+    closed.closed = True
+    assert discard_reason(PublicQueryError("X", "x"), closed) == "connection_closed"  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("error", "raised", "kept"),
+    [
+        (PublicQueryError("QUERY_TOO_BROAD", "too broad"), PublicQueryError, True),
+        # Connector errors are wrapped for callers, as before this change.
+        (sf_errors.OperationalError("network down"), AtlasDataUnavailableError, False),
+        (TimeoutError(), TimeoutError, False),
+    ],
+)
+def test_request_session_close_on_exit_error_honors_policy(
+    monkeypatch: Any, error: Exception, raised: type[Exception], kept: bool
+) -> None:
+    connections = _factory(monkeypatch)
+    settings = ApiSettings()
+    repository = SnowflakeObservationRepository(settings)
+    with (
+        pytest.raises(raised),
+        repository.request_session(close_on_exit_error=True),
+    ):
+        raise error
+    assert (connections[0].close_calls == 0) is kept
+    assert get_read_session_pool().stats()["idle"] == (1 if kept else 0)
 
 
 def test_drop_current_is_idempotent_and_frees_slot(monkeypatch: Any) -> None:
