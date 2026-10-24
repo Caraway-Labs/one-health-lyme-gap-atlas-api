@@ -417,6 +417,7 @@ def create_app(
                 generation_timeout_seconds=config.kg_generation_timeout_seconds,
                 snowflake_settings=config,
                 persist_in_background=True,
+                prefetch_provenance=True,
             )
     probe_started = False
 

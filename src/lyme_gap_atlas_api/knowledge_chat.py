@@ -13,7 +13,7 @@ import ssl
 import time
 import uuid
 from collections.abc import Callable, Iterator
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -61,6 +61,11 @@ _RETRIEVAL_DEADLINE: ContextVar[float | None] = ContextVar(
 _NEO4J_RETRIEVAL_SECONDS = 5.0
 _PERSIST_WORKERS = 4
 _PERSIST_QUEUE_LIMIT = 32
+_PROVENANCE_WORKERS = 4
+_PROVENANCE_CACHE_TTL_SECONDS = 600.0
+_PROVENANCE_ABSENT_TTL_SECONDS = 60.0
+_PROVENANCE_CACHE_MAX = 2000
+_PROVENANCE_MIN_WAIT_SECONDS = 0.5
 
 
 class _RequestSnowflakeSession:
@@ -1106,6 +1111,84 @@ def _unsafe_request(message: str) -> bool:
     return medical or injection or clearly_unsafe
 
 
+@dataclass(frozen=True)
+class _ProvenanceResult:
+    rows: dict[str, dict[str, Any]]
+    cache_hits: int
+
+
+class _ProvenanceCache:
+    """Bounded, expiring PMID to provenance-row cache; a ``None`` row means absent."""
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        self._items: dict[str, tuple[float, dict[str, Any] | None]] = {}
+        self._lock = Lock()
+        self._clock = clock
+
+    def get(self, pmid: str) -> tuple[bool, dict[str, Any] | None]:
+        now = self._clock()
+        with self._lock:
+            item = self._items.get(pmid)
+            if item is None:
+                return False, None
+            if item[0] <= now:
+                del self._items[pmid]
+                return False, None
+            return True, item[1]
+
+    def put(self, pmid: str, row: dict[str, Any] | None) -> None:
+        now = self._clock()
+        ttl = _PROVENANCE_ABSENT_TTL_SECONDS if row is None else _PROVENANCE_CACHE_TTL_SECONDS
+        with self._lock:
+            if len(self._items) >= _PROVENANCE_CACHE_MAX and pmid not in self._items:
+                self._items = {k: v for k, v in self._items.items() if v[0] > now}
+                if len(self._items) >= _PROVENANCE_CACHE_MAX:
+                    del self._items[min(self._items, key=lambda key: self._items[key][0])]
+            self._items[pmid] = (now + ttl, row)
+
+
+class _PrefetchedProvenance:
+    """CorpusProvenanceStore view over a lookup already running beside generation."""
+
+    def __init__(
+        self,
+        future: Future[_ProvenanceResult],
+        request_id: str,
+        clock: Callable[[], float],
+        deadline: float,
+    ) -> None:
+        self._future = future
+        self._request_id = request_id
+        self._clock = clock
+        self._deadline = deadline
+
+    def lookup(self, pmids: list[str]) -> dict[str, dict[str, Any]]:
+        started = time.perf_counter()
+        wait = max(_PROVENANCE_MIN_WAIT_SECONDS, self._deadline - self._clock() - 1.0)
+        outcome = "success"
+        cache_hits = 0
+        try:
+            result = self._future.result(timeout=wait)
+            cache_hits = result.cache_hits
+            return {pmid: result.rows[pmid] for pmid in pmids if pmid in result.rows}
+        except BaseException:
+            outcome = "failure"
+            raise
+        finally:
+            logger.info(
+                "knowledge_chat_provenance_prefetch",
+                extra={
+                    "context": {
+                        "request_id": self._request_id,
+                        "prefetch": True,
+                        "wait_ms": round((time.perf_counter() - started) * 1000),
+                        "cache_hit_count": cache_hits,
+                        "outcome": outcome,
+                    }
+                },
+            )
+
+
 class KnowledgeChatService:
     def __init__(
         self,
@@ -1120,6 +1203,7 @@ class KnowledgeChatService:
         clock: Callable[[], float] = time.monotonic,
         snowflake_settings: SnowflakeSettings | None = None,
         persist_in_background: bool = False,
+        prefetch_provenance: bool = False,
     ) -> None:
         self._retriever = retriever
         self._answerer = answerer
@@ -1141,6 +1225,63 @@ class KnowledgeChatService:
         )
         self._persist_pending = 0
         self._persist_lock = Lock()
+        # Provenance rows are immutable per corpus artifact, so the lookup starts as
+        # soon as retrieval returns and overlaps answer generation.
+        self._provenance_executor = (
+            ThreadPoolExecutor(
+                max_workers=_PROVENANCE_WORKERS, thread_name_prefix="kg-chat-provenance"
+            )
+            if prefetch_provenance and provenance_store is not None
+            else None
+        )
+        self._provenance_cache = _ProvenanceCache()
+
+    def _provenance_rows(self, pmids: list[str]) -> _ProvenanceResult:
+        """Serve cached rows and query Snowflake only for the PMIDs not cached."""
+        store = self._provenance
+        if store is None:
+            return _ProvenanceResult({}, 0)
+        rows: dict[str, dict[str, Any]] = {}
+        missing: list[str] = []
+        hits = 0
+        for pmid in pmids:
+            found, row = self._provenance_cache.get(pmid)
+            if not found:
+                missing.append(pmid)
+                continue
+            hits += 1
+            if row is not None:
+                rows[pmid] = row
+        if missing:
+            fetched = store.lookup(missing)
+            for pmid in missing:
+                row = fetched.get(pmid)
+                self._provenance_cache.put(pmid, row)
+                if row is not None:
+                    rows[pmid] = row
+        return _ProvenanceResult(rows, hits)
+
+    def _start_provenance_prefetch(
+        self, evidence: list[Evidence], request_id: str
+    ) -> Future[_ProvenanceResult] | None:
+        executor = self._provenance_executor
+        if executor is None:
+            return None
+        pmids = list(dict.fromkeys(item.pmid for item in evidence if item.pmid))[:20]
+        if not pmids:
+            return None
+
+        def work() -> _ProvenanceResult:
+            request_token = _REQUEST_ID.set(request_id)
+            try:
+                return self._provenance_rows(pmids)
+            finally:
+                _REQUEST_ID.reset(request_token)
+
+        try:
+            return executor.submit(work)
+        except RuntimeError:
+            return None
 
     def _hash(self, value: str) -> str:
         return hmac.new(self._secret, value.encode(), hashlib.sha256).hexdigest()
@@ -1422,6 +1563,7 @@ class KnowledgeChatService:
         # if self._clock() >= deadline:
         #     return unavailable("deadline_exhausted")
 
+        provenance_prefetch = self._start_provenance_prefetch(evidence, request_id)
         correction: bool | str = False
         for attempt in (1, 2):
             diagnostics = _DIAGNOSTICS.get()
@@ -1502,8 +1644,13 @@ class KnowledgeChatService:
             if diagnostics is not None:
                 diagnostics["validation_outcome"] = "passed"
             try:
+                provenance: CorpusProvenanceStore | None = self._provenance
+                if provenance_prefetch is not None:
+                    provenance = _PrefetchedProvenance(
+                        provenance_prefetch, request_id, self._clock, deadline
+                    )
                 with _timed_stage(request_id, "provenance_enrichment"):
-                    citations = _enrich_citations(citations, self._provenance, request_id)
+                    citations = _enrich_citations(citations, provenance, request_id)
                 result = KnowledgeChatResponse(
                     **base,
                     status="answered",
