@@ -1,7 +1,7 @@
 """Canonical public V1 REST adapter over governed read services."""
 
 from datetime import date
-from typing import Annotated, Any, NoReturn, cast
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
@@ -10,7 +10,12 @@ from .config import ApiSettings
 from .context_timing import ContextTiming, context_request_timing
 from .county_context_ids import CONTEXT_FIELDS
 from .environmental_context import MEASURES
-from .geography_availability import CanonicalGeographyAvailability, county_availability
+from .geography_availability import (
+    CanonicalGeographyAvailability,
+    GeographyUnavailable,
+    county_availability,
+    geography_unavailable,
+)
 from .public_contract import (
     CollectionEnvelope,
     CollectionLinks,
@@ -100,12 +105,14 @@ for _status, _code in {
 PROBLEMS[200] = {"description": "Successful current-release resource."}
 
 CANONICAL_GEOGRAPHY_PROBLEMS = {
-    **PROBLEMS,
-    503: problem_response(
-        503,
-        "CANONICAL_DATA_UNAVAILABLE",
-        "Canonical data delivery is not yet available.",
-    ),
+    **{status: documented for status, documented in PROBLEMS.items() if status != 503},
+    200: {
+        "description": (
+            "Typed answer. While canonical geography identity delivery is unpublished this is "
+            "availability UNAVAILABLE with data null (HTTP 200, not 5xx, because the hosting "
+            "edge replaces origin 5xx responses with an HTML 504)."
+        )
+    },
 }
 
 
@@ -113,10 +120,6 @@ DETAIL_RESPONSES = {
     **PROBLEMS,
     304: {"description": "Not modified. ETag matches If-None-Match; empty response body."},
 }
-
-
-def pending() -> NoReturn:
-    raise HTTPException(status_code=503, detail="Canonical data delivery is not yet available.")
 
 
 def collection_pagination(
@@ -331,24 +334,29 @@ def methodology(
 
 @router.get(
     "/v1/geographies/{geography_type}/{geography_id}",
-    response_model=ResourceEnvelope[Geography],
+    response_model=ResourceEnvelope[Geography] | GeographyUnavailable,
     responses=CANONICAL_GEOGRAPHY_PROBLEMS,
     operation_id="geography_v1_geographies__geography_type___geography_id__get",
     tags=["geographies"],
     summary="Get geography identity (delivery pending)",
     description=(
-        "Validated county/state FIPS identity; currently returns 503 "
-        "CANONICAL_DATA_UNAVAILABLE. No geometry is returned."
+        "Validated county/state FIPS identity. While canonical identity delivery is "
+        "unpublished the response is HTTP 200 with availability UNAVAILABLE, reason "
+        "CANONICAL_GEOGRAPHY_UNPUBLISHED and data null; the identity is validated for shape "
+        "only. No geometry is returned. Responses use Cache-Control: no-store."
     ),
 )
-def geography(geography_type: GeographyType, geography_id: str) -> NoReturn:
+def geography(
+    geography_type: GeographyType, geography_id: str, response: Response
+) -> GeographyUnavailable:
     from .public_contract import GeographyIdentity
 
     try:
-        GeographyIdentity(geography_type=geography_type, geography_id=geography_id)
+        identity = GeographyIdentity(geography_type=geography_type, geography_id=geography_id)
     except ValueError as exc:
         raise PublicQueryError("INVALID_REQUEST", str(exc)) from exc
-    pending()
+    response.headers["Cache-Control"] = "no-store"
+    return geography_unavailable(identity)
 
 
 @router.get(
