@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import pytest
 from fastapi.testclient import TestClient
 
-from lyme_gap_atlas_api import dependency_telemetry
+from lyme_gap_atlas_api import dependency_telemetry, snowflake_connection
 from lyme_gap_atlas_api import snowflake_monitor as module
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
@@ -219,22 +219,19 @@ def test_broken_credentials_never_ready_then_success_latches(connection, monkeyp
 def test_monitor_connection_timeouts_do_not_change_product_connection_policy(monkeypatch):
     parameters = {"account": "fake", "session_parameters": {"QUERY_TAG": "safe"}}
     monkeypatch.setattr(
-        dependency_telemetry, "connection_parameters", lambda *a, **k: parameters.copy()
+        snowflake_connection, "connection_parameters", lambda *a, **k: parameters.copy()
     )
-    bounded = Mock(return_value=Connection())
-    ordinary = Mock(return_value=Connection())
-    monkeypatch.setattr(dependency_telemetry.snowflake.connector, "connect", bounded)
-    monkeypatch.setattr(dependency_telemetry, "shared_connect", ordinary)
+    connector = Mock(return_value=Connection())
+    monkeypatch.setattr(snowflake_connection.snowflake.connector, "connect", connector)
     dependency_telemetry.connect(ApiSettings(), timeout_seconds=2.5)
-    kwargs = bounded.call_args.kwargs
+    kwargs = connector.call_args.kwargs
     assert kwargs["login_timeout"] == 2.5
     assert kwargs["network_timeout"] == 2.5
     assert kwargs["socket_timeout"] == 2.5
     assert kwargs["client_session_keep_alive"] is False
     assert kwargs["client_telemetry_enabled"] is False
-    assert not ordinary.called
     dependency_telemetry.connect(ApiSettings())
-    ordinary.assert_called_once()
+    assert connector.call_args.kwargs == parameters
 
 
 @pytest.mark.parametrize(

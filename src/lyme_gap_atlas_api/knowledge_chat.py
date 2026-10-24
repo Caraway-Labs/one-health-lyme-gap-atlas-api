@@ -27,7 +27,6 @@ import anyio.from_thread
 import httpx
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
-from lyme_gap_atlas_shared.snowflake import connect
 from neo4j import READ_ACCESS, AsyncGraphDatabase, GraphDatabase
 from neo4j.exceptions import (
     AuthError,
@@ -56,6 +55,7 @@ from .models import (
     SourceUsed,
 )
 from .neo4j_diagnostics import _server_error_category, log_serving_graph_probe
+from .snowflake_connection import connect
 from .telemetry_logging import emit_completion, operational_logger
 
 logger = operational_logger(__name__)
