@@ -229,7 +229,8 @@ def test_preflight_before_connection_and_wrong_release_cleanup(monkeypatch):
     assert not opened
     with pytest.raises(AtlasDataUnavailableError):
         svc.search(ObservationQuery(**params(county=["13081"])))
-    assert s.closes == 1 and len(s.calls) == 3
+    # Our own domain error after completed statements keeps the pooled session.
+    assert s.closes == 0 and len(s.calls) == 3
 
 
 @pytest.mark.parametrize(
@@ -423,7 +424,7 @@ def test_second_county_admission_failure_is_atomic_and_closes(monkeypatch, field
     svc = service(monkeypatch, lambda _: s, project=project)
     with pytest.raises(AtlasDataUnavailableError):
         svc.search(ObservationQuery(**params(county=["01001", "13081"])))
-    assert s.closes == 1
+    assert s.closes == 0  # domain error from our own code: session stays pooled
 
 
 @pytest.mark.parametrize("column,value", [("ROLE", "ACCOUNTADMIN"), ("DATABASE", "OTHER")])
