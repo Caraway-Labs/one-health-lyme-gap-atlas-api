@@ -50,8 +50,13 @@ class Connection:
         self.closed = False
         self.commits = 0
         self.rollbacks = 0
-        self._session_parameters: dict[str, Any] = {}
         self.calls: list[tuple[str, Any]] = []
+
+    def __getattribute__(self, name: str) -> Any:
+        # Strict fake: any private connector attribute read fails the test.
+        if name.startswith("_") and not (name.startswith("__") and name.endswith("__")):
+            raise AssertionError(f"private connector attribute accessed: {name}")
+        return object.__getattribute__(self, name)
 
     def __enter__(self) -> "Connection":
         return self
@@ -306,15 +311,12 @@ def test_copied_context_cannot_share_connection_with_another_thread(monkeypatch:
                 future.result(timeout=5)
     assert connection.closed
 
-@pytest.mark.parametrize("autocommit", [None, False, True])
 @pytest.mark.parametrize("fails", [False, True])
-def test_effective_autocommit_matches_connector_exit(
-    monkeypatch: Any, autocommit: bool | None, fails: bool
+def test_request_unit_of_work_commits_on_success_and_rolls_back_on_error(
+    monkeypatch: Any, fails: bool
 ) -> None:
     settings = ApiSettings()
     connection = Connection()
-    if autocommit is not None:
-        connection._session_parameters["AUTOCOMMIT"] = autocommit
     monkeypatch.setattr(chat, "connect", lambda settings: connection)
     original = RuntimeError("operation failed")
     with chat._request_snowflake_session(settings):
@@ -325,10 +327,43 @@ def test_effective_autocommit_matches_connector_exit(
         else:
             with chat._chat_snowflake_connection(settings):
                 pass
-    assert connection.commits == int(not fails and autocommit is not True)
-    assert connection.rollbacks == int(fails and autocommit is not True)
+    assert connection.commits == int(not fails)
+    assert connection.rollbacks == int(fails)
     assert connection.closed
     assert chat._SNOWFLAKE_SESSION.get() is None
+
+
+def test_session_works_through_telemetry_boundary_without_private_access(
+    monkeypatch: Any,
+) -> None:
+    from lyme_gap_atlas_api.dependency_telemetry import _SnowflakeBoundary
+
+    settings = ApiSettings()
+    connection = Connection()
+    monkeypatch.setattr(chat, "connect", lambda s: _SnowflakeBoundary(connection, "connection"))
+    with chat._request_snowflake_session(settings):
+        with chat._chat_snowflake_connection(settings):
+            pass
+        with pytest.raises(ValueError), chat._chat_snowflake_connection(settings):
+            raise ValueError("boom")
+    assert (connection.commits, connection.rollbacks) == (1, 1)
+
+
+def test_chat_module_source_never_reads_private_connector_attributes() -> None:
+    import ast
+    import inspect
+
+    tree = ast.parse(inspect.getsource(chat))
+    offenders = {
+        n.attr
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Attribute)
+        and n.attr.startswith("_")
+        and not n.attr.startswith("__")
+        and isinstance(n.value, ast.Name)
+        and n.value.id == "connection"
+    }
+    assert offenders == set()
 
 
 @pytest.mark.parametrize("transaction", ["commit", "rollback"])
