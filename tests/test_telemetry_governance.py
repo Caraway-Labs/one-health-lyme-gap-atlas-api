@@ -7,7 +7,6 @@ import logging
 import pytest
 from fastapi.testclient import TestClient
 
-from lyme_gap_atlas_api import dependency_telemetry
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.telemetry import request_dimensions
@@ -196,14 +195,13 @@ def test_readiness_error_text_and_codes_not_logged(monkeypatch, caplog):
     def fail(*args, **kwargs):
         raise UnsafeError(SECRET)
 
-    monkeypatch.setattr(dependency_telemetry, "shared_connect", fail)
+    monkeypatch.setattr("lyme_gap_atlas_api.snowflake_monitor.connect", fail)
     monkeypatch.setattr("lyme_gap_atlas_api.app.configure_logging", lambda: None)
     caplog.set_level(logging.INFO)
-    client = TestClient(create_app(settings=ApiSettings()))
-    assert client.get("/health/ready").status_code == 503
-    assert client.get("/health/live").status_code == 200
-    event = next(r for r in caplog.records if r.msg == "atlas_readiness_check_failed")
-    assert event.context == {"failure_class": "dependency_error"}
+    with TestClient(create_app(settings=ApiSettings())) as client:
+        assert client.get("/health/ready").status_code == 503
+        assert client.get("/health/live").status_code == 200
+    assert sum(r.msg == "snowflake_dependency_degraded" for r in caplog.records) == 1
     assert SECRET not in caplog.text
 
 

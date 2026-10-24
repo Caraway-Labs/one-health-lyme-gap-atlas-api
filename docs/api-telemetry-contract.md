@@ -76,7 +76,13 @@ Account failures are `account_profile_read_failed`, `account_profile_save_failed
 They use fixed operation/outcome/failure categories and safe upstream status,
 never account identity or request data. Runtime configuration events contain
 safe configuration/feature/version fields; no connection identity/host/secrets.
-`atlas_readiness_check_failed` emits only a bounded dependency failure category.
+`atlas_readiness_check_failed` remains the legacy repository diagnostic.
+The background monitor emits `snowflake_dependency_degraded` on initial failure
+or a healthy-to-unhealthy transition and `snowflake_dependency_recovered` only
+on an unhealthy-to-healthy transition. These events have no dependency details.
+Each monitor check has a root `atlas.dependency.snowflake.check` CLIENT span,
+with existing bounded outcome/failure attributes and nested I/O spans. Readiness
+requests read process-local state and never parent a Snowflake span.
 
 Privacy resource UUIDs are not HTTP request IDs. Privacy failure events use the
 active HTTP correlation context even when tracing is disabled; standalone

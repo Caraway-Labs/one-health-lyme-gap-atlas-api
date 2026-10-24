@@ -1,12 +1,13 @@
 """FastAPI application factory and versioned REST contract."""
 
+import asyncio
 import hashlib
 import json
 import re
 import time
 import unicodedata
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import date
@@ -157,6 +158,7 @@ from .reports.renderer import (
 from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
+from .snowflake_monitor import ReadinessDependencies, ReadinessResponse, SnowflakeMonitor
 from .snowflake_read_session import get_read_session_pool
 from .surveillance_delivery import SurveillanceResolver
 from .surveillance_situations import (
@@ -390,7 +392,12 @@ def create_app(
                 }
             },
         )
-    service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
+    service = AtlasService(
+        repository or SnowflakeAtlasRepository(config),
+        config.cache_ttl_seconds,
+        max_stale_seconds=config.snapshot_max_stale_seconds,
+        refresh_backoff_seconds=config.snapshot_refresh_backoff_seconds,
+    )
     tier1_priority = Tier1PriorityService(
         tier1_priority_repository or SnowflakeTier1PriorityRepository(config)
     )
@@ -427,6 +434,7 @@ def create_app(
                 persist_in_background=True,
                 prefetch_provenance=True,
             )
+    snowflake_monitor = SnowflakeMonitor(config, service.ready if repository is not None else None)
     probe_started = False
 
     @asynccontextmanager
@@ -442,12 +450,17 @@ def create_app(
             start_reader_probe(config)
             start_county_context_probe(config)
             start_model_serving_probe(config)
-        if openai_warmer is not None:
-            await anyio.to_thread.run_sync(warm_openai_sdk)
-            openai_warmer.start()
+        snowflake_monitor.start()
         try:
+            await asyncio.to_thread(
+                snowflake_monitor.initial_check.wait, config.snowflake_startup_check_timeout_seconds
+            )
+            if openai_warmer is not None:
+                await anyio.to_thread.run_sync(warm_openai_sdk)
+                openai_warmer.start()
             yield
         finally:
+            await asyncio.to_thread(snowflake_monitor.stop)
             if openai_warmer is not None:
                 openai_warmer.stop()
             await anyio.to_thread.run_sync(get_read_session_pool().close_all)
@@ -529,6 +542,17 @@ def create_app(
     app.add_middleware(FeedbackLimitMiddleware)
     app.add_middleware(PrivacyRequestLimitMiddleware)
     app.add_middleware(RequestContextMiddleware)
+
+    @app.middleware("http")
+    async def withhold_public_cache_while_stale(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        # A stale-while-error snapshot must not be cached downstream as if it were fresh.
+        if service.is_stale and response.headers.get("cache-control", "").startswith("public"):
+            response.headers["Cache-Control"] = "private, no-store"
+        return response
+
     # Starlette applies the most recently added middleware first. Keep CORS outermost
     # so browser clients can read an error returned by a short-circuiting limiter.
     app.add_middleware(
@@ -644,9 +668,9 @@ def create_app(
         return {"status": "ok"}
 
     @app.get("/health/ready", tags=["health"])
-    def ready() -> dict[str, str]:
+    async def ready() -> ReadinessResponse:
         try:
-            # Process readiness is Snowflake (+ chat wiring when enabled).
+            # Startup success is latched; later dependency outages are informational.
             # Neo4j is probed at chat time and fails closed per ADR 0007; do not
             # block App Platform deploys on a private Bolt probe that can hang.
             # Feedback idempotency is process-local; multi-worker topology fails closed.
@@ -656,8 +680,10 @@ def create_app(
                     status_code=503,
                     detail=FEEDBACK_TOPOLOGY_UNSAFE_DETAIL,
                 )
-            if service.ready() and chat_wired:
-                return {"status": "ready"}
+            if snowflake_monitor.startup_succeeded and chat_wired:
+                return ReadinessResponse(
+                    dependencies=ReadinessDependencies(snowflake=snowflake_monitor.dependency_state)
+                )
         except HTTPException:
             raise
         except Exception as exc:
@@ -665,6 +691,8 @@ def create_app(
                 status_code=503, detail="A required data service is unavailable"
             ) from exc
         raise HTTPException(status_code=503, detail="A required data service is unavailable")
+
+    app.state.snowflake_monitor = snowflake_monitor
 
     def authenticated_user(
         authorization: Annotated[str | None, Header()] = None,

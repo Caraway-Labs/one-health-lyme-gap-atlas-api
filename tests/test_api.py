@@ -304,7 +304,8 @@ def chat_client(evidence: list[Evidence]) -> TestClient:
 def test_health_and_contract() -> None:
     api = client()
     assert api.get("/health/live").json() == {"status": "ok"}
-    assert api.get("/health/ready").status_code == 200
+    with api:
+        assert api.get("/health/ready").status_code == 200
     assert api.get("/openapi.json").status_code == 200
 
 
@@ -327,7 +328,8 @@ def test_ready_with_chat_enabled_does_not_probe_neo4j() -> None:
     )
     service = KnowledgeChatService(_HangingRetriever(), FakeAnswerer(), None, "test-secret")
     api = TestClient(create_app(FakeRepository(), settings, service))
-    assert api.get("/health/ready").status_code == 200
+    with api:
+        assert api.get("/health/ready").status_code == 200
 
 
 def test_scores_geometry_detail_and_csv() -> None:
