@@ -21,6 +21,8 @@ The [OpenAPI quality gate](docs/openapi-quality.md) documents semantic review
 diffs and validated public/first-party CI artifacts for downstream consumers.
 The [documentation surface contract](docs/documentation-surfaces.md) defines
 machine, Swagger, retained ReDoc and Fumadocs purposes and the Web handoff.
+For startup health and background Snowflake monitoring, see
+[readiness semantics](docs/snowflake-readiness.md).
 For operator signals, see the [API indicator contract](docs/api-operational-indicators.md)
 and [natural-traffic validation runbook](docs/production-observability-validation.md).
 Ask Atlas request bounds, diagnosis, rollback and manual regression promotion are

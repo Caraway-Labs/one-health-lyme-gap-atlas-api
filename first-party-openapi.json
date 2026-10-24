@@ -3213,11 +3213,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "type": "object",
-                  "title": "Response Ready Health Ready Get"
+                  "$ref": "#/components/schemas/ReadinessResponse"
                 }
               }
             }
@@ -10442,6 +10438,41 @@
           "date_states"
         ],
         "title": "PublisherMetadata"
+      },
+      "ReadinessDependencies": {
+        "properties": {
+          "snowflake": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Snowflake"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snowflake"
+        ],
+        "title": "ReadinessDependencies"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ready",
+            "title": "Status",
+            "default": "ready"
+          },
+          "dependencies": {
+            "$ref": "#/components/schemas/ReadinessDependencies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dependencies"
+        ],
+        "title": "ReadinessResponse"
       },
       "Replay": {
         "properties": {

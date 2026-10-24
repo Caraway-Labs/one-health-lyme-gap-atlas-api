@@ -15,6 +15,8 @@ class ApiSettings(SnowflakeSettings):
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["https://carawaylabs.com", "http://localhost:3000"]
     )
+    snowflake_monitor_interval_seconds: float = Field(default=60, ge=1, le=3600)
+    snowflake_startup_check_timeout_seconds: float = Field(default=10, ge=1, le=30)
     cache_ttl_seconds: int = Field(default=300, ge=30, le=3600)
     rate_limit_per_minute: int = Field(default=120, ge=10, le=10_000)
     public_rate_limit_per_minute: int = Field(default=60, ge=1)

@@ -38,11 +38,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "type": "object",
-                  "title": "Response Ready Health Ready Get"
+                  "$ref": "#/components/schemas/ReadinessResponse"
                 }
               }
             }
