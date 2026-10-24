@@ -161,6 +161,7 @@ from .surveillance_situations import (
 )
 from .telemetry import PrivateInstrumentationProvider, server_request_hook, server_response_hook
 from .telemetry_logging import operational_logger, operational_request_id, protect_dependency_logs
+from .tier1_timing import Tier1Timing, phase as tier1_phase, tier1_request_timing
 from .tier1_priority import (
     SnowflakeTier1PriorityRepository,
     Tier1CountyPriority,
@@ -1145,9 +1146,14 @@ def create_app(
         responses=LEGACY_ERRORS,
     )
     def county_tier1_priority(
-        response: Response, fips: Annotated[str, Path(pattern=r"^\d{5}$")]
+        request: Request,
+        response: Response,
+        fips: Annotated[str, Path(pattern=r"^\d{5}$")],
     ) -> Tier1CountyPriority:
-        result = tier1_priority.county(fips)
+        timing = Tier1Timing()
+        request.state.tier1_timing = timing
+        with tier1_request_timing(timing):
+            result = tier1_priority.county(fips)
         if result is None:
             raise HTTPException(status_code=404, detail="No current Tier 1 county result")
         response.headers["Cache-Control"] = "public, max-age=60"
@@ -1179,15 +1185,21 @@ def create_app(
         },
     )
     def county_tier1_priority_availability(
-        response: Response, fips: Annotated[str, Path(pattern=r"^\d{5}$")]
+        request: Request,
+        response: Response,
+        fips: Annotated[str, Path(pattern=r"^\d{5}$")],
     ) -> Tier1CountyPriorityAvailability:
-        snapshot = service.snapshot()
-        current_fips = {county.fips for county in snapshot.counties}
-        if fips not in current_fips:
-            raise PublicQueryError(
-                "RESOURCE_NOT_FOUND", "County is not in the current geography release."
-            )
-        result = tier1_priority.county(fips)
+        timing = Tier1Timing()
+        request.state.tier1_timing = timing
+        with tier1_request_timing(timing):
+            with tier1_phase("geography_membership"):
+                snapshot = service.snapshot()
+                current_fips = {county.fips for county in snapshot.counties}
+                if fips not in current_fips:
+                    raise PublicQueryError(
+                        "RESOURCE_NOT_FOUND", "County is not in the current geography release."
+                    )
+            result = tier1_priority.county(fips)
         response.headers["Cache-Control"] = "public, max-age=60"
         if result is None:
             return Tier1CountyPriorityAvailability(

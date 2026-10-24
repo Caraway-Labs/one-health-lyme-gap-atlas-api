@@ -11,6 +11,8 @@ from opentelemetry import trace
 from .cdc_timing import IO_OPERATIONS as CDC_IO_OPERATIONS
 from .cdc_timing import PHASES as CDC_PHASES
 from .climate_timing import IO_OPERATIONS, PHASES
+from .tier1_timing import IO_OPERATIONS as TIER1_IO_OPERATIONS
+from .tier1_timing import PHASES as TIER1_PHASES
 from .telemetry import FAILURES, METHODS, OUTCOMES, REQUEST_CORRELATION, ROUTES
 
 
@@ -331,6 +333,8 @@ def completion_context(event: str, context: dict[str, Any]) -> dict[str, Any]:
         ("service_duration_ms", 86_400_000),
         ("climate_before_service_ms", 86_400_000),
         ("climate_after_service_ms", 86_400_000),
+        ("tier1_before_service_ms", 86_400_000),
+        ("tier1_after_service_ms", 86_400_000),
         ("cdc_before_service_ms", 86_400_000),
         ("cdc_after_service_ms", 86_400_000),
         ("generation_attempts", 2),
@@ -353,6 +357,14 @@ def completion_context(event: str, context: dict[str, Any]) -> dict[str, Any]:
             result[key] = {
                 name: number
                 for name in PHASES | IO_OPERATIONS
+                if (number := _number(values.get(name), maximum)) is not None
+            }
+    for key, maximum in (("tier1_timing_ms", 86_400_000), ("tier1_operation_counts", 10_000)):
+        values = context.get(key)
+        if isinstance(values, dict) and values:
+            result[key] = {
+                name: number
+                for name in TIER1_PHASES | TIER1_IO_OPERATIONS
                 if (number := _number(values.get(name), maximum)) is not None
             }
     for key, maximum in (("cdc_timing_ms", 86_400_000), ("cdc_operation_counts", 10_000)):
