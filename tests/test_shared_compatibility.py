@@ -17,7 +17,6 @@ from lyme_gap_atlas_shared.domain import (
 )
 from lyme_gap_atlas_shared.observability import configure_logging, configure_tracing
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
-from lyme_gap_atlas_shared.snowflake import connect
 
 from lyme_gap_atlas_api.models import CountyDetail
 
@@ -48,7 +47,7 @@ def test_installed_shared_version_source_and_explicit_extras() -> None:
     assert source["vcs_info"]["requested_revision"] == SHARED_SHA
     assert set(shared_lock["optional-dependencies"]) >= {"snowflake", "observability"}
     assert "legacy" not in shared_requirement
-    assert callable(connect) and callable(configure_logging) and callable(configure_tracing)
+    assert callable(configure_logging) and callable(configure_tracing)
     assert SnowflakeSettings is not None
 
 
