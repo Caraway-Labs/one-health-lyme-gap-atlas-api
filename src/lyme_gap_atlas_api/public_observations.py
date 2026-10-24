@@ -42,7 +42,7 @@ from .public_contract import (
 )
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
-from .snowflake_read_session import get_read_session_pool, read_connection
+from .snowflake_read_session import discard_reason, get_read_session_pool, read_connection
 from .surveillance_delivery import SurveillanceResolver, resolve_context
 from .telemetry_logging import operational_logger
 
@@ -73,8 +73,8 @@ class SnowflakeObservationRepository:
             with read_connection(self.settings) as borrowed:
                 try:
                     yield type(self)(self.settings, _connection=borrowed)
-                except BaseException:
-                    if close_on_exit_error:
+                except BaseException as exc:
+                    if close_on_exit_error and discard_reason(exc, borrowed) is not None:
                         get_read_session_pool().drop_current()
                     raise
         except BaseException as exc:
