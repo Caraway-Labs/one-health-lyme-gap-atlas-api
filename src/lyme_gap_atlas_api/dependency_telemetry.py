@@ -15,6 +15,7 @@ from snowflake.connector import SnowflakeConnection
 
 from .cdc_timing import CURRENT as CDC_CURRENT
 from .climate_timing import CURRENT
+from .context_timing import CURRENT as CONTEXT_CURRENT
 from .tier1_timing import CURRENT as TIER1_CURRENT
 
 DEPENDENCIES = frozenset({"snowflake", "supabase"})
@@ -98,6 +99,10 @@ def dependency_span(system: str, operation: str) -> Iterator[None]:
             cdc_timing = CDC_CURRENT.get()
             if cdc_timing is not None and system == "snowflake":
                 cdc_timing.record(operation, perf_counter() - started)
+        with suppress(Exception):
+            context_timing = CONTEXT_CURRENT.get()
+            if context_timing is not None and system == "snowflake":
+                context_timing.record(operation, perf_counter() - started)
         with suppress(Exception):
             if span is not None:
                 span.end()
