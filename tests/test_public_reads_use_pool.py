@@ -19,7 +19,8 @@ SOURCE = Path(__file__).resolve().parents[1] / "src" / "lyme_gap_atlas_api"
 
 # Modules that may open their own (non-pooled) connection, and why.
 ALLOWED_DIRECT_CONNECT = {
-    "dependency_telemetry.py": "defines connect()",
+    "dependency_telemetry.py": "wraps connect() with telemetry",
+    "snowflake_connection.py": "defines connect()",
     "snowflake_read_session.py": "the pool is the one place a pooled connection is created",
     "snowflake_monitor.py": "dedicated dependency-monitor connection",
     "cdc_reader_probe.py": "readiness probe on an isolated connection",
