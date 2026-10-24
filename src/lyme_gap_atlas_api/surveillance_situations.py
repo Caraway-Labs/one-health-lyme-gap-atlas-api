@@ -8,9 +8,9 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, Field, model_validator
 
 from .config import ApiSettings
-from .dependency_telemetry import connect
 from .public_contract import PublicQueryError
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .snowflake_read_session import read_connection
 
 MODELS = {
     "four_state": "surveillance-situation-four-state",
@@ -179,7 +179,7 @@ class SnowflakeSituationRepository:
 
     def county(self, fips: str) -> CountySurveillanceSituations:
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with read_connection(self.settings) as connection, connection.cursor() as cursor:
 
                 def read(sql: str, params: tuple[str, ...] = ()) -> list[tuple[Any, ...]]:
                     cursor.execute(sql, params, timeout=self.settings.public_query_timeout_seconds)

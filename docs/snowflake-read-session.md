@@ -1,6 +1,6 @@
-# Bounded Snowflake read connection pool (API #287, #317)
+# Bounded Snowflake read connection pool (API #287, #317, #318)
 
-Public read paths (`SnowflakeObservationRepository.request_session`, `SnowflakeTier1PriorityRepository`) borrow a connection from the process-wide `snowflake_read_session.ReadSessionPool`. This is not the Ask Atlas request-scoped write session (`docs/ask-atlas-snowflake-reuse.md`).
+Every public read path borrows (observations, Tier 1, metadata, provenance, surveillance situations, intelligence feed, `SnowflakeAtlasRepository.load_snapshot`, and the `_cursor()` fallbacks in observations/environmental context; API #318) borrow a connection from the process-wide `snowflake_read_session.ReadSessionPool`. This is not the Ask Atlas request-scoped write session (`docs/ask-atlas-snowflake-reuse.md`).
 
 ## Behavior
 
@@ -20,6 +20,10 @@ Public read paths (`SnowflakeObservationRepository.request_session`, `SnowflakeT
 Successful `CONTEXT_FIELDS` observation searches (`population_2022`, etc.) use **one** `execute` that resolves `CURRENT_RELEASE_V` and fetches rows in a single statement. When that statement returns a release but no observation rows, the API runs **`measure_exists`** once to distinguish measure-not-found from selection-not-admitted.
 
 `api_request_completed` for these routes includes `context_timing_ms` / `context_operation_counts`. Snowflake failures log `context_observation_query_failed` with `snowflake_error_type` only (no SQL text).
+
+## Direct `connect()` exceptions (API #318)
+
+Public read modules must call `read_connection(settings)`, never `connect()`; `tests/test_public_reads_use_pool.py` fails on a direct `connect` import outside an explicit allow-list: the probes (isolated readiness connections), `feedback.py` (writes, #325), `knowledge_chat.py` (request-scoped chat session), `snowflake_monitor.py`, `cdc_surveillance.py` (alters session state; follow-up), and `SnowflakeAtlasRepository.ready()` (no longer used by readiness since #310).
 
 ## Limits
 

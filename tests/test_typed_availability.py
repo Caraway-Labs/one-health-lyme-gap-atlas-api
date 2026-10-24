@@ -186,7 +186,7 @@ def test_actual_repository_wraps_connection_and_sql_failures(monkeypatch, failur
         raise failure("private connection/SQL detail")
 
     if stage == "connection":
-        monkeypatch.setattr("lyme_gap_atlas_api.public_observations.connect", fail)
+        monkeypatch.setattr("lyme_gap_atlas_api.snowflake_read_session.connect", fail)
     else:
         cursor = MagicMock()
         cursor.__enter__.return_value = cursor
