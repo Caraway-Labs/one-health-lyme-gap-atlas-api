@@ -24,7 +24,6 @@ from .county_context import (
     parse_context_batch_rows,
 )
 from .county_context_ids import CONTEXT_CONTRACT, CONTEXT_FIELDS
-from .dependency_telemetry import connect
 from .environmental_context import MEASURES, EnvironmentalRepository, environmental_observation
 from .public_contract import (
     CollectionEnvelope,
@@ -97,7 +96,7 @@ class SnowflakeObservationRepository:
             with self._connection.cursor() as cursor:
                 yield cursor
         else:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with read_connection(self.settings) as connection, connection.cursor() as cursor:
                 yield cursor
 
     @property

@@ -104,12 +104,7 @@ class Cursor:
 
 def setup_repository(monkeypatch, factory):
     settings = ApiSettings(environmental_context_enabled=True, public_query_timeout_seconds=5)
-    monkeypatch.setattr("lyme_gap_atlas_api.public_observations.connect", factory)
     monkeypatch.setattr("lyme_gap_atlas_api.snowflake_read_session.connect", factory)
-    monkeypatch.setattr(
-        "lyme_gap_atlas_api.environmental_context.connect",
-        lambda settings: pytest.fail("borrowed reader opened another connection"),
-    )
     return SnowflakeObservationRepository(settings)
 
 
@@ -262,18 +257,17 @@ def test_simulated_handshake_budget_compares_identical_queries(monkeypatch):
         sessions.append(session)
         return session
 
-    monkeypatch.setattr("lyme_gap_atlas_api.public_observations.connect", connect)
     monkeypatch.setattr("lyme_gap_atlas_api.snowflake_read_session.connect", connect)
-    monkeypatch.setattr("lyme_gap_atlas_api.environmental_context.connect", connect)
     repository = SnowflakeObservationRepository(settings)
-    # Original request path: independent adapter calls each acquire a session.
+    # Un-borrowed adapter calls now lend from the shared pool: one login, kept open.
     release = repository.current_release()
     assert repository.measure_exists(query().measure_id, release)
     baseline_rows = repository.query(query(), release, 0)
     baseline_calls = [call for session in sessions for call in session.calls]
     baseline_connects = len(sessions)
     baseline_simulated_ms = baseline_connects * 1000 + len(baseline_calls) * 100
-    assert all(session.closes == 1 for session in sessions)
+    assert all(session.closes == 0 for session in sessions)
+    get_read_session_pool().close_all()
     sessions.clear()
     response = ObservationService(repository).search(query())
     candidate_calls = [call for session in sessions for call in session.calls]
@@ -281,8 +275,8 @@ def test_simulated_handshake_budget_compares_identical_queries(monkeypatch):
     assert baseline_rows == [fixture_row()]
     assert response.data[0].value == 0
     assert baseline_calls == candidate_calls
-    assert (baseline_connects, len(sessions)) == (3, 1)
-    assert (baseline_simulated_ms, candidate_simulated_ms) == (3300, 1300)
+    assert (baseline_connects, len(sessions)) == (1, 1)
+    assert (baseline_simulated_ms, candidate_simulated_ms) == (1300, 1300)
     assert sessions[0].closes == 0
 
 
