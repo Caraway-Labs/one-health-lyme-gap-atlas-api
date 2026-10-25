@@ -1,5 +1,9 @@
 # OpenAPI quality and consumer artifacts
 
+Write all public descriptions, summaries, and examples to the
+[API writing style guide](api-writing-style.md). It defines the shared vocabulary,
+the approved safety wording, and copy-ready templates.
+
 FastAPI/Pydantic route definitions own both generated contracts. Run the existing
 locked dev setup, tests and export, then the semantic gate:
 
