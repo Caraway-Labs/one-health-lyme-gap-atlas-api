@@ -91,6 +91,7 @@ def test_public_paths_and_generated_shapes() -> None:
 def test_canonical_response_maps_snapshot_has_only_concrete_documented_statuses() -> None:
     app = create_app(settings=ApiSettings())
     expected = {
+        # Typed 200 UNAVAILABLE replaces the permanent 503 (ADR 0021).
         "geography_v1_geographies__geography_type___geography_id__get": {
             "200",
             "400",
@@ -98,7 +99,6 @@ def test_canonical_response_maps_snapshot_has_only_concrete_documented_statuses(
             "413",
             "414",
             "429",
-            "503",
         },
         "canonicalGeographyAvailability": {"200", "400", "404", "413", "414", "429", "503"},
         "indicators_v1_indicators_get": {"200", "400", "404", "413", "414", "429", "503"},
@@ -321,17 +321,51 @@ def test_canonical_problem_and_legacy_compatibility() -> None:
     ("geography_type", "geography_id"),
     [("county", "01001"), ("county", "09001"), ("county", "09110"), ("state", "09")],
 )
-def test_valid_canonical_geographies_remain_structurally_unavailable(
+def test_valid_canonical_geographies_return_typed_unavailable_200(
     geography_type: str, geography_id: str
 ) -> None:
-    """Pending identity delivery is explicit for supported county and state keys."""
+    """Pending identity delivery is a typed 200 for supported county and state keys."""
     client = TestClient(create_app(settings=ApiSettings()))
     response = client.get(f"/v1/geographies/{geography_type}/{geography_id}")
 
-    assert response.status_code == 503
-    assert response.headers["content-type"] == "application/problem+json"
-    assert response.headers["x-request-id"] == response.json()["request_id"]
-    assert response.json()["status"] == 503
-    assert response.json()["code"] == "CANONICAL_DATA_UNAVAILABLE"
-    assert "data" not in response.json()
-    assert "geometry" not in response.json()
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-request-id"]
+    body = response.json()
+    assert body["availability"] == "UNAVAILABLE"
+    assert body["reason"] == "CANONICAL_GEOGRAPHY_UNPUBLISHED"
+    assert body["data"] is None
+    assert body["geography"] == {"geography_type": geography_type, "geography_id": geography_id}
+    assert body["limitations"]
+    assert "geometry" not in body
+
+
+def test_every_public_schema_and_property_has_a_description() -> None:
+    schemas = create_app(settings=ApiSettings()).openapi()["components"]["schemas"]
+    undocumented = [name for name, schema in schemas.items() if not schema.get("description")]
+    assert undocumented == []
+    undocumented = [
+        f"{name}.{prop}"
+        for name, schema in schemas.items()
+        for prop, value in (schema.get("properties") or {}).items()
+        if not value.get("description")
+    ]
+    assert undocumented == []
+
+
+def test_generic_envelopes_have_readable_titles() -> None:
+    schemas = create_app(settings=ApiSettings()).openapi()["components"]["schemas"]
+    for name in schemas:
+        if name.startswith(("CollectionEnvelope_", "ResourceEnvelope_")):
+            assert "_" not in schemas[name]["title"]
+            assert "[" not in schemas[name]["title"]
+
+
+def test_value_state_schema_describes_every_state() -> None:
+    schemas = create_app(settings=ApiSettings()).openapi()["components"]["schemas"]
+    description = schemas["ValueState"]["description"]
+    for state in ValueState:
+        assert f"`{state.value}`" in description
+    assert "does not establish biological absence" in description
+    assert "never turn `null` into zero" in description.lower()

@@ -233,29 +233,69 @@ class UserDataExportEnvelope(BaseModel):
     omissions: list[PrivacyOmission]
 
 
+_SCORING_VERSION_DESCRIPTION = (
+    "Version of the Surveillance Gap Score method that produced the score. "
+    "Scores from different versions are not comparable."
+)
+_PERCENTILE_NOTE = "Value from 0 to 1. `null` when none is published; `null` is not zero."
+_RUCC_DESCRIPTION = (
+    "2023 Rural-Urban Continuum Code, from 1 (most urban) to 9 (most rural). "
+    "`null` when none is published."
+)
+_SVI_DESCRIPTION = "Social Vulnerability Index percentile of the county. " + _PERCENTILE_NOTE
+_UNINSURED_PERCENTILE_DESCRIPTION = (
+    "Percentile of the county's uninsured share among counties. " + _PERCENTILE_NOTE
+)
+_RELEASE_ID_DESCRIPTION = (
+    "Identifies the published data release. Results from different releases are not "
+    "directly comparable."
+)
+_METHODOLOGY_VERSION_DESCRIPTION = "Version of the release methodology that the scores follow."
+
+
 class SourceMetadata(BaseModel):
-    key: str
-    label: str
-    vintage: str
-    url: str
-    note: str
+    """A source dataset listed in the release metadata."""
+
+    key: str = Field(description="Stable key of the source within this release.")
+    label: str = Field(description="Display name of the source.")
+    vintage: str = Field(description="Reference year or period of the source dataset.")
+    url: str = Field(description="Web address of the source.")
+    note: str = Field(description="How Atlas uses the source and any limit on that use.")
 
 
 class AtlasMetadata(BaseModel):
-    scoring_methodology_version: Literal["surveillance-gap-score-v1.1"] = (
-        "surveillance-gap-score-v1.1"
+    """Describes the published data release behind the scores and county records."""
+
+    scoring_methodology_version: Literal["surveillance-gap-score-v1.1"] = Field(
+        default="surveillance-gap-score-v1.1", description=_SCORING_VERSION_DESCRIPTION
     )
-    release_id: str
-    schema_version: str
-    generated_at: datetime
-    loaded_at: datetime
-    scope: str
-    bundle_sha256: str
-    score_defaults: dict[str, Any]
-    methodology_version: str
-    limitations: str
-    sources: list[SourceMetadata]
-    states: list[dict[str, str]]
+    release_id: str = Field(description=_RELEASE_ID_DESCRIPTION)
+    schema_version: str = Field(description="Version of the release data layout.")
+    generated_at: datetime = Field(
+        description="When the release was built, with a UTC offset. It is not when the "
+        "publishers last updated their data."
+    )
+    loaded_at: datetime = Field(
+        description="When Atlas loaded the release for serving, with a UTC offset. It is not "
+        "when the publishers last updated their data."
+    )
+    scope: str = Field(description="Geographic and time coverage of the release.")
+    bundle_sha256: str = Field(
+        description="SHA-256 checksum of the release contents. Use it to confirm you are "
+        "looking at the same release."
+    )
+    score_defaults: dict[str, Any] = Field(
+        description="Default settings the score uses when a request supplies none."
+    )
+    methodology_version: str = Field(description=_METHODOLOGY_VERSION_DESCRIPTION)
+    limitations: str = Field(
+        description="What the release does not show. Read it before you use a score."
+    )
+    sources: list[SourceMetadata] = Field(description="Source datasets used in the release.")
+    states: list[dict[str, str]] = Field(
+        description="States and the District of Columbia in the release. Each entry has a "
+        "`code` and a `name`."
+    )
 
 
 class CountyRecord(BaseModel):
@@ -285,66 +325,154 @@ class CountyRecord(BaseModel):
 
 
 class CountyScoreSummary(BaseModel):
-    scoring_methodology_version: Literal["surveillance-gap-score-v1.1"] = (
-        "surveillance-gap-score-v1.1"
+    """A county's Surveillance Gap Score with the evidence signals behind it.
+
+    The score is a review aid. Atlas results are not a diagnosis. Atlas results are not an
+    estimate of an individual's risk.
+    """
+
+    scoring_methodology_version: Literal["surveillance-gap-score-v1.1"] = Field(
+        default="surveillance-gap-score-v1.1", description=_SCORING_VERSION_DESCRIPTION
     )
     incidence_floor_2023: float | None = Field(
         default=None,
         ge=0,
-        description="Published 2023 minimum reported incidence per 100,000; null is not zero.",
+        description="Published 2023 minimum reported incidence per 100,000 people. "
+        "A floor is a minimum, not a complete count. `null` is not zero.",
     )
-    svi_percentile: float | None = None
-    uninsured_percentile: float | None = None
-    rucc_2023: int | None = None
-    fips: str
-    county: str
-    state: str
-    state_name: str
-    in_contiguous_tick_scope: bool
-    human_status: str
-    tick_status: str
-    burgdorferi_status: str
-    evidence_completeness: int
-    score: Score
-    priority: str
-    color: str
+    svi_percentile: float | None = Field(default=None, description=_SVI_DESCRIPTION)
+    uninsured_percentile: float | None = Field(
+        default=None, description=_UNINSURED_PERCENTILE_DESCRIPTION
+    )
+    rucc_2023: int | None = Field(default=None, description=_RUCC_DESCRIPTION)
+    fips: str = Field(description="Five-digit county FIPS code, with leading zeros.")
+    county: str = Field(description="County name.")
+    state: str = Field(description="Two-letter state or District of Columbia code.")
+    state_name: str = Field(description="Full state name.")
+    in_contiguous_tick_scope: bool = Field(
+        description="Whether the county is inside the contiguous area the tick data covers."
+    )
+    human_status: str = Field(
+        description="State of the human-case data for the county. `published_count_floor` means "
+        "a published case-count floor exists. `no_county_linked_record` means no record is "
+        "linked to the county; it is neither null nor zero."
+    )
+    tick_status: str = Field(
+        description="Tick evidence status the publisher reports: `Established`, `Reported`, "
+        "`No records`, or `Unknown`. `No records` and `Unknown` do not establish absence."
+    )
+    burgdorferi_status: str = Field(
+        description="Evidence status for the Lyme disease bacterium Borrelia burgdorferi: "
+        "`Present`, `No records`, or `Unknown`. `No records` and `Unknown` do not establish "
+        "absence."
+    )
+    evidence_completeness: int = Field(
+        description="Whole-number measure of how much supporting evidence the county has. "
+        "A higher number means more evidence is present. It does not rate evidence quality."
+    )
+    score: Score = Field(description="The score and the signals it combines.")
+    priority: str = Field(
+        description="Review-priority label for the score band. A lower label is not a "
+        "safety finding."
+    )
+    color: str = Field(description="Hex color for the score band, for use in a map or legend.")
 
 
 class ScoreCollection(BaseModel):
-    scoring_methodology_version: Literal["surveillance-gap-score-v1.1"] = (
-        "surveillance-gap-score-v1.1"
+    """Surveillance Gap Scores for every county in the release, for one set of settings."""
+
+    scoring_methodology_version: Literal["surveillance-gap-score-v1.1"] = Field(
+        default="surveillance-gap-score-v1.1", description=_SCORING_VERSION_DESCRIPTION
     )
-    release_id: str
-    methodology_version: str
-    settings: dict[str, int]
-    counties: list[CountyScoreSummary]
+    release_id: str = Field(description=_RELEASE_ID_DESCRIPTION)
+    methodology_version: str = Field(description=_METHODOLOGY_VERSION_DESCRIPTION)
+    settings: dict[str, int] = Field(
+        description="Score settings used for this response, such as `ecological_share`, "
+        "`smooth_k`, and `missing_human_weakness`."
+    )
+    counties: list[CountyScoreSummary] = Field(description="One entry for each county.")
+
+
+class CountyMapValues(BaseModel):
+    """The county values a map needs to color its shapes, without the full score record."""
+
+    fips: str = Field(
+        pattern=r"^\d{5}$", description="Five-digit county FIPS code, with leading zeros."
+    )
+    incidence_floor_2023: float | None = Field(
+        default=None,
+        ge=0,
+        description="Published 2023 minimum reported incidence per 100,000 people. "
+        "A floor is a minimum, not a complete count. `null` is not zero.",
+    )
+    svi_percentile: float | None = Field(default=None, description=_SVI_DESCRIPTION)
+    uninsured_percent: float | None = Field(
+        default=None,
+        description="Share of the county population without health insurance, as a percent. "
+        "`null` when none is published.",
+    )
+    rucc_2023: int | None = Field(default=None, description=_RUCC_DESCRIPTION)
+
+
+class MapValuesCollection(BaseModel):
+    """County values for drawing a map. Show the same values in a table for non-map users."""
+
+    release_id: str = Field(description=_RELEASE_ID_DESCRIPTION)
+    counties: list[CountyMapValues] = Field(description="One entry for each county.")
 
 
 class CountyDetail(CountyScoreSummary):
-    population: int | None
-    case_count_floor_2023: int | None
-    incidence_floor_2023: float | None
-    state_unallocated_records_2023: int | None
-    scapularis_status: str | None
-    pacificus_status: str | None
-    svi_percentile: float | None
-    uninsured_percentile: float | None
-    uninsured_percent: float | None
-    rucc_2023: int | None
-    release: AtlasMetadata
+    """A county's score plus the release facts behind it."""
+
+    population: int | None = Field(description="County population. `null` when none is published.")
+    case_count_floor_2023: int | None = Field(
+        description="Published 2023 minimum count of reported human cases. A floor is a "
+        "minimum, not a complete count. `null` is not zero."
+    )
+    incidence_floor_2023: float | None = Field(
+        description="Published 2023 minimum reported incidence per 100,000 people. "
+        "`null` is not zero."
+    )
+    state_unallocated_records_2023: int | None = Field(
+        description="2023 state-level records the publisher did not assign to a county. "
+        "The count belongs to the state, not this county. `null` when none is published."
+    )
+    scapularis_status: str | None = Field(
+        description="Publisher status for the tick Ixodes scapularis. `null` when none is "
+        "published."
+    )
+    pacificus_status: str | None = Field(
+        description="Publisher status for the tick Ixodes pacificus. `null` when none is published."
+    )
+    svi_percentile: float | None = Field(description=_SVI_DESCRIPTION)
+    uninsured_percentile: float | None = Field(description=_UNINSURED_PERCENTILE_DESCRIPTION)
+    uninsured_percent: float | None = Field(
+        description="Share of the county population without health insurance, as a percent. "
+        "`null` when none is published."
+    )
+    rucc_2023: int | None = Field(description=_RUCC_DESCRIPTION)
+    release: AtlasMetadata = Field(description="The data release this record came from.")
 
 
 class ProblemDetails(BaseModel):
-    """RFC 9457 error. Stable codes are included when the response contract defines one."""
+    """RFC 9457 error body (`application/problem+json`). Some errors add a stable `code`."""
 
-    type: str
-    title: str
-    status: int
-    detail: str
-    instance: str
-    request_id: str
-    code: str | None = None
-    errors: list[dict[str, Any]] | None = None
+    type: str = Field(description="URI that identifies the kind of problem.")
+    title: str = Field(description="Short summary of the problem.")
+    status: int = Field(description="HTTP status code of the response.")
+    detail: str = Field(description="Explanation of this occurrence of the problem.")
+    instance: str = Field(description="URI that identifies this occurrence of the problem.")
+    request_id: str = Field(
+        description="Identifies the request. Quote it when you contact support."
+    )
+    code: str | None = Field(
+        default=None,
+        description="Stable machine-readable error code, such as `QUERY_TOO_BROAD`. "
+        "Present when the response defines one.",
+    )
+    errors: list[dict[str, Any]] | None = Field(
+        default=None, description="Details of each invalid input, when the request had several."
+    )
 
 
 FeedbackCategory = Literal["data_issue", "usability", "bug", "feature_idea", "general"]

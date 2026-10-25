@@ -15,17 +15,24 @@ from pydantic import (
 )
 
 from .config import ApiSettings
-from .dependency_telemetry import connect
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .snowflake_read_session import read_connection
+from .tier1_timing import phase
 
 
 class PriorityReason(BaseModel):
-    code: str = Field(min_length=1)
-    text: str = Field(min_length=1)
+    """One reason a county received its review priority."""
+
+    code: str = Field(min_length=1, description="Stable code for the reason.")
+    text: str = Field(min_length=1, description="Plain-language statement of the reason.")
 
 
 class Tier1CountyPriority(BaseModel):
-    """Model-assisted surveillance review priority; never disease or clinical risk."""
+    """Model-assisted surveillance review priority for one county.
+
+    The priority helps decide where to look first. It is not a measure of disease or clinical
+    risk, and it is not a diagnosis.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -52,7 +59,7 @@ class Tier1CountyPriority(BaseModel):
     )
 
     county_fips: str = Field(
-        pattern=r"^\d{5}$", description="Five-digit county FIPS for this persisted result."
+        pattern=r"^\d{5}$", description="Five-digit county FIPS code, with leading zeros."
     )
     priority_tier: Literal["HIGH", "MEDIUM", "LOW"] | None = Field(
         description=(
@@ -87,8 +94,13 @@ class Tier1CountyPriority(BaseModel):
     model_version: str = Field(
         min_length=1, description="Version of the model that generated this result."
     )
-    release_id: str = Field(min_length=1, description="Governed source release for this batch.")
-    source_commit: str = Field(min_length=1, description="ML source commit for reproducibility.")
+    release_id: str = Field(
+        min_length=1, description="Identifies the published data release the batch used."
+    )
+    source_commit: str = Field(
+        min_length=1,
+        description="Commit of the model code that produced the result, for reproducibility.",
+    )
     prediction_batch_version: str = Field(
         min_length=1,
         description="Inference batch identity defining the percentile comparison population.",
@@ -100,8 +112,13 @@ class Tier1CountyPriority(BaseModel):
     generated_at_utc: datetime = Field(
         description="UTC batch generation time, not the request time or source observation date."
     )
-    reasons: list[PriorityReason] = Field(max_length=3)
-    limitation_ref: str = Field(min_length=1)
+    reasons: list[PriorityReason] = Field(
+        max_length=3, description="Up to three reasons for the priority. Empty when none apply."
+    )
+    limitation_ref: str = Field(
+        min_length=1,
+        description="Reference to the document that lists what this result does not show.",
+    )
 
     @field_validator("priority_percentile", "raw_model_score")
     @classmethod
@@ -126,24 +143,26 @@ class Tier1CountyPriority(BaseModel):
 
 
 class Tier1CountyPriorityAvailability(BaseModel):
-    """Availability lookup that separates confirmed absence from request failure."""
+    """Whether a Tier 1 result is published for a county, with the result when it is.
+
+    `UNAVAILABLE` means no result is published. It is not a finding about the county.
+    """
 
     availability: Literal["AVAILABLE", "UNAVAILABLE"] = Field(
-        description=(
-            "Whether a persisted Tier 1 result exists for this supported current geography."
-        )
+        description=("Whether a published Tier 1 result exists for this county.")
     )
     geography_release_id: str = Field(
         min_length=1,
-        description="Current governed geography release used to validate the requested FIPS.",
+        description="Identifies the geography release used to confirm the county exists.",
     )
     reason: Literal["NO_PUBLISHED_MODEL"] | None = Field(
         description=(
-            "Stable reason when no persisted result is published; null when data is available."
+            "Why no result is published. `NO_PUBLISHED_MODEL` means no model result is "
+            "published for the county. `null` when a result is available."
         )
     )
     data: Tier1CountyPriority | None = Field(
-        description="The exact persisted Tier 1 result, or null when none is published."
+        description="The published Tier 1 result, or `null` when none is published."
     )
 
     @model_validator(mode="after")
@@ -174,7 +193,11 @@ class SnowflakeTier1PriorityRepository:
 
     def county(self, fips: str) -> tuple[Any, ...] | None:
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with (
+                phase("tier1_query"),
+                read_connection(self.settings) as connection,
+                connection.cursor() as cursor,
+            ):
                 cursor.execute(
                     "SELECT COUNTY_FIPS, PRIORITY_TIER, PRIORITY_PERCENTILE, "
                     "RAW_MODEL_SCORE, EVIDENCE_SUFFICIENCY, MODEL_VERSION, "
@@ -210,6 +233,10 @@ class Tier1PriorityService:
         row = self.repository.county(fips)
         if row is None:
             return None
+        with phase("tier1_mapping"):
+            return self._county_from_row(fips, row)
+
+    def _county_from_row(self, fips: str, row: tuple[Any, ...]) -> Tier1CountyPriority:
         try:
             if row[0] != fips:
                 raise ValueError("Tier 1 county identity does not match request")

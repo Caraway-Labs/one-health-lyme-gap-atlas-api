@@ -1,5 +1,9 @@
 # API #237: structured origin 503 response fidelity
 
+> **Update 2026-10-24 (API #343, [ADR 0021](adr/0021-geography-identity-typed-unavailable.md)):**
+> the legacy geography identity route no longer returns a deliberate 503; it returns a typed HTTP 200
+> `UNAVAILABLE`. The ingress limitation described below still applies to genuine operational 5xx.
+
 Historical ingress diagnosis below is retained. The owner's subsequent
 [typed availability decision](adr/0019-typed-selection-availability.md) supersedes
 the provider-support/topology recommendation for this implementation. No provider

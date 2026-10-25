@@ -4,59 +4,94 @@ from copy import deepcopy
 from typing import Any
 
 API_SUMMARY = "Governed Atlas analytics, metadata, and provenance"
-API_DESCRIPTION = """Read-only structured data from the One Health Lyme Gap Atlas.
-Ordinary public reads are anonymous and require no API key.
+API_DESCRIPTION = """Read-only JSON API for county and state Lyme disease surveillance,
+public-health context, and the sources behind them. It is for developers, analysts, and
+public-health practitioners. The base URL is
+`https://api.onehealthatlas.org`, and public reads need no API key.
 
-## Interpretation and reproducibility
-V1 (`/v1`) is the HTTP contract version; the application version is separate.
-Read source, methodology, semantic/release versions, and limitations together.
-Surveillance floors and gap scores are not diagnoses, individual risk estimates,
-or causal claims. Null, zero, suppressed values, and no linked records have
-distinct meanings. Response time is not publisher freshness.
+## Quickstart
+Get the 2023 case-count floor for New York County (FIPS `36061`):
 
-## Queries and errors
-Canonical collections use `data`, `meta`, and `links`; details use `data`.
-Pagination defaults to 100 items (maximum 500). Send opaque `next_page_token`
-as `page_token` with the same filters; null means exhaustion. Tokens bind to
-query/release and may expire on restart. Current-release observations require
-one measure, 1–500 county FIPS IDs, and a year or complete inclusive date range.
-The default pre-execution logical-result ceiling is 10,000, not truncation.
-Only the annual 2023 period is currently published; no strata are supported.
+```bash
+curl 'https://api.onehealthatlas.org/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=36061&year=2023'
+```
 
-Errors use RFC 9457 `application/problem+json` with `request_id` for support.
-Canonical errors carry stable `code` values; legacy Atlas routes retain their
-existing error semantics (including 422 validation). Respect `Retry-After` on
-429/503. Canonical metadata/observations cache for 60 seconds; supported detail
-resources return ETags and 304 on matching `If-None-Match`. See each operation
-for legacy cache and export behavior.
+The response is trimmed to the fields that matter. The values are an example:
 
-## Contract consumers
-Fumadocs, `/docs`, and `/redoc` consume the canonical public `openapi.json`
-at `/openapi.json`. Internal product operations are not part of this contract.
-Existing operation IDs remain stable for
-generated clients. Breaking public changes require an approved migration and
-deprecation plan; optional additive fields may appear within V1.
-Only separately approved ML outputs may be published. Internal conversational
-AI, literature retrieval, account, and feedback product routes are excluded.
+```json
+{
+  "data": [{
+    "measure_id": "case_count_floor_2023",
+    "geography": {"geography_type": "county", "geography_id": "36061"},
+    "value": 1114.0, "value_state": "OBSERVED", "unit": "cases",
+    "source_label": "CDC Lyme surveillance", "release_id": "...",
+    "limitations": ["..."]
+  }],
+  "meta": {"next_page_token": null, "availability": "AVAILABLE"},
+  "links": {"self": null}
+}
+```
+
+## Responses
+Collections return `data` (the items), `meta` (paging, `availability`, `release_id`,
+response time), and `links`. A single resource returns `data`.
+
+## Pagination
+`page_size` defaults to 100 (maximum 500). Send `meta.next_page_token` as `page_token`,
+unchanged and with the same filters. A `null` token means there are no more pages.
+
+## Errors
+Errors use RFC 9457 `application/problem+json` with a stable `code` and a `request_id`
+to quote when you ask for support. A query that selects more than 10,000 results is
+rejected with 400 `QUERY_TOO_BROAD`, not truncated.
+
+## Caching and retries
+Metadata and observation responses can be cached for 60 seconds. Detail responses
+return an `ETag`; send it as `If-None-Match` to get an empty 304 when nothing changed.
+Wait for `Retry-After` seconds before you retry a 429 or 503.
+
+## Interpreting results
+Read each value with its `value_state`, source, methodology version, `release_id`, and
+`limitations`. Atlas results are not a diagnosis. Atlas results are not an estimate of
+an individual's risk. Surveillance floors are minimum counts, not complete incidence.
+Null, zero, suppressed, and no linked record mean different things. The response time
+shows when Atlas built the response. It does not show when the publisher last updated
+the data.
+
+## Stability
+`/v1` is the contract version, and the application version is separate. Optional fields
+may be added within V1. Breaking changes follow a published deprecation plan.
 """
 
 TAGS = [
-    {"name": "discovery", "description": "Current-release indicators and measurable variables."},
+    {
+        "name": "discovery",
+        "description": "List the indicators and measures you can query.",
+    },
     {
         "name": "observations",
-        "description": "Bounded county observations with explicit value states.",
+        "description": "Query measure values for counties, each with an explicit `value_state`.",
     },
     {
         "name": "provenance",
-        "description": "Governed source and methodology identities and versions.",
+        "description": "Look up the sources and methodologies behind a value, with versions.",
     },
     {
         "name": "geographies",
-        "description": "Typed geography identity; delivery is not yet available.",
+        "description": (
+            "Validate a county or state FIPS code. Atlas does not yet publish place records, "
+            "so these operations return HTTP 200 with `availability` set to `UNAVAILABLE`."
+        ),
     },
-    {"name": "atlas", "description": "Existing release analytics and separate display geometry."},
-    {"name": "counties", "description": "Existing county details and versioned PDF reports."},
-    {"name": "states", "description": "Existing state PDF reports."},
+    {
+        "name": "atlas",
+        "description": "Get release metadata, scores, rankings, and map geometry.",
+    },
+    {
+        "name": "counties",
+        "description": "Get county detail and download county PDF reports.",
+    },
+    {"name": "states", "description": "Download state PDF reports."},
 ]
 
 COLLECTION_DESCRIPTION = (

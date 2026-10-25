@@ -4,6 +4,7 @@ import json
 from copy import deepcopy
 from pathlib import Path
 
+from _openapi_docs import without_documentation
 from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
@@ -25,7 +26,7 @@ def test_existing_internal_operations_and_schemas_remain_in_first_party_export()
             for path, operations in contract["paths"].items()
         }
         assert actual_ids == IDS
-        assert sum(len(operations) for operations in actual_ids.values()) == 36
+        assert sum(len(operations) for operations in actual_ids.values()) == 37
         for path, operations in FLOOR["paths"].items():
             expected_document = {"paths": {path: deepcopy(operations)}}
             normalize_nullable_types(expected_document)
@@ -33,7 +34,8 @@ def test_existing_internal_operations_and_schemas_remain_in_first_party_export()
         for name, model in FLOOR["schemas"].items():
             expected = deepcopy(model)
             normalize_nullable_types(expected)
-            assert contract["components"]["schemas"][name] == expected, name
+            actual = contract["components"]["schemas"][name]
+            assert without_documentation(actual) == without_documentation(expected), name
 
 
 def test_independent_caches_and_docs_never_change_route_visibility() -> None:

@@ -20,7 +20,8 @@ service budget, whichever is shorter. Its request-scoped async driver covers
 acquisition, transport, one explicit read transaction, eager result consumption
 and cleanup. Cancellation kills the affected connection before the synchronous
 worker returns; there is no detached retrieval thread or managed transaction
-retry. A timeout retains the existing typed 503 and `neo4j_timeout` completion.
+retry. A timeout retains the typed `evidence_unavailable` body and the `neo4j_timeout` completion; since #303 that
+typed body is HTTP 200 with `Retry-After` (the DigitalOcean edge turns an origin 503 into a 504 page and drops the body).
 The 28-second workflow deadline remains cooperative for other dependencies.
 See [#265 cancellation evidence and rollout limits](api-265-bounded-retrieval.md).
 

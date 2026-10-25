@@ -8,18 +8,21 @@ from typing import Any, cast
 
 import httpx
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
-from lyme_gap_atlas_shared.snowflake import connect as shared_connect
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from snowflake.connector import SnowflakeConnection
 
 from .cdc_timing import CURRENT as CDC_CURRENT
 from .climate_timing import CURRENT
+from .context_timing import CURRENT as CONTEXT_CURRENT
+from .snowflake_connection import connect as snowflake_connect
+from .tier1_timing import CURRENT as TIER1_CURRENT
 
 DEPENDENCIES = frozenset({"snowflake", "supabase"})
 OPERATIONS = frozenset(
     {
         "connect",
+        "check",
         "connection_enter",
         "connection_teardown",
         "cursor",
@@ -90,10 +93,17 @@ def dependency_span(system: str, operation: str) -> Iterator[None]:
             timing = CURRENT.get()
             if timing is not None and system == "snowflake":
                 timing.record(operation, perf_counter() - started)
+            tier1_timing = TIER1_CURRENT.get()
+            if tier1_timing is not None and system == "snowflake":
+                tier1_timing.record(operation, perf_counter() - started)
         with suppress(Exception):
             cdc_timing = CDC_CURRENT.get()
             if cdc_timing is not None and system == "snowflake":
                 cdc_timing.record(operation, perf_counter() - started)
+        with suppress(Exception):
+            context_timing = CONTEXT_CURRENT.get()
+            if context_timing is not None and system == "snowflake":
+                context_timing.record(operation, perf_counter() - started)
         with suppress(Exception):
             if span is not None:
                 span.end()
@@ -129,8 +139,15 @@ class _SnowflakeBoundary:
             return self._resource.__exit__(*args)
 
 
-def connect(settings: SnowflakeSettings, *, include_database: bool = True) -> SnowflakeConnection:
-    """Reuse approved shared connection construction; do not duplicate credentials."""
+def connect(
+    settings: SnowflakeSettings,
+    *,
+    include_database: bool = True,
+    timeout_seconds: float | None = None,
+) -> SnowflakeConnection:
+    """Single instrumented entry point; construction is API-owned."""
     with dependency_span("snowflake", "connect"):
-        connection = shared_connect(settings, include_database=include_database)
+        connection = snowflake_connect(
+            settings, include_database=include_database, timeout_seconds=timeout_seconds
+        )
     return cast(SnowflakeConnection, _SnowflakeBoundary(connection, "connection"))

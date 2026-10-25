@@ -8,9 +8,9 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, Field, model_validator
 
 from .config import ApiSettings
-from .dependency_telemetry import connect
 from .public_contract import PublicQueryError
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .snowflake_read_session import read_connection
 
 MODELS = {
     "four_state": "surveillance-situation-four-state",
@@ -19,45 +19,91 @@ MODELS = {
 
 
 class MembershipProbability(BaseModel):
-    class_id: str = Field(min_length=1, description="Version-scoped persisted class identity.")
+    """The model's membership probability for one situation class."""
+
+    class_id: str = Field(
+        min_length=1, description="Identifies the class. It is specific to a model version."
+    )
     probability: float = Field(
         ge=0,
         le=1,
         allow_inf_nan=False,
         strict=True,
-        description="Latent-class membership on 0–1 scale; never disease risk.",
+        description="Probability of membership in the class, from 0 to 1. The four values "
+        "sum to 1. It is not a disease risk.",
     )
 
 
 class SituationClassification(BaseModel):
-    model_id: str = Field(min_length=1)
-    model_version: str = Field(min_length=1)
-    class_id: str = Field(min_length=1)
-    class_name: str = Field(min_length=1, description="Reviewed persisted display label, verbatim.")
-    class_description: str = Field(
-        min_length=1, description="Reviewed persisted explanation, verbatim."
+    """The surveillance situation class assigned to a county, with how it was produced.
+
+    A class describes the pattern of surveillance evidence. It is not a diagnosis and not an
+    estimate of an individual's risk.
+    """
+
+    model_id: str = Field(min_length=1, description="Identifies the model that assigned the class.")
+    model_version: str = Field(min_length=1, description="Version of the model.")
+    class_id: str = Field(min_length=1, description="Identifies the assigned class.")
+    class_name: str = Field(
+        min_length=1, description="Display label of the class, exactly as reviewed."
     )
-    probabilities: list[MembershipProbability] = Field(min_length=4, max_length=4)
+    class_description: str = Field(
+        min_length=1, description="Explanation of the class, exactly as reviewed."
+    )
+    probabilities: list[MembershipProbability] = Field(
+        min_length=4,
+        max_length=4,
+        description="Membership probability for each of the four classes.",
+    )
     limitations: list[str] = Field(
         min_length=1,
-        description="Persisted must_not_be_read_as list: prohibited interpretations, not outcomes.",
+        description="Readings of the class that are not supported. They list what not to "
+        "conclude, not outcomes.",
     )
-    batch_id: str = Field(min_length=1)
-    batch_version: str = Field(min_length=1)
-    county_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    dictionary_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    input_release_id: str = Field(min_length=1)
-    input_bundle_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    fit_git_sha: str = Field(min_length=1)
-    feature_contract: dict[str, Any] = Field(description="Persisted feature/config contract.")
-    model_provenance: dict[str, Any]
-    source_provenance: dict[str, Any] = Field(description="Persisted sources and source vintages.")
-    handoff_approval: dict[str, Any]
-    data_publication_authorization: dict[str, Any]
-    data_authorization_id: str = Field(min_length=1)
-    staging_attempt: str = Field(min_length=1)
+    batch_id: str = Field(min_length=1, description="Identifies the batch of results.")
+    batch_version: str = Field(min_length=1, description="Version of the batch.")
+    county_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="SHA-256 checksum of this county's input record.",
+    )
+    dictionary_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="SHA-256 checksum of the class dictionary the model used.",
+    )
+    input_release_id: str = Field(
+        min_length=1, description="Identifies the data release the model read."
+    )
+    input_bundle_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="SHA-256 checksum of the data release the model read.",
+    )
+    fit_git_sha: str = Field(
+        min_length=1, description="Commit of the code that fitted the model, for reproducibility."
+    )
+    feature_contract: dict[str, Any] = Field(
+        description="The input features and settings the model used."
+    )
+    model_provenance: dict[str, Any] = Field(
+        description="Records of how the model was fitted and reviewed."
+    )
+    source_provenance: dict[str, Any] = Field(
+        description="Sources and source vintages the model used."
+    )
+    handoff_approval: dict[str, Any] = Field(
+        description="Record of the review that approved the model output for use."
+    )
+    data_publication_authorization: dict[str, Any] = Field(
+        description="Record of the approval to publish the batch."
+    )
+    data_authorization_id: str = Field(
+        min_length=1, description="Identifies the approval to publish the batch."
+    )
+    staging_attempt: str = Field(
+        min_length=1, description="Identifies the staging run that prepared the batch."
+    )
     activated_at: datetime = Field(
-        description="Data activation time, not source vintage or request time."
+        description="When the batch became active. It is not the source vintage or the "
+        "request time."
     )
 
     @model_validator(mode="after")
@@ -71,8 +117,13 @@ class SituationClassification(BaseModel):
 
 
 class SituationVariant(BaseModel):
-    model_id: str
-    availability: Literal["AVAILABLE", "UNAVAILABLE"]
+    """The result of one situation model for a county, or the reason there is none."""
+
+    model_id: str = Field(description="Identifies the situation model.")
+    availability: Literal["AVAILABLE", "UNAVAILABLE"] = Field(
+        description="Whether a published classification exists. `UNAVAILABLE` is not a finding "
+        "about the county."
+    )
     unavailable_reason: (
         Literal[
             "DEACTIVATED",
@@ -82,20 +133,40 @@ class SituationVariant(BaseModel):
             "MISSING_ASSIGNMENT",
         ]
         | None
+    ) = Field(
+        description="Why no classification is published: `NOT_PUBLISHED`, `DEACTIVATED`, "
+        "`UNAPPROVED_BATCH`, `INCOMPATIBLE_RELEASE`, or `MISSING_ASSIGNMENT`. `null` when "
+        "`availability` is `AVAILABLE`."
     )
-    compatibility: Literal["EXACT_INPUT", "ADMITTED_CARRY_FORWARD", "UNAVAILABLE"]
-    batch_id: str | None
-    batch_version: str | None
-    input_release_id: str | None
-    data: SituationClassification | None
+    compatibility: Literal["EXACT_INPUT", "ADMITTED_CARRY_FORWARD", "UNAVAILABLE"] = Field(
+        description="How the classification relates to the current data release. `EXACT_INPUT` "
+        "means the model read the current release. `ADMITTED_CARRY_FORWARD` means a reviewed "
+        "result computed from an earlier release is published for the current one. "
+        "`UNAVAILABLE` means there is no classification."
+    )
+    batch_id: str | None = Field(
+        description="Identifies the batch of results. `null` when unavailable."
+    )
+    batch_version: str | None = Field(description="Version of the batch. `null` when unavailable.")
+    input_release_id: str | None = Field(
+        description="Identifies the data release the model read. `null` when unavailable."
+    )
+    data: SituationClassification | None = Field(
+        description="The classification. `null` when unavailable."
+    )
 
 
 class CountySurveillanceSituations(BaseModel):
     """Two distinct model outputs; Unknown is a valid available classification."""
 
-    county_fips: str = Field(pattern=r"^[0-9]{5}$")
-    release_id: str = Field(min_length=1, description="Active governed presentation release.")
-    bundle_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    county_fips: str = Field(
+        pattern=r"^[0-9]{5}$", description="Five-digit county FIPS code, with leading zeros."
+    )
+    release_id: str = Field(min_length=1, description="Identifies the current data release.")
+    bundle_sha256: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="SHA-256 checksum of the current data release.",
+    )
     four_state: SituationVariant = Field(description="Primary model, including human surveillance.")
     tick_pathogen: SituationVariant = Field(
         description="Secondary model, excluding human surveillance."
@@ -179,7 +250,7 @@ class SnowflakeSituationRepository:
 
     def county(self, fips: str) -> CountySurveillanceSituations:
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with read_connection(self.settings) as connection, connection.cursor() as cursor:
 
                 def read(sql: str, params: tuple[str, ...] = ()) -> list[tuple[Any, ...]]:
                     cursor.execute(sql, params, timeout=self.settings.public_query_timeout_seconds)

@@ -180,7 +180,7 @@ def fake_connection(monkeypatch: pytest.MonkeyPatch, outputs: list[Any]) -> list
     def connect(*args: Any):
         yield Connection()
 
-    monkeypatch.setattr("lyme_gap_atlas_api.surveillance_situations.connect", connect)
+    monkeypatch.setattr("lyme_gap_atlas_api.surveillance_situations.read_connection", connect)
     return calls
 
 

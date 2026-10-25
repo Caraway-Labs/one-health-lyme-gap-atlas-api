@@ -3,6 +3,7 @@
 from datetime import UTC, date, datetime
 
 import pytest
+from _pooled import lend
 from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
@@ -303,7 +304,8 @@ def test_repository_only_queries_projection_with_bound_parameters(monkeypatch) -
             return Cursor()
 
     monkeypatch.setattr(
-        "lyme_gap_atlas_api.public_observations.connect", lambda _settings: Connection()
+        "lyme_gap_atlas_api.public_observations.read_connection",
+        lend(lambda _settings: Connection()),
     )
     repository = SnowflakeObservationRepository(ApiSettings())
     from lyme_gap_atlas_api.public_contract import ObservationQuery
@@ -354,7 +356,8 @@ def test_repository_uses_current_release_and_bound_measure_lookup(monkeypatch) -
             return Cursor()
 
     monkeypatch.setattr(
-        "lyme_gap_atlas_api.public_observations.connect", lambda _settings: Connection()
+        "lyme_gap_atlas_api.public_observations.read_connection",
+        lend(lambda _settings: Connection()),
     )
     repository = SnowflakeObservationRepository(ApiSettings())
     assert repository.current_release() == "release-1"

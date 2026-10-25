@@ -9,15 +9,60 @@ from .repository import AtlasDataUnavailableError, Snapshot
 
 
 class CanonicalGeographyAvailability(BaseModel):
-    availability: Literal["UNAVAILABLE"]
-    reason: Literal["CANONICAL_GEOGRAPHY_UNPUBLISHED"]
-    data: None = Field(description="No canonical geography resource or geometry is fabricated.")
+    """The county exists, but its canonical geography data is not published yet."""
+
+    availability: Literal["UNAVAILABLE"] = Field(
+        description="Always `UNAVAILABLE`: the county's geography data is not published."
+    )
+    reason: Literal["CANONICAL_GEOGRAPHY_UNPUBLISHED"] = Field(
+        description="Why the data is unavailable. The geography data has not been published."
+    )
+    data: None = Field(description="Always `null`. The API returns no geography data or geometry.")
     release_id: str = Field(
-        min_length=1, description="Governed county directory release used to confirm identity."
+        min_length=1,
+        description="Identifies the county directory release used to confirm the county.",
     )
     limitations: list[str] = Field(
         min_length=1,
         description="Publication and representation boundaries, not scientific absence.",
+    )
+
+
+class GeographyUnavailable(BaseModel):
+    """HTTP 200 answer that canonical geography data is not published yet.
+
+    The API checks the shape of the requested identity only. It does not confirm that the place
+    exists. Use the availability route for a county to confirm that.
+    """
+
+    availability: Literal["UNAVAILABLE"] = Field(
+        description="Always `UNAVAILABLE`: the geography data is not published."
+    )
+    reason: Literal["CANONICAL_GEOGRAPHY_UNPUBLISHED"] = Field(
+        description="Why the data is unavailable. The geography data has not been published."
+    )
+    data: None = Field(description="Always `null`. The API returns no geography data or geometry.")
+    geography: GeographyIdentity = Field(
+        description="The identity you requested, returned unchanged after a format check."
+    )
+    limitations: list[str] = Field(
+        min_length=1,
+        description="Publication and representation boundaries, not scientific absence.",
+    )
+
+
+def geography_unavailable(identity: GeographyIdentity) -> GeographyUnavailable:
+    return GeographyUnavailable(
+        availability="UNAVAILABLE",
+        reason="CANONICAL_GEOGRAPHY_UNPUBLISHED",
+        data=None,
+        geography=identity,
+        limitations=[
+            "Canonical geography identity delivery is not published by this API capability.",
+            "The requested identity is validated for shape only; membership in the current "
+            "release is not asserted (use the county availability route for that). "
+            "No canonical, display, or analysis geometry is returned or inferred.",
+        ],
     )
 
 

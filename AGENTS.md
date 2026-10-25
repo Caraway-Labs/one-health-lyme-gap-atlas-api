@@ -58,6 +58,13 @@ drift; format changed Python files without reformatting unrelated code.
   Never run a remote migration, PROD read, or deployment from an agent setup
   job. Follow `supabase/README.md` and the workspace least-privilege rules for
   explicitly authorized integration work.
+- Snowflake connection handling: follow
+  [docs/snowflake-connection-standard.md](docs/snowflake-connection-standard.md).
+  Public reads use `read_connection`; writes and procedure calls use the write
+  pool and are never replayed; do not call `connect()` directly outside the
+  guard's allow-list or alter pooled session state outside `session_overrides`.
+  This supplements, and does not replace, the rules in this file and the
+  workspace instructions.
 - Preserve structured, redacted observability. Follow the telemetry contracts
   under `docs/`; never log credentials, bearer tokens, prompts, patient data,
   or raw private records. Codex Cloud must not receive PHI.

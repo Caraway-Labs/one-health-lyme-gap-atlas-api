@@ -23,6 +23,7 @@ ROUTES = frozenset(
         "/v1/atlas/metadata",
         "/v1/atlas/ranking.csv",
         "/v1/atlas/scores",
+        "/v1/atlas/map-values",
         "/v1/assistant/mixed",
         "/v1/assistant/structured",
         "/v1/counties/{fips}",

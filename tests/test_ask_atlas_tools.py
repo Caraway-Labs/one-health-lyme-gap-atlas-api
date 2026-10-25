@@ -7,6 +7,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from _pooled import lend
 from jsonschema import Draft202012Validator, FormatChecker
 from test_public_observations import row
 
@@ -371,7 +372,7 @@ def test_metadata_expiry_stops_second_query_and_environmental_io(monkeypatch, sl
             return Cursor()
 
     monkeypatch.setattr(
-        "lyme_gap_atlas_api.public_metadata.connect", lambda _settings: Connection()
+        "lyme_gap_atlas_api.public_metadata.read_connection", lend(lambda _settings: Connection())
     )
     monkeypatch.setattr(
         "lyme_gap_atlas_api.public_metadata.EnvironmentalRepository.metadata",

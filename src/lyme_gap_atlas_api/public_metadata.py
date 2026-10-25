@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar
 
 from .config import ApiSettings
-from .dependency_telemetry import connect
 from .environmental_context import MEASURES, EnvironmentalRepository, limitation_texts
 from .public_contract import GeographyType, Indicator, Measure, PublicQueryError
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .snowflake_read_session import read_connection
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,7 @@ class SnowflakeMetadataRepository:
         )
         try:
             check()
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with read_connection(self.settings) as connection, connection.cursor() as cursor:
                 check()
                 cursor.execute(
                     "SELECT INDICATOR_ID, LABEL, DESCRIPTION, LIMITATION, DOMAIN, CATEGORY, "

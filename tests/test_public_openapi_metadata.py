@@ -23,7 +23,7 @@ def test_public_metadata_and_stable_operation_ids() -> None:
     assert schema["info"]["version"] == ApiSettings().app_version
     assert "provenance" in schema["info"]["summary"]
     assert schema["info"]["contact"]["url"] == "https://onehealthatlas.org/"
-    for term in ("anonymous", "RFC 9457", "Fumadocs", "10,000", "2023", "deprecation"):
+    for term in ("no API key", "RFC 9457", "10,000", "2023", "deprecation"):
         assert term in schema["info"]["description"]
     tags = {tag["name"] for tag in schema["tags"]}
     operations = []
@@ -48,13 +48,26 @@ def test_public_metadata_and_stable_operation_ids() -> None:
         assert name not in models
 
 
-def test_pending_geography_openapi_error_matches_specific_runtime_code() -> None:
+def test_pending_geography_openapi_documents_typed_200_not_a_permanent_503() -> None:
     schema = create_app(settings=ApiSettings()).openapi()
-    response = schema["paths"]["/v1/geographies/{geography_type}/{geography_id}"]["get"][
-        "responses"
-    ]["503"]
-    example = response["content"]["application/problem+json"]["examples"]["illustrative"]["value"]
-    assert example["code"] == "CANONICAL_DATA_UNAVAILABLE"
+    operation = schema["paths"]["/v1/geographies/{geography_type}/{geography_id}"]["get"]
+    responses = operation["responses"]
+    assert "503" not in responses
+    assert "422" not in responses
+    branches = responses["200"]["content"]["application/json"]["schema"]["anyOf"]
+    assert [branch["$ref"] for branch in branches] == [
+        "#/components/schemas/ResourceEnvelope_Geography_",
+        "#/components/schemas/GeographyUnavailable",
+    ]
+    unavailable = schema["components"]["schemas"]["GeographyUnavailable"]
+    assert set(unavailable["required"]) == {
+        "availability",
+        "reason",
+        "data",
+        "geography",
+        "limitations",
+    }
+    assert unavailable["properties"]["reason"]["const"] == "CANONICAL_GEOGRAPHY_UNPUBLISHED"
 
 
 def test_observation_variants_are_named_anyof_branches_for_sdk_generation() -> None:
@@ -168,7 +181,7 @@ def test_internal_product_routes_remain_registered_and_callable() -> None:
     assert client.get("/health/live").json() == {"status": "ok"}
     assert client.get("/v1/me/profile").status_code in {401, 503}
     response = client.post("/v1/knowledge-graph/chat", json={"message": "test question"})
-    assert response.status_code == 503
+    assert response.status_code == 200
     assert response.json()["status"] == "evidence_unavailable"
 
 
@@ -203,3 +216,49 @@ def test_examples_validate_and_error_matches_runtime() -> None:
     }.items():
         for field in fields:
             assert models[model]["properties"][field]["description"]
+
+
+def _parameters(schema: dict) -> list[tuple[str, str, dict]]:
+    return [
+        (f"{method.upper()} {path}", parameter["name"], parameter)
+        for path, item in schema["paths"].items()
+        for method, operation in item.items()
+        if isinstance(operation, dict)
+        for parameter in operation.get("parameters", [])
+    ]
+
+
+def test_every_public_parameter_has_a_description() -> None:
+    schema = create_app(settings=ApiSettings()).openapi()
+    parameters = _parameters(schema)
+    assert parameters
+    missing = [
+        f"{operation} {name}"
+        for operation, name, parameter in parameters
+        if not str(parameter.get("description", "")).strip()
+    ]
+    assert missing == []
+
+
+def test_shared_parameters_use_one_description() -> None:
+    schema = create_app(settings=ApiSettings()).openapi()
+    for name in (
+        "dataset_version",
+        "ecological_share",
+        "smooth_k",
+        "missing_human_weakness",
+        "low_incidence_breakpoint",
+        "fips",
+    ):
+        descriptions = {
+            parameter["description"]
+            for _, parameter_name, parameter in _parameters(schema)
+            if parameter_name == name
+        }
+        assert len(descriptions) == 1, name
+    fips = next(p for _, n, p in _parameters(schema) if n == "fips")
+    for phrase in ("five digits", "leading zeros", "string", "09110"):
+        assert phrase in fips["description"]
+    assert all(
+        isinstance(example, str) for example in fips["schema"].get("examples", [])
+    )

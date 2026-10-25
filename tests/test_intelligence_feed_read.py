@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from _pooled import lend
 from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
@@ -363,7 +364,7 @@ def test_sql_boundary_limits_and_state_checks(
             return cursor
 
     monkeypatch.setattr(
-        "lyme_gap_atlas_api.intelligence_feed.connect", lambda settings: Connection()
+        "lyme_gap_atlas_api.intelligence_feed.read_connection", lend(lambda settings: Connection())
     )
     repository = SnowflakeFeedRepository(
         ApiSettings(snowflake_presentation_database="ONE_HEALTH_LYME_GAP_ATLAS_PROD")

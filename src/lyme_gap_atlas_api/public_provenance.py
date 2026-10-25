@@ -4,10 +4,10 @@ from collections.abc import Callable
 from typing import Any, Protocol, cast
 
 from .config import ApiSettings
-from .dependency_telemetry import connect
 from .public_contract import Methodology, PublicQueryError, Source
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .snowflake_read_session import read_connection
 
 
 class ProvenanceRepository(Protocol):
@@ -27,7 +27,7 @@ class SnowflakeProvenanceRepository:
 
     def _read(self, statement: str, params: tuple[Any, ...] = (), *, one: bool = False) -> Any:
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with read_connection(self.settings) as connection, connection.cursor() as cursor:
                 cursor.execute(
                     statement, params, timeout=self.settings.public_query_timeout_seconds
                 )

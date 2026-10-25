@@ -1,15 +1,25 @@
 # Request-scoped Snowflake reuse (API #125)
 
+> **Superseded in part by [snowflake-connection-standard.md](snowflake-connection-standard.md).**
+> Since this was written: (#325/#342) the request-scoped connection is borrowed from the
+> process-wide write pool and is returned to it at teardown on a clean request or discarded
+> on any error, so there *is* cross-request pooling of write connections; and (#330/#334)
+> the API-owned `connect()` sets `autocommit=True`, so adapters no longer commit or roll
+> back. Corrections are marked inline; the rest is historical evidence.
+
 Parent epic #124; baseline evidence #123; I/O audit #126.
 
 The production path previously constructed separate connections for budget,
 provenance and conversation persistence, plus capability authorization when
 present. The new path owns one lazy connection within the synchronous chat
-worker. Each adapter still owns a separate cursor, runs serially, and keeps
-its commit/rollback boundary. Both conversation turn procedures remain ordered
-within one adapter operation. The connection closes before service completion,
-including exception and capacity/refusal outcomes; no cross-request pooling
-or global cached credential/session state is introduced.
+worker. Each adapter still owns a separate cursor and runs serially. Both
+conversation turn procedures remain ordered within one adapter operation.
+*(Superseded: adapters no longer have a commit/rollback boundary; the session is
+autocommit, #330.)* *(Superseded: the connection is no longer closed at service
+completion. Teardown releases it to the write pool after a clean request, or closes
+it after any error or capacity/refusal outcome, #342. Only an application-level
+cached credential or session object is still not introduced; the pool holds the
+connection.)*
 
 The exact settings object must match to reuse a connection. Standalone adapters
 and injected stores retain their original connection context. Request context
@@ -18,16 +28,15 @@ by another worker. A closed connection fails rather than reconnecting and
 replaying an uncertain budget reservation or write. The maximum is one live
 reused connection per active chat request; existing request/worker limits apply.
 
-Login can update effective AUTOCOMMIT session parameters. Reuse mirrors the
-locked connector's exit decision: commit/rollback only when AUTOCOMMIT is
-absent or false, using the effective connection parameters at adapter exit.
-This preserves those operation boundaries while moving only physical
-close to request teardown. No SQL/schema/transaction policy change or parallel
-Snowflake statement execution is intended. Partial-turn failure stays fail-closed
+*(Superseded by #330/#334: the API-owned connect sets `autocommit=True` explicitly,
+so the adapters no longer mirror the connector's conditional commit/rollback and make
+no per-operation COMMIT/ROLLBACK round trip.)* Historical text: login can update
+effective AUTOCOMMIT session parameters, and reuse mirrored the locked connector's exit
+decision, committing or rolling back only when AUTOCOMMIT was absent or false. No
+parallel Snowflake statement execution is intended. Partial-turn failure stays fail-closed
 and is not retried automatically.
 
-Nested diagnostics record connection setup, transaction commit/rollback,
-operation execute/fetch and connection close, with bounded query IDs where
+Nested diagnostics record connection setup, operation execute/fetch and connection close, with bounded query IDs where
 available. They contain no SQL, parameters, prompts, questions/history or secrets.
 They are excluded from additive stage totals: their durations are contained in
 adapter stages (except final close, which contributes to service residual).

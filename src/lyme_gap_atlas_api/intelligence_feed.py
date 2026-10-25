@@ -19,13 +19,13 @@ from .briefings import (
     public_canonical_url,
 )
 from .config import ApiSettings
-from .dependency_telemetry import connect
 from .intelligence_projection import IntelligenceItemProjectionV2, ProjectionProvenance
 from .public_contract import PublicQueryError
 from .public_docs import problem_response
 from .public_routes import PROBLEMS
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
+from .snowflake_read_session import read_connection
 
 ITEM_COLUMNS = (
     "item_id",
@@ -241,7 +241,7 @@ class SnowflakeFeedRepository:
         )
         statement = f"SELECT {columns} FROM {view}{where} ORDER BY {order} LIMIT %s OFFSET %s"
         try:
-            with connect(self.settings) as connection, connection.cursor() as cursor:
+            with read_connection(self.settings) as connection, connection.cursor() as cursor:
                 cursor.execute(
                     state_sql, tuple(params), timeout=self.settings.public_query_timeout_seconds
                 )
