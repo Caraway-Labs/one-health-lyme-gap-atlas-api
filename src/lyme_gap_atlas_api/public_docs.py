@@ -50,21 +50,18 @@ to quote when you ask for support. A query that selects more than 10,000 results
 rejected with 400 `QUERY_TOO_BROAD`, not truncated.
 
 ## Response headers and caching
-Every response carries `Content-Type` and `X-Request-ID`; quote the request ID when you
-ask for support. Each `200` lists the other headers it sends. Cache lifetimes differ by
-operation, from 60 seconds for metadata to one year for display geometry. Observation
-queries set none. Detail resources, display geometry, and PDF reports return an `ETag`.
-Send it as `If-None-Match` to get an empty `304`. Other operations always return the
-full body. While the API serves a fallback copy of its data, it sends `private, no-store`.
+Every response has `Content-Type` and `X-Request-ID`; quote the ID when you ask for
+support. Each `200` lists its other headers. Cache lifetimes run from 60 seconds to one
+year. Detail resources, geometry, and PDF reports return an `ETag`; send it as
+`If-None-Match` to get an empty `304`. Other operations always return the full body.
 
 ## Rate limits and retries
-Reads of the metadata, provenance, observation, and geography availability operations
-are limited per client address to 60 requests in a rolling minute and 5 at once. Other
-operations have a separate, higher limit. These are current defaults and can change.
-Atlas publishes no per-key quota or service level. A `429` means you went over a limit.
-A `503` means the data service or renderer cannot answer. Both can carry `Retry-After`
-in seconds; wait that long. Without it, wait 1 second, double after each failure up to
-60 seconds, add jitter, and stop after a few attempts. Do not retry a `400`, `404`, or `422`.
+Metadata, provenance, observation, and geography availability reads are limited per client
+address to 60 requests a minute and 5 at once. Other operations have a separate, higher
+limit. These defaults can change, and Atlas publishes no per-key quota. A `429` or `503`
+can carry `Retry-After` in seconds; wait that long. Without it, wait 1 second, double
+after each failure up to 60 seconds, add jitter, and stop after a few attempts. Do not
+retry a `400`, `404`, or `422`.
 
 ## Interpreting results
 Read each value with its `value_state`, source, methodology version, `release_id`, and
