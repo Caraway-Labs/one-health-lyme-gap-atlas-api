@@ -4,9 +4,12 @@ The metadata-only `/v1/intelligence/feed` always reads the existing V2
 presentation. `/v1/intelligence/sources` must include its represented sources
 even when the legacy `/items` projection setting is V1.
 
-The source catalog now selects distinct public source identity/version,
-organization and reviewed trust classification across both existing V1 and V2
-published projections. V1 sources remain represented. It does not enumerate the
+The source catalog returns one row per source_id across both existing V1 and V2
+published projections. That row is the highest registry_version, with the
+organization and reviewed trust classification from that version. When several
+rows share that version, the catalog keeps the alphabetically first organization,
+then the alphabetically first reviewed trust classification. V1 sources remain
+represented. It does not enumerate the
 private registry, admit a source, infer health, or expose publisher native trees.
 Both views must be available to the existing API reader; an unavailable view
 fails closed with the existing sanitized 503, never a fallback or partial list.

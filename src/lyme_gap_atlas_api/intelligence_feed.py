@@ -230,16 +230,26 @@ class SnowflakeFeedRepository:
                 " PUBLISHER_METADATA:publisher::VARCHAR) AS PUBLISHER"
                 ", SOURCE_ID, REGISTRY_VERSION, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
             )
-        if kind == "sources":
-            columns = (
-                "DISTINCT SOURCE_ID, REGISTRY_VERSION, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
-            )
         order = (
             "ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION"
             if kind != "sources"
             else "SOURCE_ID, REGISTRY_VERSION"
         )
-        statement = f"SELECT {columns} FROM {view}{where} ORDER BY {order} LIMIT %s OFFSET %s"
+        if kind == "sources":
+            # One published row per source_id: highest registry version, then
+            # organization and reviewed trust classification as a stable tie-break.
+            identity = "SOURCE_ID, REGISTRY_VERSION, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
+            statement = (
+                f"SELECT {identity} FROM ("
+                f"SELECT {identity}, ROW_NUMBER() OVER ("
+                "PARTITION BY SOURCE_ID ORDER BY REGISTRY_VERSION DESC, "
+                "ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
+                f") AS SOURCE_ROW FROM (SELECT DISTINCT {identity} FROM {view}{where}"
+                ") DISTINCT_SOURCES) RANKED_SOURCES WHERE SOURCE_ROW = 1 "
+                f"ORDER BY {order} LIMIT %s OFFSET %s"
+            )
+        else:
+            statement = f"SELECT {columns} FROM {view}{where} ORDER BY {order} LIMIT %s OFFSET %s"
         try:
             with read_connection(self.settings) as connection, connection.cursor() as cursor:
                 cursor.execute(
@@ -436,7 +446,8 @@ def items(
     operation_id="listIntelligenceSources",
     summary="Read source identities represented by published intelligence",
     responses=FEED_PROBLEMS,
-    description="First-party read only. Source catalog covers represented item sources, "
+    description="First-party read only. Each source_id appears once, with its highest "
+    "registry_version. Source catalog covers represented item sources, "
     "not the private "
     "registry or all active sources. Health is explicitly unavailable until DATA publishes it. "
     "No freshness thresholds are inferred. page_size 1–500, state-bound tokens, "

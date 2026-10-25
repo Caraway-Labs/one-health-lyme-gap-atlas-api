@@ -382,6 +382,7 @@ def test_sql_boundary_limits_and_state_checks(
             assert "UNION ALL" in cursor.calls[1][0]
             assert "INTELLIGENCE_FEED_V2" in cursor.calls[1][0]
             assert "SELECT DISTINCT SOURCE_ID, REGISTRY_VERSION" in cursor.calls[1][0]
+            assert "PARTITION BY SOURCE_ID ORDER BY REGISTRY_VERSION DESC" in cursor.calls[1][0]
             assert "COUNT(DISTINCT SOURCE_ID, REGISTRY_VERSION)" in cursor.calls[0][0]
             assert not any(
                 field in cursor.calls[1][0]

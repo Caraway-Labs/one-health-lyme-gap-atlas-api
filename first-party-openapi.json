@@ -3041,7 +3041,7 @@
           "Intelligence feed"
         ],
         "summary": "Read source identities represented by published intelligence",
-        "description": "First-party read only. Source catalog covers represented item sources, not the private registry or all active sources. Health is explicitly unavailable until DATA publishes it. No freshness thresholds are inferred. page_size 1\u2013500, state-bound tokens, no-store. No ingestion.",
+        "description": "First-party read only. Each source_id appears once, with its highest registry_version. Source catalog covers represented item sources, not the private registry or all active sources. Health is explicitly unavailable until DATA publishes it. No freshness thresholds are inferred. page_size 1\u2013500, state-bound tokens, no-store. No ingestion.",
         "operationId": "listIntelligenceSources",
         "parameters": [
           {
