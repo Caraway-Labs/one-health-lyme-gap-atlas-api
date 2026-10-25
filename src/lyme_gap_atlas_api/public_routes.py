@@ -104,6 +104,66 @@ for _status, _code in {
         PROBLEMS[_status]["headers"] = _documented["headers"]
 PROBLEMS[200] = {"description": "Successful current-release resource."}
 
+OBSERVATIONS_DESCRIPTION = """Query published county observations for one measure and up to 500 \
+counties.
+
+### What it returns
+Observations from the current release, ordered by measure ID, county FIPS, period start, then \
+observation ID. You cannot sort or aggregate. Each observation carries its `value_state`, \
+source, methodology, and limitations.
+
+### Required parameters
+Send `measure_id`, `geography_type=county`, one or more `geography_id` values, and the time \
+parameter that the measure type accepts.
+
+### Time parameters by measure type
+| Measure type | Send | Wrong choice returns |
+| --- | --- | --- |
+| Annual surveillance (data is for 2023) | `year`, or `start_date` and `end_date` | 400 \
+`INVALID_REQUEST` if you send both `year` and dates, or neither. 400 `UNSUPPORTED_FILTER` if \
+you send `vintage_year`. |
+| Daily environmental (January 2025 weather measures, enabled separately) | `start_date` and \
+`end_date`, or `year` | 400 `INVALID_REQUEST` if you send only one date, or both `year` and \
+dates. 400 `UNSUPPORTED_FILTER` if you send `vintage_year`. |
+| CDC cumulative status (`scapularis_status`, `burgdorferi_status`) | `start_date=2025-12-31` \
+and `end_date=2025-12-31` (grain `CUMULATIVE`) | 400 `UNSUPPORTED_FILTER` for `year` or any \
+other date range. The API rejects it before it reads data. |
+| County context vintages (SVI, population, insurance) | `vintage_year=2022` (periods are ACS \
+2018-2022) | 400 `INVALID_REQUEST` if `vintage_year` is missing. 400 `UNSUPPORTED_FILTER` for \
+another vintage, `year`, `start_date`, or `end_date`. |
+| RUCC (`rucc_2023`) | `vintage_year=2023` (categorical codes and labels, with `null` period \
+dates) | 400 `INVALID_REQUEST` if `vintage_year` is missing. 400 `UNSUPPORTED_FILTER` for \
+another vintage, `year`, `start_date`, or `end_date`. |
+
+### Value states
+| Case | How to read it |
+| --- | --- |
+| Environmental measures | Descriptive weather with labeled daily periods and \
+`environmental_context` coverage. They have no strata and make no causal, disease-risk, or \
+machine-learning claim. |
+| Surveillance context | Optional, and it needs a published delivery. `normalized_state` \
+preserves the publisher's meaning, and the publisher's value stays in `value`. |
+| Missing context | It does not establish absence or temporal comparability. |
+| Absent county context rows | They are unavailable evidence, never zero. |
+
+### Empty versus unavailable results
+| Situation | Response |
+| --- | --- |
+| An initial query finds no published results (any measure except CDC status) | HTTP 200 with \
+`meta.availability` `UNAVAILABLE` and `reason` `NO_PUBLISHED_RESULTS`. This does not establish \
+source coverage or biological absence. |
+| You page past the last result | HTTP 200 with `meta.availability` `AVAILABLE`. |
+| CDC status is not published for the county, or a service error occurs | A non-2xx error \
+response, not a 200. |
+
+### Paging
+Send `next_page_token` unchanged with the same filters. Page tokens are tied to the filters and \
+the release.
+
+### Caching
+An `UNAVAILABLE` collection must not be cached.
+"""
+
 CANONICAL_GEOGRAPHY_PROBLEMS = {
     **{status: documented for status, documented in PROBLEMS.items() if status != 503},
     200: {
@@ -463,15 +523,21 @@ def geography(
     tags=["geographies"],
     summary="Check canonical county geography publication availability",
     description=(
-        "Additive county-only operation. Confirms membership and release from the governed "
-        "county directory before returning UNAVAILABLE/CANONICAL_GEOGRAPHY_UNPUBLISHED "
-        "with null data. The canonical resource is identity metadata, not a polygon. "
-        "No geometry is returned or inferred. State availability is unsupported (400). "
-        "Malformed county IDs return 400; confirmed absent identities return 404. "
-        "Unavailable, empty, duplicate or inconsistent directory authority remains 503. "
-        "The directory uses the existing bounded snapshot cache, checked against a fresh "
-        "current-release lookup; a mismatch remains 503. Responses use Cache-Control: no-store. "
-        "The existing canonical resource route and county/map routes are unchanged."
+        "Check whether a county has published canonical geography data.\n\n"
+        "### When to use it\n"
+        "The API confirms the county exists in the current release. It returns HTTP 200 with "
+        "`availability` set to `UNAVAILABLE`, `reason` set to "
+        "`CANONICAL_GEOGRAPHY_UNPUBLISHED`, and `data` set to `null`. The resource describes "
+        "identity only, and the API returns no geometry. State availability is not supported.\n\n"
+        "### Common problems\n"
+        "| Response | Cause and what to do |\n"
+        "| --- | --- |\n"
+        "| `400` | The ID is malformed, or you asked for a state. Send a five-digit county "
+        "FIPS code. |\n"
+        "| `404` | The county is not in the current release. |\n"
+        "| `503` | The county directory is unavailable, empty, duplicated, or inconsistent with "
+        "the current release. Retry later. |\n\n"
+        "The response must not be cached."
     ),
 )
 def geography_availability(
@@ -638,28 +704,7 @@ def observation_service(request: Request) -> ObservationService:
             },
         },
     },
-    description="Current published county observations only. Ordered by measure ID, county FIPS, "
-    "period start, and observation ID. Opaque page tokens bind to filters and release. "
-    "Annual surveillance uses 2023. Separately enabled, reviewed January 2025 environmental "
-    "measures use labeled daily periods, carry environmental_context coverage, and have no "
-    "supported strata. "
-    "Environmental context is descriptive weather, with no causal, disease-risk or ML claim. "
-    "Surveillance context is optional and requires an admitted Data delivery; "
-    "normalized_state preserves Data semantics and the publisher value remains value. "
-    "Separately enabled CDC status uses start_date=end_date=2025-12-31 and CUMULATIVE grain; "
-    "scapularis_status and burgdorferi_status require exact Data record admission. "
-    "Annual year and other date ranges return 400 UNSUPPORTED_FILTER before data access. "
-    "Missing context does not establish absence or temporal comparability. "
-    "County SVI/population/insurance context requires vintage_year=2022 "
-    "and retains ACS 2018-2022 periods. "
-    "RUCC requires vintage_year=2023 and returns categorical codes/labels with null period dates. "
-    "These measures reject annual/day filters; absent rows are unavailable evidence, never zero. "
-    "A measure and bounded county/time selection are required; no user sorting or aggregation. "
-    "After successful release/measure/query reads, an initially empty non-CDC selection "
-    "returns 200 with meta.availability=UNAVAILABLE and reason=NO_PUBLISHED_RESULTS. "
-    "This does not establish source coverage or biological absence. Exhausted continuation "
-    "pages remain AVAILABLE. CDC admission and operational errors remain non-2xx. "
-    "Known unavailable collections use Cache-Control: no-store.",
+    description=OBSERVATIONS_DESCRIPTION,
     operation_id="observations_v1_observations_get",
     tags=["observations"],
     summary="Query county observations",
