@@ -138,7 +138,7 @@ def test_union_returns_real_legacy_v2_shared_and_versioned_source_rows(monkeypat
     assert all(row.operational_state == "unavailable" for row in rows)
     assert first.source_catalog_complete is second.source_catalog_complete is False
     assert first.meta.source_health_available is False
-    assert len(statements) == 6
+    assert len(statements) == 7
     database.close()
 
 
@@ -206,5 +206,5 @@ def test_sources_catalog_keeps_highest_registry_version_per_source_id(monkeypatc
         ("promed-mail", 1, "ProMED", "reviewed_other"),
     ]
     assert len({row[0] for row in rows}) == len(rows)
-    assert len(statements) == 3
+    assert len(statements) == 4
     database.close()

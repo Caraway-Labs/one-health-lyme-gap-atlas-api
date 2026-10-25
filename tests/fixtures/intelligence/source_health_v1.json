@@ -1,0 +1,74 @@
+{
+  "sources": [
+    ["cdc-eid-ahead-of-print", 1, "CDC", "research_index"],
+    ["cdc-mmwr", 2, "CDC", "official_public_health"],
+    ["cdc-outbreaks", 1, "CDC", "official_public_health"],
+    ["state-epi", 1, "State Epi", "official_public_health"],
+    ["tie-source", 1, "Tie Publisher", "reviewed_other"]
+  ],
+  "health_rows": [
+    {
+      "source_id": "cdc-outbreaks",
+      "last_completed_at": "2026-10-25T14:51:00Z",
+      "last_status": "COMPLETED",
+      "last_error_code": null,
+      "items_current": 12,
+      "state": "healthy",
+      "run_id": "should-not-leak-outbreaks"
+    },
+    {
+      "source_id": "cdc-mmwr",
+      "last_completed_at": "2026-10-25T15:00:00Z",
+      "last_status": "FAILED",
+      "last_error_code": "INTELLIGENCE_SOURCE_FETCH_FAILED",
+      "items_current": 0,
+      "state": "failing",
+      "run_id": "should-not-leak-mmwr"
+    },
+    {
+      "source_id": "cdc-mmwr",
+      "last_completed_at": "2026-10-24T12:00:00Z",
+      "last_status": "COMPLETED",
+      "last_error_code": null,
+      "items_current": 4,
+      "state": "healthy",
+      "run_id": "should-not-leak-mmwr-old"
+    },
+    {
+      "source_id": "state-epi",
+      "last_completed_at": "2026-10-22T12:00:00Z",
+      "last_status": "COMPLETED",
+      "last_error_code": "operator note run 40140275945",
+      "items_current": 1,
+      "state": "stale",
+      "run_id": "should-not-leak-stale"
+    },
+    {
+      "source_id": "tie-source",
+      "last_completed_at": "2026-10-25T10:00:00Z",
+      "last_status": "COMPLETED",
+      "last_error_code": null,
+      "items_current": 2,
+      "state": "healthy",
+      "run_id": "should-not-leak-tie-healthy"
+    },
+    {
+      "source_id": "tie-source",
+      "last_completed_at": "2026-10-25T10:00:00Z",
+      "last_status": "FAILED",
+      "last_error_code": "FEED_MALFORMED",
+      "items_current": 2,
+      "state": "failing",
+      "run_id": "should-not-leak-tie-failing"
+    },
+    {
+      "source_id": "not-in-catalog",
+      "last_completed_at": "2026-10-25T16:00:00Z",
+      "last_status": "COMPLETED",
+      "last_error_code": null,
+      "items_current": 1,
+      "state": "healthy",
+      "run_id": "should-not-leak-extra"
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 # API172 intelligence feed read projection
 
-First-party routes `/v1/intelligence/items` and `/v1/intelligence/sources` read only the governed DATA `PRESENTATION.INTELLIGENCE_FEED_V`. They are excluded from the external public analytics OpenAPI allowlist. The complete first-party artifact contains stable operation IDs for downstream generated clients; no WEB changes are included.
+First-party routes `/v1/intelligence/items` and `/v1/intelligence/sources` read the governed DATA presentation. Items read `PRESENTATION.INTELLIGENCE_FEED_V` or `INTELLIGENCE_FEED_V2` when that projection is selected. Sources read represented identities from both published feed projections and operational state from `PRESENTATION.INTELLIGENCE_SOURCE_HEALTH_V1`. They are excluded from the external public analytics OpenAPI allowlist. The complete first-party artifact contains stable operation IDs for downstream generated clients; no WEB changes are included.
 
 `INTELLIGENCE_FEED_READ_ENABLED` defaults false. Do not enable before intended API runtime-role readback, DATA publication acceptance and coordinated production release. Disabled or unavailable returns ProblemDetails 503, never a fabricated empty feed. Only exact DEV/PROD presentation databases are accepted. Bound parameters, explicit public columns, page/result limits, query timeout, rate/concurrency/query/body middleware and strict nested response validation protect reads. No private source registry, raw bytes, mailbox or credentials are exposed.
 
-Items retain all source/revision attribution and publisher versus fetch dates, including missingness and untrusted-content labels. Inclusive publication-date filters support archive reads; there is no metadata retention cutoff. Stable identity ordering does not rank relevance. Sources describe only identities represented by published items, not all registered/active sources. Health is explicitly unavailable until DATA publishes a governed health projection; fetch dates do not imply operational health or disease activity.
+Items retain all source/revision attribution and publisher versus fetch dates, including missingness and untrusted-content labels. Inclusive publication-date filters support archive reads; there is no metadata retention cutoff. Stable identity ordering does not rank relevance. Sources describe only identities represented by published items, not all registered/active sources. Each source row reports `operational_state` from `PRESENTATION.INTELLIGENCE_SOURCE_HEALTH_V1` as healthy, stale, or failing, with `last_completed_at` and an allowlisted `last_error_code`. A source with no health row, and every source when that projection cannot be read, is unavailable with diagnostic `SOURCE_HEALTH_NOT_PUBLISHED`. Run identifiers and free text are not returned. Fetch dates do not imply operational health or disease activity.
 
 Continuation tokens bind filters, offset and a state-change detector. Snowflake HASH_AGG is a noncryptographic 64-bit aggregate; pre/post checks and signed tokens detect ordinary changes but do not establish immutable snapshot isolation or cryptographic completeness. Restart pagination on detected change. Count ceilings bound returned data, not warehouse scan cost; the existing timeout applies. Live SQL and grants require intended-role verification.
 
@@ -39,8 +39,9 @@ text. Missing, invalid, or withheld publication dates remain null; fetch time
 never substitutes for them. Inclusive publication filters exclude unknown dates.
 Identity/revision ordering is deterministic, not a claim of recency ranking. An
 available empty view returns 200 with `data: []` and no continuation; disabled,
-inaccessible or invalid projections return a sanitized 503. Source health
-remains explicitly unavailable, independently of the feed result.
+inaccessible or invalid projections return a sanitized 503. The metadata feed
+does not include source operational state. Source operational state is on
+`/v1/intelligence/sources`.
 
 `GET /v1/intelligence/feed/{item_id}` reads the same fields for one current
 entry from the same governed view. The item id is the 64-character digest.
