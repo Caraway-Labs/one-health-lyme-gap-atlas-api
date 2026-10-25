@@ -394,20 +394,31 @@ class ScoreCollection(BaseModel):
 
 
 class CountyMapValues(BaseModel):
-    fips: str = Field(pattern=r"^\d{5}$")
+    """The county values a map needs to color its shapes, without the full score record."""
+
+    fips: str = Field(
+        pattern=r"^\d{5}$", description="Five-digit county FIPS code, with leading zeros."
+    )
     incidence_floor_2023: float | None = Field(
         default=None,
         ge=0,
-        description="Published 2023 minimum reported incidence per 100,000; null is not zero.",
+        description="Published 2023 minimum reported incidence per 100,000 people. "
+        "A floor is a minimum, not a complete count. `null` is not zero.",
     )
-    svi_percentile: float | None = None
-    uninsured_percent: float | None = None
-    rucc_2023: int | None = None
+    svi_percentile: float | None = Field(default=None, description=_SVI_DESCRIPTION)
+    uninsured_percent: float | None = Field(
+        default=None,
+        description="Share of the county population without health insurance, as a percent. "
+        "`null` when none is published.",
+    )
+    rucc_2023: int | None = Field(default=None, description=_RUCC_DESCRIPTION)
 
 
 class MapValuesCollection(BaseModel):
-    release_id: str
-    counties: list[CountyMapValues]
+    """County values for drawing a map. Show the same values in a table for non-map users."""
+
+    release_id: str = Field(description=_RELEASE_ID_DESCRIPTION)
+    counties: list[CountyMapValues] = Field(description="One entry for each county.")
 
 
 class CountyDetail(CountyScoreSummary):

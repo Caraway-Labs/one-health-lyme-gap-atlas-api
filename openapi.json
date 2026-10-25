@@ -4995,14 +4995,16 @@
         "properties": {
           "release_id": {
             "type": "string",
-            "title": "Release Id"
+            "title": "Release Id",
+            "description": "Identifies the published data release. Results from different releases are not directly comparable."
           },
           "counties": {
             "items": {
               "$ref": "#/components/schemas/CountyMapValues"
             },
             "type": "array",
-            "title": "Counties"
+            "title": "Counties",
+            "description": "One entry for each county."
           }
         },
         "type": "object",
@@ -5010,18 +5012,20 @@
           "release_id",
           "counties"
         ],
-        "title": "MapValuesCollection"
+        "title": "MapValuesCollection",
+        "description": "County values for drawing a map. Show the same values in a table for non-map users."
       },
       "CountyMapValues": {
         "properties": {
           "fips": {
             "type": "string",
             "pattern": "^\\d{5}$",
-            "title": "Fips"
+            "title": "Fips",
+            "description": "Five-digit county FIPS code, with leading zeros."
           },
           "incidence_floor_2023": {
             "title": "Incidence Floor 2023",
-            "description": "Published 2023 minimum reported incidence per 100,000; null is not zero.",
+            "description": "Published 2023 minimum reported incidence per 100,000 people. A floor is a minimum, not a complete count. `null` is not zero.",
             "minimum": 0.0,
             "type": [
               "number",
@@ -5030,6 +5034,7 @@
           },
           "svi_percentile": {
             "title": "Svi Percentile",
+            "description": "Social Vulnerability Index percentile of the county. Value from 0 to 1. `null` when none is published; `null` is not zero.",
             "type": [
               "number",
               "null"
@@ -5037,6 +5042,7 @@
           },
           "uninsured_percent": {
             "title": "Uninsured Percent",
+            "description": "Share of the county population without health insurance, as a percent. `null` when none is published.",
             "type": [
               "number",
               "null"
@@ -5044,6 +5050,7 @@
           },
           "rucc_2023": {
             "title": "Rucc 2023",
+            "description": "2023 Rural-Urban Continuum Code, from 1 (most urban) to 9 (most rural). `null` when none is published.",
             "type": [
               "integer",
               "null"
@@ -5054,7 +5061,8 @@
         "required": [
           "fips"
         ],
-        "title": "CountyMapValues"
+        "title": "CountyMapValues",
+        "description": "The county values a map needs to color its shapes, without the full score record."
       },
       "AtlasMetadata": {
         "properties": {
