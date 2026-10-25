@@ -269,7 +269,29 @@
           "304": {
             "description": "Not modified. Your `If-None-Match` value matches the current `ETag`. The response has no body."
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/atlas/geometry'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/atlas/geometry\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/atlas/geometry\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/atlas/geometry\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/atlas/map-values": {
@@ -492,7 +514,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/atlas/map-values'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/atlas/map-values\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/atlas/map-values\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/atlas/map-values\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/atlas/metadata": {
@@ -738,7 +782,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/atlas/metadata'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/atlas/metadata\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/atlas/metadata\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/atlas/metadata\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/atlas/ranking.csv": {
@@ -1048,7 +1114,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/atlas/ranking.csv'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/atlas/ranking.csv\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.text"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/atlas/ranking.csv\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: string = await response.text();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/atlas/ranking.csv\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_string(response)"
+          }
+        ]
       }
     },
     "/v1/atlas/scores": {
@@ -1391,7 +1479,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/atlas/scores'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/atlas/scores\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/atlas/scores\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/atlas/scores\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/counties/{fips}": {
@@ -1980,7 +2090,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/counties/08001'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/counties/08001\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/counties/08001\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/counties/08001\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/counties/{fips}/report.pdf": {
@@ -2407,7 +2539,14 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS -o report.pdf 'https://api.onehealthatlas.org/v1/counties/08001/report.pdf'"
+          }
+        ]
       }
     },
     "/v1/counties/{fips}/surveillance-situations": {
@@ -3075,7 +3214,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/counties/08001/surveillance-situations'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/counties/08001/surveillance-situations\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/counties/08001/surveillance-situations\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/counties/08001/surveillance-situations\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/counties/{fips}/tier1-surveillance-priority": {
@@ -3295,7 +3456,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/counties/08001/tier1-surveillance-priority'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/counties/08001/tier1-surveillance-priority\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/counties/08001/tier1-surveillance-priority\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/counties/08001/tier1-surveillance-priority\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/counties/{fips}/tier1-surveillance-priority/availability": {
@@ -3521,7 +3704,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/counties/08001/tier1-surveillance-priority/availability'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/counties/08001/tier1-surveillance-priority/availability\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/counties/08001/tier1-surveillance-priority/availability\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/counties/08001/tier1-surveillance-priority/availability\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/geographies/{geography_type}/{geography_id}": {
@@ -3778,7 +3983,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/geographies/county/08001'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/geographies/county/08001\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/geographies/county/08001\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/geographies/county/08001\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/geographies/{geography_type}/{geography_id}/availability": {
@@ -4058,7 +4285,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/geographies/county/08001/availability'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/geographies/county/08001/availability\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/geographies/county/08001/availability\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/geographies/county/08001/availability\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/indicators": {
@@ -4396,7 +4645,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "url='https://api.onehealthatlas.org/v1/indicators'\nnext_url=\"$url\"\nwhile [ -n \"$next_url\" ]; do\n  page=$(curl -fsS \"$next_url\")\n  printf '%s\\n' \"$page\"\n  token=$(printf '%s' \"$page\" | python3 -c 'import json,sys,urllib.parse; token=json.load(sys.stdin)[\"meta\"][\"next_page_token\"]; print(\"\" if token is None else urllib.parse.quote(token, safe=\"\"))')\n  if [ -n \"$token\" ]; then next_url=\"$url?page_token=$token\"; else next_url=\"\"; fi\ndone"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nendpoint = \"https://api.onehealthatlas.org/v1/indicators\"\nfilters = {}\npages = []\nwith httpx.Client(timeout=30.0) as client:\n    params = dict(filters)\n    while True:\n        response = client.get(endpoint, params=params)\n        response.raise_for_status()\n        body = response.json()\n        pages.append(body)\n        token = body[\"meta\"][\"next_page_token\"]\n        if token is None:\n            break\n        params = {**filters, \"page_token\": token}"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const endpoint = \"https://api.onehealthatlas.org/v1/indicators\";\nconst filters: [string, string][] = [];\n\ntype Page = { meta: { next_page_token: string | null } };\n\nconst pages: Page[] = [];\nlet pageToken: string | null = null;\ndo {\n  const url = new URL(endpoint);\n  for (const [name, value] of filters) {\n    url.searchParams.append(name, value);\n  }\n  if (pageToken !== null) {\n    url.searchParams.append(\"page_token\", pageToken);\n  }\n  const response = await fetch(url);\n  if (!response.ok) {\n    throw new Error(`Atlas HTTP ${response.status}`);\n  }\n  const page = (await response.json()) as Page;\n  pages.push(page);\n  pageToken = page.meta.next_page_token;\n} while (pageToken !== null);"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nendpoint <- \"https://api.onehealthatlas.org/v1/indicators\"\nfilters <- list()\n\npages <- list()\npage_token <- NULL\nrepeat {\n  response <- request(endpoint) |>\n    req_url_query(!!!filters, page_token = page_token) |>\n    req_timeout(30) |>\n    req_perform()\n  body <- resp_body_json(response)\n  pages[[length(pages) + 1]] <- body\n  page_token <- body$meta$next_page_token\n  if (is.null(page_token)) break\n}"
+          }
+        ]
       }
     },
     "/v1/indicators/{indicator_id}": {
@@ -4697,7 +4968,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/indicators/human_disease_burden'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/indicators/human_disease_burden\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/indicators/human_disease_burden\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/indicators/human_disease_burden\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/measures": {
@@ -5085,7 +5378,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "url='https://api.onehealthatlas.org/v1/measures'\nnext_url=\"$url\"\nwhile [ -n \"$next_url\" ]; do\n  page=$(curl -fsS \"$next_url\")\n  printf '%s\\n' \"$page\"\n  token=$(printf '%s' \"$page\" | python3 -c 'import json,sys,urllib.parse; token=json.load(sys.stdin)[\"meta\"][\"next_page_token\"]; print(\"\" if token is None else urllib.parse.quote(token, safe=\"\"))')\n  if [ -n \"$token\" ]; then next_url=\"$url?page_token=$token\"; else next_url=\"\"; fi\ndone"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nendpoint = \"https://api.onehealthatlas.org/v1/measures\"\nfilters = {}\npages = []\nwith httpx.Client(timeout=30.0) as client:\n    params = dict(filters)\n    while True:\n        response = client.get(endpoint, params=params)\n        response.raise_for_status()\n        body = response.json()\n        pages.append(body)\n        token = body[\"meta\"][\"next_page_token\"]\n        if token is None:\n            break\n        params = {**filters, \"page_token\": token}"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const endpoint = \"https://api.onehealthatlas.org/v1/measures\";\nconst filters: [string, string][] = [];\n\ntype Page = { meta: { next_page_token: string | null } };\n\nconst pages: Page[] = [];\nlet pageToken: string | null = null;\ndo {\n  const url = new URL(endpoint);\n  for (const [name, value] of filters) {\n    url.searchParams.append(name, value);\n  }\n  if (pageToken !== null) {\n    url.searchParams.append(\"page_token\", pageToken);\n  }\n  const response = await fetch(url);\n  if (!response.ok) {\n    throw new Error(`Atlas HTTP ${response.status}`);\n  }\n  const page = (await response.json()) as Page;\n  pages.push(page);\n  pageToken = page.meta.next_page_token;\n} while (pageToken !== null);"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nendpoint <- \"https://api.onehealthatlas.org/v1/measures\"\nfilters <- list()\n\npages <- list()\npage_token <- NULL\nrepeat {\n  response <- request(endpoint) |>\n    req_url_query(!!!filters, page_token = page_token) |>\n    req_timeout(30) |>\n    req_perform()\n  body <- resp_body_json(response)\n  pages[[length(pages) + 1]] <- body\n  page_token <- body$meta$next_page_token\n  if (is.null(page_token)) break\n}"
+          }
+        ]
       }
     },
     "/v1/measures/{measure_id}": {
@@ -5392,7 +5707,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/measures/case_count_floor_2023'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/measures/case_count_floor_2023\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/measures/case_count_floor_2023\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/measures/case_count_floor_2023\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/methodologies/{methodology_id}": {
@@ -5685,7 +6022,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/methodologies/human_confirmed_probable_case_floor_v1'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/methodologies/human_confirmed_probable_case_floor_v1\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/methodologies/human_confirmed_probable_case_floor_v1\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/methodologies/human_confirmed_probable_case_floor_v1\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/observations": {
@@ -6281,7 +6640,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "url='https://api.onehealthatlas.org/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=08001&year=2023'\nnext_url=\"$url\"\nwhile [ -n \"$next_url\" ]; do\n  page=$(curl -fsS \"$next_url\")\n  printf '%s\\n' \"$page\"\n  token=$(printf '%s' \"$page\" | python3 -c 'import json,sys,urllib.parse; token=json.load(sys.stdin)[\"meta\"][\"next_page_token\"]; print(\"\" if token is None else urllib.parse.quote(token, safe=\"\"))')\n  if [ -n \"$token\" ]; then next_url=\"$url&page_token=$token\"; else next_url=\"\"; fi\ndone"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nendpoint = \"https://api.onehealthatlas.org/v1/observations\"\nfilters = {\n    \"measure_id\": \"case_count_floor_2023\",\n    \"geography_type\": \"county\",\n    \"geography_id\": \"08001\",\n    \"year\": \"2023\",\n}\npages = []\nwith httpx.Client(timeout=30.0) as client:\n    params = dict(filters)\n    while True:\n        response = client.get(endpoint, params=params)\n        response.raise_for_status()\n        body = response.json()\n        pages.append(body)\n        token = body[\"meta\"][\"next_page_token\"]\n        if token is None:\n            break\n        params = {**filters, \"page_token\": token}"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const endpoint = \"https://api.onehealthatlas.org/v1/observations\";\nconst filters: [string, string][] = [\n  [\"measure_id\", \"case_count_floor_2023\"],\n  [\"geography_type\", \"county\"],\n  [\"geography_id\", \"08001\"],\n  [\"year\", \"2023\"],\n];\n\ntype Page = { meta: { next_page_token: string | null } };\n\nconst pages: Page[] = [];\nlet pageToken: string | null = null;\ndo {\n  const url = new URL(endpoint);\n  for (const [name, value] of filters) {\n    url.searchParams.append(name, value);\n  }\n  if (pageToken !== null) {\n    url.searchParams.append(\"page_token\", pageToken);\n  }\n  const response = await fetch(url);\n  if (!response.ok) {\n    throw new Error(`Atlas HTTP ${response.status}`);\n  }\n  const page = (await response.json()) as Page;\n  pages.push(page);\n  pageToken = page.meta.next_page_token;\n} while (pageToken !== null);"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nendpoint <- \"https://api.onehealthatlas.org/v1/observations\"\nfilters <- list(\n  measure_id = \"case_count_floor_2023\",\n  geography_type = \"county\",\n  geography_id = \"08001\",\n  year = \"2023\"\n)\n\npages <- list()\npage_token <- NULL\nrepeat {\n  response <- request(endpoint) |>\n    req_url_query(!!!filters, page_token = page_token) |>\n    req_timeout(30) |>\n    req_perform()\n  body <- resp_body_json(response)\n  pages[[length(pages) + 1]] <- body\n  page_token <- body$meta$next_page_token\n  if (is.null(page_token)) break\n}"
+          }
+        ]
       }
     },
     "/v1/sources": {
@@ -6606,7 +6987,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "url='https://api.onehealthatlas.org/v1/sources'\nnext_url=\"$url\"\nwhile [ -n \"$next_url\" ]; do\n  page=$(curl -fsS \"$next_url\")\n  printf '%s\\n' \"$page\"\n  token=$(printf '%s' \"$page\" | python3 -c 'import json,sys,urllib.parse; token=json.load(sys.stdin)[\"meta\"][\"next_page_token\"]; print(\"\" if token is None else urllib.parse.quote(token, safe=\"\"))')\n  if [ -n \"$token\" ]; then next_url=\"$url?page_token=$token\"; else next_url=\"\"; fi\ndone"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nendpoint = \"https://api.onehealthatlas.org/v1/sources\"\nfilters = {}\npages = []\nwith httpx.Client(timeout=30.0) as client:\n    params = dict(filters)\n    while True:\n        response = client.get(endpoint, params=params)\n        response.raise_for_status()\n        body = response.json()\n        pages.append(body)\n        token = body[\"meta\"][\"next_page_token\"]\n        if token is None:\n            break\n        params = {**filters, \"page_token\": token}"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const endpoint = \"https://api.onehealthatlas.org/v1/sources\";\nconst filters: [string, string][] = [];\n\ntype Page = { meta: { next_page_token: string | null } };\n\nconst pages: Page[] = [];\nlet pageToken: string | null = null;\ndo {\n  const url = new URL(endpoint);\n  for (const [name, value] of filters) {\n    url.searchParams.append(name, value);\n  }\n  if (pageToken !== null) {\n    url.searchParams.append(\"page_token\", pageToken);\n  }\n  const response = await fetch(url);\n  if (!response.ok) {\n    throw new Error(`Atlas HTTP ${response.status}`);\n  }\n  const page = (await response.json()) as Page;\n  pages.push(page);\n  pageToken = page.meta.next_page_token;\n} while (pageToken !== null);"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nendpoint <- \"https://api.onehealthatlas.org/v1/sources\"\nfilters <- list()\n\npages <- list()\npage_token <- NULL\nrepeat {\n  response <- request(endpoint) |>\n    req_url_query(!!!filters, page_token = page_token) |>\n    req_timeout(30) |>\n    req_perform()\n  body <- resp_body_json(response)\n  pages[[length(pages) + 1]] <- body\n  page_token <- body$meta$next_page_token\n  if (is.null(page_token)) break\n}"
+          }
+        ]
       }
     },
     "/v1/sources/{source_id}": {
@@ -6907,7 +7310,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/sources/human'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/sources/human\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/sources/human\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/sources/human\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     },
     "/v1/states/{state}/report.pdf": {
@@ -7261,7 +7686,14 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS -o report.pdf 'https://api.onehealthatlas.org/v1/states/CO/report.pdf'"
+          }
+        ]
       }
     },
     "/v1/states/{state}/review": {
@@ -7531,7 +7963,29 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "Shell",
+            "label": "curl",
+            "source": "curl -fsS 'https://api.onehealthatlas.org/v1/states/CO/review'"
+          },
+          {
+            "lang": "Python",
+            "label": "Python",
+            "source": "import httpx\n\nresponse = httpx.get(\n    \"https://api.onehealthatlas.org/v1/states/CO/review\",\n    timeout=30.0,\n)\nresponse.raise_for_status()\nbody = response.json()"
+          },
+          {
+            "lang": "TypeScript",
+            "label": "TypeScript",
+            "source": "const url = new URL(\"https://api.onehealthatlas.org/v1/states/CO/review\");\nconst response = await fetch(url);\nif (!response.ok) {\n  throw new Error(`Atlas HTTP ${response.status}`);\n}\nconst body: unknown = await response.json();"
+          },
+          {
+            "lang": "R",
+            "label": "R",
+            "source": "library(httr2)\n\nresponse <- request(\"https://api.onehealthatlas.org/v1/states/CO/review\") |>\n  req_timeout(30) |>\n  req_perform()\nbody <- resp_body_json(response)"
+          }
+        ]
       }
     }
   },
