@@ -13,6 +13,8 @@ from typing import Annotated, Any, Final, Literal, Protocol, Self, cast
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import AfterValidator, Field, ValidationError, model_validator
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema
 
 from .briefings import (
     BriefingModel,
@@ -61,12 +63,14 @@ _DESCRIPTION_WITHHELD = {"text": None, "state": "withheld"}
 _DESCRIPTION_NOT_PROVIDED = {"text": None, "state": "not_provided"}
 _ABSTRACT_WITHHELD = {"text": None, "state": "withheld", "copyright_line": None}
 _ABSTRACT_SUPPRESSED = {"text": None, "state": "suppressed", "copyright_line": None}
+# Single bound for a returned PubMed abstract. The projection, the model validator,
+# the OpenAPI maxLength, and the feed operation descriptions all read this value.
+ABSTRACT_TEXT_MAX_LENGTH: Final[int] = 6000
+# List excerpt length. The preview is cut in Python at a word boundary at or before this.
+ABSTRACT_PREVIEW_MAX_LENGTH: Final[int] = 1000
+_PREVIEW_TRAILING = ".,;:!?\"'`“”‘’…"
 # The governed view does not project this column yet. Select it only when it exists.
 _ABSTRACT_SUPPRESSED_COLUMN = "ABSTRACT_SUPPRESSED"
-_FEED_SUMMARY = (
-    "The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. "
-    "It returns no article bodies or media."
-)
 
 ITEM_COLUMNS = (
     "item_id",
@@ -169,17 +173,27 @@ _SOURCE_FIELDS = (
     "organization",
     "reviewed_trust_classification",
 )
-FEED_COLUMNS = (
+_FEED_SHARED_COLUMNS = (
     *_FEED_RAW_PREFIX,
     "source_family",
     "source_family_label",
     "description",
-    "abstract",
     "tags",
     "authors",
     "pmid",
+    "pubmed_url",
     "attribution",
 )
+# List rows. The full abstract text is not one of these fields.
+FEED_COLUMNS = (
+    *_FEED_SHARED_COLUMNS,
+    "abstract_preview",
+    "abstract_has_more",
+    "abstract_state",
+    "copyright_line",
+)
+# By-id row. `abstract` carries the full text, state, and copyright line.
+FEED_ENTRY_COLUMNS = (*_FEED_SHARED_COLUMNS, "abstract")
 _FEED_PUBLISHER_OBJECT = (
     "OBJECT_CONSTRUCT_KEEP_NULL("
     "'source_family', PUBLISHER_METADATA:source_family, "
@@ -314,6 +328,124 @@ def _copyright_line(value: Any) -> tuple[str | None, int]:
     return None, 1
 
 
+def pubmed_url_for(pmid: str | None) -> str | None:
+    """PubMed article URL for a PMID. Null when the entry has no PMID."""
+    if pmid is None:
+        return None
+    return f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+
+
+def feed_text_summary() -> str:
+    """Shared sentences for the list and by-id operation descriptions."""
+    return (
+        "The feed returns publisher summaries and, for PubMed, abstracts with their "
+        "copyright line. "
+        f"An abstract longer than {ABSTRACT_TEXT_MAX_LENGTH} characters is withheld. "
+        "It returns no article bodies or media."
+    )
+
+
+def list_feed_description() -> str:
+    """Current behavior of GET /v1/intelligence/feed."""
+    return (
+        "Read only from governed INTELLIGENCE_FEED_V2. "
+        + feed_text_summary()
+        + " Each list entry includes abstract_preview, abstract_has_more, abstract_state, "
+        "copyright_line, pubmed_url, and attribution. abstract_preview is at most "
+        f"{ABSTRACT_PREVIEW_MAX_LENGTH} characters, cut at a word boundary, and is null when "
+        "abstract_state is not present. The list does not include the full abstract text. "
+        "Publisher dates remain null when unknown; inclusive date filters exclude "
+        "unknown dates. Entries with a publisher date are newest first. Entries with an "
+        "unknown publisher date are last. Matching publisher dates use a stable tie-break "
+        "of item id, revision id, source id, and registry version. Bounded "
+        "state/filter-bound pagination. The response must not be cached. Disabled or "
+        "unavailable returns 503; an available empty projection returns 200."
+    )
+
+
+def entry_feed_description() -> str:
+    """Current behavior of GET /v1/intelligence/feed/{item_id}."""
+    return (
+        "Read one current entry from governed INTELLIGENCE_FEED_V2 by its 64-character item id. "
+        + feed_text_summary()
+        + " The entry includes the full abstract as abstract.text, abstract.state, and "
+        "abstract.copyright_line, plus pubmed_url and attribution. The response must not be "
+        "cached. A malformed id returns 422. An id that is not in the feed returns 404. "
+        "Disabled or unavailable returns 503."
+    )
+
+
+def abstract_text_description() -> str:
+    """Field description for the full abstract. Reads the live cap."""
+    return (
+        "Plain text of the PubMed abstract. Non-empty when state is present, "
+        "an empty string when state is empty, and null otherwise. The text is "
+        f"complete. An abstract longer than {ABSTRACT_TEXT_MAX_LENGTH} characters is withheld."
+    )
+
+
+def _last_whitespace(value: str) -> int:
+    for index in range(len(value) - 1, -1, -1):
+        if value[index].isspace():
+            return index
+    return -1
+
+
+def cut_abstract_preview(text: str, limit: int | None = None) -> tuple[str, bool]:
+    """Return a word-boundary excerpt and whether the abstract continues.
+
+    Text at or under the limit is returned unchanged. Longer text is cut before
+    the word that crosses the limit, then trailing space and punctuation are
+    removed. No ellipsis is added. A single token longer than the limit yields
+    an empty excerpt because the cut cannot fall mid-word.
+    """
+    bound = ABSTRACT_PREVIEW_MAX_LENGTH if limit is None else limit
+    if len(text) <= bound:
+        return text, False
+    window = text[:bound]
+    if not text[bound].isspace():
+        boundary = _last_whitespace(window)
+        if boundary < 0:
+            return "", True
+        window = window[:boundary]
+    preview = window.rstrip().rstrip(_PREVIEW_TRAILING).rstrip()
+    return preview, True
+
+
+def list_abstract_fields(abstract: dict[str, Any] | None) -> dict[str, Any]:
+    """List-row abstract fields. The full abstract text is not copied."""
+    if abstract is None:
+        return {
+            "abstract_preview": None,
+            "abstract_has_more": False,
+            "abstract_state": None,
+            "copyright_line": None,
+        }
+    state = abstract["state"]
+    text = abstract.get("text")
+    if state != "present" or not isinstance(text, str) or text == "":
+        return {
+            "abstract_preview": None,
+            "abstract_has_more": False,
+            "abstract_state": state,
+            "copyright_line": None,
+        }
+    preview, has_more = cut_abstract_preview(text)
+    return {
+        "abstract_preview": preview,
+        "abstract_has_more": has_more,
+        "abstract_state": state,
+        "copyright_line": abstract.get("copyright_line"),
+    }
+
+
+def project_list_entry(document: Mapping[str, Any]) -> dict[str, Any]:
+    """Drop the full abstract and attach the list preview fields."""
+    listed = {key: value for key, value in document.items() if key != "abstract"}
+    listed.update(list_abstract_fields(document.get("abstract")))
+    return listed
+
+
 def _project_abstract(
     raw: Any, *, pubmed: bool, suppressed: bool
 ) -> tuple[dict[str, Any] | None, int]:
@@ -335,7 +467,7 @@ def _project_abstract(
         return {"text": None, "state": "not_provided", "copyright_line": None}, 0
     if state == "empty" and text == "":
         return {"text": "", "state": "empty", "copyright_line": None}, 0
-    if state == "present" and _plain(text, 6000) and text != "":
+    if state == "present" and _plain(text, ABSTRACT_TEXT_MAX_LENGTH) and text != "":
         return {
             "text": text,
             "state": "present",
@@ -386,6 +518,7 @@ def project_feed_document(
         ),
         "authors": _authors(None if raw is None else raw.get("authors")),
         "pmid": pmid,
+        "pubmed_url": pubmed_url_for(pmid),
         "attribution": feed_attribution(family, publisher if isinstance(publisher, str) else None),
     }
     return document, description_failures + abstract_failures
@@ -427,21 +560,28 @@ class FeedDescription(BriefingModel):
         return self
 
 
+def _limit_abstract_text_schema(schema: dict[str, Any]) -> None:
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return
+    text = properties.get("text")
+    if not isinstance(text, dict):
+        return
+    text["description"] = abstract_text_description()
+    variants = text.get("anyOf")
+    targets = variants if isinstance(variants, list) else [text]
+    for variant in targets:
+        if isinstance(variant, dict) and variant.get("type") == "string":
+            variant["maxLength"] = ABSTRACT_TEXT_MAX_LENGTH
+
+
 class FeedAbstract(BriefingModel):
     """PubMed abstract for one feed entry."""
 
     text: (
         Annotated[
             str,
-            Field(
-                max_length=6000,
-                pattern=_PLAIN,
-                description=(
-                    "Plain text of the PubMed abstract. Non-empty when state is present, "
-                    "an empty string when state is empty, and null otherwise. The text is "
-                    "complete."
-                ),
-            ),
+            Field(pattern=_PLAIN, description=abstract_text_description()),
         ]
         | None
     )
@@ -467,8 +607,18 @@ class FeedAbstract(BriefingModel):
         | None
     )
 
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: Any) -> JsonSchemaValue:
+        schema = handler(core_schema)
+        if not isinstance(schema, dict):
+            return cast(JsonSchemaValue, schema)
+        _limit_abstract_text_schema(schema)
+        return schema
+
     @model_validator(mode="after")
     def abstract_state(self) -> Self:
+        if self.text is not None and len(self.text) > ABSTRACT_TEXT_MAX_LENGTH:
+            raise ValueError("INTELLIGENCE_ABSTRACT_TOO_LONG")
         if self.state == "present":
             if not self.text:
                 raise ValueError("INTELLIGENCE_ABSTRACT_STATE_INVALID")
@@ -482,8 +632,8 @@ class FeedAbstract(BriefingModel):
         return self
 
 
-class FeedEntry(BriefingModel):
-    """One source-attributed publication in the intelligence feed."""
+class FeedPublication(BriefingModel):
+    """Fields shared by a feed list row and a by-id entry."""
 
     item_id: Digest
     revision_id: Digest
@@ -511,12 +661,6 @@ class FeedEntry(BriefingModel):
         description="Display label for source_family."
     )
     description: FeedDescription = Field(description="Publisher summary for this entry.")
-    abstract: FeedAbstract | None = Field(
-        description=(
-            "PubMed abstract for this entry, including its copyright line. "
-            "Null when the entry is not PubMed."
-        )
-    )
     tags: Annotated[
         tuple[Annotated[str, Field(max_length=200, pattern=_PLAIN)], ...],
         Field(
@@ -539,27 +683,132 @@ class FeedEntry(BriefingModel):
     pmid: Annotated[str, Field(pattern=r"^[1-9][0-9]{0,9}$")] | None = Field(
         description="PubMed identifier. Null when the entry is not a PubMed record."
     )
+    pubmed_url: Annotated[str, Field(max_length=80, pattern=_PLAIN)] | None = Field(
+        description=(
+            "PubMed article URL derived from pmid: https://pubmed.ncbi.nlm.nih.gov/<pmid>/. "
+            "Null when pmid is null."
+        )
+    )
     attribution: Annotated[str, Field(max_length=200, pattern=_PLAIN)] = Field(
         description="Credit line shown with the entry."
     )
 
     @model_validator(mode="after")
-    def date_state(self) -> Self:
+    def publication_fields(self) -> Self:
         if (self.published_at is not None) != (self.publication_date_state == "present"):
             raise ValueError("INTELLIGENCE_PUBLICATION_DATE_STATE_INVALID")
         if self.attribution != feed_attribution(self.source_family, self.publisher):
             raise ValueError("INTELLIGENCE_ATTRIBUTION_INVALID")
         if self.source_family_label != _SOURCE_FAMILY_LABELS[self.source_family]:
             raise ValueError("INTELLIGENCE_SOURCE_FAMILY_LABEL_INVALID")
+        if self.pubmed_url != pubmed_url_for(self.pmid):
+            raise ValueError("INTELLIGENCE_PUBMED_URL_INVALID")
+        if self.source_family != "pubmed" and self.pmid is not None:
+            raise ValueError("INTELLIGENCE_PUBMED_FIELDS_INVALID")
+        return self
+
+
+def _pubmed_description_invalid(description: FeedDescription) -> bool:
+    return description.text is not None or description.state != "not_provided"
+
+
+class FeedEntry(FeedPublication):
+    """One source-attributed publication, including the full PubMed abstract."""
+
+    abstract: FeedAbstract | None = Field(
+        description=(
+            "PubMed abstract for this entry, including its copyright line. "
+            "Null when the entry is not PubMed. The text is the complete abstract."
+        )
+    )
+
+    @model_validator(mode="after")
+    def abstract_matches_family(self) -> Self:
         if self.source_family == "pubmed":
+            if self.abstract is None or _pubmed_description_invalid(self.description):
+                raise ValueError("INTELLIGENCE_PUBMED_FIELDS_INVALID")
+        elif self.abstract is not None:
+            raise ValueError("INTELLIGENCE_PUBMED_FIELDS_INVALID")
+        return self
+
+
+class FeedListEntry(FeedPublication):
+    """One feed list row. The full abstract text is omitted."""
+
+    abstract_preview: (
+        Annotated[
+            str,
+            Field(
+                max_length=ABSTRACT_PREVIEW_MAX_LENGTH,
+                pattern=_PLAIN,
+                description=(
+                    "Plain-text preview of a present PubMed abstract, cut at a word boundary. "
+                    f"At most {ABSTRACT_PREVIEW_MAX_LENGTH} characters. The whole abstract when "
+                    "it is shorter. An empty string when the abstract is present and no complete "
+                    "word fits. Null when abstract_state is not present. No ellipsis is added."
+                ),
+            ),
+        ]
+        | None
+    )
+    abstract_has_more: bool = Field(
+        description=(
+            "True when abstract_preview omits part of a present abstract. False when the "
+            "preview is the whole abstract, or when abstract_state is not present."
+        )
+    )
+    abstract_state: Literal["present", "empty", "not_provided", "withheld", "suppressed"] | None = (
+        Field(
+            description=(
+                "present: the abstract text is non-empty. empty: the abstract element is blank. "
+                "not_provided: the PubMed record has no abstract. withheld: the abstract is not "
+                "shown. suppressed: the abstract is not shown. Null when the entry is not PubMed, "
+                "matching a null abstract on the by-id route."
+            )
+        )
+    )
+    copyright_line: (
+        Annotated[
+            str,
+            Field(
+                max_length=1000,
+                pattern=_PLAIN,
+                description=(
+                    "Copyright line from the record, verbatim. Present only when "
+                    "abstract_state is present and the record has one; otherwise null."
+                ),
+            ),
+        ]
+        | None
+    )
+
+    @model_validator(mode="after")
+    def preview_matches_state(self) -> Self:
+        if self.source_family != "pubmed":
             if (
-                self.abstract is None
-                or self.description.text is not None
-                or self.description.state != "not_provided"
+                self.abstract_state is not None
+                or self.abstract_preview is not None
+                or self.abstract_has_more
+                or self.copyright_line is not None
             ):
                 raise ValueError("INTELLIGENCE_PUBMED_FIELDS_INVALID")
-        elif self.abstract is not None or self.pmid is not None:
+            return self
+        if self.abstract_state is None or _pubmed_description_invalid(self.description):
             raise ValueError("INTELLIGENCE_PUBMED_FIELDS_INVALID")
+        if self.abstract_state != "present":
+            if (
+                self.abstract_preview is not None
+                or self.abstract_has_more
+                or self.copyright_line is not None
+            ):
+                raise ValueError("INTELLIGENCE_ABSTRACT_STATE_INVALID")
+            return self
+        if self.abstract_preview is None:
+            raise ValueError("INTELLIGENCE_ABSTRACT_STATE_INVALID")
+        if self.abstract_preview == "" and not self.abstract_has_more:
+            raise ValueError("INTELLIGENCE_ABSTRACT_STATE_INVALID")
+        if len(self.abstract_preview) > ABSTRACT_PREVIEW_MAX_LENGTH:
+            raise ValueError("INTELLIGENCE_ABSTRACT_STATE_INVALID")
         return self
 
 
@@ -646,7 +895,7 @@ class FeedItems(BriefingModel):
 
 
 class MetadataFeed(BriefingModel):
-    data: tuple[FeedEntry, ...]
+    data: tuple[FeedListEntry, ...]
     meta: FeedMeta
 
 
@@ -1097,8 +1346,8 @@ class FeedService:
     def __init__(self, repository: FeedRepository) -> None:
         self.repository = repository
 
-    def _feed_entries(self, rows: list[tuple[Any, ...]]) -> tuple[FeedEntry, ...]:
-        entries: list[FeedEntry] = []
+    def _documents(self, rows: list[tuple[Any, ...]]) -> list[dict[str, Any]]:
+        documents: list[dict[str, Any]] = []
         withheld = 0
         for row in rows:
             prefix = dict(zip(_FEED_RAW_PREFIX, row[: len(_FEED_RAW_PREFIX)], strict=True))
@@ -1108,20 +1357,26 @@ class FeedService:
             source = dict(zip(_SOURCE_FIELDS, row[-4:], strict=True))
             document, failures = project_feed_document(prefix, row[len(_FEED_RAW_PREFIX)], source)
             withheld += failures
-            entries.append(FeedEntry.model_validate(document))
+            documents.append(document)
         if withheld:
             logger.info(
                 "intelligence_feed_untrusted_text_withheld withheld_text_count=%s",
                 withheld,
             )
-        return tuple(entries)
+        return documents
+
+    def _feed_entries(self, rows: list[tuple[Any, ...]]) -> tuple[FeedListEntry, ...]:
+        return tuple(
+            FeedListEntry.model_validate(project_list_entry(document))
+            for document in self._documents(rows)
+        )
 
     def entry(self, item_id: str) -> FeedEntry | None:
         rows = self.repository.read_item(item_id)
         if not rows:
             return None
         try:
-            return self._feed_entries(rows[:1])[0]
+            return FeedEntry.model_validate(self._documents(rows[:1])[0])
         except AtlasDataUnavailableError:
             raise
         except Exception:
@@ -1360,14 +1615,7 @@ def sources(
     operation_id="listIntelligenceFeed",
     summary="Read source-attributed publication metadata",
     responses=FEED_PROBLEMS,
-    description="Read only from governed INTELLIGENCE_FEED_V2. "
-    + _FEED_SUMMARY
-    + " Publisher dates remain null when unknown; inclusive date filters exclude "
-    "unknown dates. Entries with a publisher date are newest first. Entries with an "
-    "unknown publisher date are last. Matching publisher dates use a stable tie-break "
-    "of item id, revision id, source id, and registry version. Bounded "
-    "state/filter-bound pagination, no-store. Disabled or unavailable returns 503; "
-    "an available empty projection returns 200.",
+    description=list_feed_description(),
 )
 def feed(
     request: Request,
@@ -1406,13 +1654,7 @@ ENTRY_PROBLEMS = {
     operation_id="getIntelligenceFeedEntry",
     summary="Read one source-attributed publication",
     responses=ENTRY_PROBLEMS,
-    description=(
-        "Read one current entry from governed INTELLIGENCE_FEED_V2 by its 64-character item id. "
-        + _FEED_SUMMARY
-        + " The entry uses the same fields as the feed list. Cache-Control is no-store. "
-        "A malformed id returns 422. An id that is not in the feed returns 404. "
-        "Disabled or unavailable returns 503."
-    ),
+    description=entry_feed_description(),
 )
 def feed_entry(
     request: Request,

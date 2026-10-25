@@ -4006,7 +4006,7 @@
           "Intelligence feed"
         ],
         "summary": "Read source-attributed publication metadata",
-        "description": "Read only from governed INTELLIGENCE_FEED_V2. The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. It returns no article bodies or media. Publisher dates remain null when unknown; inclusive date filters exclude unknown dates. Entries with a publisher date are newest first. Entries with an unknown publisher date are last. Matching publisher dates use a stable tie-break of item id, revision id, source id, and registry version. Bounded state/filter-bound pagination, no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
+        "description": "Read only from governed INTELLIGENCE_FEED_V2. The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. An abstract longer than 6000 characters is withheld. It returns no article bodies or media. Each list entry includes abstract_preview, abstract_has_more, abstract_state, copyright_line, pubmed_url, and attribution. abstract_preview is at most 1000 characters, cut at a word boundary, and is null when abstract_state is not present. The list does not include the full abstract text. Publisher dates remain null when unknown; inclusive date filters exclude unknown dates. Entries with a publisher date are newest first. Entries with an unknown publisher date are last. Matching publisher dates use a stable tie-break of item id, revision id, source id, and registry version. Bounded state/filter-bound pagination. The response must not be cached. Disabled or unavailable returns 503; an available empty projection returns 200.",
         "operationId": "listIntelligenceFeed",
         "parameters": [
           {
@@ -4345,7 +4345,7 @@
           "Intelligence feed"
         ],
         "summary": "Read one source-attributed publication",
-        "description": "Read one current entry from governed INTELLIGENCE_FEED_V2 by its 64-character item id. The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. It returns no article bodies or media. The entry uses the same fields as the feed list. Cache-Control is no-store. A malformed id returns 422. An id that is not in the feed returns 404. Disabled or unavailable returns 503.",
+        "description": "Read one current entry from governed INTELLIGENCE_FEED_V2 by its 64-character item id. The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. An abstract longer than 6000 characters is withheld. It returns no article bodies or media. The entry includes the full abstract as abstract.text, abstract.state, and abstract.copyright_line, plus pubmed_url and attribution. The response must not be cached. A malformed id returns 422. An id that is not in the feed returns 404. Disabled or unavailable returns 503.",
         "operationId": "getIntelligenceFeedEntry",
         "parameters": [
           {
@@ -11286,9 +11286,9 @@
         "properties": {
           "text": {
             "title": "Text",
+            "description": "Plain text of the PubMed abstract. Non-empty when state is present, an empty string when state is empty, and null otherwise. The text is complete. An abstract longer than 6000 characters is withheld.",
             "maxLength": 6000,
             "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
-            "description": "Plain text of the PubMed abstract. Non-empty when state is present, an empty string when state is empty, and null otherwise. The text is complete.",
             "type": [
               "string",
               "null"
@@ -11470,17 +11470,6 @@
             "$ref": "#/components/schemas/FeedDescription",
             "description": "Publisher summary for this entry."
           },
-          "abstract": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FeedAbstract"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "PubMed abstract for this entry, including its copyright line. Null when the entry is not PubMed."
-          },
           "tags": {
             "items": {
               "type": "string",
@@ -11512,12 +11501,33 @@
               "null"
             ]
           },
+          "pubmed_url": {
+            "title": "Pubmed Url",
+            "description": "PubMed article URL derived from pmid: https://pubmed.ncbi.nlm.nih.gov/<pmid>/. Null when pmid is null.",
+            "maxLength": 80,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "attribution": {
             "type": "string",
             "maxLength": 200,
             "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
             "title": "Attribution",
             "description": "Credit line shown with the entry."
+          },
+          "abstract": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeedAbstract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PubMed abstract for this entry, including its copyright line. Null when the entry is not PubMed. The text is the complete abstract."
           }
         },
         "additionalProperties": false,
@@ -11538,14 +11548,15 @@
           "source_family",
           "source_family_label",
           "description",
-          "abstract",
           "tags",
           "authors",
           "pmid",
-          "attribution"
+          "pubmed_url",
+          "attribution",
+          "abstract"
         ],
         "title": "FeedEntry",
-        "description": "One source-attributed publication in the intelligence feed."
+        "description": "One source-attributed publication, including the full PubMed abstract."
       },
       "FeedEntryMeta": {
         "properties": {
@@ -11623,6 +11634,237 @@
           "meta"
         ],
         "title": "FeedItems"
+      },
+      "FeedListEntry": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Item Id"
+          },
+          "revision_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Revision Id"
+          },
+          "title": {
+            "title": "Title",
+            "maxLength": 1000,
+            "minLength": 1,
+            "pattern": "^[^<>\\x00-\\x1f]*$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "canonical_url": {
+            "title": "Canonical Url",
+            "maxLength": 4096,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "published_at": {
+            "title": "Published At",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?Z$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fetched_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?Z$",
+            "title": "Fetched At"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ProjectionProvenance"
+          },
+          "limitations": {
+            "items": {
+              "type": "string",
+              "maxLength": 1000,
+              "minLength": 1,
+              "pattern": "^[^<>\\x00-\\x1f]*$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Limitations"
+          },
+          "contract_version": {
+            "type": "string",
+            "const": "2.0.0",
+            "title": "Contract Version"
+          },
+          "publication_date_state": {
+            "type": "string",
+            "enum": [
+              "present",
+              "not_provided",
+              "withheld",
+              "invalid"
+            ],
+            "title": "Publication Date State"
+          },
+          "publisher": {
+            "title": "Publisher",
+            "maxLength": 1000,
+            "minLength": 1,
+            "pattern": "^[^<>\\x00-\\x1f]*$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/BriefingSource"
+          },
+          "source_family": {
+            "type": "string",
+            "enum": [
+              "cdc_mmwr",
+              "cdc_eid",
+              "cdc_other",
+              "nih_niaid",
+              "pubmed",
+              "state_local",
+              "other"
+            ],
+            "title": "Source Family",
+            "description": "Publisher family. One of cdc_mmwr, cdc_eid, cdc_other, nih_niaid, pubmed, state_local, or other."
+          },
+          "source_family_label": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "title": "Source Family Label",
+            "description": "Display label for source_family."
+          },
+          "description": {
+            "$ref": "#/components/schemas/FeedDescription",
+            "description": "Publisher summary for this entry."
+          },
+          "tags": {
+            "items": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[^<>\\x00-\\x1f\\x7f]*$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Tags",
+            "description": "Publisher category labels in publisher order. PubMed entries use author keywords. The MMWR series labels MMWR and Morbidity & Mortality Weekly Report are omitted. Duplicate labels that differ only by case are omitted. Empty when the entry has none."
+          },
+          "authors": {
+            "items": {
+              "type": "string",
+              "maxLength": 300,
+              "pattern": "^[^<>\\x00-\\x1f\\x7f]*$"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Authors",
+            "description": "Structured author names in record order. Empty when the entry has none."
+          },
+          "pmid": {
+            "title": "Pmid",
+            "description": "PubMed identifier. Null when the entry is not a PubMed record.",
+            "pattern": "^[1-9][0-9]{0,9}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pubmed_url": {
+            "title": "Pubmed Url",
+            "description": "PubMed article URL derived from pmid: https://pubmed.ncbi.nlm.nih.gov/<pmid>/. Null when pmid is null.",
+            "maxLength": 80,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attribution": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "title": "Attribution",
+            "description": "Credit line shown with the entry."
+          },
+          "abstract_preview": {
+            "title": "Abstract Preview",
+            "maxLength": 1000,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "description": "Plain-text preview of a present PubMed abstract, cut at a word boundary. At most 1000 characters. The whole abstract when it is shorter. An empty string when the abstract is present and no complete word fits. Null when abstract_state is not present. No ellipsis is added.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "abstract_has_more": {
+            "type": "boolean",
+            "title": "Abstract Has More",
+            "description": "True when abstract_preview omits part of a present abstract. False when the preview is the whole abstract, or when abstract_state is not present."
+          },
+          "abstract_state": {
+            "title": "Abstract State",
+            "description": "present: the abstract text is non-empty. empty: the abstract element is blank. not_provided: the PubMed record has no abstract. withheld: the abstract is not shown. suppressed: the abstract is not shown. Null when the entry is not PubMed, matching a null abstract on the by-id route.",
+            "enum": [
+              "present",
+              "empty",
+              "not_provided",
+              "withheld",
+              "suppressed",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "copyright_line": {
+            "title": "Copyright Line",
+            "maxLength": 1000,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "description": "Copyright line from the record, verbatim. Present only when abstract_state is present and the record has one; otherwise null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "item_id",
+          "revision_id",
+          "title",
+          "canonical_url",
+          "published_at",
+          "fetched_at",
+          "provenance",
+          "limitations",
+          "contract_version",
+          "publication_date_state",
+          "publisher",
+          "source",
+          "source_family",
+          "source_family_label",
+          "description",
+          "tags",
+          "authors",
+          "pmid",
+          "pubmed_url",
+          "attribution",
+          "abstract_preview",
+          "abstract_has_more",
+          "abstract_state",
+          "copyright_line"
+        ],
+        "title": "FeedListEntry",
+        "description": "One feed list row. The full abstract text is omitted."
       },
       "FeedMeta": {
         "properties": {
@@ -13334,7 +13576,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/FeedEntry"
+              "$ref": "#/components/schemas/FeedListEntry"
             },
             "type": "array",
             "title": "Data"
