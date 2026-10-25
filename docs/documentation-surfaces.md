@@ -2,10 +2,10 @@
 
 | Stable URL | Purpose and audience | Source |
 | --- | --- | --- |
-| `https://api.carawaylabs.com/openapi.json` | Canonical public machine-readable HTTP contract; generators, CI and reference integrations | Public projection of native FastAPI/Pydantic definitions |
-| `https://api.carawaylabs.com/docs` | Interactive Swagger engineering/developer exploration, including Try It Out for approved public GETs | The same `/openapi.json` |
-| `https://api.carawaylabs.com/redoc` | Retained lightweight read-only reference/fallback | The same `/openapi.json` |
-| `https://carawaylabs.com/docs` | Canonical public human-facing Atlas help and developer guides; Fumadocs owned by Web #148 | Guides plus mechanically derived public API reference |
+| `https://api.onehealthatlas.org/openapi.json` | Canonical public machine-readable HTTP contract; generators, CI and reference integrations | Public projection of native FastAPI/Pydantic definitions |
+| `https://api.onehealthatlas.org/docs` | Interactive Swagger engineering/developer exploration, including Try It Out for approved public GETs | The same `/openapi.json` |
+| `https://api.onehealthatlas.org/redoc` | Retained lightweight read-only reference/fallback | The same `/openapi.json` |
+| `https://onehealthatlas.org/docs` | Canonical public human-facing Atlas help and developer guides; Fumadocs owned by Web #148 | Guides plus mechanically derived public API reference |
 
 There is one API schema source of truth, not a hand-maintained endpoint reference.
 OpenAPI `externalDocs` cross-links framework surfaces to the existing Atlas docs

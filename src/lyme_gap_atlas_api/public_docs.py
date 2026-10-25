@@ -49,10 +49,19 @@ Errors use RFC 9457 `application/problem+json` with a stable `code` and a `reque
 to quote when you ask for support. A query that selects more than 10,000 results is
 rejected with 400 `QUERY_TOO_BROAD`, not truncated.
 
-## Caching and retries
-Metadata and observation responses can be cached for 60 seconds. Detail responses
-return an `ETag`; send it as `If-None-Match` to get an empty 304 when nothing changed.
-Wait for `Retry-After` seconds before you retry a 429 or 503.
+## Response headers and caching
+Every response has `Content-Type` and `X-Request-ID`; quote the ID when you ask for
+support. Each `200` lists its other headers. Cache lifetimes run from 60 seconds to one
+year. Detail resources, geometry, and PDF reports return an `ETag`; send it as
+`If-None-Match` to get an empty `304`. Other operations always return the full body.
+
+## Rate limits and retries
+Metadata, provenance, observation, and geography availability reads are limited per client
+address to 60 requests a minute and 5 at once. Other operations have a separate, higher
+limit. These defaults can change, and Atlas publishes no per-key quota. A `429` or `503`
+can carry `Retry-After` in seconds; wait that long. Without it, wait 1 second, double
+after each failure up to 60 seconds, add jitter, and stop after a few attempts. Do not
+retry a `400`, `404`, or `422`.
 
 ## Interpreting results
 Read each value with its `value_state`, source, methodology version, `release_id`, and
@@ -587,6 +596,7 @@ def apply_response_examples(schema: dict[str, Any]) -> None:
             for media_type, named in examples.items():
                 content[media_type]["examples"] = deepcopy(named)
 
+
 REPORT_TOO_LARGE_RESPONSE = problem_response(
     413,
     None,
@@ -600,3 +610,179 @@ REPORT_UNAVAILABLE_RESPONSE = problem_response(
     "Report rendering timed out. Please try again later.",
     description=DESCRIPTION_503_REPORT,
 )
+
+
+NO_STORE = "no-store"
+CACHE_60 = "public, max-age=60, must-revalidate"
+CACHE_300 = "public, max-age=300"
+CACHE_300_REVALIDATE = "public, max-age=300, must-revalidate"
+CACHE_IMMUTABLE = "public, max-age=31536000, immutable"
+
+FALLBACK_CACHE_NOTE = (
+    " While the API serves a fallback copy of its data, it replaces a `public` value with "
+    "`private, no-store`."
+)
+ETAG_VALUE_NOTE = " Send the value back exactly as you received it."
+
+
+@dataclass(frozen=True)
+class ResponseHeaders:
+    """What one operation really sends on a `200`, and whether it answers `If-None-Match`."""
+
+    cache: str | None = None
+    cache_note: str | None = None
+    etag: bool = False
+    conditional: bool = False
+    attachment: bool = False
+    revalidated_304: bool = True
+
+
+_DETAIL = ResponseHeaders(cache=CACHE_60, etag=True, conditional=True)
+_COLLECTION = ResponseHeaders(cache=CACHE_60)
+_TTL_300_ETAG = ResponseHeaders(cache=CACHE_300, etag=True)
+_NO_STORE = ResponseHeaders(cache=NO_STORE)
+
+# Each entry was confirmed against the route code and a live response.
+RESPONSE_HEADERS: dict[str, ResponseHeaders] = {
+    "indicators_v1_indicators_get": _COLLECTION,
+    "measures_v1_measures_get": _COLLECTION,
+    "sources_v1_sources_get": _COLLECTION,
+    "indicator_v1_indicators__indicator_id__get": _DETAIL,
+    "measure_v1_measures__measure_id__get": _DETAIL,
+    "source_v1_sources__source_id__get": _DETAIL,
+    "methodology_v1_methodologies__methodology_id__get": _DETAIL,
+    "observations_v1_observations_get": ResponseHeaders(
+        cache_note=(
+            "The API sets no `Cache-Control` header on an available result, so do not assume "
+            "a cache lifetime. It sends `no-store` when `meta.availability` is `UNAVAILABLE`."
+        )
+    ),
+    "geography_v1_geographies__geography_type___geography_id__get": _NO_STORE,
+    "canonicalGeographyAvailability": _NO_STORE,
+    "county_surveillance_situations_get": _NO_STORE,
+    "county_tier1_surveillance_priority_get": ResponseHeaders(cache="public, max-age=60"),
+    "county_tier1_surveillance_priority_availability_get": ResponseHeaders(
+        cache="public, max-age=60"
+    ),
+    "state_review_v1_states__state__review_get": _COLLECTION,
+    "metadata_v1_atlas_metadata_get": _TTL_300_ETAG,
+    "scores_v1_atlas_scores_get": _TTL_300_ETAG,
+    "map_values_v1_atlas_map_values_get": _TTL_300_ETAG,
+    "county_v1_counties__fips__get": _TTL_300_ETAG,
+    "geometry_v1_atlas_geometry_get": ResponseHeaders(
+        cache=CACHE_IMMUTABLE, etag=True, conditional=True, revalidated_304=False
+    ),
+    "county_report_pdf_v1_counties__fips__report_pdf_get": ResponseHeaders(
+        cache=CACHE_300_REVALIDATE,
+        cache_note=(
+            "The `county-v1` and `county-v3` templates send this value. "
+            "The `county-v2` template sends `no-store`."
+        ),
+        etag=True,
+        conditional=True,
+        attachment=True,
+    ),
+    "state_report_pdf_v1_states__state__report_pdf_get": ResponseHeaders(
+        cache=CACHE_300_REVALIDATE, etag=True, conditional=True, attachment=True
+    ),
+    "ranking_csv_v1_atlas_ranking_csv_get": ResponseHeaders(
+        attachment=True,
+        cache_note="The API sets no `Cache-Control` header, so do not assume a cache lifetime.",
+    ),
+}
+
+NOT_CONDITIONAL_SENTENCE = (
+    " This operation ignores `If-None-Match` and always returns 200 with the full body."
+)
+REQUEST_ID_DESCRIPTION = (
+    "Identifier for this request. Quote it when you ask for support. If you send a valid "
+    "`X-Request-ID` request header, the API uses that value. Otherwise it generates one. "
+    "A response that a shared cache replays can carry the identifier of the request that "
+    "filled the cache."
+)
+
+
+def _success_headers(media_types: list[str], spec: ResponseHeaders) -> dict[str, Any]:
+    headers: dict[str, Any] = {
+        "Content-Type": {
+            "description": "Media type of the body: "
+            + ", ".join(f"`{m}`" for m in media_types)
+            + ".",
+            "schema": {"type": "string"},
+            "example": media_types[0],
+        },
+    }
+    if spec.cache is not None:
+        description = f"How long a client or shared cache can reuse the response: `{spec.cache}`."
+        if spec.cache_note:
+            description += " " + spec.cache_note
+        if spec.cache != NO_STORE:
+            description += FALLBACK_CACHE_NOTE
+        headers["Cache-Control"] = {
+            "description": description,
+            "schema": {"type": "string"},
+            "example": spec.cache,
+        }
+    elif spec.cache_note:
+        headers["Cache-Control"] = {
+            "description": spec.cache_note,
+            "schema": {"type": "string"},
+        }
+    if spec.etag:
+        text = "Opaque validator for this representation."
+        text += (
+            " Send it as `If-None-Match` to get an empty 304 when nothing changed."
+            + ETAG_VALUE_NOTE
+            if spec.conditional
+            else " It is informational here: the operation does not answer `If-None-Match`."
+        )
+        headers["ETag"] = {"description": text, "schema": {"type": "string"}}
+    if spec.attachment:
+        headers["Content-Disposition"] = {
+            "description": "Marks the body as a download and suggests the file name.",
+            "schema": {"type": "string"},
+        }
+    headers["X-Request-ID"] = {
+        "description": REQUEST_ID_DESCRIPTION,
+        "schema": {"type": "string"},
+        "example": EXAMPLE_REQUEST_ID,
+    }
+    return headers
+
+
+def apply_response_headers(schema: dict[str, Any]) -> None:
+    """Document the headers each public `200` sends and how `If-None-Match` behaves.
+
+    The table above lists only headers the code sets, so the spec never promises one the
+    API does not send.
+    """
+    for path_item in schema["paths"].values():
+        for operation in path_item.values():
+            spec = RESPONSE_HEADERS.get(operation.get("operationId", ""))
+            if spec is None:
+                continue
+            responses = operation["responses"]
+            ok = responses["200"]
+            media_types = list(ok.get("content", {}))
+            if ok.get("description") == "Successful Response":
+                ok["description"] = "Successful response."
+            ok["headers"] = _success_headers(media_types, spec)
+            if not spec.conditional:
+                ok["description"] = ok["description"].rstrip() + NOT_CONDITIONAL_SENTENCE
+            not_modified = responses.get("304")
+            if spec.conditional and not_modified is not None:
+                not_modified["description"] = (
+                    "Not modified. Your `If-None-Match` value matches the current `ETag`. "
+                    "The response has no body."
+                )
+                if spec.revalidated_304:
+                    not_modified["headers"] = {
+                        "ETag": {
+                            "description": "The matching validator.",
+                            "schema": {"type": "string"},
+                        },
+                        "Cache-Control": {
+                            "description": "The same cache rule as the `200` response.",
+                            "schema": {"type": "string"},
+                        },
+                    }

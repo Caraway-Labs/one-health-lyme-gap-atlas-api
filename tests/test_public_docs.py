@@ -75,7 +75,8 @@ def test_landing_description_is_a_quickstart_within_budget() -> None:
         "Responses",
         "Pagination",
         "Errors",
-        "Caching and retries",
+        "Response headers and caching",
+        "Rate limits and retries",
         "Interpreting results",
         "Stability",
     ):

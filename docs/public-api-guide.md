@@ -198,14 +198,15 @@ silently ignored.
 For example, an invalid measure yields this RFC 9457 shape (request ID varies):
 
 ```json
-{"type":"https://carawaylabs.com/problems/resource-not-found","title":"Invalid public query","status":404,"detail":"Measure has no published county observations.","instance":"/v1/observations","request_id":"<per-request ID>","code":"RESOURCE_NOT_FOUND","errors":null}
+{"type":"https://onehealthatlas.org/problems/resource-not-found","title":"Invalid public query","status":404,"detail":"Measure has no published county observations.","instance":"/v1/observations","request_id":"<per-request ID>","code":"RESOURCE_NOT_FOUND","errors":null}
 ```
 
 Handle `status` and `code`; retain `request_id` for support. Anonymous public
 reads are limited to 60 requests per rolling minute and five simultaneous
 requests per connecting address. A 429 has `Retry-After` (one to 60 seconds)
-and `Cache-Control: no-store`; wait before retrying. Successful current-release
-reads use `Cache-Control: public, max-age=60, must-revalidate`. Stable detail
+and `Cache-Control: no-store`; wait before retrying. Successful metadata and
+provenance reads use `Cache-Control: public, max-age=60, must-revalidate`; observation
+reads set no cache lifetime. Stable detail
 responses carry an `ETag`; send `If-None-Match: <ETag>` to get an empty 304 if
 unchanged. Collections have no ETag because `meta.response_at` changes.
 

@@ -1,5 +1,7 @@
 # Atlas API hostname cutover (Web #355)
 
+> Historical record. It records the move from the old API hostname to `api.onehealthatlas.org`, which is now the production host. Its `carawaylabs.com` host names are kept as written because they describe the system as it was then.
+
 The existing DigitalOcean application is `fb312ce3-e762-45b0-bf34-12d3df91eee6`.
 `api.carawaylabs.com` remains PRIMARY and operational. Add
 `api.onehealthatlas.org` as an ALIAS with minimum TLS 1.2; retain all other

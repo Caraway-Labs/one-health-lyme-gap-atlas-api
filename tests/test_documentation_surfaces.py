@@ -124,3 +124,41 @@ def test_approved_icon_dimensions() -> None:
     png = (ASSETS / "favicon-256x256.png").read_bytes()
     assert png[:8] == b"\x89PNG\r\n\x1a\n"
     assert struct.unpack_from(">II", png, 16) == (256, 256)
+
+
+_ROOT = Path(__file__).resolve().parents[1]
+_HISTORICAL_MARKER = "> Historical record."
+
+
+def _public_documentation_files() -> list[Path]:
+    """README and docs that readers use today, minus records that say they are historical."""
+    files = [_ROOT / "README.md", *sorted((_ROOT / "docs").glob("*.md"))]
+    return [path for path in files if _HISTORICAL_MARKER not in path.read_text(encoding="latin-1")]
+
+
+def test_public_documentation_names_the_current_domain_only() -> None:
+    files = _public_documentation_files()
+    assert _ROOT / "docs" / "documentation-surfaces.md" in files
+    stale = [
+        path.name
+        for path in files
+        if "carawaylabs.com" in path.read_text(encoding="latin-1").lower()
+    ]
+    assert stale == []
+
+
+def test_historical_records_explain_their_old_domain_names() -> None:
+    historical = [
+        path
+        for path in sorted((_ROOT / "docs").glob("*.md"))
+        if _HISTORICAL_MARKER in path.read_text(encoding="latin-1")
+    ]
+    assert historical
+    for path in historical:
+        assert "carawaylabs.com" in path.read_text(encoding="latin-1").lower()
+
+
+def test_published_specs_use_the_current_domain_only() -> None:
+    client = TestClient(create_app(settings=ApiSettings()))
+    for schema in (client.get("/openapi.json").json(), client.app.first_party_openapi()):
+        assert "carawaylabs.com" not in json.dumps(schema).lower()

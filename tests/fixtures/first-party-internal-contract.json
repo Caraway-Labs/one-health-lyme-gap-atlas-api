@@ -792,7 +792,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Typed answer. While canonical geography identity delivery is unpublished this is availability UNAVAILABLE with data null (HTTP 200, not 5xx, because the hosting edge replaces origin 5xx responses with an HTML 504).",
+            "description": "Typed answer. While canonical geography identity delivery is unpublished this is availability UNAVAILABLE with data null (HTTP 200, not 5xx, because the hosting edge replaces origin 5xx responses with an HTML 504). This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -824,6 +824,29 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
