@@ -23,7 +23,7 @@ def test_public_metadata_and_stable_operation_ids() -> None:
     assert schema["info"]["version"] == ApiSettings().app_version
     assert "provenance" in schema["info"]["summary"]
     assert schema["info"]["contact"]["url"] == "https://onehealthatlas.org/"
-    for term in ("anonymous", "RFC 9457", "Fumadocs", "10,000", "2023", "deprecation"):
+    for term in ("no API key", "RFC 9457", "10,000", "2023", "deprecation"):
         assert term in schema["info"]["description"]
     tags = {tag["name"] for tag in schema["tags"]}
     operations = []
