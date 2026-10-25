@@ -3,6 +3,7 @@
 from copy import deepcopy
 from typing import Any
 
+from .code_samples import add_code_samples
 from .public_docs import API_DESCRIPTION, API_SUMMARY, TAG_GROUPS, TAGS
 
 PUBLIC_PATHS = frozenset(
@@ -41,6 +42,8 @@ def public_projection(complete: dict[str, Any]) -> dict[str, Any]:
     schema["tags"] = deepcopy(TAGS)
     schema["x-tagGroups"] = deepcopy(TAG_GROUPS)
     schema["paths"] = {path: {"get": schema["paths"][path]["get"]} for path in sorted(PUBLIC_PATHS)}
+    # Public document only: the first-party document feeds Web client generation.
+    add_code_samples(schema)
     components = schema.pop("components", {})
     retained: dict[str, dict[str, Any]] = {}
     visited: set[str] = set()
