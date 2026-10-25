@@ -152,7 +152,8 @@ def test_paragraph_length_rule() -> None:
     spec["paths"][OP]["get"]["description"] = "One. Two. Three. Four. Five. Six."
     assert _rules_of(TOOLS["check_description_budgets"](spec, budgets)) == {"paragraph-length"}
     # Tables and list items are not prose; abbreviations and code do not end sentences.
-    spec["paths"][OP]["get"]["description"] = "Use e.g. `a. b. c.` here.\n\n| a. | b. c. d. e. f. g. |"
+    table = "| a. | b. c. d. e. f. g. |"
+    spec["paths"][OP]["get"]["description"] = f"Use e.g. `a. b. c.` here.\n\n{table}"
     assert TOOLS["check_description_budgets"](spec, budgets) == []
 
 

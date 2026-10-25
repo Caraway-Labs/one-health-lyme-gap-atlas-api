@@ -74,8 +74,7 @@ the data.
 ## Stability
 `/v1` is the contract version, and the application version is separate. Optional fields
 may be added within V1. Breaking changes follow a published deprecation plan.
-Read what changed in each release in the
-[API changelog](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-api/blob/main/CHANGELOG.md).
+Release notes: [API changelog](https://github.com/Caraway-Labs/one-health-lyme-gap-atlas-api/blob/main/CHANGELOG.md).
 """
 
 TAGS = [
