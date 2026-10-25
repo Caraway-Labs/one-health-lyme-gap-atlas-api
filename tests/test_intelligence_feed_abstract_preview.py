@@ -16,6 +16,8 @@ from lyme_gap_atlas_api.intelligence_feed import (
     ABSTRACT_PREVIEW_MAX_LENGTH,
     ABSTRACT_TEXT_MAX_LENGTH,
     FeedAbstract,
+    FeedEntry,
+    FeedListEntry,
     _project_abstract,
     cut_abstract_preview,
     entry_feed_description,
@@ -292,6 +294,65 @@ def test_changing_the_abstract_cap_changes_projection_model_and_description(
     exported = contract["components"]["schemas"]["FeedAbstract"]["properties"]["text"]
     assert _text_max_length(exported) == cap
     assert str(cap) in exported["description"]
+
+
+def _reject(model: Any, document: dict[str, Any], **changes: Any) -> None:
+    with pytest.raises(ValidationError):
+        model.model_validate({**document, **changes})
+
+
+def test_validators_reject_inconsistent_abstract_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    listed, detail = _pair("Short abstract.")
+    plain_listed, plain_detail = _listed_and_detail(_feed())
+
+    _reject(FeedListEntry, listed, publication_date_state="not_provided")
+    _reject(FeedListEntry, listed, attribution="Source: nope")
+    _reject(FeedListEntry, listed, pubmed_url=None)
+    _reject(
+        FeedListEntry,
+        plain_listed,
+        pmid="123",
+        pubmed_url="https://pubmed.ncbi.nlm.nih.gov/123/",
+    )
+    _reject(FeedEntry, detail, abstract=None)
+    _reject(
+        FeedEntry,
+        plain_detail,
+        abstract={"text": None, "state": "withheld", "copyright_line": None},
+    )
+    _reject(FeedListEntry, plain_listed, abstract_state="not_provided")
+    _reject(
+        FeedListEntry,
+        listed,
+        abstract_state=None,
+        abstract_preview=None,
+        abstract_has_more=False,
+        copyright_line=None,
+    )
+    _reject(
+        FeedListEntry,
+        listed,
+        abstract_state="withheld",
+        abstract_preview="kept",
+        abstract_has_more=False,
+        copyright_line=None,
+    )
+    _reject(FeedListEntry, listed, abstract_preview=None)
+    _reject(FeedListEntry, listed, abstract_preview="", abstract_has_more=False)
+    monkeypatch.setattr(
+        "lyme_gap_atlas_api.intelligence_feed.ABSTRACT_PREVIEW_MAX_LENGTH",
+        4,
+    )
+    _reject(FeedListEntry, listed, abstract_preview="hello", abstract_has_more=True)
+
+    with pytest.raises(ValidationError):
+        FeedAbstract.model_validate({"text": "", "state": "present", "copyright_line": None})
+    with pytest.raises(ValidationError):
+        FeedAbstract.model_validate({"text": "", "state": "empty", "copyright_line": "© 2026"})
+    with pytest.raises(ValidationError):
+        FeedAbstract.model_validate({"text": "x", "state": "withheld", "copyright_line": None})
 
 
 def test_preview_helper_matches_the_named_limit() -> None:
