@@ -1135,7 +1135,9 @@ def create_app(
         ),
         responses=LEGACY_ERRORS,
     )
-    def map_values(response: Response, dataset_version: str | None = None) -> MapValuesCollection:
+    def map_values(
+        response: Response, dataset_version: DatasetVersion = None
+    ) -> MapValuesCollection:
         try:
             result = service.map_values(dataset_version)
             response.headers["Cache-Control"] = "public, max-age=300"

@@ -4487,12 +4487,17 @@
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404.",
+              "examples": [
+                "governed-2026-10-15-january-climate-prod"
+              ],
               "title": "Dataset Version",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404."
           }
         ],
         "responses": {
