@@ -4006,7 +4006,7 @@
           "Intelligence feed"
         ],
         "summary": "Read source-attributed publication metadata",
-        "description": "Read only from governed INTELLIGENCE_FEED_V2. No excerpts, article bodies or media. Publisher dates remain null when unknown; inclusive date filters exclude unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
+        "description": "Read only from governed INTELLIGENCE_FEED_V2. The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. It returns no article bodies or media. Publisher dates remain null when unknown; inclusive date filters exclude unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
         "operationId": "listIntelligenceFeed",
         "parameters": [
           {
@@ -4076,12 +4076,35 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful current-release resource.",
+            "description": "Successful current-release resource. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MetadataFeed"
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -4306,6 +4329,291 @@
                       "status": 422,
                       "detail": "One or more request values are invalid.",
                       "instance": "/v1/intelligence/feed",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/intelligence/feed/{item_id}": {
+      "get": {
+        "tags": [
+          "Intelligence feed"
+        ],
+        "summary": "Read one source-attributed publication",
+        "description": "Read one current entry from governed INTELLIGENCE_FEED_V2 by its 64-character item id. The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. It returns no article bodies or media. The entry uses the same fields as the feed list. Cache-Control is no-store. A malformed id returns 422. An id that is not in the feed returns 404. Disabled or unavailable returns 503.",
+        "operationId": "getIntelligenceFeedEntry",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful current-release resource. This operation ignores `If-None-Match` and always returns 200 with the full body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedEntryRead"
+                }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid or unsupported. The `code` is `INVALID_REQUEST` for a missing, malformed, or inconsistent parameter, `UNSUPPORTED_FILTER` for a parameter V1 does not accept, `UNSUPPORTED_STRATIFICATION` for a stratification (observation queries only), or `QUERY_TOO_BROAD` when a query selects more than the result limit. Read `detail` and `errors`, change the request, then retry. The same request fails again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "invalid_request": {
+                    "summary": "Missing required parameter",
+                    "description": "Shows `INVALID_REQUEST` when a required query parameter is absent.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/validation",
+                      "title": "Invalid request",
+                      "status": 400,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/intelligence/feed/{item_id}",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "errors": [
+                        {
+                          "type": "missing",
+                          "loc": [
+                            "query",
+                            "measure_id"
+                          ],
+                          "msg": "Field required"
+                        }
+                      ],
+                      "code": "INVALID_REQUEST"
+                    }
+                  },
+                  "unsupported_filter": {
+                    "summary": "Query parameter V1 does not accept",
+                    "description": "Shows `UNSUPPORTED_FILTER` when a request includes a parameter outside V1.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/unsupported-filter",
+                      "title": "Invalid public query",
+                      "status": 400,
+                      "detail": "This query filter is not supported in V1.",
+                      "instance": "/v1/intelligence/feed/{item_id}",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "code": "UNSUPPORTED_FILTER"
+                    }
+                  },
+                  "query_too_broad": {
+                    "summary": "Selection above the result limit",
+                    "description": "Shows `QUERY_TOO_BROAD` when counties and period exceed the result limit.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/query-too-broad",
+                      "title": "Invalid public query",
+                      "status": 400,
+                      "detail": "Narrow measure, geography, time, or stratification selection.",
+                      "instance": "/v1/intelligence/feed/{item_id}",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "code": "QUERY_TOO_BROAD"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The item id is not in the governed intelligence feed. The code is INTELLIGENCE_ITEM_NOT_FOUND.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "intelligence_item_not_found": {
+                    "summary": "Error response",
+                    "description": "Shows the body the API returns for this status.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-404",
+                      "title": "Not found",
+                      "status": 404,
+                      "detail": "No intelligence feed entry exists for this id.",
+                      "instance": "/v1/intelligence/feed/{item_id}",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "code": "INTELLIGENCE_ITEM_NOT_FOUND"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "You sent too many requests in a short time. Wait the number of seconds in the `Retry-After` header, then retry. Spread requests out or reuse cached responses to stay under the limit.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "rate_limited": {
+                    "summary": "Request limit reached",
+                    "description": "Shows `RATE_LIMITED`. The response also sets `Retry-After`.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/rate-limited",
+                      "title": "Too many requests",
+                      "status": 429,
+                      "detail": "Public request limit reached.",
+                      "instance": "/v1/intelligence/feed/{item_id}",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "code": "RATE_LIMITED"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before you retry. Wait that long when the header is present.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "30"
+              }
+            }
+          },
+          "413": {
+            "description": "The request is a GET with a body. The `code` is `INVALID_REQUEST`. Send the request again without a body and put every value in the query string.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "get_body_unsupported": {
+                    "summary": "GET request with a body",
+                    "description": "Shows `INVALID_REQUEST` when a GET request carries a body.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/invalid-request",
+                      "title": "Payload too large",
+                      "status": 413,
+                      "detail": "GET request bodies are unsupported.",
+                      "instance": "/v1/intelligence/feed/{item_id}",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "The query string is longer than the API accepts. The `code` is `INVALID_REQUEST`. Send fewer or shorter parameter values, then retry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "query_string_too_long": {
+                    "summary": "Query string over the length limit",
+                    "description": "Shows `INVALID_REQUEST` when the query string is too long.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/invalid-request",
+                      "title": "URI too long",
+                      "status": 414,
+                      "detail": "Query string is too long.",
+                      "instance": "/v1/intelligence/feed/{item_id}",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "code": "INVALID_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The Atlas data service cannot answer right now. The `code` is `SERVICE_UNAVAILABLE`. Retry later with a growing delay, and wait the number of seconds in `Retry-After` when the header is present. Check the `Content-Type` response header before you parse the body. Parse it as Problem Details only when it is `application/problem+json`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "service_unavailable": {
+                    "summary": "Data service unavailable",
+                    "description": "Shows `SERVICE_UNAVAILABLE` when the data service cannot answer.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-503",
+                      "title": "Service unavailable",
+                      "status": 503,
+                      "detail": "The governed Atlas data service is temporarily unavailable.",
+                      "instance": "/v1/intelligence/feed/{item_id}",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "code": "SERVICE_UNAVAILABLE"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before you retry. Wait that long when the header is present.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "30"
+              }
+            }
+          },
+          "422": {
+            "description": "A request value failed validation. The body is Problem Details with an `errors` list that names each invalid input and where it was sent. It has no `code`. Fix each listed value, then retry. The same request fails again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "http_422": {
+                    "summary": "Error response",
+                    "description": "Shows the body the API returns for this status.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/validation",
+                      "title": "Invalid request",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/intelligence/feed/{item_id}",
                       "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
                     }
                   }
@@ -10974,6 +11282,84 @@
         "title": "EvidenceReference",
         "description": "Compact pointer to the Atlas resource that backs a result."
       },
+      "FeedAbstract": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "maxLength": 6000,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "description": "Plain text of the PubMed abstract. Non-empty when state is present, an empty string when state is empty, and null otherwise. The text is complete.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "present",
+              "empty",
+              "not_provided",
+              "withheld",
+              "suppressed"
+            ],
+            "title": "State",
+            "description": "present: text is non-empty. empty: the abstract element is blank and text is an empty string. not_provided: the record has no abstract and text is null. withheld: text is null. suppressed: text is null and the abstract is not shown."
+          },
+          "copyright_line": {
+            "title": "Copyright Line",
+            "maxLength": 1000,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "description": "Copyright line from the record. Present only when state is present and the record has one; otherwise null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "state",
+          "copyright_line"
+        ],
+        "title": "FeedAbstract",
+        "description": "PubMed abstract for one feed entry."
+      },
+      "FeedDescription": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "maxLength": 4096,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "description": "Plain text of the publisher summary. Non-empty when state is present, an empty string when state is empty, and null otherwise.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "present",
+              "empty",
+              "not_provided",
+              "withheld"
+            ],
+            "title": "State",
+            "description": "present: text is non-empty. empty: the summary element is blank and text is an empty string. not_provided: the record has no summary and text is null. withheld: text is null."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "state"
+        ],
+        "title": "FeedDescription",
+        "description": "Publisher summary for one feed entry."
+      },
       "FeedEntry": {
         "properties": {
           "item_id": {
@@ -11058,6 +11444,73 @@
           },
           "source": {
             "$ref": "#/components/schemas/BriefingSource"
+          },
+          "source_family": {
+            "type": "string",
+            "enum": [
+              "cdc_mmwr",
+              "cdc_eid",
+              "cdc_other",
+              "nih_niaid",
+              "pubmed",
+              "state_local",
+              "other"
+            ],
+            "title": "Source Family",
+            "description": "Publisher family. One of cdc_mmwr, cdc_eid, cdc_other, nih_niaid, pubmed, state_local, or other."
+          },
+          "description": {
+            "$ref": "#/components/schemas/FeedDescription",
+            "description": "Publisher summary for this entry."
+          },
+          "abstract": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeedAbstract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PubMed abstract for this entry, including its copyright line. Null when the entry is not PubMed."
+          },
+          "tags": {
+            "items": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[^<>\\x00-\\x1f\\x7f]*$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Tags",
+            "description": "Publisher category labels in publisher order. PubMed entries use author keywords. The MMWR series labels MMWR and Morbidity & Mortality Weekly Report are omitted. Duplicate labels that differ only by case are omitted. Empty when the entry has none."
+          },
+          "authors": {
+            "items": {
+              "type": "string",
+              "maxLength": 300,
+              "pattern": "^[^<>\\x00-\\x1f\\x7f]*$"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Authors",
+            "description": "Structured author names in record order. Empty when the entry has none."
+          },
+          "pmid": {
+            "title": "Pmid",
+            "description": "PubMed identifier. Null when the entry is not a PubMed record.",
+            "pattern": "^[1-9][0-9]{0,9}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attribution": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "title": "Attribution",
+            "description": "Credit line shown with the entry."
           }
         },
         "additionalProperties": false,
@@ -11074,9 +11527,48 @@
           "contract_version",
           "publication_date_state",
           "publisher",
-          "source"
+          "source",
+          "source_family",
+          "description",
+          "abstract",
+          "tags",
+          "authors",
+          "pmid",
+          "attribution"
         ],
-        "title": "FeedEntry"
+        "title": "FeedEntry",
+        "description": "One source-attributed publication in the intelligence feed."
+      },
+      "FeedEntryMeta": {
+        "properties": {
+          "projection_version": {
+            "type": "string",
+            "const": "intelligence-feed-read-v2",
+            "title": "Projection Version",
+            "default": "intelligence-feed-read-v2"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedEntryMeta",
+        "description": "Projection identity for one feed entry."
+      },
+      "FeedEntryRead": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FeedEntry"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/FeedEntryMeta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "FeedEntryRead",
+        "description": "One current intelligence feed entry."
       },
       "FeedEvidence": {
         "properties": {

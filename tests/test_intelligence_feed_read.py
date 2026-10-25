@@ -345,7 +345,9 @@ def test_sql_boundary_limits_and_state_checks(
             if mode == "driver_error":
                 raise RuntimeError("secret account and private SQL error")
 
-        def fetchone(self) -> tuple[int, int]:
+        def fetchone(self) -> tuple[Any, ...] | None:
+            if self.calls and "INFORMATION_SCHEMA" in self.calls[-1][0]:
+                return None
             return next(self.states)
 
         def fetchall(self) -> list[tuple[Any, ...]]:
@@ -372,11 +374,18 @@ def test_sql_boundary_limits_and_state_checks(
     if mode == "stable":
         marker, rows = repository.read(kind, "source'bound", None, None, 0, 10)
         assert len(marker) == 64 and rows == []
-        assert cursor.calls[1][1] == ("source'bound", 11, 0)
+        data_calls = [call for call in cursor.calls if " LIMIT " in call[0]]
+        assert data_calls[0][1] == ("source'bound", 11, 0)
         assert all("source'bound" not in sql for sql, _, _ in cursor.calls)
         if kind == "feed":
-            assert "INTELLIGENCE_FEED_V2" in cursor.calls[1][0]
-            selected = cursor.calls[1][0].split(" FROM ")[0]
+            assert "INTELLIGENCE_FEED_V2" in data_calls[0][0]
+            selected = data_calls[0][0].split(" FROM ")[0]
+            assert "PUBLISHER_METADATA:description" in selected
+            assert "PUBLISHER_METADATA:categories" in selected
+            assert "PUBLISHER_METADATA:authors" in selected
+            assert "PUBLISHER_METADATA:source_family" in selected
+            assert "PUBLISHER_METADATA:abstract" in selected
+            assert "ABSTRACT_SUPPRESSED" not in selected
             assert not any(field in selected for field in ("EXCERPT", "MEDIA", "NATIVE_METADATA"))
         if kind == "sources":
             assert "UNION ALL" in cursor.calls[1][0]
@@ -389,7 +398,8 @@ def test_sql_boundary_limits_and_state_checks(
                 for field in ("NATIVE_METADATA", "PUBLISHER_METADATA", "EXCERPT", "GOVERNANCE.")
             )
         assert all(
-            "PRESENTATION.INTELLIGENCE_FEED_V" in sql.replace(chr(34), "")
+            "INFORMATION_SCHEMA" in sql
+            or "PRESENTATION.INTELLIGENCE_FEED_V" in sql.replace(chr(34), "")
             for sql, _, _ in cursor.calls
         )
     elif mode == "too_broad":
@@ -400,3 +410,68 @@ def test_sql_boundary_limits_and_state_checks(
         with pytest.raises(AtlasDataUnavailableError) as error:
             repository.read(kind, None, None, None, 0, 10)
         assert "secret" not in str(error.value)
+
+
+def test_entry_sql_uses_item_id_and_selects_suppression_only_when_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Cursor:
+        def __init__(self, present: bool) -> None:
+            self.present = present
+            self.calls: list[tuple[Any, ...]] = []
+
+        def __enter__(self) -> "Cursor":
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+        def execute(self, sql: str, params: tuple[Any, ...], *, timeout: int) -> None:
+            self.calls.append((sql, params, timeout))
+
+        def fetchone(self) -> tuple[str, ...] | None:
+            if "INFORMATION_SCHEMA" in self.calls[-1][0]:
+                return ("ABSTRACT_SUPPRESSED",) if self.present else None
+            return None
+
+        def fetchall(self) -> list[tuple[Any, ...]]:
+            return []
+
+    class Connection:
+        def __init__(self, cursor: Cursor) -> None:
+            self._cursor = cursor
+
+        def __enter__(self) -> "Connection":
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+        def cursor(self) -> Cursor:
+            return self._cursor
+
+    def install(present: bool) -> Cursor:
+        cursor = Cursor(present)
+        monkeypatch.setattr(
+            "lyme_gap_atlas_api.intelligence_feed.read_connection",
+            lend(lambda settings: Connection(cursor)),
+        )
+        return cursor
+
+    repository = SnowflakeFeedRepository(
+        ApiSettings(snowflake_presentation_database="ONE_HEALTH_LYME_GAP_ATLAS_PROD")
+    )
+    absent = install(False)
+    assert repository.read_item("a" * 64) == []
+    statement = absent.calls[-1][0]
+    assert "WHERE ITEM_ID = %s" in statement
+    assert "ORDER BY FETCHED_AT DESC, REVISION_ID DESC LIMIT 1" in statement
+    assert "OFFSET" not in statement
+    assert "ABSTRACT_SUPPRESSED" not in statement.split(" FROM ")[0]
+    assert absent.calls[-1][1] == ("a" * 64,)
+
+    present = install(True)
+    assert repository.read_item("b" * 64) == []
+    selected = present.calls[-1][0].split(" FROM ")[0]
+    assert "ABSTRACT_SUPPRESSED" in selected
+    assert "EXCERPT" not in selected

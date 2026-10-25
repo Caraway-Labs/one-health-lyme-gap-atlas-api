@@ -2,10 +2,13 @@
 
 import hashlib
 import json
+import logging
+import re
 from datetime import date
 from typing import Annotated, Any, Literal, Protocol, Self, cast
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import AfterValidator, Field, model_validator
 
 from .briefings import (
@@ -20,12 +23,37 @@ from .briefings import (
 )
 from .config import ApiSettings
 from .intelligence_projection import IntelligenceItemProjectionV2, ProjectionProvenance
+from .models import ProblemDetails
 from .public_contract import PublicQueryError
-from .public_docs import DESCRIPTION_422, problem_response
+from .public_docs import DESCRIPTION_422, problem_response, problem_type_uri
 from .public_routes import PROBLEMS
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
 from .snowflake_read_session import read_connection
+
+logger = logging.getLogger(__name__)
+
+_UNSAFE_TEXT = re.compile(r"[<>\x00-\x1f\x7f]")
+_PMID = re.compile(r"^[1-9][0-9]{0,9}$")
+_PLAIN = r"^[^<>\x00-\x1f\x7f]*$"
+_SOURCE_FAMILIES = frozenset(
+    {"cdc_mmwr", "cdc_eid", "cdc_other", "nih_niaid", "pubmed", "state_local", "other"}
+)
+_CDC_FAMILIES = frozenset({"cdc_mmwr", "cdc_eid", "cdc_other"})
+_MMWR_SERIES_LABELS = frozenset({"mmwr", "morbidity & mortality weekly report"})
+_CDC_ATTRIBUTION = "Source: Centers for Disease Control and Prevention"
+_NIH_ATTRIBUTION = "Source: National Institutes of Health"
+_PUBMED_ATTRIBUTION = "Courtesy of the U.S. National Library of Medicine"
+_DESCRIPTION_WITHHELD = {"text": None, "state": "withheld"}
+_DESCRIPTION_NOT_PROVIDED = {"text": None, "state": "not_provided"}
+_ABSTRACT_WITHHELD = {"text": None, "state": "withheld", "copyright_line": None}
+_ABSTRACT_SUPPRESSED = {"text": None, "state": "suppressed", "copyright_line": None}
+# The governed view does not project this column yet. Select it only when it exists.
+_ABSTRACT_SUPPRESSED_COLUMN = "ABSTRACT_SUPPRESSED"
+_FEED_SUMMARY = (
+    "The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. "
+    "It returns no article bodies or media."
+)
 
 ITEM_COLUMNS = (
     "item_id",
@@ -70,7 +98,7 @@ FEED_PROBLEMS = {
 }
 
 
-FEED_COLUMNS = (
+_FEED_RAW_PREFIX = (
     "item_id",
     "revision_id",
     "title",
@@ -83,9 +111,326 @@ FEED_COLUMNS = (
     "publication_date_state",
     "publisher",
 )
+_SOURCE_FIELDS = (
+    "source_id",
+    "registry_version",
+    "organization",
+    "reviewed_trust_classification",
+)
+FEED_COLUMNS = (
+    *_FEED_RAW_PREFIX,
+    "source_family",
+    "description",
+    "abstract",
+    "tags",
+    "authors",
+    "pmid",
+    "attribution",
+)
+_FEED_PUBLISHER_OBJECT = (
+    "OBJECT_CONSTRUCT_KEEP_NULL("
+    "'source_family', PUBLISHER_METADATA:source_family, "
+    "'source_item_id', PUBLISHER_METADATA:source_item_id, "
+    "'description', PUBLISHER_METADATA:description, "
+    "'abstract', PUBLISHER_METADATA:abstract, "
+    "'categories', PUBLISHER_METADATA:categories, "
+    "'authors', PUBLISHER_METADATA:authors, "
+    "'abstract_suppressed', PUBLISHER_METADATA:abstract_suppressed"
+    ") AS PUBLISHER_FEED"
+)
+
+
+def _plain(value: object, limit: int) -> bool:
+    return isinstance(value, str) and len(value) <= limit and _UNSAFE_TEXT.search(value) is None
+
+
+def _as_mapping(value: Any) -> dict[str, Any] | None:
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+    if isinstance(value, dict):
+        return dict(value)
+    return None
+
+
+def _as_list(value: Any) -> list[Any]:
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+    if isinstance(value, list):
+        return value
+    return []
+
+
+def _suppressed_flag(value: Any) -> bool:
+    if value is True or value == 1:
+        return True
+    return isinstance(value, str) and value.strip().lower() == "true"
+
+
+def _mapping_feed(value: Any) -> dict[str, Any]:
+    parsed = _as_mapping(value)
+    return {} if parsed is None else parsed
+
+
+def _pack_feed_row(row: tuple[Any, ...], suppressed_column: bool) -> tuple[Any, ...]:
+    if suppressed_column:
+        feed = _mapping_feed(row[11])
+        if _suppressed_flag(row[12]):
+            feed = {**feed, "abstract_suppressed": True}
+        return (*row[:11], feed, *row[13:17])
+    return (*row[:11], _mapping_feed(row[11]), *row[12:16])
+
+
+def feed_attribution(family: str, publisher: str | None) -> str:
+    """Credit line for one source family. The schema bound is 200 characters."""
+    if family in _CDC_FAMILIES:
+        text = _CDC_ATTRIBUTION
+    elif family == "nih_niaid":
+        text = _NIH_ATTRIBUTION
+    elif family == "pubmed":
+        text = _PUBMED_ATTRIBUTION
+    else:
+        text = f"Source: {publisher or ''}"
+    return text[:200]
+
+
+def _labels(value: Any, *, limit: int, length: int, drop_mmwr: bool) -> list[str]:
+    chosen: list[str] = []
+    seen: set[str] = set()
+    for item in _as_list(value):
+        if not _plain(item, length) or item == "":
+            continue
+        assert isinstance(item, str)
+        key = item.casefold()
+        if (drop_mmwr and key in _MMWR_SERIES_LABELS) or key in seen:
+            continue
+        seen.add(key)
+        chosen.append(item)
+        if len(chosen) == limit:
+            break
+    return chosen
+
+
+def _authors(value: Any) -> list[str]:
+    chosen: list[str] = []
+    for item in _as_list(value):
+        if not _plain(item, 300) or item == "":
+            continue
+        assert isinstance(item, str)
+        chosen.append(item)
+        if len(chosen) == 20:
+            break
+    return chosen
+
+
+def _project_description(raw: Any, *, pubmed: bool) -> tuple[dict[str, Any], int]:
+    # PubMed has no publisher summary. The abstract is a separate field.
+    if pubmed:
+        return dict(_DESCRIPTION_NOT_PROVIDED), 0
+    obj = _as_mapping(raw)
+    if obj is None:
+        return dict(_DESCRIPTION_WITHHELD), 0
+    if "format" in obj and obj.get("format") not in {None, "plain_text"}:
+        return dict(_DESCRIPTION_WITHHELD), 1
+    if "origin" in obj and obj.get("origin") not in {None, "publisher"}:
+        return dict(_DESCRIPTION_WITHHELD), 1
+    state = obj.get("state")
+    text = obj.get("text")
+    if state == "withheld":
+        return dict(_DESCRIPTION_WITHHELD), 0
+    if state == "not_provided" and text is None:
+        return dict(_DESCRIPTION_NOT_PROVIDED), 0
+    if state == "empty" and text == "":
+        return {"text": "", "state": "empty"}, 0
+    if state == "present" and _plain(text, 4096) and text != "":
+        return {"text": text, "state": "present"}, 0
+    return dict(_DESCRIPTION_WITHHELD), 1
+
+
+def _copyright_line(value: Any) -> tuple[str | None, int]:
+    if value is None or value == "":
+        return None, 0
+    if _plain(value, 1000):
+        assert isinstance(value, str)
+        return value, 0
+    return None, 1
+
+
+def _project_abstract(
+    raw: Any, *, pubmed: bool, suppressed: bool
+) -> tuple[dict[str, Any] | None, int]:
+    if not pubmed:
+        return None, 0
+    if suppressed:
+        return dict(_ABSTRACT_SUPPRESSED), 0
+    obj = _as_mapping(raw)
+    if obj is None:
+        return dict(_ABSTRACT_WITHHELD), 0
+    if obj.get("state") == "suppressed" or _suppressed_flag(obj.get("suppressed")):
+        return dict(_ABSTRACT_SUPPRESSED), 0
+    state = obj.get("state")
+    text = obj.get("text")
+    copyright_line, copyright_failures = _copyright_line(obj.get("copyright_line"))
+    if state == "withheld":
+        return dict(_ABSTRACT_WITHHELD), 0
+    if state == "not_provided" and text is None:
+        return {"text": None, "state": "not_provided", "copyright_line": None}, 0
+    if state == "empty" and text == "":
+        return {"text": "", "state": "empty", "copyright_line": None}, 0
+    if state == "present" and _plain(text, 6000) and text != "":
+        return {
+            "text": text,
+            "state": "present",
+            "copyright_line": copyright_line,
+        }, copyright_failures
+    return dict(_ABSTRACT_WITHHELD), 1 + copyright_failures
+
+
+def project_feed_document(
+    prefix: dict[str, Any], publisher_feed: Any, source: dict[str, Any]
+) -> tuple[dict[str, Any], int]:
+    """Map one governed row onto a FeedEntry document.
+
+    Invalid summary or abstract text becomes withheld for this entry. The count
+    is the number of those texts rejected. The text itself is not returned.
+    """
+    raw = _as_mapping(publisher_feed)
+    family = None if raw is None else raw.get("source_family")
+    if not isinstance(family, str) or family not in _SOURCE_FAMILIES:
+        raise ValueError("INTELLIGENCE_SOURCE_FAMILY_INVALID")
+    suppressed = _suppressed_flag(raw.get("abstract_suppressed") if raw else None)
+    description, description_failures = _project_description(
+        None if raw is None else raw.get("description"), pubmed=family == "pubmed"
+    )
+    abstract, abstract_failures = _project_abstract(
+        None if raw is None else raw.get("abstract"),
+        pubmed=family == "pubmed",
+        suppressed=suppressed,
+    )
+    pmid = None
+    if family == "pubmed" and raw is not None:
+        source_item_id = raw.get("source_item_id")
+        if isinstance(source_item_id, str) and _PMID.fullmatch(source_item_id):
+            pmid = source_item_id
+    publisher = prefix.get("publisher")
+    document = {
+        **prefix,
+        "source": source,
+        "source_family": family,
+        "description": description,
+        "abstract": abstract,
+        "tags": _labels(
+            None if raw is None else raw.get("categories"),
+            limit=100,
+            length=200,
+            drop_mmwr=True,
+        ),
+        "authors": _authors(None if raw is None else raw.get("authors")),
+        "pmid": pmid,
+        "attribution": feed_attribution(family, publisher if isinstance(publisher, str) else None),
+    }
+    return document, description_failures + abstract_failures
+
+
+class FeedDescription(BriefingModel):
+    """Publisher summary for one feed entry."""
+
+    text: (
+        Annotated[
+            str,
+            Field(
+                max_length=4096,
+                pattern=_PLAIN,
+                description=(
+                    "Plain text of the publisher summary. Non-empty when state is present, "
+                    "an empty string when state is empty, and null otherwise."
+                ),
+            ),
+        ]
+        | None
+    )
+    state: Literal["present", "empty", "not_provided", "withheld"] = Field(
+        description=(
+            "present: text is non-empty. empty: the summary element is blank and text is "
+            "an empty string. not_provided: the record has no summary and text is null. "
+            "withheld: text is null."
+        )
+    )
+
+    @model_validator(mode="after")
+    def description_state(self) -> Self:
+        if (
+            (self.state == "present" and not self.text)
+            or (self.state == "empty" and self.text != "")
+            or (self.state in {"not_provided", "withheld"} and self.text is not None)
+        ):
+            raise ValueError("INTELLIGENCE_DESCRIPTION_STATE_INVALID")
+        return self
+
+
+class FeedAbstract(BriefingModel):
+    """PubMed abstract for one feed entry."""
+
+    text: (
+        Annotated[
+            str,
+            Field(
+                max_length=6000,
+                pattern=_PLAIN,
+                description=(
+                    "Plain text of the PubMed abstract. Non-empty when state is present, "
+                    "an empty string when state is empty, and null otherwise. The text is "
+                    "complete."
+                ),
+            ),
+        ]
+        | None
+    )
+    state: Literal["present", "empty", "not_provided", "withheld", "suppressed"] = Field(
+        description=(
+            "present: text is non-empty. empty: the abstract element is blank and text is "
+            "an empty string. not_provided: the record has no abstract and text is null. "
+            "withheld: text is null. suppressed: text is null and the abstract is not shown."
+        )
+    )
+    copyright_line: (
+        Annotated[
+            str,
+            Field(
+                max_length=1000,
+                pattern=_PLAIN,
+                description=(
+                    "Copyright line from the record. Present only when state is present and "
+                    "the record has one; otherwise null."
+                ),
+            ),
+        ]
+        | None
+    )
+
+    @model_validator(mode="after")
+    def abstract_state(self) -> Self:
+        if self.state == "present":
+            if not self.text:
+                raise ValueError("INTELLIGENCE_ABSTRACT_STATE_INVALID")
+            return self
+        if self.state == "empty":
+            if self.text != "" or self.copyright_line is not None:
+                raise ValueError("INTELLIGENCE_ABSTRACT_STATE_INVALID")
+            return self
+        if self.text is not None or self.copyright_line is not None:
+            raise ValueError("INTELLIGENCE_ABSTRACT_STATE_INVALID")
+        return self
 
 
 class FeedEntry(BriefingModel):
+    """One source-attributed publication in the intelligence feed."""
+
     item_id: Digest
     revision_id: Digest
     title: Text | None
@@ -100,11 +445,62 @@ class FeedEntry(BriefingModel):
     publication_date_state: State
     publisher: Text | None
     source: BriefingSource
+    source_family: Literal[
+        "cdc_mmwr", "cdc_eid", "cdc_other", "nih_niaid", "pubmed", "state_local", "other"
+    ] = Field(
+        description=(
+            "Publisher family. One of cdc_mmwr, cdc_eid, cdc_other, nih_niaid, pubmed, "
+            "state_local, or other."
+        )
+    )
+    description: FeedDescription = Field(description="Publisher summary for this entry.")
+    abstract: FeedAbstract | None = Field(
+        description=(
+            "PubMed abstract for this entry, including its copyright line. "
+            "Null when the entry is not PubMed."
+        )
+    )
+    tags: Annotated[
+        tuple[Annotated[str, Field(max_length=200, pattern=_PLAIN)], ...],
+        Field(
+            max_length=100,
+            description=(
+                "Publisher category labels in publisher order. PubMed entries use author "
+                "keywords. The MMWR series labels MMWR and Morbidity & Mortality Weekly "
+                "Report are omitted. Duplicate labels that differ only by case are omitted. "
+                "Empty when the entry has none."
+            ),
+        ),
+    ]
+    authors: Annotated[
+        tuple[Annotated[str, Field(max_length=300, pattern=_PLAIN)], ...],
+        Field(
+            max_length=20,
+            description=("Structured author names in record order. Empty when the entry has none."),
+        ),
+    ]
+    pmid: Annotated[str, Field(pattern=r"^[1-9][0-9]{0,9}$")] | None = Field(
+        description="PubMed identifier. Null when the entry is not a PubMed record."
+    )
+    attribution: Annotated[str, Field(max_length=200, pattern=_PLAIN)] = Field(
+        description="Credit line shown with the entry."
+    )
 
     @model_validator(mode="after")
     def date_state(self) -> Self:
         if (self.published_at is not None) != (self.publication_date_state == "present"):
             raise ValueError("INTELLIGENCE_PUBLICATION_DATE_STATE_INVALID")
+        if self.attribution != feed_attribution(self.source_family, self.publisher):
+            raise ValueError("INTELLIGENCE_ATTRIBUTION_INVALID")
+        if self.source_family == "pubmed":
+            if (
+                self.abstract is None
+                or self.description.text is not None
+                or self.description.state != "not_provided"
+            ):
+                raise ValueError("INTELLIGENCE_PUBMED_FIELDS_INVALID")
+        elif self.abstract is not None or self.pmid is not None:
+            raise ValueError("INTELLIGENCE_PUBMED_FIELDS_INVALID")
         return self
 
 
@@ -144,6 +540,19 @@ class FeedSources(BriefingModel):
     source_catalog_complete: Literal[False] = False
 
 
+class FeedEntryMeta(BriefingModel):
+    """Projection identity for one feed entry."""
+
+    projection_version: Literal["intelligence-feed-read-v2"] = "intelligence-feed-read-v2"
+
+
+class FeedEntryRead(BriefingModel):
+    """One current intelligence feed entry."""
+
+    data: FeedEntry
+    meta: FeedEntryMeta = Field(default_factory=FeedEntryMeta)
+
+
 class FeedRepository(Protocol):
     def read(
         self,
@@ -155,10 +564,52 @@ class FeedRepository(Protocol):
         size: int,
     ) -> tuple[str, list[tuple[Any, ...]]]: ...
 
+    def read_item(self, item_id: str) -> list[tuple[Any, ...]]: ...
+
 
 class SnowflakeFeedRepository:
     def __init__(self, settings: ApiSettings) -> None:
         self.settings = settings
+
+    def _feed_view(self) -> str:
+        return (
+            f"{_sql_identifier(self.settings.presentation_database)}."
+            f"{_sql_identifier(self.settings.snowflake_presentation_schema)}.INTELLIGENCE_FEED_V2"
+        )
+
+    def _feed_column_sql(self, suppressed_column: bool) -> str:
+        columns = ", ".join(name.upper() for name in _FEED_RAW_PREFIX[:9])
+        columns += (
+            ", FIELD_STATES:published_at::VARCHAR AS PUBLICATION_DATE_STATE"
+            ", IFF(IS_NULL_VALUE(PUBLISHER_METADATA:publisher), NULL,"
+            " PUBLISHER_METADATA:publisher::VARCHAR) AS PUBLISHER"
+            f", {_FEED_PUBLISHER_OBJECT}"
+        )
+        if suppressed_column:
+            columns += f", {_ABSTRACT_SUPPRESSED_COLUMN}"
+        columns += ", SOURCE_ID, REGISTRY_VERSION, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
+        return columns
+
+    def _abstract_suppressed_column_present(self, cursor: Any) -> bool:
+        database = _sql_identifier(self.settings.presentation_database)
+        try:
+            cursor.execute(
+                f"SELECT COLUMN_NAME FROM {database}.INFORMATION_SCHEMA.COLUMNS "
+                "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'INTELLIGENCE_FEED_V2' "
+                "AND COLUMN_NAME = %s",
+                (self.settings.snowflake_presentation_schema, _ABSTRACT_SUPPRESSED_COLUMN),
+                timeout=self.settings.public_query_timeout_seconds,
+            )
+            return cursor.fetchone() is not None
+        except Exception:
+            return False
+
+    def _allowed_database(self) -> None:
+        if self.settings.presentation_database not in {
+            "ONE_HEALTH_LYME_GAP_ATLAS_DEV",
+            "ONE_HEALTH_LYME_GAP_ATLAS_PROD",
+        }:
+            raise AtlasDataUnavailableError(UNAVAILABLE)
 
     def read(
         self,
@@ -223,13 +674,7 @@ class SnowflakeFeedRepository:
         columns = ", ".join(name.upper() for name in item_columns)
         columns += ", ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
         if kind == "feed":
-            columns = ", ".join(name.upper() for name in FEED_COLUMNS[:9])
-            columns += (
-                ", FIELD_STATES:published_at::VARCHAR AS PUBLICATION_DATE_STATE"
-                ", IFF(IS_NULL_VALUE(PUBLISHER_METADATA:publisher), NULL,"
-                " PUBLISHER_METADATA:publisher::VARCHAR) AS PUBLISHER"
-                ", SOURCE_ID, REGISTRY_VERSION, ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
-            )
+            columns = self._feed_column_sql(False)
         order = (
             "ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION"
             if kind != "sources"
@@ -250,6 +695,7 @@ class SnowflakeFeedRepository:
             )
         else:
             statement = f"SELECT {columns} FROM {view}{where} ORDER BY {order} LIMIT %s OFFSET %s"
+        suppressed_column = False
         try:
             with read_connection(self.settings) as connection, connection.cursor() as cursor:
                 cursor.execute(
@@ -259,6 +705,12 @@ class SnowflakeFeedRepository:
                 if before is None or before[0] > self.settings.public_query_result_ceiling:
                     raise PublicQueryError(
                         "QUERY_TOO_BROAD", "Narrow the source or publication dates."
+                    )
+                if kind == "feed":
+                    suppressed_column = self._abstract_suppressed_column_present(cursor)
+                    statement = (
+                        f"SELECT {self._feed_column_sql(suppressed_column)} FROM {view}{where} "
+                        f"ORDER BY {order} LIMIT %s OFFSET %s"
                     )
                 cursor.execute(
                     statement,
@@ -271,8 +723,32 @@ class SnowflakeFeedRepository:
                 )
                 if cursor.fetchone() != before:
                     raise AtlasDataUnavailableError(UNAVAILABLE)
+            if kind == "feed":
+                rows = [_pack_feed_row(row, suppressed_column) for row in rows]
             marker = hashlib.sha256(json.dumps(before, default=str).encode()).hexdigest()
             return marker, rows
+        except PublicQueryError:
+            raise
+        except Exception:
+            raise AtlasDataUnavailableError(UNAVAILABLE) from None
+
+    def read_item(self, item_id: str) -> list[tuple[Any, ...]]:
+        self._allowed_database()
+        view = self._feed_view()
+        try:
+            with read_connection(self.settings) as connection, connection.cursor() as cursor:
+                suppressed_column = self._abstract_suppressed_column_present(cursor)
+                statement = (
+                    f"SELECT {self._feed_column_sql(suppressed_column)} FROM {view} "
+                    "WHERE ITEM_ID = %s ORDER BY FETCHED_AT DESC, REVISION_ID DESC LIMIT 1"
+                )
+                cursor.execute(
+                    statement,
+                    (item_id,),
+                    timeout=self.settings.public_query_timeout_seconds,
+                )
+                rows = cursor.fetchall()
+            return [_pack_feed_row(row, suppressed_column) for row in rows]
         except PublicQueryError:
             raise
         except Exception:
@@ -282,6 +758,36 @@ class SnowflakeFeedRepository:
 class FeedService:
     def __init__(self, repository: FeedRepository) -> None:
         self.repository = repository
+
+    def _feed_entries(self, rows: list[tuple[Any, ...]]) -> tuple[FeedEntry, ...]:
+        entries: list[FeedEntry] = []
+        withheld = 0
+        for row in rows:
+            prefix = dict(zip(_FEED_RAW_PREFIX, row[: len(_FEED_RAW_PREFIX)], strict=True))
+            for field in ("provenance", "limitations"):
+                if isinstance(prefix[field], str):
+                    prefix[field] = json.loads(prefix[field])
+            source = dict(zip(_SOURCE_FIELDS, row[-4:], strict=True))
+            document, failures = project_feed_document(prefix, row[len(_FEED_RAW_PREFIX)], source)
+            withheld += failures
+            entries.append(FeedEntry.model_validate(document))
+        if withheld:
+            logger.info(
+                "intelligence_feed_untrusted_text_withheld withheld_text_count=%s",
+                withheld,
+            )
+        return tuple(entries)
+
+    def entry(self, item_id: str) -> FeedEntry | None:
+        rows = self.repository.read_item(item_id)
+        if not rows:
+            return None
+        try:
+            return self._feed_entries(rows[:1])[0]
+        except AtlasDataUnavailableError:
+            raise
+        except Exception:
+            raise AtlasDataUnavailableError(UNAVAILABLE) from None
 
     def search(
         self,
@@ -321,26 +827,7 @@ class FeedService:
         meta = FeedMeta(next_page_token=next_token)
         try:
             if kind == "feed":
-                entries = []
-                for row in rows[:size]:
-                    document = dict(zip(FEED_COLUMNS, row[:-4], strict=True))
-                    for field in ("provenance", "limitations"):
-                        if isinstance(document[field], str):
-                            document[field] = json.loads(document[field])
-                    document["source"] = dict(
-                        zip(
-                            (
-                                "source_id",
-                                "registry_version",
-                                "organization",
-                                "reviewed_trust_classification",
-                            ),
-                            row[-4:],
-                            strict=True,
-                        )
-                    )
-                    entries.append(FeedEntry.model_validate(document))
-                return MetadataFeed(data=tuple(entries), meta=meta)
+                return MetadataFeed(data=self._feed_entries(rows[:size]), meta=meta)
             if kind == "sources":
                 sources = tuple(
                     FeedSource.model_validate(
@@ -391,19 +878,39 @@ class FeedService:
 router = APIRouter(tags=["Intelligence feed"])
 
 
-def _service(request: Request, response: Response, page_size: int) -> FeedService:
+def _service(request: Request, response: Response, page_size: int | None) -> FeedService:
     settings = cast(ApiSettings, request.app.state.public_settings)
     response.headers["Cache-Control"] = "no-store"
-    allowed = {"page_size", "page_token"}
-    if request.url.path.endswith(("/items", "/feed")):
-        allowed.update({"source_id", "published_from", "published_to"})
+    allowed: set[str] = set()
+    if page_size is not None:
+        allowed.update({"page_size", "page_token"})
+        if request.url.path.endswith(("/items", "/feed")):
+            allowed.update({"source_id", "published_from", "published_to"})
     if set(request.query_params) - allowed:
         raise PublicQueryError("INVALID_REQUEST", "Unknown query parameter.")
     if not settings.intelligence_feed_read_enabled:
         raise HTTPException(503, "Governed intelligence reading is not enabled.")
-    if page_size > settings.public_page_size_max:
+    if page_size is not None and page_size > settings.public_page_size_max:
         raise PublicQueryError("INVALID_REQUEST", "page_size exceeds the configured maximum.")
     return cast(FeedService, request.app.state.intelligence_feed_service)
+
+
+def _missing_feed_entry(request: Request) -> JSONResponse:
+    problem = ProblemDetails(
+        type=problem_type_uri("intelligence-item-not-found"),
+        title="Not found",
+        status=404,
+        detail="No intelligence feed entry exists for this id.",
+        instance=request.url.path,
+        request_id=getattr(request.state, "request_id", "unavailable"),
+        code="INTELLIGENCE_ITEM_NOT_FOUND",
+    )
+    return JSONResponse(
+        problem.model_dump(mode="json"),
+        status_code=404,
+        media_type="application/problem+json",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get(
@@ -478,8 +985,9 @@ def sources(
     operation_id="listIntelligenceFeed",
     summary="Read source-attributed publication metadata",
     responses=FEED_PROBLEMS,
-    description="Read only from governed INTELLIGENCE_FEED_V2. No excerpts, article bodies "
-    "or media. Publisher dates remain null when unknown; inclusive date filters exclude "
+    description="Read only from governed INTELLIGENCE_FEED_V2. "
+    + _FEED_SUMMARY
+    + " Publisher dates remain null when unknown; inclusive date filters exclude "
     "unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, "
     "no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
 )
@@ -498,3 +1006,42 @@ def feed(
             "feed", source_id, published_from, published_to, page_size, page_token
         ),
     )
+
+
+ENTRY_PROBLEMS = {
+    **FEED_PROBLEMS,
+    404: problem_response(
+        404,
+        "INTELLIGENCE_ITEM_NOT_FOUND",
+        "No intelligence feed entry exists for this id.",
+        description=(
+            "The item id is not in the governed intelligence feed. "
+            "The code is INTELLIGENCE_ITEM_NOT_FOUND."
+        ),
+    ),
+}
+
+
+@router.get(
+    "/v1/intelligence/feed/{item_id}",
+    response_model=FeedEntryRead,
+    operation_id="getIntelligenceFeedEntry",
+    summary="Read one source-attributed publication",
+    responses=ENTRY_PROBLEMS,
+    description=(
+        "Read one current entry from governed INTELLIGENCE_FEED_V2 by its 64-character item id. "
+        + _FEED_SUMMARY
+        + " The entry uses the same fields as the feed list. Cache-Control is no-store. "
+        "A malformed id returns 422. An id that is not in the feed returns 404. "
+        "Disabled or unavailable returns 503."
+    ),
+)
+def feed_entry(
+    request: Request,
+    response: Response,
+    item_id: Annotated[str, Path(pattern=r"^[a-f0-9]{64}$")],
+) -> FeedEntryRead | JSONResponse:
+    found = _service(request, response, None).entry(item_id)
+    if found is None:
+        return _missing_feed_entry(request)
+    return FeedEntryRead(data=found)
