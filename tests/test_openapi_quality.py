@@ -200,7 +200,7 @@ def test_operation_id_fixture_rule_enforces_current_ids() -> None:
     fixture = json.loads((ROOT / "tests/fixtures/public-operation-ids.json").read_text())
     assert TOOLS["check_operation_id_fixture"](PUBLIC, fixture, "openapi.json") == []
     spec = _spec()
-    spec["paths"][OP]["get"]["operationId"] = "listObservations"
+    spec["paths"][OP]["get"]["operationId"] = "listObservationsRenamed"
     found = TOOLS["check_operation_id_fixture"](spec, fixture, "openapi.json")
     assert _rules_of(found) == {"operation-id-fixture"}
 
