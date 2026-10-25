@@ -1020,7 +1020,7 @@ def create_app(
         response_model=AtlasMetadata,
         tags=["atlas"],
         operation_id="metadata_v1_atlas_metadata_get",
-        summary="Get Atlas release metadata",
+        summary="Get release metadata",
         description=(
             "Release metadata, source freshness and methodology; dataset_version selects an "
             "existing release. Cached publicly for 300 seconds with ETag. ETag is "
@@ -1046,7 +1046,7 @@ def create_app(
             "internal 2025 TIGER/Line analysis polygons used for raster aggregation."
         ),
         operation_id="geometry_v1_atlas_geometry_get",
-        summary="Get county display geometry",
+        summary="Get county map geometry",
         response_class=Response,
         responses={
             **LEGACY_ERRORS,
@@ -1102,7 +1102,7 @@ def create_app(
         response_model=MapValuesCollection,
         tags=["atlas"],
         operation_id="map_values_v1_atlas_map_values_get",
-        summary="Get national map layer values by county",
+        summary="Get map values by county",
         description=(
             "Published incidence floor, social vulnerability percentile, uninsured percent, "
             "and rural-urban continuum code for every county in the current snapshot. "
@@ -1127,7 +1127,7 @@ def create_app(
         response_model=CountyDetail,
         tags=["counties"],
         operation_id="county_v1_counties__fips__get",
-        summary="Get county analytics and provenance",
+        summary="Get county detail and provenance",
         description=(
             "Five-digit county FIPS with leading zeros retained. Includes release/source "
             "metadata and limitations. Optional dataset_version and score settings retain "
@@ -1157,7 +1157,7 @@ def create_app(
         response_model=CountySurveillanceSituations,
         tags=["counties"],
         operation_id="county_surveillance_situations_get",
-        summary="Get both persisted county surveillance-situation classifications",
+        summary="Get county surveillance situations",
         description=(
             "Get both surveillance-situation classifications for one county: the primary "
             "`four_state` model, which includes human surveillance, and the secondary "
@@ -1199,7 +1199,7 @@ def create_app(
         response_model=Tier1CountyPriority,
         tags=["counties"],
         operation_id="county_tier1_surveillance_priority_get",
-        summary="Get persisted Tier 1 model-assisted surveillance review priority",
+        summary="Get county surveillance review priority",
         description=(
             "Get the approved Tier 1 surveillance review priority for one county from the "
             "current batch.\n\n"
@@ -1238,7 +1238,7 @@ def create_app(
         response_model=Tier1CountyPriorityAvailability,
         tags=["counties"],
         operation_id="county_tier1_surveillance_priority_availability_get",
-        summary="Get Tier 1 result availability and persisted data",
+        summary="Check surveillance priority availability",
         description=(
             "Check whether a county has a published Tier 1 result, and get it when it does.\n\n"
             "### What you get back\n"
@@ -1605,7 +1605,7 @@ def create_app(
         "/v1/atlas/ranking.csv",
         tags=["atlas"],
         operation_id="ranking_csv_v1_atlas_ranking_csv_get",
-        summary="Download filtered county rankings",
+        summary="Download county rankings as CSV",
         description=(
             "Filtered CSV attachment for current county rankings. Existing state, text and "
             "evidence filters and score settings apply; no pagination. This route does not "

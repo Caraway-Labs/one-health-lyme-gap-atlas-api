@@ -3,7 +3,7 @@
 from copy import deepcopy
 from typing import Any
 
-from .public_docs import API_DESCRIPTION, API_SUMMARY, TAGS
+from .public_docs import API_DESCRIPTION, API_SUMMARY, TAG_GROUPS, TAGS
 
 PUBLIC_PATHS = frozenset(
     {
@@ -39,6 +39,7 @@ def public_projection(complete: dict[str, Any]) -> dict[str, Any]:
     schema["info"]["summary"] = API_SUMMARY
     schema["info"]["description"] = API_DESCRIPTION
     schema["tags"] = deepcopy(TAGS)
+    schema["x-tagGroups"] = deepcopy(TAG_GROUPS)
     schema["paths"] = {path: {"get": schema["paths"][path]["get"]} for path in sorted(PUBLIC_PATHS)}
     components = schema.pop("components", {})
     retained: dict[str, dict[str, Any]] = {}

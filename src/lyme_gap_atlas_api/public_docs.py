@@ -70,18 +70,22 @@ may be added within V1. Breaking changes follow a published deprecation plan.
 TAGS = [
     {
         "name": "discovery",
+        "x-displayName": "Indicators and measures",
         "description": "List the indicators and measures you can query.",
     },
     {
         "name": "observations",
+        "x-displayName": "Observations",
         "description": "Query measure values for counties, each with an explicit `value_state`.",
     },
     {
         "name": "provenance",
+        "x-displayName": "Sources and methods",
         "description": "Look up the sources and methodologies behind a value, with versions.",
     },
     {
         "name": "geographies",
+        "x-displayName": "Geographies",
         "description": (
             "Validate a county or state FIPS code. Atlas does not yet publish place records, "
             "so these operations return HTTP 200 with `availability` set to `UNAVAILABLE`."
@@ -89,13 +93,26 @@ TAGS = [
     },
     {
         "name": "atlas",
+        "x-displayName": "Scores and metadata",
         "description": "Get release metadata, scores, rankings, and map geometry.",
     },
     {
         "name": "counties",
+        "x-displayName": "Counties",
         "description": "Get county detail and download county PDF reports.",
     },
-    {"name": "states", "description": "Download state PDF reports."},
+    {"name": "states", "x-displayName": "States", "description": "Download state PDF reports."},
+]
+
+TAG_GROUPS = [
+    {
+        "name": "Atlas evidence (V1 resources)",
+        "tags": ["discovery", "observations", "provenance", "geographies"],
+    },
+    {
+        "name": "Atlas analytics and reports",
+        "tags": ["atlas", "counties", "states"],
+    },
 ]
 
 COLLECTION_DESCRIPTION = (

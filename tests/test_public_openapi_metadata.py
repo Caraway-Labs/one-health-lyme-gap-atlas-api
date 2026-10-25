@@ -337,3 +337,19 @@ def test_example_fixtures_match_public_operations_and_contain_no_secrets() -> No
         text = path.read_text(encoding="utf-8").lower()
         for marker in ("bearer ", "api_key", "password", "secret", "token="):
             assert marker not in text, f"{path.name} contains {marker!r}"
+
+
+def test_tag_groups_cover_every_tag_once_and_summaries_are_short() -> None:
+    schema = create_app(settings=ApiSettings()).openapi()
+    tag_names = [tag["name"] for tag in schema["tags"]]
+    assert all(tag["x-displayName"] for tag in schema["tags"])
+    grouped = [name for group in schema["x-tagGroups"] for name in group["tags"]]
+    assert sorted(grouped) == sorted(tag_names)
+    assert [group["name"] for group in schema["x-tagGroups"]] == [
+        "Atlas evidence (V1 resources)",
+        "Atlas analytics and reports",
+    ]
+    for path_item in schema["paths"].values():
+        summary = path_item["get"]["summary"]
+        assert len(summary) <= 60
+        assert not {"persisted", "typed"} & set(summary.lower().split())
