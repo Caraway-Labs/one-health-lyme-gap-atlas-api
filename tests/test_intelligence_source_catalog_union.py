@@ -93,7 +93,9 @@ def test_union_returns_real_legacy_v2_shared_and_versioned_source_rows(monkeypat
         def cursor(self):
             return Cursor()
 
-    monkeypatch.setattr("lyme_gap_atlas_api.intelligence_feed.read_connection", lambda _: Connection())
+    monkeypatch.setattr(
+        "lyme_gap_atlas_api.intelligence_feed.read_connection", lambda _: Connection()
+    )
     service = FeedService(
         SnowflakeFeedRepository(
             ApiSettings(
