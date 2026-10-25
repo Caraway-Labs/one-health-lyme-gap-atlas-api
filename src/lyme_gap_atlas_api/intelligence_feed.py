@@ -43,6 +43,15 @@ _PLAIN = r"^[^<>\x00-\x1f\x7f]*$"
 _SOURCE_FAMILIES = frozenset(
     {"cdc_mmwr", "cdc_eid", "cdc_other", "nih_niaid", "pubmed", "state_local", "other"}
 )
+_SOURCE_FAMILY_LABELS: Final[Mapping[str, str]] = {
+    "cdc_mmwr": "CDC MMWR",
+    "cdc_eid": "CDC EID",
+    "cdc_other": "CDC",
+    "nih_niaid": "NIH NIAID",
+    "pubmed": "PubMed",
+    "state_local": "State and local",
+    "other": "Other",
+}
 _CDC_FAMILIES = frozenset({"cdc_mmwr", "cdc_eid", "cdc_other"})
 _MMWR_SERIES_LABELS = frozenset({"mmwr", "morbidity & mortality weekly report"})
 _CDC_ATTRIBUTION = "Source: Centers for Disease Control and Prevention"
@@ -163,6 +172,7 @@ _SOURCE_FIELDS = (
 FEED_COLUMNS = (
     *_FEED_RAW_PREFIX,
     "source_family",
+    "source_family_label",
     "description",
     "abstract",
     "tags",
@@ -365,6 +375,7 @@ def project_feed_document(
         **prefix,
         "source": source,
         "source_family": family,
+        "source_family_label": _SOURCE_FAMILY_LABELS[family],
         "description": description,
         "abstract": abstract,
         "tags": _labels(
@@ -496,6 +507,9 @@ class FeedEntry(BriefingModel):
             "state_local, or other."
         )
     )
+    source_family_label: Annotated[str, Field(max_length=200, pattern=_PLAIN)] = Field(
+        description="Display label for source_family."
+    )
     description: FeedDescription = Field(description="Publisher summary for this entry.")
     abstract: FeedAbstract | None = Field(
         description=(
@@ -535,6 +549,8 @@ class FeedEntry(BriefingModel):
             raise ValueError("INTELLIGENCE_PUBLICATION_DATE_STATE_INVALID")
         if self.attribution != feed_attribution(self.source_family, self.publisher):
             raise ValueError("INTELLIGENCE_ATTRIBUTION_INVALID")
+        if self.source_family_label != _SOURCE_FAMILY_LABELS[self.source_family]:
+            raise ValueError("INTELLIGENCE_SOURCE_FAMILY_LABEL_INVALID")
         if self.source_family == "pubmed":
             if (
                 self.abstract is None

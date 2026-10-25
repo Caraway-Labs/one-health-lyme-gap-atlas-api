@@ -11459,6 +11459,13 @@
             "title": "Source Family",
             "description": "Publisher family. One of cdc_mmwr, cdc_eid, cdc_other, nih_niaid, pubmed, state_local, or other."
           },
+          "source_family_label": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "title": "Source Family Label",
+            "description": "Display label for source_family."
+          },
           "description": {
             "$ref": "#/components/schemas/FeedDescription",
             "description": "Publisher summary for this entry."
@@ -11529,6 +11536,7 @@
           "publisher",
           "source",
           "source_family",
+          "source_family_label",
           "description",
           "abstract",
           "tags",
