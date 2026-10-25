@@ -37,8 +37,10 @@ is withheld on that entry; the response for the rest of the page is unchanged.
 The log records how many of those texts were withheld and does not record the
 text. Missing, invalid, or withheld publication dates remain null; fetch time
 never substitutes for them. Inclusive publication filters exclude unknown dates.
-Identity/revision ordering is deterministic, not a claim of recency ranking. An
-available empty view returns 200 with `data: []` and no continuation; disabled,
+Entries with a publisher date are newest first. Entries with an unknown
+publisher date are last. Matching publisher dates use a stable tie-break of
+item id, revision id, source id, and registry version. An available empty
+view returns 200 with `data: []` and no continuation; disabled,
 inaccessible or invalid projections return a sanitized 503. The metadata feed
 does not include source operational state. Source operational state is on
 `/v1/intelligence/sources`.

@@ -11,7 +11,12 @@ from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
-from lyme_gap_atlas_api.intelligence_feed import ITEM_COLUMNS, V2_COLUMNS, SnowflakeFeedRepository
+from lyme_gap_atlas_api.intelligence_feed import (
+    FEED_LIST_ORDER,
+    ITEM_COLUMNS,
+    V2_COLUMNS,
+    SnowflakeFeedRepository,
+)
 from lyme_gap_atlas_api.models import ProblemDetails
 from lyme_gap_atlas_api.public_contract import PublicQueryError
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
@@ -379,6 +384,7 @@ def test_sql_boundary_limits_and_state_checks(
         assert all("source'bound" not in sql for sql, _, _ in cursor.calls)
         if kind == "feed":
             assert "INTELLIGENCE_FEED_V2" in data_calls[0][0]
+            assert FEED_LIST_ORDER in data_calls[0][0]
             selected = data_calls[0][0].split(" FROM ")[0]
             assert "PUBLISHER_METADATA:description" in selected
             assert "PUBLISHER_METADATA:categories" in selected
@@ -387,7 +393,15 @@ def test_sql_boundary_limits_and_state_checks(
             assert "PUBLISHER_METADATA:abstract" in selected
             assert "ABSTRACT_SUPPRESSED" not in selected
             assert not any(field in selected for field in ("EXCERPT", "MEDIA", "NATIVE_METADATA"))
+        if kind == "items":
+            assert "TRY_TO_TIMESTAMP_TZ" not in data_calls[0][0]
+            assert (
+                "ORDER BY ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION LIMIT"
+                in data_calls[0][0]
+            )
         if kind == "sources":
+            assert "TRY_TO_TIMESTAMP_TZ" not in cursor.calls[1][0]
+            assert "ORDER BY SOURCE_ID, REGISTRY_VERSION LIMIT" in cursor.calls[1][0]
             assert "UNION ALL" in cursor.calls[1][0]
             assert "INTELLIGENCE_FEED_V2" in cursor.calls[1][0]
             assert "SELECT DISTINCT SOURCE_ID, REGISTRY_VERSION" in cursor.calls[1][0]
@@ -458,11 +472,9 @@ def test_entry_sql_uses_item_id_and_selects_suppression_only_when_present(
         )
         return cursor
 
-    repository = SnowflakeFeedRepository(
-        ApiSettings(snowflake_presentation_database="ONE_HEALTH_LYME_GAP_ATLAS_PROD")
-    )
+    settings = ApiSettings(snowflake_presentation_database="ONE_HEALTH_LYME_GAP_ATLAS_PROD")
     absent = install(False)
-    assert repository.read_item("a" * 64) == []
+    assert SnowflakeFeedRepository(settings).read_item("a" * 64) == []
     statement = absent.calls[-1][0]
     assert "WHERE ITEM_ID = %s" in statement
     assert "ORDER BY FETCHED_AT DESC, REVISION_ID DESC LIMIT 1" in statement
@@ -471,7 +483,7 @@ def test_entry_sql_uses_item_id_and_selects_suppression_only_when_present(
     assert absent.calls[-1][1] == ("a" * 64,)
 
     present = install(True)
-    assert repository.read_item("b" * 64) == []
+    assert SnowflakeFeedRepository(settings).read_item("b" * 64) == []
     selected = present.calls[-1][0].split(" FROM ")[0]
     assert "ABSTRACT_SUPPRESSED" in selected
     assert "EXCERPT" not in selected

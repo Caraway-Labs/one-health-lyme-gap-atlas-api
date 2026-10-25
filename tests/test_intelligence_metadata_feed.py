@@ -6,11 +6,18 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from test_intelligence_feed_read import Repository
 
 from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
-from lyme_gap_atlas_api.intelligence_feed import FEED_COLUMNS, _pack_feed_row
+from lyme_gap_atlas_api.intelligence_feed import (
+    _SOURCE_FAMILIES,
+    _SOURCE_FAMILY_LABELS,
+    FEED_COLUMNS,
+    FeedEntry,
+    _pack_feed_row,
+)
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
 
 _CDC_ATTRIBUTION = "Source: Centers for Disease Control and Prevention"
@@ -185,6 +192,7 @@ def test_openapi_excludes_content_and_public_analytics() -> None:
     )
     properties = contract["components"]["schemas"]["FeedEntry"]["properties"]
     assert set(properties) == set(FEED_COLUMNS) | {"source"}
+    assert properties["source_family_label"]["description"] == "Display label for source_family."
     assert "excerpt" not in json.dumps(properties)
     assert properties["description"]["$ref"].endswith("/FeedDescription")
     assert "FeedAbstract" in json.dumps(properties["abstract"])
@@ -450,25 +458,37 @@ def test_non_pubmed_abstract_stays_null_when_a_stored_abstract_or_flag_is_presen
     assert entry["pmid"] is None
 
 
+def test_every_source_family_has_a_label() -> None:
+    assert set(_SOURCE_FAMILY_LABELS) == set(_SOURCE_FAMILIES)
+    assert all(isinstance(label, str) and label for label in _SOURCE_FAMILY_LABELS.values())
+    entry = _entry(_feed())
+    entry["source_family_label"] = "Other"
+    with pytest.raises(ValidationError):
+        FeedEntry.model_validate(entry)
+
+
 @pytest.mark.parametrize(
-    ("family", "publisher", "attribution"),
+    ("family", "publisher", "attribution", "label"),
     [
-        ("cdc_mmwr", "CDC", _CDC_ATTRIBUTION),
-        ("cdc_eid", "CDC", _CDC_ATTRIBUTION),
-        ("cdc_other", "CDC", _CDC_ATTRIBUTION),
-        ("nih_niaid", "NIH", "Source: National Institutes of Health"),
-        ("pubmed", "Journal", _PUBMED_ATTRIBUTION),
-        ("state_local", "Maine CDC", "Source: Maine CDC"),
-        ("other", "ProMED", "Source: ProMED"),
+        ("cdc_mmwr", "CDC", _CDC_ATTRIBUTION, "CDC MMWR"),
+        ("cdc_eid", "CDC", _CDC_ATTRIBUTION, "CDC EID"),
+        ("cdc_other", "CDC", _CDC_ATTRIBUTION, "CDC"),
+        ("nih_niaid", "NIH", "Source: National Institutes of Health", "NIH NIAID"),
+        ("pubmed", "Journal", _PUBMED_ATTRIBUTION, "PubMed"),
+        ("state_local", "Maine CDC", "Source: Maine CDC", "State and local"),
+        ("other", "ProMED", "Source: ProMED", "Other"),
     ],
 )
-def test_source_family_sets_attribution(family: str, publisher: str, attribution: str) -> None:
+def test_source_family_sets_attribution(
+    family: str, publisher: str, attribution: str, label: str
+) -> None:
     feed = _feed(source_family=family)
     if family == "pubmed":
         feed["source_item_id"] = "123"
         feed["abstract"] = {"text": "Abstract", "state": "present", "copyright_line": None}
     entry = _entry(feed, publisher=publisher)
     assert entry["source_family"] == family
+    assert entry["source_family_label"] == label
     assert entry["attribution"] == attribution
     assert entry["publisher"] == publisher
 
@@ -543,6 +563,8 @@ def test_entry_by_id_matches_the_list_and_unknown_ids_are_not_found() -> None:
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
     assert response.json()["data"] == listed
+    assert listed["source_family_label"] == "CDC MMWR"
+    assert response.json()["data"]["source_family_label"] == "CDC MMWR"
     assert response.json()["meta"] == {"projection_version": "intelligence-feed-read-v2"}
     missing = http.get("/v1/intelligence/feed/" + "ab" * 32)
     assert missing.status_code == 404

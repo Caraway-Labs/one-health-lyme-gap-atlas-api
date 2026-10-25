@@ -4006,7 +4006,7 @@
           "Intelligence feed"
         ],
         "summary": "Read source-attributed publication metadata",
-        "description": "Read only from governed INTELLIGENCE_FEED_V2. The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. It returns no article bodies or media. Publisher dates remain null when unknown; inclusive date filters exclude unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
+        "description": "Read only from governed INTELLIGENCE_FEED_V2. The feed returns publisher summaries and, for PubMed, abstracts with their copyright line. It returns no article bodies or media. Publisher dates remain null when unknown; inclusive date filters exclude unknown dates. Entries with a publisher date are newest first. Entries with an unknown publisher date are last. Matching publisher dates use a stable tie-break of item id, revision id, source id, and registry version. Bounded state/filter-bound pagination, no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
         "operationId": "listIntelligenceFeed",
         "parameters": [
           {
@@ -11459,6 +11459,13 @@
             "title": "Source Family",
             "description": "Publisher family. One of cdc_mmwr, cdc_eid, cdc_other, nih_niaid, pubmed, state_local, or other."
           },
+          "source_family_label": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^<>\\x00-\\x1f\\x7f]*$",
+            "title": "Source Family Label",
+            "description": "Display label for source_family."
+          },
           "description": {
             "$ref": "#/components/schemas/FeedDescription",
             "description": "Publisher summary for this entry."
@@ -11529,6 +11536,7 @@
           "publisher",
           "source",
           "source_family",
+          "source_family_label",
           "description",
           "abstract",
           "tags",
