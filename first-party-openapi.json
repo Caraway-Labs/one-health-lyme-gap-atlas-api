@@ -26,7 +26,7 @@
         "tags": [
           "discovery"
         ],
-        "summary": "Discover indicators",
+        "summary": "List indicators",
         "description": "Current-release discovery with optional documented filters. page_size defaults to 100 (maximum 500); reuse opaque page_token with the same filters and release. A null next_page_token ends traversal. Cache-Control: public, max-age=60, must-revalidate.",
         "operationId": "indicators_v1_indicators_get",
         "parameters": [
@@ -599,7 +599,7 @@
         "tags": [
           "discovery"
         ],
-        "summary": "Discover measures",
+        "summary": "List measures",
         "description": "Current-release discovery with optional documented filters. page_size defaults to 100 (maximum 500); reuse opaque page_token with the same filters and release. A null next_page_token ends traversal. Cache-Control: public, max-age=60, must-revalidate.",
         "operationId": "measures_v1_measures_get",
         "parameters": [
@@ -1228,7 +1228,7 @@
         "tags": [
           "provenance"
         ],
-        "summary": "Discover sources",
+        "summary": "List sources",
         "description": "Current-release discovery with optional documented filters. page_size defaults to 100 (maximum 500); reuse opaque page_token with the same filters and release. A null next_page_token ends traversal. Cache-Control: public, max-age=60, must-revalidate.",
         "operationId": "sources_v1_sources_get",
         "parameters": [
@@ -2038,7 +2038,7 @@
         "tags": [
           "geographies"
         ],
-        "summary": "Get geography identity (delivery pending)",
+        "summary": "Get geography identity",
         "description": "Validated county/state FIPS identity. While canonical identity delivery is unpublished the response is HTTP 200 with availability UNAVAILABLE, reason CANONICAL_GEOGRAPHY_UNPUBLISHED and data null; the identity is validated for shape only. No geometry is returned. Responses use Cache-Control: no-store.",
         "operationId": "geography_v1_geographies__geography_type___geography_id__get",
         "parameters": [
@@ -2272,7 +2272,7 @@
         "tags": [
           "geographies"
         ],
-        "summary": "Check canonical county geography publication availability",
+        "summary": "Check county geography availability",
         "description": "Check whether a county has published canonical geography data.\n\n### When to use it\nThe API confirms the county exists in the current release. It returns HTTP 200 with `availability` set to `UNAVAILABLE`, `reason` set to `CANONICAL_GEOGRAPHY_UNPUBLISHED`, and `data` set to `null`. The resource describes identity only, and the API returns no geometry. State availability is not supported.\n\n### Common problems\n| Response | Cause and what to do |\n| --- | --- |\n| `400` | The ID is malformed, or you asked for a state. Send a five-digit county FIPS code. |\n| `404` | The county is not in the current release. |\n| `503` | The county directory is unavailable, empty, duplicated, or inconsistent with the current release. Retry later. |\n\nThe response must not be cached.",
         "operationId": "canonicalGeographyAvailability",
         "parameters": [
@@ -4811,7 +4811,7 @@
         "tags": [
           "atlas"
         ],
-        "summary": "Get Atlas release metadata",
+        "summary": "Get release metadata",
         "description": "Release metadata, source freshness and methodology; dataset_version selects an existing release. Cached publicly for 300 seconds with ETag. ETag is informational here; this route does not implement conditional 304.",
         "operationId": "metadata_v1_atlas_metadata_get",
         "parameters": [
@@ -5028,7 +5028,7 @@
         "tags": [
           "atlas"
         ],
-        "summary": "Get county display geometry",
+        "summary": "Get county map geometry",
         "description": "Existing generalized CDC/ATSDR SVI 2022 display geometry in EPSG:4326, identified by stable five-digit county FIPS. This resource never returns internal 2025 TIGER/Line analysis polygons used for raster aggregation.",
         "operationId": "geometry_v1_atlas_geometry_get",
         "parameters": [
@@ -5564,7 +5564,7 @@
         "tags": [
           "atlas"
         ],
-        "summary": "Get national map layer values by county",
+        "summary": "Get map values by county",
         "description": "Published incidence floor, social vulnerability percentile, uninsured percent, and rural-urban continuum code for every county in the current snapshot. Optional dataset_version selects an existing release. Public cache TTL 300 seconds with informational ETag; no conditional 304.",
         "operationId": "map_values_v1_atlas_map_values_get",
         "parameters": [
@@ -5758,7 +5758,7 @@
         "tags": [
           "counties"
         ],
-        "summary": "Get county analytics and provenance",
+        "summary": "Get county detail and provenance",
         "description": "Five-digit county FIPS with leading zeros retained. Includes release/source metadata and limitations. Optional dataset_version and score settings retain existing meanings. Public cache TTL 300 seconds with informational ETag; no conditional 304.",
         "operationId": "county_v1_counties__fips__get",
         "parameters": [
@@ -6318,7 +6318,7 @@
         "tags": [
           "counties"
         ],
-        "summary": "Get both persisted county surveillance-situation classifications",
+        "summary": "Get county surveillance situations",
         "description": "Get both surveillance-situation classifications for one county: the primary `four_state` model, which includes human surveillance, and the secondary `tick_pathogen` model, which excludes it.\n\n### What you get back\n- Reviewed labels and four membership probabilities per model. Each is between 0 and 1, and they sum to 1 within 1e-6.\n- Model and batch lineage, source vintages, and interpretation limits.\n- `Unknown` is an available class. `No records` does not establish absence.\n- Membership is not disease risk, incidence, pathogen presence, causation, or Tier 1 priority.\n\nA model variant can return HTTP 200 with `UNAVAILABLE` and `null` data, including when the release is incompatible. The API does not infer or fall back to another result. The response must not be cached.\n\n### Common problems\n| Response | Cause and what to do |\n| --- | --- |\n| `404` | The county is unknown. |\n| `422` | The FIPS code is malformed. |\n| `503` | A dependency failed, stored data is malformed, or the release changed during the request. Retry later. |",
         "operationId": "county_surveillance_situations_get",
         "parameters": [
@@ -6963,7 +6963,7 @@
         "tags": [
           "counties"
         ],
-        "summary": "Get persisted Tier 1 model-assisted surveillance review priority",
+        "summary": "Get county surveillance review priority",
         "description": "Get the approved Tier 1 surveillance review priority for one county from the current batch.\n\n### How to read it\n- This is surveillance review priority, not Lyme disease risk, predicted incidence, probability, clinical risk, or diagnosis.\n- LOW is a scored tier. Evidence sufficiency is separate.\n- Percentile is relative to the scored batch and population.\n- `generated_at_utc` is the model batch time, not the request time.\n\nResponses can be cached for 60 seconds.\n\n### Common problems\n| Response | Cause and what to do |\n| --- | --- |\n| `404` | The county has no published result. |\n| `503` | The current view is unavailable or the stored result is malformed. Retry later. |",
         "operationId": "county_tier1_surveillance_priority_get",
         "parameters": [
@@ -7160,7 +7160,7 @@
         "tags": [
           "counties"
         ],
-        "summary": "Get Tier 1 result availability and persisted data",
+        "summary": "Check surveillance priority availability",
         "description": "Check whether a county has a published Tier 1 result, and get it when it does.\n\n### What you get back\n- `AVAILABLE` with the published result in `data`.\n- `UNAVAILABLE` with `reason` `NO_PUBLISHED_MODEL` and `data` set to `null`.\n- `geography_release_id` names the release used to validate the FIPS code.\n\n`NOT_ESTIMABLE` is a published result state. It is different from no published model result. The API never turns `null` into zero or creates model output. Responses can be cached for 60 seconds.\n\n### Common problems\n| Response | Cause and what to do |\n| --- | --- |\n| `404` | The county is outside the current geography release. |\n| `422` | The FIPS code is malformed. |\n| `503` | A dependency failed or stored data is malformed. Retry later. |",
         "operationId": "county_tier1_surveillance_priority_availability_get",
         "parameters": [
@@ -8046,7 +8046,7 @@
         "tags": [
           "atlas"
         ],
-        "summary": "Download filtered county rankings",
+        "summary": "Download county rankings as CSV",
         "description": "Filtered CSV attachment for current county rankings. Existing state, text and evidence filters and score settings apply; no pagination. This route does not declare a public cache TTL.",
         "operationId": "ranking_csv_v1_atlas_ranking_csv_get",
         "parameters": [
@@ -15597,31 +15597,38 @@
   "tags": [
     {
       "name": "discovery",
-      "description": "List the indicators and measures you can query."
+      "description": "List the indicators and measures you can query.",
+      "x-displayName": "Indicators and measures"
     },
     {
       "name": "observations",
-      "description": "Query measure values for counties, each with an explicit `value_state`."
+      "description": "Query measure values for counties, each with an explicit `value_state`.",
+      "x-displayName": "Observations"
     },
     {
       "name": "provenance",
-      "description": "Look up the sources and methodologies behind a value, with versions."
+      "description": "Look up the sources and methodologies behind a value, with versions.",
+      "x-displayName": "Sources and methods"
     },
     {
       "name": "geographies",
-      "description": "Validate a county or state FIPS code. Atlas does not yet publish place records, so these operations return HTTP 200 with `availability` set to `UNAVAILABLE`."
+      "description": "Validate a county or state FIPS code. Atlas does not yet publish place records, so these operations return HTTP 200 with `availability` set to `UNAVAILABLE`.",
+      "x-displayName": "Geographies"
     },
     {
       "name": "atlas",
-      "description": "Get release metadata, scores, rankings, and map geometry."
+      "description": "Get release metadata, scores, rankings, and map geometry.",
+      "x-displayName": "Scores and metadata"
     },
     {
       "name": "counties",
-      "description": "Get county detail and download county PDF reports."
+      "description": "Get county detail and download county PDF reports.",
+      "x-displayName": "Counties"
     },
     {
       "name": "states",
-      "description": "Download state PDF reports."
+      "description": "Download state PDF reports.",
+      "x-displayName": "States"
     }
   ],
   "externalDocs": {

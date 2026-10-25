@@ -245,7 +245,7 @@ def metadata_cache(response: Response) -> None:
     "/v1/indicators",
     response_model=CollectionEnvelope[Indicator],
     responses=PROBLEMS,
-    summary="Discover indicators",
+    summary="List indicators",
     operation_id="indicators_v1_indicators_get",
     tags=["discovery"],
     description=COLLECTION_DESCRIPTION,
@@ -311,7 +311,7 @@ def indicator(
     responses=PROBLEMS,
     operation_id="measures_v1_measures_get",
     tags=["discovery"],
-    summary="Discover measures",
+    summary="List measures",
     description=COLLECTION_DESCRIPTION,
 )
 def measures(
@@ -410,7 +410,7 @@ def provenance_service(request: Request) -> ProvenanceService:
     responses=PROBLEMS,
     operation_id="sources_v1_sources_get",
     tags=["provenance"],
-    summary="Discover sources",
+    summary="List sources",
     description=COLLECTION_DESCRIPTION,
 )
 def sources(
@@ -486,7 +486,7 @@ def methodology(
     responses=CANONICAL_GEOGRAPHY_PROBLEMS,
     operation_id="geography_v1_geographies__geography_type___geography_id__get",
     tags=["geographies"],
-    summary="Get geography identity (delivery pending)",
+    summary="Get geography identity",
     description=(
         "Validated county/state FIPS identity. While canonical identity delivery is "
         "unpublished the response is HTTP 200 with availability UNAVAILABLE, reason "
@@ -518,7 +518,7 @@ def geography(
     },
     operation_id="canonicalGeographyAvailability",
     tags=["geographies"],
-    summary="Check canonical county geography publication availability",
+    summary="Check county geography availability",
     description=(
         "Check whether a county has published canonical geography data.\n\n"
         "### When to use it\n"
