@@ -35,6 +35,7 @@ ROUTES = frozenset(
         "/v1/geographies/{geography_type}/{geography_id}",
         "/v1/geographies/{geography_type}/{geography_id}/availability",
         "/v1/indicators",
+        "/v1/intelligence/feed/{item_id}",
         "/v1/indicators/{id}",
         "/v1/indicators/{indicator_id}",
         "/v1/knowledge-graph/chat",

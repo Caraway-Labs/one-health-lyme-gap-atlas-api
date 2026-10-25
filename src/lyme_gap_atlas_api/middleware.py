@@ -28,12 +28,15 @@ _PUBLIC_COLLECTIONS = {
     "/v1/intelligence/items",
     "/v1/intelligence/sources",
 }
+_FEED_ENTRY_PREFIX = "/v1/intelligence/feed/"
 _PUBLIC_DETAILS = ("/v1/indicators/", "/v1/measures/", "/v1/sources/", "/v1/methodologies/")
 
 
 def _log_route(request: Request) -> str:
     """Keep request identity and query values out of operational telemetry."""
     path = request.url.path
+    if path.startswith(_FEED_ENTRY_PREFIX):
+        return "/v1/intelligence/feed/{item_id}"
     if path in _PUBLIC_COLLECTIONS:
         return path
     for prefix in _PUBLIC_DETAILS:
@@ -94,6 +97,7 @@ class PublicReadProtectionMiddleware(BaseHTTPMiddleware):
         if request.method != "GET" or not (
             path in _PUBLIC_COLLECTIONS
             or path.startswith(_PUBLIC_DETAILS)
+            or path.startswith(_FEED_ENTRY_PREFIX)
             or (path.startswith("/v1/geographies/") and path.endswith("/availability"))
         ):
             return await call_next(request)

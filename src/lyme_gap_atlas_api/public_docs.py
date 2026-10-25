@@ -751,15 +751,24 @@ def _success_headers(media_types: list[str], spec: ResponseHeaders) -> dict[str,
     return headers
 
 
+# First-party reads are absent from the public header table. The same no-store
+# rule still belongs on their codegen responses.
+_FIRST_PARTY_RESPONSE_HEADERS: dict[str, ResponseHeaders] = {
+    "listIntelligenceFeed": _NO_STORE,
+    "getIntelligenceFeedEntry": _NO_STORE,
+}
+
+
 def apply_response_headers(schema: dict[str, Any]) -> None:
     """Document the headers each public `200` sends and how `If-None-Match` behaves.
 
     The table above lists only headers the code sets, so the spec never promises one the
     API does not send.
     """
+    documented = {**RESPONSE_HEADERS, **_FIRST_PARTY_RESPONSE_HEADERS}
     for path_item in schema["paths"].values():
         for operation in path_item.values():
-            spec = RESPONSE_HEADERS.get(operation.get("operationId", ""))
+            spec = documented.get(operation.get("operationId", ""))
             if spec is None:
                 continue
             responses = operation["responses"]

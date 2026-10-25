@@ -148,12 +148,14 @@ def test_canonical_response_maps_snapshot_has_only_concrete_documented_statuses(
         "listIntelligenceItems": {"200", "400", "404", "413", "414", "422", "429", "503"},
         "listIntelligenceSources": {"200", "400", "404", "413", "414", "422", "429", "503"},
         "listIntelligenceFeed": {"200", "400", "404", "413", "414", "422", "429", "503"},
+        "getIntelligenceFeedEntry": {"200", "400", "404", "413", "414", "422", "429", "503"},
     }
 
     first_party_only = {
         "listIntelligenceItems",
         "listIntelligenceSources",
         "listIntelligenceFeed",
+        "getIntelligenceFeedEntry",
     }
     for schema, included_ids in (
         (app.openapi(), set(expected) - first_party_only),

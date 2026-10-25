@@ -102,6 +102,9 @@
   "/v1/intelligence/feed": {
     "get": "listIntelligenceFeed"
   },
+  "/v1/intelligence/feed/{item_id}": {
+    "get": "getIntelligenceFeedEntry"
+  },
   "/v1/geographies/{geography_type}/{geography_id}/availability": {
     "get": "canonicalGeographyAvailability"
   },

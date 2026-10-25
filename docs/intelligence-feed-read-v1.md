@@ -27,15 +27,26 @@ read-enable flag, parameter binding, query/result/page ceilings, state-bound
 pagination, request middleware, dependency telemetry, and no-store policy.
 No ingestion, data migrations, registry changes, grants, or infrastructure are added.
 
-Each entry exposes only title, publisher, canonical original URL, publication UTC
-when known, its explicit publisher-date state, and source/revision/retrieval/contract
-provenance and limitations. SQL does not select excerpts, bodies, descriptions,
-media or private native metadata. Missing/invalid/withheld publication dates remain
-null; fetch time never substitutes for them. Inclusive publication filters exclude
-unknown dates. Identity/revision ordering is deterministic, not a claim of recency
-ranking. An available empty view returns 200 with `data: []` and no continuation;
-disabled, inaccessible or invalid projections return a sanitized 503.
-Source health remains explicitly unavailable, independently of the feed result.
+Each entry exposes title, publisher, canonical original URL, publication UTC
+when known, its explicit publisher-date state, source and revision provenance,
+limitations, publisher family, summary, tags, authors, and a credit line. A
+PubMed entry also exposes the article abstract, the abstract's copyright line,
+and the PMID. The summary and the abstract are plain text. The feed returns no
+article bodies or media. A summary or abstract that fails the plain-text checks
+is withheld on that entry; the response for the rest of the page is unchanged.
+The log records how many of those texts were withheld and does not record the
+text. Missing, invalid, or withheld publication dates remain null; fetch time
+never substitutes for them. Inclusive publication filters exclude unknown dates.
+Identity/revision ordering is deterministic, not a claim of recency ranking. An
+available empty view returns 200 with `data: []` and no continuation; disabled,
+inaccessible or invalid projections return a sanitized 503. Source health
+remains explicitly unavailable, independently of the feed result.
+
+`GET /v1/intelligence/feed/{item_id}` reads the same fields for one current
+entry from the same governed view. The item id is the 64-character digest.
+Cache-Control is no-store. A malformed id returns 422. An id that is not in
+the feed returns 404 `INTELLIGENCE_ITEM_NOT_FOUND`. Disabled or unavailable
+returns 503.
 
 ### Release route and acceptance
 
