@@ -1,0 +1,37 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "new_york_county": "/v1/counties/36061/tier1-surveillance-priority"
+    }
+  },
+  "application/json": {
+    "new_york_county": {
+      "summary": "Persisted review priority for `36061`",
+      "value": {
+        "county_fips": "36061",
+        "priority_tier": "HIGH",
+        "priority_percentile": 99.14094813872096,
+        "raw_model_score": 2.1089478300075464,
+        "evidence_sufficiency": "SUFFICIENT",
+        "model_version": "tier1-statistical-reference-v1",
+        "release_id": "governed-2026-09-18-unknown-coverage",
+        "source_commit": "024bbbf74a7da8e54566bd60e8e762d85a51e24f",
+        "prediction_batch_version": "tier1-review-priority-5536b5caad95cf47",
+        "tier_policy_version": "tier1-review-percentile-v1",
+        "generated_at_utc": "2026-10-07T02:14:24Z",
+        "reasons": [
+          {
+            "code": "PUBLISHED_HUMAN_FLOOR",
+            "text": "Published county-linked human count-floor signal is present; its magnitude is a lower bound."
+          },
+          {
+            "code": "PATHOGEN_NO_RECORDS",
+            "text": "Publisher reports No records; this is not evidence of absence."
+          }
+        ],
+        "limitation_ref": "docs/contracts/tier1-persisted-output-v1.md"
+      }
+    }
+  }
+}

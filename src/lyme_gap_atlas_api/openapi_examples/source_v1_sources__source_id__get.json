@@ -1,0 +1,34 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "human": "/v1/sources/human"
+    }
+  },
+  "application/json": {
+    "human": {
+      "summary": "One source",
+      "value": {
+        "data": {
+          "source_id": "human",
+          "label": "CDC Lyme surveillance",
+          "publisher": "Centers for Disease Control and Prevention",
+          "lineage_source_id": "cdc_lyme",
+          "dataset_id": "x5j9-wybp",
+          "semantic_version": "2.0.0",
+          "release_version": "governed-2026-10-15-january-climate-prod",
+          "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+          "source_vintage": "2023",
+          "source_version": null,
+          "published_at": null,
+          "atlas_acquired_at": null,
+          "upstream_updated_at": null,
+          "source_retrieved_at": null,
+          "limitations": [
+            "County-of-residence surveillance. County-linked values are published privacy-protected floors, not complete incidence estimates."
+          ]
+        }
+      }
+    }
+  }
+}

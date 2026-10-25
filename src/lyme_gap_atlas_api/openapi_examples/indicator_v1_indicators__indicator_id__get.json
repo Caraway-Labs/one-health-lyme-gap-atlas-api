@@ -1,0 +1,34 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "human_disease_burden": "/v1/indicators/human_disease_burden"
+    }
+  },
+  "application/json": {
+    "human_disease_burden": {
+      "summary": "One indicator",
+      "value": {
+        "data": {
+          "indicator_id": "human_disease_burden",
+          "label": "Human Lyme surveillance",
+          "definition": "Published county-linked surveillance values and safe missingness states.",
+          "measure_ids": [
+            "case_count_floor_2023",
+            "human_status",
+            "incidence_floor_2023",
+            "state_unallocated_records_2023"
+          ],
+          "semantic_version": "2.0.0",
+          "release_version": "governed-2026-10-15-january-climate-prod",
+          "domain": null,
+          "category": null,
+          "limitations": [
+            "Published values are privacy-protected floors, not complete incidence."
+          ],
+          "standards_mappings": null
+        }
+      }
+    }
+  }
+}

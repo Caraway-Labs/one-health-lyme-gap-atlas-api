@@ -10,7 +10,7 @@ from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.models import ProblemDetails
 from lyme_gap_atlas_api.public_contract import CollectionEnvelope, Observation
-from lyme_gap_atlas_api.public_docs import PROBLEM_TYPE_BASE_URI
+from lyme_gap_atlas_api.public_docs import EXAMPLES_DIR, PROBLEM_TYPE_BASE_URI
 
 ROOT = Path(__file__).resolve().parents[1]
 IDS = json.loads((ROOT / "tests/fixtures/public-operation-ids.json").read_text())
@@ -285,3 +285,51 @@ def test_operation_descriptions_are_structured_and_short() -> None:
         assert term in observations
     assert "`INVALID_REQUEST`" in observations
     assert "`NO_PUBLISHED_RESULTS`" in observations
+
+
+def test_every_public_operation_has_a_real_200_example() -> None:
+    schema = TestClient(create_app(settings=ApiSettings())).get("/openapi.json").json()
+    operations = [
+        (path, operation) for path, item in schema["paths"].items() for operation in item.values()
+    ]
+    assert len(operations) == len(IDS)
+    for path, operation in operations:
+        content = operation["responses"]["200"]["content"]
+        for media_type, media in content.items():
+            examples = media.get("examples")
+            assert examples, f"{path} {media_type} has no 200 example"
+            text = json.dumps(examples)
+            assert "example-release" not in text, path
+            assert "example-observation" not in text, path
+            assert "2026-01-01T00:00:00Z" not in text, path
+
+
+def test_observation_examples_are_named_and_use_real_release_values() -> None:
+    schema = TestClient(create_app(settings=ApiSettings())).get("/openapi.json").json()
+    examples = schema["paths"]["/v1/observations"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["examples"]
+    assert {"observed", "missing", "empty"} <= set(examples)
+    observed = examples["observed"]["value"]["data"][0]
+    assert observed["value_state"] == "OBSERVED"
+    assert observed["geography"]["geography_id"] == "36061"
+    assert examples["missing"]["value"]["data"][0]["value_state"] == "MISSING"
+    assert examples["missing"]["value"]["data"][0]["value"] is None
+    assert examples["empty"]["value"]["data"] == []
+    assert examples["empty"]["value"]["meta"]["availability"] == "UNAVAILABLE"
+    for item in examples.values():
+        meta = item["value"]["meta"]
+        release_id = meta.get("release_id") or item["value"]["data"][0]["release_id"]
+        assert release_id.startswith("governed-")
+    for item in examples.values():
+        CollectionEnvelope[Observation].model_validate(item["value"])
+
+
+def test_example_fixtures_match_public_operations_and_contain_no_secrets() -> None:
+    operation_ids = set(IDS.values())
+    fixtures = {path.stem: path for path in EXAMPLES_DIR.glob("*.json")}
+    assert set(fixtures) == operation_ids
+    for path in fixtures.values():
+        text = path.read_text(encoding="utf-8").lower()
+        for marker in ("bearer ", "api_key", "password", "secret", "token="):
+            assert marker not in text, f"{path.name} contains {marker!r}"

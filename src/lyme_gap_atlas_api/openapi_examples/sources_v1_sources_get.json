@@ -1,0 +1,62 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "sources": "/v1/sources"
+    }
+  },
+  "application/json": {
+    "sources": {
+      "summary": "Two sources from the current release",
+      "value": {
+        "data": [
+          {
+            "source_id": "context_nlcd_2025",
+            "label": "MRLC Annual NLCD 2025 reviewed demo cohort",
+            "publisher": null,
+            "lineage_source_id": "mrlc_annual_nlcd_derived_county_aggregates",
+            "dataset_id": "annual-nlcd-c1v2-2025-reviewed-demo-cohort",
+            "semantic_version": "2.0.0",
+            "release_version": "governed-2026-10-15-january-climate-prod",
+            "source_url": "https://www.mrlc.gov/downloads/sciweb1/shared/mrlc/data-bundles/Annual_NLCD_LndCov_2025_CU_C1V2.zip",
+            "source_vintage": "C1V2-2025",
+            "source_version": null,
+            "published_at": null,
+            "atlas_acquired_at": null,
+            "upstream_updated_at": null,
+            "source_retrieved_at": null,
+            "limitations": [
+              "Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+            ]
+          },
+          {
+            "source_id": "context_rucc",
+            "label": "USDA ERS Rural-Urban Continuum Codes",
+            "publisher": null,
+            "lineage_source_id": "usda_ers",
+            "dataset_id": "rural-urban-continuum-codes-2023",
+            "semantic_version": "2.0.0",
+            "release_version": "governed-2026-10-15-january-climate-prod",
+            "source_url": "https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/",
+            "source_vintage": "2023",
+            "source_version": null,
+            "published_at": null,
+            "atlas_acquired_at": null,
+            "upstream_updated_at": null,
+            "source_retrieved_at": null,
+            "limitations": [
+              "RUCC is a contextual county classification; vintages are not automatically comparable and it is not a causal or individual risk measure."
+            ]
+          }
+        ],
+        "meta": {
+          "next_page_token": null,
+          "response_at": "2026-10-25T02:45:13.381750Z"
+        },
+        "links": {
+          "self": null
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "metadata": "/v1/atlas/metadata"
+    }
+  },
+  "application/json": {
+    "metadata": {
+      "summary": "Release metadata, trimmed to two sources and two states",
+      "value": {
+        "scoring_methodology_version": "surveillance-gap-score-v1.1",
+        "release_id": "governed-2026-10-15-january-climate-prod",
+        "schema_version": "2.0.0",
+        "generated_at": "2026-10-15T13:51:25.324973-07:00",
+        "loaded_at": "2026-10-15T14:08:33.953000-07:00",
+        "scope": "US_COUNTIES",
+        "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+        "score_defaults": {
+          "ecological_share": 65,
+          "smooth_k": 50,
+          "missing_human_weakness": 75
+        },
+        "methodology_version": "semantic-2.0.0",
+        "limitations": "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission.",
+        "sources": [
+          {
+            "key": "context_nlcd_2025",
+            "label": "MRLC Annual NLCD 2025 reviewed demo cohort",
+            "vintage": "C1V2-2025",
+            "url": "https://www.mrlc.gov/downloads/sciweb1/shared/mrlc/data-bundles/Annual_NLCD_LndCov_2025_CU_C1V2.zip",
+            "note": "Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+          },
+          {
+            "key": "context_rucc",
+            "label": "USDA ERS Rural-Urban Continuum Codes",
+            "vintage": "2023",
+            "url": "https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/",
+            "note": "RUCC is a contextual county classification; vintages are not automatically comparable and it is not a causal or individual risk measure."
+          }
+        ],
+        "states": [
+          {
+            "code": "AK",
+            "name": "Alaska"
+          },
+          {
+            "code": "AL",
+            "name": "Alabama"
+          }
+        ]
+      }
+    }
+  }
+}

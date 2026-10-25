@@ -1,0 +1,26 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "human_confirmed_probable_case_floor_v1": "/v1/methodologies/human_confirmed_probable_case_floor_v1"
+    }
+  },
+  "application/json": {
+    "human_confirmed_probable_case_floor_v1": {
+      "summary": "One methodology",
+      "value": {
+        "data": {
+          "methodology_id": "human_confirmed_probable_case_floor_v1",
+          "measure_id": "case_count_floor_2023",
+          "version": "semantic-2.0.0",
+          "description": "x5j9 confirmed plus probable",
+          "limitations": [
+            "Privacy-protected floor."
+          ],
+          "semantic_version": "2.0.0",
+          "release_version": "governed-2026-10-15-january-climate-prod"
+        }
+      }
+    }
+  }
+}

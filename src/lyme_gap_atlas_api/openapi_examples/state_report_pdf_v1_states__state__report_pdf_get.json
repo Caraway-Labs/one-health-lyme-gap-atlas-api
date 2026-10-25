@@ -1,0 +1,15 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "state": "/v1/states/CO/report.pdf"
+    }
+  },
+  "application/pdf": {
+    "state": {
+      "summary": "PDF report (first bytes only)",
+      "value": "%PDF-1.7",
+      "description": "Response headers: `Content-Type: application/pdf`, `Content-Disposition: attachment; filename=\"lyme-gap-atlas-co-governed-2026-10-15-january-climate-prod.pdf\"`, a weak `ETag`, and `Cache-Control: public, max-age=300, must-revalidate`. The body is a binary PDF; only its first bytes are shown."
+    }
+  }
+}

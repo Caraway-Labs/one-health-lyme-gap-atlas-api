@@ -1,0 +1,58 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "indicators": "/v1/indicators"
+    }
+  },
+  "application/json": {
+    "indicators": {
+      "summary": "Two indicators from the current release",
+      "value": {
+        "data": [
+          {
+            "indicator_id": "climate_precipitation",
+            "label": "Descriptive county weather",
+            "definition": "Reviewed county weather context; no disease-risk interpretation.",
+            "measure_ids": [
+              "nclimgrid_prcp_county_day"
+            ],
+            "semantic_version": "2.0.0",
+            "release_version": "governed-2026-10-15-january-climate-prod",
+            "domain": "climate",
+            "category": null,
+            "limitations": [
+              "January 2025 descriptive county weather only."
+            ],
+            "standards_mappings": null
+          },
+          {
+            "indicator_id": "climate_temperature",
+            "label": "Descriptive county weather",
+            "definition": "Reviewed county weather context; no disease-risk interpretation.",
+            "measure_ids": [
+              "nclimgrid_tavg_county_day",
+              "nclimgrid_tmax_county_day",
+              "nclimgrid_tmin_county_day"
+            ],
+            "semantic_version": "2.0.0",
+            "release_version": "governed-2026-10-15-january-climate-prod",
+            "domain": "climate",
+            "category": null,
+            "limitations": [
+              "January 2025 descriptive county weather only."
+            ],
+            "standards_mappings": null
+          }
+        ],
+        "meta": {
+          "next_page_token": null,
+          "response_at": "2026-10-25T02:44:54.271358Z"
+        },
+        "links": {
+          "self": null
+        }
+      }
+    }
+  }
+}

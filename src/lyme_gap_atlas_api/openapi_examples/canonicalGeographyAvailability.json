@@ -1,0 +1,23 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "unpublished": "/v1/geographies/county/36061/availability"
+    }
+  },
+  "application/json": {
+    "unpublished": {
+      "summary": "Confirmed county; canonical geography publication pending",
+      "value": {
+        "availability": "UNAVAILABLE",
+        "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+        "data": null,
+        "release_id": "governed-2026-10-15-january-climate-prod",
+        "limitations": [
+          "Canonical geography identity delivery is not published by this API capability.",
+          "County membership is confirmed from the governed county directory release. No canonical, display, or analysis geometry is returned or inferred."
+        ]
+      }
+    }
+  }
+}
