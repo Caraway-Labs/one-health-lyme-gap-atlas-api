@@ -43,7 +43,7 @@ operation (or schema) and field, and a link to the style-guide section behind th
 | `summary-length` | An operation summary is over the character budget (60). |
 | `banned-term` | Public text uses a term from the style guide's "Banned and replace" list. Text in code font is exact contract values and is skipped, as are example data values. |
 | `operation-id-fixture` | Operation IDs differ from `tests/fixtures/public-operation-ids.json` (public) or `first-party-operation-ids.json` (first-party). Always enforced. |
-| `operation-id-naming` | An operation ID does not match the naming pattern. **Advisory only for now; see below.** |
+| `operation-id-naming` | An operation ID does not match the naming pattern. Always enforced; see below. |
 
 Budgets, the banned-term list, exceptions and the operation-ID policy live in one
 reviewed file, [`scripts/openapi_quality_rules.toml`](../scripts/openapi_quality_rules.toml).
@@ -52,18 +52,27 @@ Each rule is a small function in `scripts/openapi_quality.py` with a passing and
 failing fixture in `tests/test_openapi_quality.py`. The checks are offline and
 deterministic, and CI runs them on every pull request in the quality job.
 
-### Operation-ID naming is not decided yet
+### Operation-ID naming
 
-The stability check (`operation-id-fixture`) is enforced today: IDs may not change.
-The verbNoun camelCase convention (for example `listMeasures`) is **pending the
-owner's decision** on operation-ID naming (workspace issue #357). Until it is decided:
+Every operation sets an explicit `operation_id` on its route. IDs are `verbNoun`
+camelCase, for example `listMeasures` or `getCounty`:
 
-- `naming_convention` in the rules file is `"advisory"`: the gate prints one
-  `advisory` line per non-matching ID and still passes.
-- No operation ID has been renamed, and the generated clients depend on the current IDs.
-- To enforce after the decision, rename the IDs, update both fixtures and the Web
-  generator in the same reviewed change, then set `naming_convention = "enforce"`.
-  Set it to `"off"` to silence the advisories.
+- Public operations use the verbs `list` (collections that return pages), `get`
+  (one resource or fixed document), `download` (PDF and CSV attachments) and
+  `check` (availability probes).
+- First-party-only operations may also use `create`, `update`, `confirm`,
+  `submit` and `ask`.
+- An ID has no HTTP method suffix, path fragment, version segment or file
+  extension.
+- FastAPI auto-generated IDs are not allowed on new routes. The fixtures
+  `tests/fixtures/public-operation-ids.json` and
+  `tests/fixtures/first-party-operation-ids.json` catch any ID that is missing or
+  differs from the reviewed list.
+
+`naming_convention` in the rules file is `"enforce"`: the gate fails when a public
+ID does not match `naming_pattern`. Adding a route means adding its ID to the
+matching fixture in the same change. Generated clients take their method names
+from these IDs.
 
 ### Adding a justified exception
 
@@ -116,7 +125,7 @@ Git SHA. A passing PR artifact is not evidence of production deployment.
 For an intentional change, review the semantic diff, update route metadata and
 the generated exports together, and coordinate downstream consumers. Stable IDs
 and compatibility fixtures are guardrails, not bypass lists: change them only
-alongside the explicit approved public-scope decision or breaking-change ADR,
-migration and deprecation plan required by AGENTS.md and the governed V1 contract.
+alongside the explicit approved public-scope decision or breaking-change ADR
+required by AGENTS.md and the governed V1 contract.
 Keep first-party/internal capabilities out of the public allowlist. No SDK,
 authentication or new public capability is authorized by these checks.

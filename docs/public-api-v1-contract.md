@@ -357,6 +357,11 @@ classify semantics; #52 already enforces request shape and breadth.
 
 ## Compatibility and ownership
 
+Operation IDs follow `verbNoun` camelCase with the public verbs `list`, `get`,
+`download` and `check`. An ID has no HTTP method, path fragment, version or file
+extension, and every route sets its ID explicitly. See
+[OpenAPI quality gate](openapi-quality.md#operation-id-naming).
+
 Additive V1 changes include new routes, optional fields, resources, supported
 filter values, and reviewed mappings. A new major version is required for
 required-field removal/rename, changed meaning, incompatible value-state,

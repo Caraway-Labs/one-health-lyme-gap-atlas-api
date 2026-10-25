@@ -20,16 +20,12 @@ max_summary_chars = 60
 # Stability check: public and first-party operation IDs must equal the
 # reviewed fixtures in tests/fixtures/*-operation-ids.json. Always enforced.
 #
-# Naming-convention check (verbNoun camelCase, e.g. "listMeasures"). The
-# convention is NOT decided: it awaits the owner's decision on #357 and no
-# operation ID has been renamed. Until then the check is ADVISORY: it prints
-# warnings and never fails the gate.
+# Naming-convention check on the public document (verbNoun camelCase, e.g.
+# "listMeasures").
 #   "off"       - skip the check
-#   "advisory"  - print warnings, do not fail (current setting)
-#   "enforce"   - fail the gate
-# Switch to "enforce" in the same change that applies the approved renames
-# and updates the fixtures. Do not switch it earlier.
-naming_convention = "advisory"
+#   "advisory"  - print warnings, do not fail
+#   "enforce"   - fail the gate (current setting)
+naming_convention = "enforce"
 naming_pattern = "^(list|get|query|check|download)[A-Z][A-Za-z0-9]*$"
 
 # Banned terms in public text (info, tags, operations, parameters, responses,
