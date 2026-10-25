@@ -1,5 +1,22 @@
 # Canonical public API V1 contract (API #52)
 
+## Operation IDs
+
+Every operation has an explicit `operationId` in `verbNoun` camelCase.
+
+Public reads use `list`, `get`, `download`, or `check`. Examples are
+`listObservations`, `getCounty`, `downloadCountyReport`, and
+`checkGeographyAvailability`.
+
+First-party mutations may also use `create`, `update`, `confirm`, `submit`, or
+`ask`.
+
+An ID has no HTTP method suffix, path fragment, version, or file extension.
+New routes set `operation_id` in the route definition. The reviewed lists are
+`tests/fixtures/public-operation-ids.json` and
+`tests/fixtures/first-party-operation-ids.json`. The OpenAPI quality gate
+rejects an ID that does not follow this rule.
+
 ## Typed observation selection availability (API #237)
 
 Additive `GET /v1/geographies/{geography_type}/{geography_id}/availability`
@@ -420,6 +437,6 @@ source, and methodology routes.
 The existing observations collection also accepts the admitted five county context
 measures with explicit vintage_year. Its typed CountyContextObservation alternative
 retains ACS reference periods and permits null dates for RUCC VINTAGE_YEAR only.
-The original dated Observation schema and operation IDs remain unchanged. See the
+Those measures use the dated Observation schema and `listObservations`. See the
 [county context contract](county-socioeconomic-context.md) for the support matrix,
 exact numeric transport, unavailable states, provenance, bounds and rollout gates.

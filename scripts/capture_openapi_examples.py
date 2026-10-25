@@ -6,7 +6,10 @@ Run deliberately, not in CI:
 
 Each example is a trimmed capture of a real response (see the README in
 ``src/lyme_gap_atlas_api/openapi_examples``). The script sends no credentials,
-pauses between requests, and fetches each PDF route once.
+pauses between requests, and fetches each PDF route once. It writes one file
+per public operation, named ``<operationId>.json`` from
+``tests/fixtures/public-operation-ids.json``. A missing file drops that
+operation's example out of the spec.
 """
 
 import argparse

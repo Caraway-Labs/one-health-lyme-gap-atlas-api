@@ -200,24 +200,27 @@ def test_operation_id_fixture_rule_enforces_current_ids() -> None:
     fixture = json.loads((ROOT / "tests/fixtures/public-operation-ids.json").read_text())
     assert TOOLS["check_operation_id_fixture"](PUBLIC, fixture, "openapi.json") == []
     spec = _spec()
-    spec["paths"][OP]["get"]["operationId"] = "listObservations"
+    spec["paths"][OP]["get"]["operationId"] = "getWidget"
     found = TOOLS["check_operation_id_fixture"](spec, fixture, "openapi.json")
     assert _rules_of(found) == {"operation-id-fixture"}
 
 
-def test_operation_id_naming_rule_is_advisory_until_convention_is_decided() -> None:
+def test_operation_id_naming_rule_is_enforced() -> None:
     ids = RULES["operation_ids"]
-    # The convention is undecided: the shipped setting must never fail the gate.
-    assert ids["naming_convention"] in {"off", "advisory"}
-    assert TOOLS["check_operation_id_naming"](PUBLIC, ids["naming_pattern"])
+    assert ids["naming_convention"] == "enforce"
+    assert TOOLS["check_operation_id_naming"](PUBLIC, ids["naming_pattern"]) == []
     spec = _spec()
     failures, advisories = TOOLS["check_documentation_quality"](spec, RULES)
-    assert failures == [] and advisories
-    enforced = {**RULES, "operation_ids": {**ids, "naming_convention": "enforce"}}
-    failures, advisories = TOOLS["check_documentation_quality"](spec, enforced)
-    assert advisories == [] and _rules_of(failures) == {"operation-id-naming"}
+    assert failures == [] and advisories == []
+    spec["paths"][OP]["get"]["operationId"] = "observations_v1_observations_get"
+    failures, advisories = TOOLS["check_documentation_quality"](spec, RULES)
+    assert advisories == []
+    assert _rules_of(failures) == {"operation-id-fixture", "operation-id-naming"}
     off = {**RULES, "operation_ids": {**ids, "naming_convention": "off"}}
-    assert TOOLS["check_documentation_quality"](spec, off) == ([], [])
+    failures, advisories = TOOLS["check_documentation_quality"](spec, off)
+    assert advisories == [] and _rules_of(failures) == {"operation-id-fixture"}
+    first_party = json.loads((ROOT / "first-party-openapi.json").read_text())
+    assert TOOLS["check_operation_id_naming"](first_party, ids["first_party_naming_pattern"]) == []
 
 
 def test_exceptions_need_justification_and_must_still_match() -> None:

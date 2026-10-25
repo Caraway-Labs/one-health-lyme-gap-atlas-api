@@ -43,7 +43,7 @@ operation (or schema) and field, and a link to the style-guide section behind th
 | `summary-length` | An operation summary is over the character budget (60). |
 | `banned-term` | Public text uses a term from the style guide's "Banned and replace" list. Text in code font is exact contract values and is skipped, as are example data values. |
 | `operation-id-fixture` | Operation IDs differ from `tests/fixtures/public-operation-ids.json` (public) or `first-party-operation-ids.json` (first-party). Always enforced. |
-| `operation-id-naming` | An operation ID does not match the naming pattern. **Advisory only for now; see below.** |
+| `operation-id-naming` | An operation ID does not match the `verbNoun` camelCase rule. Enforced. |
 
 Budgets, the banned-term list, exceptions and the operation-ID policy live in one
 reviewed file, [`scripts/openapi_quality_rules.toml`](../scripts/openapi_quality_rules.toml).
@@ -52,18 +52,23 @@ Each rule is a small function in `scripts/openapi_quality.py` with a passing and
 failing fixture in `tests/test_openapi_quality.py`. The checks are offline and
 deterministic, and CI runs them on every pull request in the quality job.
 
-### Operation-ID naming is not decided yet
+### Operation IDs
 
-The stability check (`operation-id-fixture`) is enforced today: IDs may not change.
-The verbNoun camelCase convention (for example `listMeasures`) is **pending the
-owner's decision** on operation-ID naming (workspace issue #357). Until it is decided:
+Every operation has an explicit `operationId` in `verbNoun` camelCase. Public
+reads use `list`, `get`, `download`, or `check` (for example `listMeasures`,
+`getCounty`, `downloadCountyReport`, `checkGeographyAvailability`). First-party
+mutations may also use `create`, `update`, `confirm`, `submit`, or `ask`. An ID
+has no HTTP method suffix, path fragment, version, or file extension. A new
+route sets `operation_id` on the route.
 
-- `naming_convention` in the rules file is `"advisory"`: the gate prints one
-  `advisory` line per non-matching ID and still passes.
-- No operation ID has been renamed, and the generated clients depend on the current IDs.
-- To enforce after the decision, rename the IDs, update both fixtures and the Web
-  generator in the same reviewed change, then set `naming_convention = "enforce"`.
-  Set it to `"off"` to silence the advisories.
+`operation-id-fixture` requires `openapi.json` to match
+`tests/fixtures/public-operation-ids.json` and `first-party-openapi.json` to
+match `tests/fixtures/first-party-operation-ids.json`.
+
+`naming_convention` is `"enforce"`. A public ID must match `naming_pattern`. A
+first-party ID must match `first_party_naming_pattern`. `"advisory"` prints the
+finding and still passes. `"off"` skips the naming check. The fixture check
+always runs.
 
 ### Adding a justified exception
 

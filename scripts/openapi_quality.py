@@ -40,6 +40,7 @@ def semantic_diff(before: dict[str, Any], after: dict[str, Any], name: str) -> s
 def validate_contract(document: dict[str, Any], *, public: bool) -> None:
     # Reject remote refs before validation: this gate must never fetch infrastructure.
     embedded_examples: list[tuple[dict[str, Any], Any]] = []
+
     def visit(value: Any) -> None:
         if isinstance(value, dict):
             if "$ref" in value:
@@ -407,13 +408,21 @@ def main() -> None:
     for name in FILES:
         candidate = json.loads((ROOT / name).read_text())
         validate_contract(candidate, public=name == "openapi.json")
+        rules = load_rules()
         if name == "first-party-openapi.json":
             ids_file = ROOT / "tests/fixtures/first-party-operation-ids.json"
             stale = check_operation_id_fixture(candidate, json.loads(ids_file.read_text()), name)
             if stale:
                 raise ValueError("\n".join(v.render() for v in stale))
+            id_rules = rules["operation_ids"]
+            if id_rules["naming_convention"] == "enforce":
+                naming = check_operation_id_naming(
+                    candidate, id_rules["first_party_naming_pattern"]
+                )
+                if naming:
+                    raise ValueError("\n".join(v.render() for v in naming))
         if name == "openapi.json":
-            failures, advisories = check_documentation_quality(candidate, load_rules())
+            failures, advisories = check_documentation_quality(candidate, rules)
             for advisory in advisories:
                 print(f"advisory {advisory.render()}")
             if failures:

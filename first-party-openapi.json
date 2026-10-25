@@ -28,7 +28,7 @@
         ],
         "summary": "List indicators",
         "description": "Current-release discovery with optional documented filters. page_size defaults to 100 (maximum 500); reuse opaque page_token with the same filters and release. A null next_page_token ends traversal. Cache-Control: public, max-age=60, must-revalidate.",
-        "operationId": "indicators_v1_indicators_get",
+        "operationId": "listIndicators",
         "parameters": [
           {
             "name": "indicator_id",
@@ -366,7 +366,7 @@
         ],
         "summary": "Get an indicator",
         "description": "Resolve the exact governed public resource ID in the current release. Unknown IDs return 404 RESOURCE_NOT_FOUND. Preserve versions and limitations; null metadata is not inferred. Cache-Control: public, max-age=60, must-revalidate; ETag with matching If-None-Match returns an empty 304.",
-        "operationId": "indicator_v1_indicators__indicator_id__get",
+        "operationId": "getIndicator",
         "parameters": [
           {
             "name": "indicator_id",
@@ -667,7 +667,7 @@
         ],
         "summary": "List measures",
         "description": "Current-release discovery with optional documented filters. page_size defaults to 100 (maximum 500); reuse opaque page_token with the same filters and release. A null next_page_token ends traversal. Cache-Control: public, max-age=60, must-revalidate.",
-        "operationId": "measures_v1_measures_get",
+        "operationId": "listMeasures",
         "parameters": [
           {
             "name": "measure_id",
@@ -1055,7 +1055,7 @@
         ],
         "summary": "Get a measure",
         "description": "Resolve the exact governed public resource ID in the current release. Unknown IDs return 404 RESOURCE_NOT_FOUND. Preserve versions and limitations; null metadata is not inferred. Cache-Control: public, max-age=60, must-revalidate; ETag with matching If-None-Match returns an empty 304.",
-        "operationId": "measure_v1_measures__measure_id__get",
+        "operationId": "getMeasure",
         "parameters": [
           {
             "name": "measure_id",
@@ -1362,7 +1362,7 @@
         ],
         "summary": "List sources",
         "description": "Current-release discovery with optional documented filters. page_size defaults to 100 (maximum 500); reuse opaque page_token with the same filters and release. A null next_page_token ends traversal. Cache-Control: public, max-age=60, must-revalidate.",
-        "operationId": "sources_v1_sources_get",
+        "operationId": "listSources",
         "parameters": [
           {
             "name": "page_size",
@@ -1687,7 +1687,7 @@
         ],
         "summary": "Get a source",
         "description": "Resolve the exact governed public resource ID in the current release. Unknown IDs return 404 RESOURCE_NOT_FOUND. Preserve versions and limitations; null metadata is not inferred. Cache-Control: public, max-age=60, must-revalidate; ETag with matching If-None-Match returns an empty 304.",
-        "operationId": "source_v1_sources__source_id__get",
+        "operationId": "getSource",
         "parameters": [
           {
             "name": "source_id",
@@ -1988,7 +1988,7 @@
         ],
         "summary": "Get a methodology",
         "description": "Resolve the exact governed public resource ID in the current release. Unknown IDs return 404 RESOURCE_NOT_FOUND. Preserve versions and limitations; null metadata is not inferred. Cache-Control: public, max-age=60, must-revalidate; ETag with matching If-None-Match returns an empty 304.",
-        "operationId": "methodology_v1_methodologies__methodology_id__get",
+        "operationId": "getMethodology",
         "parameters": [
           {
             "name": "methodology_id",
@@ -2281,7 +2281,7 @@
         ],
         "summary": "Get geography identity",
         "description": "Validated county/state FIPS identity. While canonical identity delivery is unpublished the response is HTTP 200 with availability UNAVAILABLE, reason CANONICAL_GEOGRAPHY_UNPUBLISHED and data null; the identity is validated for shape only. No geometry is returned. Responses use `Cache-Control: no-store`.",
-        "operationId": "geography_v1_geographies__geography_type___geography_id__get",
+        "operationId": "getGeography",
         "parameters": [
           {
             "name": "geography_type",
@@ -2538,7 +2538,7 @@
         ],
         "summary": "Check county geography availability",
         "description": "Check whether a county has published canonical geography data.\n\n### When to use it\nThe API confirms the county exists in the current release. It returns HTTP 200 with `availability` set to `UNAVAILABLE`, `reason` set to `CANONICAL_GEOGRAPHY_UNPUBLISHED`, and `data` set to `null`. The resource describes identity only, and the API returns no geometry. State availability is not supported.\n\n### Common problems\n| Response | Cause and what to do |\n| --- | --- |\n| `400` | The ID is malformed, or you asked for a state. Send a five-digit county FIPS code. |\n| `404` | The county is not in the current release. |\n| `503` | The county directory is unavailable, empty, duplicated, or inconsistent with the current release. Retry later. |\n\nThe response must not be cached.",
-        "operationId": "canonicalGeographyAvailability",
+        "operationId": "checkGeographyAvailability",
         "parameters": [
           {
             "name": "geography_type",
@@ -2818,7 +2818,7 @@
         ],
         "summary": "Query county observations",
         "description": "Query published county observations for one measure and up to 500 counties.\n\n### What it returns\nObservations from the current release, ordered by measure ID, county FIPS, period start, then observation ID. You cannot sort or aggregate. Each observation carries its `value_state`, source, methodology, and limitations.\n\n### Required parameters\nSend `measure_id`, `geography_type=county`, one or more `geography_id` values, and the time parameter that the measure type accepts.\n\n### Time parameters by measure type\n| Measure type | Send | Wrong choice returns |\n| --- | --- | --- |\n| Annual surveillance (data is for 2023) | `year`, or `start_date` and `end_date` | 400 `INVALID_REQUEST` if you send both `year` and dates, or neither. 400 `UNSUPPORTED_FILTER` if you send `vintage_year`. |\n| Daily environmental (January 2025 weather measures, enabled separately) | `start_date` and `end_date`, or `year` | 400 `INVALID_REQUEST` if you send only one date, or both `year` and dates. 400 `UNSUPPORTED_FILTER` if you send `vintage_year`. |\n| CDC cumulative status (`scapularis_status`, `burgdorferi_status`) | `start_date=2025-12-31` and `end_date=2025-12-31` (grain `CUMULATIVE`) | 400 `UNSUPPORTED_FILTER` for `year` or any other date range. The API rejects it before it reads data. |\n| County context vintages (SVI, population, insurance) | `vintage_year=2022` (periods are ACS 2018-2022) | 400 `INVALID_REQUEST` if `vintage_year` is missing. 400 `UNSUPPORTED_FILTER` for another vintage, `year`, `start_date`, or `end_date`. |\n| RUCC (`rucc_2023`) | `vintage_year=2023` (categorical codes and labels, with `null` period dates) | 400 `INVALID_REQUEST` if `vintage_year` is missing. 400 `UNSUPPORTED_FILTER` for another vintage, `year`, `start_date`, or `end_date`. |\n\n### Value states\n| Case | How to read it |\n| --- | --- |\n| Environmental measures | Descriptive weather with labeled daily periods and `environmental_context` coverage. They have no strata and make no causal, disease-risk, or machine-learning claim. |\n| Surveillance context | Optional, and it needs a published delivery. `normalized_state` preserves the publisher's meaning, and the publisher's value stays in `value`. |\n| Missing context | It does not establish absence or temporal comparability. |\n| Absent county context rows | They are unavailable evidence, never zero. |\n\n### Empty versus unavailable results\n| Situation | Response |\n| --- | --- |\n| An initial query finds no published results (any measure except CDC status) | HTTP 200 with `meta.availability` `UNAVAILABLE` and `reason` `NO_PUBLISHED_RESULTS`. This does not establish source coverage or biological absence. |\n| You page past the last result | HTTP 200 with `meta.availability` `AVAILABLE`. |\n| CDC status is not published for the county, or a service error occurs | A non-2xx error response, not a 200. |\n\n### Paging\nSend `next_page_token` unchanged with the same filters. Page tokens are tied to the filters and the release.\n\n### Caching\nAn `UNAVAILABLE` collection must not be cached.",
-        "operationId": "observations_v1_observations_get",
+        "operationId": "listObservations",
         "parameters": [
           {
             "name": "measure_id",
@@ -4630,7 +4630,7 @@
           "health"
         ],
         "summary": "Live",
-        "operationId": "live_health_live_get",
+        "operationId": "checkLiveHealth",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4655,7 +4655,7 @@
           "health"
         ],
         "summary": "Ready",
-        "operationId": "ready_health_ready_get",
+        "operationId": "checkReadyHealth",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4676,7 +4676,7 @@
           "account"
         ],
         "summary": "Get Profile",
-        "operationId": "get_profile_v1_me_profile_get",
+        "operationId": "getProfile",
         "parameters": [
           {
             "name": "authorization",
@@ -4739,7 +4739,7 @@
           "account"
         ],
         "summary": "Save Profile",
-        "operationId": "save_profile_v1_me_profile_put",
+        "operationId": "updateProfile",
         "parameters": [
           {
             "name": "authorization",
@@ -4814,7 +4814,7 @@
           "account"
         ],
         "summary": "Create Privacy Request",
-        "operationId": "create_privacy_request_v1_me_privacy_requests_post",
+        "operationId": "createPrivacyRequest",
         "parameters": [
           {
             "name": "authorization",
@@ -4889,7 +4889,7 @@
           "account"
         ],
         "summary": "Confirm Privacy Request",
-        "operationId": "confirm_privacy_request_v1_me_privacy_requests__request_id__confirm_post",
+        "operationId": "confirmPrivacyRequest",
         "parameters": [
           {
             "name": "request_id",
@@ -5004,7 +5004,7 @@
           "account"
         ],
         "summary": "Get Privacy Request",
-        "operationId": "get_privacy_request_v1_me_privacy_requests__request_id__get",
+        "operationId": "getPrivacyRequest",
         "parameters": [
           {
             "name": "request_id",
@@ -5089,7 +5089,7 @@
           "account"
         ],
         "summary": "Download Privacy Export",
-        "operationId": "download_privacy_export_v1_me_privacy_requests__request_id__export_get",
+        "operationId": "downloadPrivacyExport",
         "parameters": [
           {
             "name": "request_id",
@@ -5183,7 +5183,7 @@
         ],
         "summary": "Review a state's county evidence",
         "description": "Versioned county Review result. Current rules are disabled. Lineage gaps are separate. Public cache TTL is 60 seconds.",
-        "operationId": "state_review_v1_states__state__review_get",
+        "operationId": "getStateReview",
         "parameters": [
           {
             "name": "state",
@@ -5453,7 +5453,7 @@
         ],
         "summary": "Get release metadata",
         "description": "Release metadata, source freshness and methodology; dataset_version selects an existing release. Cached publicly for 300 seconds with ETag. ETag is informational here; this route does not implement conditional 304.",
-        "operationId": "metadata_v1_atlas_metadata_get",
+        "operationId": "getAtlasMetadata",
         "parameters": [
           {
             "name": "dataset_version",
@@ -5699,7 +5699,7 @@
         ],
         "summary": "Get county map geometry",
         "description": "Existing generalized CDC/ATSDR SVI 2022 display geometry in EPSG:4326, identified by stable five-digit county FIPS. This resource never returns internal 2025 TIGER/Line analysis polygons used for raster aggregation.",
-        "operationId": "geometry_v1_atlas_geometry_get",
+        "operationId": "getAtlasGeometry",
         "parameters": [
           {
             "name": "dataset_version",
@@ -5950,7 +5950,7 @@
         ],
         "summary": "Get county gap scores",
         "description": "Existing surveillance-gap scores and settings for an optional dataset_version. Scores are not individual risk estimates or diagnoses. Public cache TTL 300 seconds with informational ETag; no conditional 304.",
-        "operationId": "scores_v1_atlas_scores_get",
+        "operationId": "getAtlasScores",
         "parameters": [
           {
             "name": "dataset_version",
@@ -6293,7 +6293,7 @@
         ],
         "summary": "Get map values by county",
         "description": "Published incidence floor, social vulnerability percentile, uninsured percent, and rural-urban continuum code for every county in the current snapshot. Optional dataset_version selects an existing release. Public cache TTL 300 seconds with informational ETag; no conditional 304.",
-        "operationId": "map_values_v1_atlas_map_values_get",
+        "operationId": "getAtlasMapValues",
         "parameters": [
           {
             "name": "dataset_version",
@@ -6516,7 +6516,7 @@
         ],
         "summary": "Get county detail and provenance",
         "description": "Five-digit county FIPS with leading zeros retained. Includes release/source metadata and limitations. Optional dataset_version and score settings retain existing meanings. Public cache TTL 300 seconds with informational ETag; no conditional 304.",
-        "operationId": "county_v1_counties__fips__get",
+        "operationId": "getCounty",
         "parameters": [
           {
             "name": "fips",
@@ -7105,7 +7105,7 @@
         ],
         "summary": "Get county surveillance situations",
         "description": "Get both surveillance-situation classifications for one county: the primary `four_state` model, which includes human surveillance, and the secondary `tick_pathogen` model, which excludes it.\n\n### What you get back\n- Reviewed labels and four membership probabilities per model. Each is between 0 and 1, and they sum to 1 within 1e-6.\n- Model and batch lineage, source vintages, and interpretation limits.\n- `Unknown` is an available class. `No records` does not establish absence.\n- Membership is not disease risk, incidence, pathogen presence, causation, or Tier 1 priority.\n\nA model variant can return HTTP 200 with `UNAVAILABLE` and `null` data, including when the release is incompatible. The API does not infer or fall back to another result. The response must not be cached.\n\n### Common problems\n| Response | Cause and what to do |\n| --- | --- |\n| `404` | The county is unknown. |\n| `422` | The FIPS code is malformed. |\n| `503` | A dependency failed, stored data is malformed, or the release changed during the request. Retry later. |",
-        "operationId": "county_surveillance_situations_get",
+        "operationId": "getCountySurveillanceSituations",
         "parameters": [
           {
             "name": "fips",
@@ -7773,7 +7773,7 @@
         ],
         "summary": "Get county surveillance review priority",
         "description": "Get the approved Tier 1 surveillance review priority for one county from the current batch.\n\n### How to read it\n- This is surveillance review priority, not Lyme disease risk, predicted incidence, probability, clinical risk, or diagnosis.\n- LOW is a scored tier. Evidence sufficiency is separate.\n- Percentile is relative to the scored batch and population.\n- `generated_at_utc` is the model batch time, not the request time.\n\nResponses can be cached for 60 seconds.\n\n### Common problems\n| Response | Cause and what to do |\n| --- | --- |\n| `404` | The county has no published result. |\n| `503` | The current view is unavailable or the stored result is malformed. Retry later. |",
-        "operationId": "county_tier1_surveillance_priority_get",
+        "operationId": "getCountyTier1Priority",
         "parameters": [
           {
             "name": "fips",
@@ -7993,7 +7993,7 @@
         ],
         "summary": "Check surveillance priority availability",
         "description": "Check whether a county has a published Tier 1 result, and get it when it does.\n\n### What you get back\n- `AVAILABLE` with the published result in `data`.\n- `UNAVAILABLE` with `reason` `NO_PUBLISHED_MODEL` and `data` set to `null`.\n- `geography_release_id` names the release used to validate the FIPS code.\n\n`NOT_ESTIMABLE` is a published result state. It is different from no published model result. The API never turns `null` into zero or creates model output. Responses can be cached for 60 seconds.\n\n### Common problems\n| Response | Cause and what to do |\n| --- | --- |\n| `404` | The county is outside the current geography release. |\n| `422` | The FIPS code is malformed. |\n| `503` | A dependency failed or stored data is malformed. Retry later. |",
-        "operationId": "county_tier1_surveillance_priority_availability_get",
+        "operationId": "checkCountyTier1Availability",
         "parameters": [
           {
             "name": "fips",
@@ -8219,7 +8219,7 @@
         ],
         "summary": "Download a county report",
         "description": "Download a PDF report for one county.\n\n### Templates\n| `template` | What it returns |\n| --- | --- |\n| `county-v3` (default) | The two-page County Data Brief for the published gap score and Explorer follow-up. It ignores score-setting overrides, so a What-if request cannot change the published score, response category, recommendations, or questions. |\n| `county-v1` | The immutable earlier county report. It still binds score settings. |\n| `county-v2` | An opt-in report for selected observations. It reads canonical evidence, lineage, value states, and limitations. |\n\n### Key parameters\n| Parameter | What to send |\n| --- | --- |\n| `dataset_version` | Optional release to report on. `county-v2` requires it. |\n| `period_start`, `period_end`, `measure_id` | `county-v2` only. Send both dates and 1 to 20 measure IDs, repeated or comma-separated. `county-v1` and `county-v3` reject them with 422. |\n\n### Caching\n`ETag` and `If-None-Match` support 304. Published briefs can be cached for 300 seconds with revalidation. `county-v2` responses must not be cached, and the API revalidates authoritative context before it answers 304.\n\n### Common problems\n| Response | Cause and what to do |\n| --- | --- |\n| `404` | A `county-v2` observation is unknown. |\n| `413` | The report exceeds the resource limits. Narrow the selection. |\n| `422` | The template is unknown, or observation selectors were sent to `county-v1` or `county-v3`. |\n| `503` | `county-v2` provenance is missing or mismatched, or the renderer failed or timed out. Retry later. |",
-        "operationId": "county_report_pdf_v1_counties__fips__report_pdf_get",
+        "operationId": "downloadCountyReport",
         "parameters": [
           {
             "name": "fips",
@@ -8646,7 +8646,7 @@
         ],
         "summary": "Download a state report",
         "description": "PDF attachment using the immutable state-v1 registered template by default. State is a two-letter code. Optional dataset_version and score settings bind report inputs. ETag/If-None-Match supports 304; public cache TTL 300 seconds with revalidation. Unknown templates return 422; resource limits 413; renderer failure/timeout 503.",
-        "operationId": "state_report_pdf_v1_states__state__report_pdf_get",
+        "operationId": "downloadStateReport",
         "parameters": [
           {
             "name": "state",
@@ -9000,7 +9000,7 @@
         ],
         "summary": "Download county rankings as CSV",
         "description": "Filtered CSV attachment for current county rankings. Existing state, text and evidence filters and score settings apply; no pagination. This route does not declare a public cache TTL.",
-        "operationId": "ranking_csv_v1_atlas_ranking_csv_get",
+        "operationId": "downloadAtlasRanking",
         "parameters": [
           {
             "name": "state",
@@ -9309,7 +9309,7 @@
           "feedback"
         ],
         "summary": "Submit Feedback",
-        "operationId": "submit_feedback_v1_feedback_post",
+        "operationId": "submitFeedback",
         "parameters": [
           {
             "name": "authorization",
@@ -9535,7 +9535,7 @@
           "knowledge graph"
         ],
         "summary": "Knowledge Graph Chat",
-        "operationId": "knowledge_graph_chat_v1_knowledge_graph_chat_post",
+        "operationId": "askKnowledgeGraph",
         "requestBody": {
           "content": {
             "application/json": {

@@ -212,6 +212,25 @@ def _canonical_validation_is_400(path: str) -> bool:
     )
 
 
+# FastAPI names a dict or union response wrapper from the operation ID. These
+# three wrappers keep the titles already in the contract.
+_PINNED_RESPONSE_SCHEMA_TITLES = {
+    ("/health/live", "get"): "Response Live Health Live Get",
+    ("/v1/geographies/{geography_type}/{geography_id}", "get"): (
+        "Response Geography V1 Geographies  Geography Type   Geography Id  Get"
+    ),
+    ("/v1/observations", "get"): "Response Observations V1 Observations Get",
+}
+
+
+def _pin_response_schema_titles(schema: dict[str, Any]) -> None:
+    for (path, method), title in _PINNED_RESPONSE_SCHEMA_TITLES.items():
+        operation = schema["paths"][path][method]
+        for media in operation["responses"]["200"]["content"].values():
+            if "title" in media["schema"]:
+                media["schema"]["title"] = title
+
+
 class AtlasFastAPI(FastAPI):
     _first_party_schema: dict[str, Any] | None = None
 
@@ -275,6 +294,7 @@ class AtlasFastAPI(FastAPI):
         schema["info"]["x-logo"] = deepcopy(LOGO)
         apply_response_examples(schema)
         apply_response_headers(schema)
+        _pin_response_schema_titles(schema)
         self._first_party_schema = schema
         return schema
 
@@ -655,11 +675,11 @@ def create_app(
             ),
         )
 
-    @app.get("/health/live", tags=["health"])
+    @app.get("/health/live", tags=["health"], operation_id="checkLiveHealth")
     def live() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/health/ready", tags=["health"])
+    @app.get("/health/ready", tags=["health"], operation_id="checkReadyHealth")
     async def ready() -> ReadinessResponse:
         try:
             # Startup success is latched; later dependency outages are informational.
@@ -707,6 +727,7 @@ def create_app(
     @app.get(
         "/v1/me/profile",
         response_model=UserProfileResponse,
+        operation_id="getProfile",
         tags=["account"],
         responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
     )
@@ -738,6 +759,7 @@ def create_app(
     @app.put(
         "/v1/me/profile",
         response_model=UserProfileResponse,
+        operation_id="updateProfile",
         tags=["account"],
         responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
     )
@@ -802,6 +824,7 @@ def create_app(
     @app.post(
         "/v1/me/privacy-requests",
         response_model=PrivacyRequestCreated,
+        operation_id="createPrivacyRequest",
         tags=["account"],
         responses={401: {"model": ProblemDetails}, 503: {"model": ProblemDetails}},
     )
@@ -832,6 +855,7 @@ def create_app(
     @app.post(
         "/v1/me/privacy-requests/{request_id}/confirm",
         response_model=PrivacyRequestStatus,
+        operation_id="confirmPrivacyRequest",
         tags=["account"],
         responses={
             400: {"model": ProblemDetails},
@@ -870,6 +894,7 @@ def create_app(
     @app.get(
         "/v1/me/privacy-requests/{request_id}",
         response_model=PrivacyRequestStatus,
+        operation_id="getPrivacyRequest",
         tags=["account"],
         responses={
             401: {"model": ProblemDetails},
@@ -903,6 +928,7 @@ def create_app(
 
     @app.get(
         "/v1/me/privacy-requests/{request_id}/export",
+        operation_id="downloadPrivacyExport",
         tags=["account"],
         responses={
             401: {"model": ProblemDetails},
@@ -944,6 +970,7 @@ def create_app(
     @app.get(
         "/v1/states/{state}/review",
         response_model=StateReview,
+        operation_id="getStateReview",
         tags=["states"],
         summary="Review a state's county evidence",
         description=(
@@ -1021,7 +1048,7 @@ def create_app(
         "/v1/atlas/metadata",
         response_model=AtlasMetadata,
         tags=["atlas"],
-        operation_id="metadata_v1_atlas_metadata_get",
+        operation_id="getAtlasMetadata",
         summary="Get release metadata",
         description=(
             "Release metadata, source freshness and methodology; dataset_version selects an "
@@ -1047,7 +1074,7 @@ def create_app(
             "identified by stable five-digit county FIPS. This resource never returns "
             "internal 2025 TIGER/Line analysis polygons used for raster aggregation."
         ),
-        operation_id="geometry_v1_atlas_geometry_get",
+        operation_id="getAtlasGeometry",
         summary="Get county map geometry",
         response_class=Response,
         responses={
@@ -1077,7 +1104,7 @@ def create_app(
         "/v1/atlas/scores",
         response_model=ScoreCollection,
         tags=["atlas"],
-        operation_id="scores_v1_atlas_scores_get",
+        operation_id="getAtlasScores",
         summary="Get county gap scores",
         description=(
             "Existing surveillance-gap scores and settings for an optional dataset_version. "
@@ -1103,7 +1130,7 @@ def create_app(
         "/v1/atlas/map-values",
         response_model=MapValuesCollection,
         tags=["atlas"],
-        operation_id="map_values_v1_atlas_map_values_get",
+        operation_id="getAtlasMapValues",
         summary="Get map values by county",
         description=(
             "Published incidence floor, social vulnerability percentile, uninsured percent, "
@@ -1128,7 +1155,7 @@ def create_app(
         "/v1/counties/{fips}",
         response_model=CountyDetail,
         tags=["counties"],
-        operation_id="county_v1_counties__fips__get",
+        operation_id="getCounty",
         summary="Get county detail and provenance",
         description=(
             "Five-digit county FIPS with leading zeros retained. Includes release/source "
@@ -1158,7 +1185,7 @@ def create_app(
         "/v1/counties/{fips}/surveillance-situations",
         response_model=CountySurveillanceSituations,
         tags=["counties"],
-        operation_id="county_surveillance_situations_get",
+        operation_id="getCountySurveillanceSituations",
         summary="Get county surveillance situations",
         description=(
             "Get both surveillance-situation classifications for one county: the primary "
@@ -1200,7 +1227,7 @@ def create_app(
         "/v1/counties/{fips}/tier1-surveillance-priority",
         response_model=Tier1CountyPriority,
         tags=["counties"],
-        operation_id="county_tier1_surveillance_priority_get",
+        operation_id="getCountyTier1Priority",
         summary="Get county surveillance review priority",
         description=(
             "Get the approved Tier 1 surveillance review priority for one county from the "
@@ -1239,7 +1266,7 @@ def create_app(
         "/v1/counties/{fips}/tier1-surveillance-priority/availability",
         response_model=Tier1CountyPriorityAvailability,
         tags=["counties"],
-        operation_id="county_tier1_surveillance_priority_availability_get",
+        operation_id="checkCountyTier1Availability",
         summary="Check surveillance priority availability",
         description=(
             "Check whether a county has a published Tier 1 result, and get it when it does.\n\n"
@@ -1321,7 +1348,7 @@ def create_app(
             413: REPORT_TOO_LARGE_RESPONSE,
             503: REPORT_UNAVAILABLE_RESPONSE,
         },
-        operation_id="county_report_pdf_v1_counties__fips__report_pdf_get",
+        operation_id="downloadCountyReport",
         summary="Download a county report",
         description=(
             "Download a PDF report for one county.\n\n"
@@ -1506,7 +1533,7 @@ def create_app(
             413: REPORT_TOO_LARGE_RESPONSE,
             503: REPORT_UNAVAILABLE_RESPONSE,
         },
-        operation_id="state_report_pdf_v1_states__state__report_pdf_get",
+        operation_id="downloadStateReport",
         summary="Download a state report",
         description=(
             "PDF attachment using the immutable state-v1 registered template by default. "
@@ -1606,7 +1633,7 @@ def create_app(
     @app.get(
         "/v1/atlas/ranking.csv",
         tags=["atlas"],
-        operation_id="ranking_csv_v1_atlas_ranking_csv_get",
+        operation_id="downloadAtlasRanking",
         summary="Download county rankings as CSV",
         description=(
             "Filtered CSV attachment for current county rankings. Existing state, text and "
@@ -1674,6 +1701,7 @@ def create_app(
     @app.post(
         "/v1/feedback",
         response_model=FeedbackSubmissionResponse,
+        operation_id="submitFeedback",
         tags=["feedback"],
         responses={
             401: {"model": ProblemDetails},
@@ -1883,6 +1911,7 @@ def create_app(
     @app.post(
         "/v1/knowledge-graph/chat",
         response_model=KnowledgeChatResponse,
+        operation_id="askKnowledgeGraph",
         tags=["knowledge graph"],
         responses={
             200: {
