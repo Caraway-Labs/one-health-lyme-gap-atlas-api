@@ -259,6 +259,29 @@ def test_shared_parameters_use_one_description() -> None:
     fips = next(p for _, n, p in _parameters(schema) if n == "fips")
     for phrase in ("five digits", "leading zeros", "string", "09110"):
         assert phrase in fips["description"]
-    assert all(
-        isinstance(example, str) for example in fips["schema"].get("examples", [])
-    )
+    assert all(isinstance(example, str) for example in fips["schema"].get("examples", []))
+
+
+def test_operation_descriptions_are_structured_and_short() -> None:
+    schema = create_app(settings=ApiSettings()).openapi()
+    for path, item in schema["paths"].items():
+        description = item["get"]["description"]
+        prose = "\n".join(
+            line for line in description.splitlines() if not line.lstrip().startswith("|")
+        )
+        assert len(prose) <= 900, path
+    observations = schema["paths"]["/v1/observations"]["get"]["description"]
+    for heading in (
+        "### What it returns",
+        "### Required parameters",
+        "### Time parameters by measure type",
+        "### Value states",
+        "### Empty versus unavailable results",
+        "### Paging",
+        "### Caching",
+    ):
+        assert heading in observations
+    for term in ("`year`", "`start_date`", "`vintage_year`", "`UNSUPPORTED_FILTER`"):
+        assert term in observations
+    assert "`INVALID_REQUEST`" in observations
+    assert "`NO_PUBLISHED_RESULTS`" in observations
