@@ -21,7 +21,7 @@ from .briefings import (
 from .config import ApiSettings
 from .intelligence_projection import IntelligenceItemProjectionV2, ProjectionProvenance
 from .public_contract import PublicQueryError
-from .public_docs import problem_response
+from .public_docs import DESCRIPTION_422, problem_response
 from .public_routes import PROBLEMS
 from .public_tokens import decode, encode
 from .repository import AtlasDataUnavailableError, _sql_identifier
@@ -64,8 +64,8 @@ FEED_PROBLEMS = {
             "One or more request values are invalid.",
             type_name="validation",
             title="Invalid request",
+            description=DESCRIPTION_422,
         ),
-        "description": "Request validation failed; application/problem+json.",
     },
 }
 
