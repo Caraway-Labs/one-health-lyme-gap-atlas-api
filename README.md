@@ -19,6 +19,8 @@ Start with the [public API guide](docs/public-api-guide.md) for tested requests,
 interpretation, pagination, errors, and reproducibility.
 The [OpenAPI quality gate](docs/openapi-quality.md) documents semantic review
 diffs and validated public/first-party CI artifacts for downstream consumers.
+Write public API text with the [API writing style guide](docs/api-writing-style.md),
+which also holds the shared vocabulary and approved safety wording.
 The [documentation surface contract](docs/documentation-surfaces.md) defines
 machine, Swagger, retained ReDoc and Fumadocs purposes and the Web handoff.
 For startup health and background Snowflake monitoring, see
