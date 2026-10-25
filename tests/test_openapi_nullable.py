@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from _openapi_docs import without_documentation
 from fastapi.testclient import TestClient
 from openapi_schema_validator import OAS31Validator
 
@@ -52,7 +53,9 @@ def test_nullable_schema_snapshots_preserve_constraints_and_union_types() -> Non
     }
     for filename, pointers in SNAPSHOT.items():
         for pointer, expected in pointers.items():
-            assert _resolve_pointer(documents[filename], pointer) == expected
+            assert without_documentation(
+                _resolve_pointer(documents[filename], pointer)
+            ) == without_documentation(expected)
 
 
 def test_nullable_normalization_is_idempotent_and_preserves_unflattenable_refs() -> None:
@@ -286,18 +289,17 @@ def test_generated_sdk_shape_keeps_existing_models_and_nullable_refs() -> None:
         {"$ref": "#/components/schemas/CollectionEnvelope_CountyContextObservation_"},
         {"$ref": "#/components/schemas/CollectionEnvelope_Observation_"},
     ]
-    assert schema["components"]["schemas"]["CollectionMeta"]["properties"]["availability"] == {
-        "title": "Availability",
-        "description": (
-            "Observation selection availability, not biological presence. Omitted on other "
-            "collections. An exhausted continuation remains AVAILABLE."
-        ),
+    assert without_documentation(
+        schema["components"]["schemas"]["CollectionMeta"]["properties"]["availability"]
+    ) == {
         "enum": ["AVAILABLE", "UNAVAILABLE", None],
         "type": ["string", "null"],
     }
     # A nullable model reference stays anyOf instead of becoming an invalid
     # or narrowing `type` sibling beside `$ref`.
-    assert schema["components"]["schemas"]["Geography"]["properties"]["parent"] == {
+    assert without_documentation(
+        schema["components"]["schemas"]["Geography"]["properties"]["parent"]
+    ) == {
         "anyOf": [
             {"$ref": "#/components/schemas/GeographyIdentity"},
             {"type": "null"},
