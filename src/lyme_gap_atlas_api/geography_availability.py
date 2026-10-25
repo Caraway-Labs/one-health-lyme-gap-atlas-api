@@ -9,11 +9,18 @@ from .repository import AtlasDataUnavailableError, Snapshot
 
 
 class CanonicalGeographyAvailability(BaseModel):
-    availability: Literal["UNAVAILABLE"]
-    reason: Literal["CANONICAL_GEOGRAPHY_UNPUBLISHED"]
-    data: None = Field(description="No canonical geography resource or geometry is fabricated.")
+    """The county exists, but its canonical geography data is not published yet."""
+
+    availability: Literal["UNAVAILABLE"] = Field(
+        description="Always `UNAVAILABLE`: the county's geography data is not published."
+    )
+    reason: Literal["CANONICAL_GEOGRAPHY_UNPUBLISHED"] = Field(
+        description="Why the data is unavailable. The geography data has not been published."
+    )
+    data: None = Field(description="Always `null`. The API returns no geography data or geometry.")
     release_id: str = Field(
-        min_length=1, description="Governed county directory release used to confirm identity."
+        min_length=1,
+        description="Identifies the county directory release used to confirm the county.",
     )
     limitations: list[str] = Field(
         min_length=1,
@@ -22,17 +29,21 @@ class CanonicalGeographyAvailability(BaseModel):
 
 
 class GeographyUnavailable(BaseModel):
-    """Typed, successful answer that canonical geography identity is not published yet.
+    """HTTP 200 answer that canonical geography data is not published yet.
 
-    Returned with HTTP 200 by the legacy identity route (ADR 0021). It carries no release
-    because answering must stay instant and independent of the governed directory.
+    The API checks the shape of the requested identity only. It does not confirm that the place
+    exists. Use the availability route for a county to confirm that.
     """
 
-    availability: Literal["UNAVAILABLE"]
-    reason: Literal["CANONICAL_GEOGRAPHY_UNPUBLISHED"]
-    data: None = Field(description="No canonical geography resource or geometry is fabricated.")
+    availability: Literal["UNAVAILABLE"] = Field(
+        description="Always `UNAVAILABLE`: the geography data is not published."
+    )
+    reason: Literal["CANONICAL_GEOGRAPHY_UNPUBLISHED"] = Field(
+        description="Why the data is unavailable. The geography data has not been published."
+    )
+    data: None = Field(description="Always `null`. The API returns no geography data or geometry.")
     geography: GeographyIdentity = Field(
-        description="The validated identity that was requested, echoed back."
+        description="The identity you requested, returned unchanged after a format check."
     )
     limitations: list[str] = Field(
         min_length=1,

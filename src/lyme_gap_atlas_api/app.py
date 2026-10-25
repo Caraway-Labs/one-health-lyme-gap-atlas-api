@@ -167,6 +167,7 @@ from .reports.renderer import (
 )
 from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
+from .schema_descriptions import apply_schema_descriptions
 from .service import AtlasService
 from .snowflake_monitor import ReadinessDependencies, ReadinessResponse, SnowflakeMonitor
 from .snowflake_read_session import get_read_session_pool
@@ -240,10 +241,7 @@ class AtlasFastAPI(FastAPI):
         # making both observation collection alternatives discoverable. They
         # remain anyOf: period county-context rows can satisfy both schemas.
         schemas = schema["components"]["schemas"]
-        schemas["CollectionEnvelope_CountyContextObservation_"]["title"] = (
-            "County Context Observation Collection"
-        )
-        schemas["CollectionEnvelope_Observation_"]["title"] = "Standard Observation Collection"
+        apply_schema_descriptions(schemas)
         # FastAPI normally adds a generic 422 response to query-parameter
         # operations. The shared canonical response map lists every status
         # these routes can actually return, and their validation handler
