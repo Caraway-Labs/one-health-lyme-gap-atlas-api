@@ -5,7 +5,7 @@ is an additive anonymous read. Production readiness requires the deployment
 receipt and live canaries; the existence of this document does not prove deployment.
 The authoritative schemas are `openapi.json` (public HTTP) and
 `first-party-openapi.json` (complete first-party build artifact).
-Operation ID: `county_surveillance_situations_get`.
+Operation ID: `getCountySurveillanceSituations`.
 
 The response contains canonical five-digit `county_fips`, active `release_id`
 and `bundle_sha256`, and two distinct variant envelopes:

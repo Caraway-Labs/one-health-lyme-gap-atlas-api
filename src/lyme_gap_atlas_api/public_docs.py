@@ -645,35 +645,35 @@ _NO_STORE = ResponseHeaders(cache=NO_STORE)
 
 # Each entry was confirmed against the route code and a live response.
 RESPONSE_HEADERS: dict[str, ResponseHeaders] = {
-    "indicators_v1_indicators_get": _COLLECTION,
-    "measures_v1_measures_get": _COLLECTION,
-    "sources_v1_sources_get": _COLLECTION,
-    "indicator_v1_indicators__indicator_id__get": _DETAIL,
-    "measure_v1_measures__measure_id__get": _DETAIL,
-    "source_v1_sources__source_id__get": _DETAIL,
-    "methodology_v1_methodologies__methodology_id__get": _DETAIL,
-    "observations_v1_observations_get": ResponseHeaders(
+    "listIndicators": _COLLECTION,
+    "listMeasures": _COLLECTION,
+    "listSources": _COLLECTION,
+    "getIndicator": _DETAIL,
+    "getMeasure": _DETAIL,
+    "getSource": _DETAIL,
+    "getMethodology": _DETAIL,
+    "listObservations": ResponseHeaders(
         cache_note=(
             "The API sets no `Cache-Control` header on an available result, so do not assume "
             "a cache lifetime. It sends `no-store` when `meta.availability` is `UNAVAILABLE`."
         )
     ),
-    "geography_v1_geographies__geography_type___geography_id__get": _NO_STORE,
-    "canonicalGeographyAvailability": _NO_STORE,
-    "county_surveillance_situations_get": _NO_STORE,
-    "county_tier1_surveillance_priority_get": ResponseHeaders(cache="public, max-age=60"),
-    "county_tier1_surveillance_priority_availability_get": ResponseHeaders(
+    "getGeography": _NO_STORE,
+    "checkGeographyAvailability": _NO_STORE,
+    "getCountySurveillanceSituations": _NO_STORE,
+    "getCountyTier1Priority": ResponseHeaders(cache="public, max-age=60"),
+    "checkCountyTier1Availability": ResponseHeaders(
         cache="public, max-age=60"
     ),
-    "state_review_v1_states__state__review_get": _COLLECTION,
-    "metadata_v1_atlas_metadata_get": _TTL_300_ETAG,
-    "scores_v1_atlas_scores_get": _TTL_300_ETAG,
-    "map_values_v1_atlas_map_values_get": _TTL_300_ETAG,
-    "county_v1_counties__fips__get": _TTL_300_ETAG,
-    "geometry_v1_atlas_geometry_get": ResponseHeaders(
+    "getStateReview": _COLLECTION,
+    "getAtlasMetadata": _TTL_300_ETAG,
+    "getAtlasScores": _TTL_300_ETAG,
+    "getAtlasMapValues": _TTL_300_ETAG,
+    "getCounty": _TTL_300_ETAG,
+    "getAtlasGeometry": ResponseHeaders(
         cache=CACHE_IMMUTABLE, etag=True, conditional=True, revalidated_304=False
     ),
-    "county_report_pdf_v1_counties__fips__report_pdf_get": ResponseHeaders(
+    "downloadCountyReport": ResponseHeaders(
         cache=CACHE_300_REVALIDATE,
         cache_note=(
             "The `county-v1` and `county-v3` templates send this value. "
@@ -683,10 +683,10 @@ RESPONSE_HEADERS: dict[str, ResponseHeaders] = {
         conditional=True,
         attachment=True,
     ),
-    "state_report_pdf_v1_states__state__report_pdf_get": ResponseHeaders(
+    "downloadStateReport": ResponseHeaders(
         cache=CACHE_300_REVALIDATE, etag=True, conditional=True, attachment=True
     ),
-    "ranking_csv_v1_atlas_ranking_csv_get": ResponseHeaders(
+    "downloadAtlasRanking": ResponseHeaders(
         attachment=True,
         cache_note="The API sets no `Cache-Control` header, so do not assume a cache lifetime.",
     ),

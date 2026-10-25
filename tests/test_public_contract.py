@@ -92,7 +92,7 @@ def test_canonical_response_maps_snapshot_has_only_concrete_documented_statuses(
     app = create_app(settings=ApiSettings())
     expected = {
         # Typed 200 UNAVAILABLE replaces the permanent 503 (ADR 0021).
-        "geography_v1_geographies__geography_type___geography_id__get": {
+        "getGeography": {
             "200",
             "400",
             "404",
@@ -100,20 +100,9 @@ def test_canonical_response_maps_snapshot_has_only_concrete_documented_statuses(
             "414",
             "429",
         },
-        "canonicalGeographyAvailability": {"200", "400", "404", "413", "414", "429", "503"},
-        "indicators_v1_indicators_get": {"200", "400", "404", "413", "414", "429", "503"},
-        "indicator_v1_indicators__indicator_id__get": {
-            "200",
-            "304",
-            "400",
-            "404",
-            "413",
-            "414",
-            "429",
-            "503",
-        },
-        "measures_v1_measures_get": {"200", "400", "404", "413", "414", "429", "503"},
-        "measure_v1_measures__measure_id__get": {
+        "checkGeographyAvailability": {"200", "400", "404", "413", "414", "429", "503"},
+        "listIndicators": {"200", "400", "404", "413", "414", "429", "503"},
+        "getIndicator": {
             "200",
             "304",
             "400",
@@ -123,7 +112,8 @@ def test_canonical_response_maps_snapshot_has_only_concrete_documented_statuses(
             "429",
             "503",
         },
-        "methodology_v1_methodologies__methodology_id__get": {
+        "listMeasures": {"200", "400", "404", "413", "414", "429", "503"},
+        "getMeasure": {
             "200",
             "304",
             "400",
@@ -133,9 +123,19 @@ def test_canonical_response_maps_snapshot_has_only_concrete_documented_statuses(
             "429",
             "503",
         },
-        "observations_v1_observations_get": {"200", "400", "404", "413", "414", "429", "503"},
-        "sources_v1_sources_get": {"200", "400", "404", "413", "414", "429", "503"},
-        "source_v1_sources__source_id__get": {
+        "getMethodology": {
+            "200",
+            "304",
+            "400",
+            "404",
+            "413",
+            "414",
+            "429",
+            "503",
+        },
+        "listObservations": {"200", "400", "404", "413", "414", "429", "503"},
+        "listSources": {"200", "400", "404", "413", "414", "429", "503"},
+        "getSource": {
             "200",
             "304",
             "400",
