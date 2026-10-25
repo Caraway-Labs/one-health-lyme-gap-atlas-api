@@ -78,7 +78,7 @@ def main() -> None:
         schema = client.get("/openapi.json")
         schema.raise_for_status()
         operation = schema.json()["paths"]["/v1/counties/{fips}/surveillance-situations"]["get"]
-        assert operation["operationId"] == "county_surveillance_situations_get"
+        assert operation["operationId"] == "getCountySurveillanceSituations"
     receipt.update(responses=responses, errors=errors, result="PASS")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")

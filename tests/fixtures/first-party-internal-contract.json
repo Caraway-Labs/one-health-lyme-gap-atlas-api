@@ -6,7 +6,7 @@
           "health"
         ],
         "summary": "Live",
-        "operationId": "live_health_live_get",
+        "operationId": "checkLiveness",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -17,7 +17,7 @@
                     "type": "string"
                   },
                   "type": "object",
-                  "title": "Response Live Health Live Get"
+                  "title": "Response Checkliveness"
                 }
               }
             }
@@ -31,7 +31,7 @@
           "health"
         ],
         "summary": "Ready",
-        "operationId": "ready_health_ready_get",
+        "operationId": "checkReadiness",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -52,7 +52,7 @@
           "account"
         ],
         "summary": "Get Profile",
-        "operationId": "get_profile_v1_me_profile_get",
+        "operationId": "getProfile",
         "parameters": [
           {
             "name": "authorization",
@@ -119,7 +119,7 @@
           "account"
         ],
         "summary": "Save Profile",
-        "operationId": "save_profile_v1_me_profile_put",
+        "operationId": "updateProfile",
         "parameters": [
           {
             "name": "authorization",
@@ -198,7 +198,7 @@
           "account"
         ],
         "summary": "Create Privacy Request",
-        "operationId": "create_privacy_request_v1_me_privacy_requests_post",
+        "operationId": "createPrivacyRequest",
         "parameters": [
           {
             "name": "authorization",
@@ -277,7 +277,7 @@
           "account"
         ],
         "summary": "Confirm Privacy Request",
-        "operationId": "confirm_privacy_request_v1_me_privacy_requests__request_id__confirm_post",
+        "operationId": "confirmPrivacyRequest",
         "parameters": [
           {
             "name": "request_id",
@@ -396,7 +396,7 @@
           "account"
         ],
         "summary": "Get Privacy Request",
-        "operationId": "get_privacy_request_v1_me_privacy_requests__request_id__get",
+        "operationId": "getPrivacyRequest",
         "parameters": [
           {
             "name": "request_id",
@@ -485,7 +485,7 @@
           "account"
         ],
         "summary": "Download Privacy Export",
-        "operationId": "download_privacy_export_v1_me_privacy_requests__request_id__export_get",
+        "operationId": "downloadPrivacyExport",
         "parameters": [
           {
             "name": "request_id",
@@ -582,7 +582,7 @@
           "feedback"
         ],
         "summary": "Submit Feedback",
-        "operationId": "submit_feedback_v1_feedback_post",
+        "operationId": "submitFeedback",
         "parameters": [
           {
             "name": "authorization",
@@ -701,7 +701,7 @@
           "knowledge graph"
         ],
         "summary": "Knowledge Graph Chat",
-        "operationId": "knowledge_graph_chat_v1_knowledge_graph_chat_post",
+        "operationId": "askKnowledgeGraph",
         "requestBody": {
           "content": {
             "application/json": {
@@ -760,7 +760,7 @@
         ],
         "summary": "Get geography identity",
         "description": "Validated county/state FIPS identity. While canonical identity delivery is unpublished the response is HTTP 200 with availability UNAVAILABLE, reason CANONICAL_GEOGRAPHY_UNPUBLISHED and data null; the identity is validated for shape only. No geometry is returned. Responses use `Cache-Control: no-store`.",
-        "operationId": "geography_v1_geographies__geography_type___geography_id__get",
+        "operationId": "getGeography",
         "parameters": [
           {
             "name": "geography_type",
@@ -804,7 +804,7 @@
                       "$ref": "#/components/schemas/GeographyUnavailable"
                     }
                   ],
-                  "title": "Response Geography V1 Geographies  Geography Type   Geography Id  Get"
+                  "title": "Response Getgeography"
                 },
                 "examples": {
                   "county": {

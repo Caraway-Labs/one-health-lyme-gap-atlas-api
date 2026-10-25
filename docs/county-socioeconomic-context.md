@@ -1,7 +1,7 @@
 # County socioeconomic and rurality observations (API #212)
 
 This additive contract uses the existing anonymous `GET /v1/observations`,
-operationId `observations_v1_observations_get`. Data V155 supplies the admitted
+operationId `listObservations`. Data V155 supplies the admitted
 rows in `PRESENTATION.CURRENT_COUNTY_OBSERVATIONS_V`. No source-specific endpoint,
 ingestion, ML admission, authentication or deployment topology is introduced.
 ADR 0002 and Data's reviewed #199/#200 definitions/ADR 0035 remain authoritative.
