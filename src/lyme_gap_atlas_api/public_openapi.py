@@ -20,6 +20,7 @@ PUBLIC_PATHS = frozenset(
         "/v1/atlas/metadata",
         "/v1/atlas/geometry",
         "/v1/atlas/scores",
+        "/v1/atlas/map-values",
         "/v1/atlas/ranking.csv",
         "/v1/counties/{fips}",
         "/v1/counties/{fips}/surveillance-situations",

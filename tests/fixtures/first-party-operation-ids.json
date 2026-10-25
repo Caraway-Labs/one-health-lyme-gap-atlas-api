@@ -57,6 +57,9 @@
   "/v1/atlas/scores": {
     "get": "scores_v1_atlas_scores_get"
   },
+  "/v1/atlas/map-values": {
+    "get": "map_values_v1_atlas_map_values_get"
+  },
   "/v1/counties/{fips}": {
     "get": "county_v1_counties__fips__get"
   },
