@@ -7,7 +7,7 @@
   },
   "application/json": {
     "new_york_county": {
-      "summary": "Persisted review priority for `36061`",
+      "summary": "Published review priority for `36061`",
       "value": {
         "county_fips": "36061",
         "priority_tier": "HIGH",

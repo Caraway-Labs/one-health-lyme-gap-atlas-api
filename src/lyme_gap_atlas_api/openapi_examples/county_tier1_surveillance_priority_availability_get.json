@@ -7,7 +7,7 @@
   },
   "application/json": {
     "available": {
-      "summary": "A county with a persisted review priority",
+      "summary": "A county with a published review priority",
       "value": {
         "availability": "AVAILABLE",
         "geography_release_id": "governed-2026-10-15-january-climate-prod",

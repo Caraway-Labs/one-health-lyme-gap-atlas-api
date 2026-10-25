@@ -491,7 +491,7 @@ def methodology(
         "Validated county/state FIPS identity. While canonical identity delivery is "
         "unpublished the response is HTTP 200 with availability UNAVAILABLE, reason "
         "CANONICAL_GEOGRAPHY_UNPUBLISHED and data null; the identity is validated for shape "
-        "only. No geometry is returned. Responses use Cache-Control: no-store."
+        "only. No geometry is returned. Responses use `Cache-Control: no-store`."
     ),
 )
 def geography(
