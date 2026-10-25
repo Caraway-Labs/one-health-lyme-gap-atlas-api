@@ -65,8 +65,8 @@ data, cacheable responses switch to `Cache-Control: private, no-store`.
 Public reads need no key. Anonymous reads of the metadata, provenance, observation, and
 geography availability operations are limited per client address to 60 requests in a rolling
 minute and 5 requests at once. All other operations share a separate, higher per-address
-limit. These figures are the current defaults and can change. Atlas publishes no per-key quota or service
-level, so rely on the response headers, not on a fixed number.
+limit. These figures are the current defaults and can change. Atlas publishes no per-key
+quota or service level, so rely on the response headers, not on a fixed number.
 
 A `429` response means you went over a limit. A `503` response means the data service or report
 renderer cannot answer right now. Both can carry `Retry-After`, in whole seconds. Wait that
