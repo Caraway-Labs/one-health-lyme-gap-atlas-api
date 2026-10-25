@@ -89,6 +89,14 @@ UNAVAILABLE = "Governed intelligence data is unavailable."
 INTELLIGENCE_SOURCE_HEALTH_VIEW = "INTELLIGENCE_SOURCE_HEALTH_V1"
 SOURCE_HEALTH_CACHE_TTL_SECONDS = 300
 SOURCE_HEALTH_NEGATIVE_CACHE_TTL_SECONDS = 60
+ABSTRACT_SUPPRESSED_COLUMN_CACHE_TTL_SECONDS = 300
+ABSTRACT_SUPPRESSED_COLUMN_NEGATIVE_CACHE_TTL_SECONDS = 60
+# Present publisher dates first, newest parsed time first, other date states last.
+FEED_LIST_ORDER = (
+    "IFF(FIELD_STATES:published_at::VARCHAR = 'present', 0, 1), "
+    "TRY_TO_TIMESTAMP_TZ(PUBLISHED_AT) DESC NULLS LAST, "
+    "ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION"
+)
 # data#815 column names. The view is not in PROD yet; this mapping is the only
 # place those names are spelled. last_status and items_current are not selected.
 INTELLIGENCE_SOURCE_HEALTH_COLUMNS: Final[Mapping[str, str]] = {
@@ -676,6 +684,12 @@ class _HealthCache:
     value: dict[str, SourceHealth] | None
 
 
+@dataclass(frozen=True)
+class _ColumnPresenceCache:
+    expires_at: float
+    present: bool
+
+
 class _UtcValue(BriefingModel):
     value: Utc
 
@@ -798,6 +812,8 @@ class SnowflakeFeedRepository:
         self._clock = clock
         self._health_lock = threading.Lock()
         self._health_cache: _HealthCache | None = None
+        self._suppressed_column_lock = threading.Lock()
+        self._suppressed_column_cache: _ColumnPresenceCache | None = None
 
     def _feed_view(self) -> str:
         return (
@@ -819,18 +835,41 @@ class SnowflakeFeedRepository:
         return columns
 
     def _abstract_suppressed_column_present(self, cursor: Any) -> bool:
-        database = _sql_identifier(self.settings.presentation_database)
-        try:
-            cursor.execute(
-                f"SELECT COLUMN_NAME FROM {database}.INFORMATION_SCHEMA.COLUMNS "
-                "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'INTELLIGENCE_FEED_V2' "
-                "AND COLUMN_NAME = %s",
-                (self.settings.snowflake_presentation_schema, _ABSTRACT_SUPPRESSED_COLUMN),
-                timeout=self.settings.public_query_timeout_seconds,
+        """Return whether ABSTRACT_SUPPRESSED exists, without a lookup on every read.
+
+        A successful answer is cached for 300 seconds. A failed lookup is cached
+        as absent for 60 seconds and does not raise.
+        """
+
+        with self._suppressed_column_lock:
+            now = self._clock()
+            cached = self._suppressed_column_cache
+            if cached is not None and cached.expires_at > now:
+                return cached.present
+            try:
+                present = self._query_abstract_suppressed_column(cursor)
+            except Exception:
+                self._suppressed_column_cache = _ColumnPresenceCache(
+                    expires_at=now + ABSTRACT_SUPPRESSED_COLUMN_NEGATIVE_CACHE_TTL_SECONDS,
+                    present=False,
+                )
+                return False
+            self._suppressed_column_cache = _ColumnPresenceCache(
+                expires_at=now + ABSTRACT_SUPPRESSED_COLUMN_CACHE_TTL_SECONDS,
+                present=present,
             )
-            return cursor.fetchone() is not None
-        except Exception:
-            return False
+            return present
+
+    def _query_abstract_suppressed_column(self, cursor: Any) -> bool:
+        database = _sql_identifier(self.settings.presentation_database)
+        cursor.execute(
+            f"SELECT COLUMN_NAME FROM {database}.INFORMATION_SCHEMA.COLUMNS "
+            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'INTELLIGENCE_FEED_V2' "
+            "AND COLUMN_NAME = %s",
+            (self.settings.snowflake_presentation_schema, _ABSTRACT_SUPPRESSED_COLUMN),
+            timeout=self.settings.public_query_timeout_seconds,
+        )
+        return cursor.fetchone() is not None
 
     def _allowed_database(self) -> None:
         if self.settings.presentation_database not in {
@@ -903,11 +942,12 @@ class SnowflakeFeedRepository:
         columns += ", ORGANIZATION, REVIEWED_TRUST_CLASSIFICATION"
         if kind == "feed":
             columns = self._feed_column_sql(False)
-        order = (
-            "ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION"
-            if kind != "sources"
-            else "SOURCE_ID, REGISTRY_VERSION"
-        )
+        if kind == "sources":
+            order = "SOURCE_ID, REGISTRY_VERSION"
+        elif kind == "feed":
+            order = FEED_LIST_ORDER
+        else:
+            order = "ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION"
         if kind == "sources":
             # One published row per source_id: highest registry version, then
             # organization and reviewed trust classification as a stable tie-break.
@@ -1082,9 +1122,10 @@ class FeedService:
     ) -> FeedItems | FeedSources | MetadataFeed:
         if start and end and start > end:
             raise PublicQueryError("INVALID_REQUEST", "Publication date range is reversed.")
-        fingerprint = hashlib.sha256(
-            json.dumps([kind, source_id, str(start), str(end), size]).encode()
-        ).hexdigest()
+        token_parts: list[Any] = [kind, source_id, str(start), str(end), size]
+        if kind == "feed":
+            token_parts.append(FEED_LIST_ORDER)
+        fingerprint = hashlib.sha256(json.dumps(token_parts).encode()).hexdigest()
         offset, prior = 0, None
         if token:
             try:
@@ -1306,8 +1347,11 @@ def sources(
     description="Read only from governed INTELLIGENCE_FEED_V2. "
     + _FEED_SUMMARY
     + " Publisher dates remain null when unknown; inclusive date filters exclude "
-    "unknown dates. Stable identity/revision ordering, bounded state/filter-bound pagination, "
-    "no-store. Disabled or unavailable returns 503; an available empty projection returns 200.",
+    "unknown dates. Entries with a publisher date are newest first. Entries with an "
+    "unknown publisher date are last. Matching publisher dates use a stable tie-break "
+    "of item id, revision id, source id, and registry version. Bounded "
+    "state/filter-bound pagination, no-store. Disabled or unavailable returns 503; "
+    "an available empty projection returns 200.",
 )
 def feed(
     request: Request,
