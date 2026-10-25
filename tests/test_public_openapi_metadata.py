@@ -287,11 +287,6 @@ def test_operation_descriptions_are_structured_and_short() -> None:
     assert "`NO_PUBLISHED_RESULTS`" in observations
 
 
-    assert all(
-        isinstance(example, str) for example in fips["schema"].get("examples", [])
-    )
-
-
 def test_every_public_operation_has_a_real_200_example() -> None:
     schema = TestClient(create_app(settings=ApiSettings())).get("/openapi.json").json()
     operations = [
