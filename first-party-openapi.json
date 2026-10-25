@@ -3729,7 +3729,7 @@
           "Intelligence feed"
         ],
         "summary": "Read source identities represented by published intelligence",
-        "description": "First-party read only. Each source_id appears once, with its highest registry_version. Source catalog covers represented item sources, not the private registry or all active sources. Health is explicitly unavailable until DATA publishes it. No freshness thresholds are inferred. page_size 1\u2013500, state-bound tokens, no-store. No ingestion.",
+        "description": "First-party read only. Each source_id appears once, with its highest registry_version. The catalog lists sources represented by published items, not the private registry or every registered source. operational_state is healthy, stale, or failing from PRESENTATION.INTELLIGENCE_SOURCE_HEALTH_V1, and unavailable with diagnostic SOURCE_HEALTH_NOT_PUBLISHED when that source has no health row or the health projection cannot be read. last_completed_at and last_error_code come from that projection. Run identifiers and free text are omitted. The health read is cached for 5 minutes. page_size is 1\u2013500 with state-bound tokens. The response must not be cached. No ingestion.",
         "operationId": "listIntelligenceSources",
         "parameters": [
           {
@@ -11687,15 +11687,46 @@
           },
           "operational_state": {
             "type": "string",
-            "const": "unavailable",
+            "enum": [
+              "healthy",
+              "stale",
+              "failing",
+              "unavailable"
+            ],
             "title": "Operational State",
+            "description": "healthy, stale, or failing when the source-health projection has a row for this source. unavailable when it does not, or when that projection cannot be read.",
             "default": "unavailable"
           },
           "diagnostic": {
-            "type": "string",
-            "const": "SOURCE_HEALTH_NOT_PUBLISHED",
             "title": "Diagnostic",
-            "default": "SOURCE_HEALTH_NOT_PUBLISHED"
+            "description": "SOURCE_HEALTH_NOT_PUBLISHED when operational_state is unavailable. Null when a health row supplies the operational state.",
+            "default": "SOURCE_HEALTH_NOT_PUBLISHED",
+            "enum": [
+              "SOURCE_HEALTH_NOT_PUBLISHED",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_completed_at": {
+            "title": "Last Completed At",
+            "description": "UTC completion time from the source-health projection. Null when unavailable or absent on that row.",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?Z$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_error_code": {
+            "title": "Last Error Code",
+            "description": "Allowlisted error code from the source-health projection. Free text and run identifiers are omitted.",
+            "pattern": "^(?:INTELLIGENCE_[A-Z0-9_]{3,80}|FEED_[A-Z0-9_]{1,64}|MALFORMED_FEED|UNCLASSIFIED_[A-Za-z][A-Za-z0-9]{0,80})$",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "additionalProperties": false,
@@ -11718,7 +11749,7 @@
             "title": "Data"
           },
           "meta": {
-            "$ref": "#/components/schemas/FeedMeta"
+            "$ref": "#/components/schemas/SourceCatalogMeta"
           },
           "source_catalog_complete": {
             "type": "boolean",
@@ -15151,6 +15182,47 @@
         ],
         "title": "Source",
         "description": "The organization and dataset a value came from."
+      },
+      "SourceCatalogMeta": {
+        "properties": {
+          "next_page_token": {
+            "title": "Next Page Token",
+            "description": "Opaque filter/state-bound continuation.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "projection_version": {
+            "type": "string",
+            "const": "intelligence-feed-read-v2",
+            "title": "Projection Version",
+            "default": "intelligence-feed-read-v2"
+          },
+          "source_health_available": {
+            "type": "boolean",
+            "title": "Source Health Available",
+            "description": "True when this response applied a source-health snapshot. False when that snapshot could not be read; every source is then unavailable.",
+            "default": false
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations",
+            "default": [
+              "Publication intelligence, not disease occurrence or a public-health alert.",
+              "Operational state is healthy, stale, or failing when the source-health projection has a row for that source. Otherwise it is unavailable with diagnostic SOURCE_HEALTH_NOT_PUBLISHED. Fetch timestamps are not operational health."
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "next_page_token"
+        ],
+        "title": "SourceCatalogMeta"
       },
       "SourceMetadata": {
         "properties": {

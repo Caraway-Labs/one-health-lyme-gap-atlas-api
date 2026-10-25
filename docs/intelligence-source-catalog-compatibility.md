@@ -10,13 +10,23 @@ organization and reviewed trust classification from that version. When several
 rows share that version, the catalog keeps the alphabetically first organization,
 then the alphabetically first reviewed trust classification. V1 sources remain
 represented. It does not enumerate the
-private registry, admit a source, infer health, or expose publisher native trees.
-Both views must be available to the existing API reader; an unavailable view
-fails closed with the existing sanitized 503, never a fallback or partial list.
+private registry, admit a source, or expose publisher native trees.
+Operational state is read from `PRESENTATION.INTELLIGENCE_SOURCE_HEALTH_V1`
+in one bounded query and cached for five minutes. A failed health read is
+cached for one minute. Several health rows for one source_id still produce one
+catalog row; the greatest `last_completed_at` wins, and equal times prefer failing,
+then stale, then healthy. That row supplies `operational_state`,
+`last_completed_at`, and `last_error_code`. A missing health view or any failed
+health read leaves the catalog at HTTP 200 with every source `unavailable` and
+diagnostic `SOURCE_HEALTH_NOT_PUBLISHED`.
+Both feed views must be available to the existing API reader; an unavailable feed
+view returns the existing sanitized 503, never a fallback or partial list.
 
-The existing response schema, no-store policy, parameter binding, result ceiling,
-query timeout, deterministic source/version ordering and state-bound pagination
-remain. A publication change restarts pagination. Source catalog completeness
+The response includes source identity, registry version, organization, reviewed
+trust classification, parameter binding, the result ceiling, query timeout,
+deterministic source/version ordering, and state-bound pagination. The response
+must not be cached.
+A publication change restarts pagination. Source catalog completeness
 remains false because registered sources without published items are excluded.
 
 This supports Web #816 / PR #822 without duplicating its filters or generating a
