@@ -54,7 +54,8 @@ def test_canonical_documentation_urls_and_cross_link() -> None:
     assert schema["servers"] == [
         {"url": "https://api.onehealthatlas.org", "description": "Production"}
     ]
-    assert len(schema["paths"]) == 21
+    assert len(schema["paths"]) == 22
+    assert "/v1/atlas/map-values" in schema["paths"]
     assert "/v1/counties/{fips}/surveillance-situations" in schema["paths"]
     assert "/v1/geographies/{geography_type}/{geography_id}/availability" in schema["paths"]
     for path in ("/docs", "/redoc"):
