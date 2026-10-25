@@ -322,7 +322,7 @@ def test_v2_publisher_projection_without_raw_or_private_native_metadata() -> Non
         assert rejected.status_code == 503 and unsafe_url not in rejected.text
 
 
-@pytest.mark.parametrize("kind", ["items", "feed"])
+@pytest.mark.parametrize("kind", ["items", "feed", "sources"])
 @pytest.mark.parametrize("mode", ["stable", "changed", "too_broad", "driver_error"])
 def test_sql_boundary_limits_and_state_checks(
     monkeypatch: pytest.MonkeyPatch, mode: str, kind: str
@@ -378,6 +378,15 @@ def test_sql_boundary_limits_and_state_checks(
             assert "INTELLIGENCE_FEED_V2" in cursor.calls[1][0]
             selected = cursor.calls[1][0].split(" FROM ")[0]
             assert not any(field in selected for field in ("EXCERPT", "MEDIA", "NATIVE_METADATA"))
+        if kind == "sources":
+            assert "UNION ALL" in cursor.calls[1][0]
+            assert "INTELLIGENCE_FEED_V2" in cursor.calls[1][0]
+            assert "SELECT DISTINCT SOURCE_ID, REGISTRY_VERSION" in cursor.calls[1][0]
+            assert "COUNT(DISTINCT SOURCE_ID, REGISTRY_VERSION)" in cursor.calls[0][0]
+            assert not any(
+                field in cursor.calls[1][0]
+                for field in ("NATIVE_METADATA", "PUBLISHER_METADATA", "EXCERPT", "GOVERNANCE.")
+            )
         assert all(
             "PRESENTATION.INTELLIGENCE_FEED_V" in sql.replace(chr(34), "")
             for sql, _, _ in cursor.calls
