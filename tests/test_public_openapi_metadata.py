@@ -353,3 +353,25 @@ def test_tag_groups_cover_every_tag_once_and_summaries_are_short() -> None:
         summary = path_item["get"]["summary"]
         assert len(summary) <= 60
         assert not {"persisted", "typed"} & set(summary.lower().split())
+
+
+def _titles(value: object) -> set[str]:
+    if isinstance(value, dict):
+        found = {value["title"]} if isinstance(value.get("title"), str) else set()
+        return found.union(*(_titles(item) for item in value.values()))
+    if isinstance(value, list):
+        return set().union(*(_titles(item) for item in value))
+    return set()
+
+
+def test_no_schema_title_is_derived_from_an_operation_id() -> None:
+    """Unnamed response schemas must not be titled 'Response <Operationid>'."""
+    for name in ("openapi.json", "first-party-openapi.json"):
+        document = json.loads((ROOT / name).read_text(encoding="utf-8"))
+        derived = {
+            f"Response {operation['operationId'].capitalize()}"
+            for item in document["paths"].values()
+            for operation in item.values()
+            if isinstance(operation, dict) and "operationId" in operation
+        }
+        assert not derived & _titles(document), (name, derived & _titles(document))

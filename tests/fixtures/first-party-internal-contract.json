@@ -17,7 +17,7 @@
                     "type": "string"
                   },
                   "type": "object",
-                  "title": "Response Checkliveness"
+                  "title": "Liveness response"
                 }
               }
             }
@@ -804,7 +804,7 @@
                       "$ref": "#/components/schemas/GeographyUnavailable"
                     }
                   ],
-                  "title": "Response Getgeography"
+                  "title": "Geography response"
                 },
                 "examples": {
                   "county": {

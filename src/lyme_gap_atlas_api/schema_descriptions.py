@@ -101,3 +101,27 @@ def apply_schema_descriptions(schemas: dict[str, Any]) -> None:
         for field, description in _SCORE_FIELDS.items():
             if field in score.get("properties", {}):
                 score["properties"][field].setdefault("description", description)
+
+
+# FastAPI titles an unnamed response schema "Response <Operationid>". Generated clients use the
+# title as a type name, so these inline schemas get plain-word titles instead.
+_INLINE_RESPONSE_TITLES = {
+    "getGeography": "Geography response",
+    "listObservations": "Observation collection response",
+    "checkLiveness": "Liveness response",
+}
+
+
+def apply_inline_response_titles(document: dict[str, Any]) -> None:
+    """Replace operation-derived titles on inline response schemas in place."""
+    for path_item in document.get("paths", {}).values():
+        for operation in path_item.values():
+            operation_id = operation.get("operationId") if isinstance(operation, dict) else None
+            title = _INLINE_RESPONSE_TITLES.get(operation_id or "")
+            if title is None:
+                continue
+            for response in operation.get("responses", {}).values():
+                for media in response.get("content", {}).values():
+                    schema = media.get("schema", {})
+                    if "title" in schema and "$ref" not in schema:
+                        schema["title"] = title

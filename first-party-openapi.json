@@ -2325,7 +2325,7 @@
                       "$ref": "#/components/schemas/GeographyUnavailable"
                     }
                   ],
-                  "title": "Response Getgeography"
+                  "title": "Geography response"
                 },
                 "examples": {
                   "county": {
@@ -3005,7 +3005,7 @@
                       "$ref": "#/components/schemas/CollectionEnvelope_Observation_"
                     }
                   ],
-                  "title": "Response Listobservations"
+                  "title": "Observation collection response"
                 },
                 "examples": {
                   "observed": {
@@ -4641,7 +4641,7 @@
                     "type": "string"
                   },
                   "type": "object",
-                  "title": "Response Checkliveness"
+                  "title": "Liveness response"
                 }
               }
             }
