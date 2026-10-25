@@ -11,6 +11,7 @@ from ..public_contract import GeographyType, Observation, ObservationQuery
 from ..public_observations import ObservationService
 from ..repository import AtlasDataUnavailableError
 from ..service import AtlasService
+from .county_data_brief import build_county_data_brief
 from .models import (
     CountyReport,
     ReportGeography,
@@ -44,9 +45,13 @@ class ReportService:
         dataset_version: str | None = None,
         template_version: str = "county-v1",
     ) -> CountyReport:
-        detail = self._atlas_service.county(fips, settings, dataset_version)
+        # The County Data Brief is the published result. What-if score settings
+        # must not change its score, category, or follow-up text.
+        effective_settings = ScoreSettings() if template_version == "county-v3" else settings
+        detail = self._atlas_service.county(fips, effective_settings, dataset_version)
+        identity = self._identity(template_version)
         return CountyReport(
-            identity=self._identity(template_version),
+            identity=identity,
             geography=ReportGeography(
                 level="county",
                 identifier=detail.fips,
@@ -54,7 +59,7 @@ class ReportService:
                 state_code=detail.state,
                 state_name=detail.state_name,
             ),
-            provenance=self._provenance(detail.release, settings),
+            provenance=self._provenance(detail.release, effective_settings),
             score=self._score(detail),
             priority=detail.priority,
             population=self._metric("population", "Population", detail.population),
@@ -88,6 +93,11 @@ class ReportService:
             ],
             data_completeness=self._metric(
                 "evidence_completeness", "Evidence completeness", detail.evidence_completeness
+            ),
+            brief=(
+                build_county_data_brief(detail, identity.generated_at)
+                if template_version == "county-v3"
+                else None
             ),
         )
 
@@ -210,7 +220,11 @@ class ReportService:
             schema_version=metadata.schema_version,
             methodology_version=metadata.methodology_version,
             scoring_settings=settings.model_dump(),
-            limitations=metadata.limitations,
+            limitations=(
+                f"Surveillance Gap Score v1.1; smooth k={settings.smooth_k}; "
+                f"missing human H={settings.missing_human_weakness} is a legacy assumption. "
+                + metadata.limitations
+            ),
             sources=[ReportSource(**source.model_dump()) for source in metadata.sources],
         )
 

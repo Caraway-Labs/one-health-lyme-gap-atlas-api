@@ -21,6 +21,40 @@ class CanonicalGeographyAvailability(BaseModel):
     )
 
 
+class GeographyUnavailable(BaseModel):
+    """Typed, successful answer that canonical geography identity is not published yet.
+
+    Returned with HTTP 200 by the legacy identity route (ADR 0021). It carries no release
+    because answering must stay instant and independent of the governed directory.
+    """
+
+    availability: Literal["UNAVAILABLE"]
+    reason: Literal["CANONICAL_GEOGRAPHY_UNPUBLISHED"]
+    data: None = Field(description="No canonical geography resource or geometry is fabricated.")
+    geography: GeographyIdentity = Field(
+        description="The validated identity that was requested, echoed back."
+    )
+    limitations: list[str] = Field(
+        min_length=1,
+        description="Publication and representation boundaries, not scientific absence.",
+    )
+
+
+def geography_unavailable(identity: GeographyIdentity) -> GeographyUnavailable:
+    return GeographyUnavailable(
+        availability="UNAVAILABLE",
+        reason="CANONICAL_GEOGRAPHY_UNPUBLISHED",
+        data=None,
+        geography=identity,
+        limitations=[
+            "Canonical geography identity delivery is not published by this API capability.",
+            "The requested identity is validated for shape only; membership in the current "
+            "release is not asserted (use the county availability route for that). "
+            "No canonical, display, or analysis geometry is returned or inferred.",
+        ],
+    )
+
+
 def county_availability(snapshot: Snapshot, county_fips: str) -> CanonicalGeographyAvailability:
     release = snapshot.metadata.release_id
     if not release.strip() or not snapshot.counties:

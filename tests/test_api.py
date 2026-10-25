@@ -242,7 +242,7 @@ class FakeAnswerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, object]:
         return {
             "answer": "Reviewed evidence associates the vector with the pathogen.",
@@ -270,7 +270,7 @@ class InventedCitationAnswerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, object]:
         self.calls += 1
         return {
@@ -304,7 +304,8 @@ def chat_client(evidence: list[Evidence]) -> TestClient:
 def test_health_and_contract() -> None:
     api = client()
     assert api.get("/health/live").json() == {"status": "ok"}
-    assert api.get("/health/ready").status_code == 200
+    with api:
+        assert api.get("/health/ready").status_code == 200
     assert api.get("/openapi.json").status_code == 200
 
 
@@ -327,7 +328,8 @@ def test_ready_with_chat_enabled_does_not_probe_neo4j() -> None:
     )
     service = KnowledgeChatService(_HangingRetriever(), FakeAnswerer(), None, "test-secret")
     api = TestClient(create_app(FakeRepository(), settings, service))
-    assert api.get("/health/ready").status_code == 200
+    with api:
+        assert api.get("/health/ready").status_code == 200
 
 
 def test_scores_geometry_detail_and_csv() -> None:
@@ -478,16 +480,19 @@ def test_county_pdf_export_has_safe_headers_and_provenance() -> None:
     assert response.headers["content-type"].startswith("application/pdf")
     assert response.content.startswith(b"%PDF-")
     assert response.headers["content-disposition"] == (
-        'attachment; filename="lyme-gap-atlas-co-adams-08001-alpha-2026-08-06.pdf"'
+        'attachment; filename="Adams_CO_AtlasBrief.pdf"'
     )
     assert response.headers["cache-control"] == "public, max-age=300, must-revalidate"
     assert response.headers["etag"]
-    assert renderer.calls[0][1] == "county-v1"
+    assert renderer.calls[0][1] == "county-v3"
+    assert renderer.calls[0][0].brief is not None
+    assert renderer.calls[0][0].brief.response_title
     report = renderer.calls[0][0]
     assert report.geography.identifier == "08001"
     assert report.provenance.dataset_version == "alpha-2026-08-06"
     assert report.provenance.methodology_version == "alpha-0.2.0"
-    assert report.provenance.limitations == "Not individual risk."
+    assert report.provenance.limitations.endswith("Not individual risk.")
+    assert "Surveillance Gap Score v1.1; smooth k=50" in report.provenance.limitations
 
 
 def test_pdf_cache_uses_all_report_inputs_and_honors_etag() -> None:
@@ -503,7 +508,8 @@ def test_pdf_cache_uses_all_report_inputs_and_honors_etag() -> None:
     )
 
     assert cached.content == first.content
-    assert len(renderer.calls) == 3
+    assert changed_settings.content == first.content
+    assert len(renderer.calls) == 2
     assert changed_settings.status_code == 200
     assert changed_geography.status_code == 200
     assert not_modified.status_code == 304
@@ -953,7 +959,9 @@ def test_chat_rejects_invented_citations_after_one_repair() -> None:
     response = TestClient(create_app(FakeRepository(), settings, service)).post(
         "/v1/knowledge-graph/chat", json={"message": "Invent a citation"}
     )
-    assert response.status_code == 503
+    # Typed outcomes are 200: the DigitalOcean edge rewrites an origin 503 into a 504 page.
+    assert response.status_code == 200
+    assert response.headers["retry-after"] == "30"
     assert response.json()["status"] == "evidence_unavailable"
     assert answerer.calls == 2
 

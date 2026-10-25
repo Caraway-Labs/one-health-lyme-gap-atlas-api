@@ -55,6 +55,73 @@ FIELDS = (
 COLUMNS = ",".join("TO_JSON(value) AS value_json" if k == "value_json" else k for k in FIELDS)
 
 
+def _view_column_list(alias: str) -> str:
+    return ",".join(
+        f"TO_JSON({alias}.value) AS value_json"
+        if key == "value_json"
+        else f"{alias}.{key}"
+        for key in FIELDS
+    )
+
+
+def _batch_observation_select(alias: str) -> str:
+    """Observation columns for the batch read (same projection as ``COLUMNS``)."""
+    return _view_column_list(alias)
+
+
+def context_query_with_release(
+    view: str, release_schema: str, query: ObservationQuery, offset: int
+) -> tuple[str, tuple[Any, ...]]:
+    """One round-trip: governed release pointer plus optional context observation rows."""
+    if query.measure_id not in CONTEXT_FIELDS:
+        raise AtlasDataUnavailableError("Unsupported county context measure")
+    fips = sorted(query.geography_id)
+    identities = ",".join(["%s"] * len(CONTEXT_FIELDS))
+    counties = ",".join(["%s"] * len(fips))
+    observation_cols = _batch_observation_select("v")
+    statement = (
+        "WITH release_rows AS ("
+        f"SELECT RELEASE_ID FROM {release_schema}.CURRENT_RELEASE_V LIMIT 2"
+        ") "
+        f"SELECT rel.RELEASE_ID,{observation_cols} "
+        "FROM release_rows rel "
+        f"LEFT JOIN {view} v ON v.release_version=rel.RELEASE_ID "
+        f"AND v.measure_id IN ({identities}) AND v.measure_id=%s "
+        f"AND v.county_fips IN ({counties}) "
+        "AND v.context_contract_version=%s AND v.vintage_year=%s "
+        "WHERE (SELECT COUNT(*) FROM release_rows)=1 "
+        "ORDER BY v.measure_id,v.county_fips,v.observation_id "
+        "LIMIT %s OFFSET %s"
+    )
+    params: tuple[Any, ...] = (
+        *CONTEXT_FIELDS,
+        query.measure_id,
+        *fips,
+        CONTEXT_CONTRACT,
+        query.vintage_year,
+        query.page_size + 1,
+        offset,
+    )
+    return statement, params
+
+
+def parse_context_batch_rows(
+    rows: list[tuple[Any, ...]],
+) -> tuple[str, list[tuple[Any, ...]]]:
+    if not rows:
+        raise AtlasDataUnavailableError("No current governed release")
+    release_id = rows[0][0]
+    if not isinstance(release_id, str) or not release_id.strip():
+        raise AtlasDataUnavailableError("No current governed release")
+    if any(row[0] != release_id for row in rows):
+        raise AtlasDataUnavailableError("No current governed release")
+    observations: list[tuple[Any, ...]] = []
+    for row in rows:
+        if row[1] is not None:
+            observations.append(row[1:])
+    return release_id, observations
+
+
 def context_query(
     view: str, query: ObservationQuery, release: str, offset: int
 ) -> tuple[str, tuple[Any, ...]]:

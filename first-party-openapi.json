@@ -1510,7 +1510,7 @@
           "geographies"
         ],
         "summary": "Get geography identity (delivery pending)",
-        "description": "Validated county/state FIPS identity; currently returns 503 CANONICAL_DATA_UNAVAILABLE. No geometry is returned.",
+        "description": "Validated county/state FIPS identity. While canonical identity delivery is unpublished the response is HTTP 200 with availability UNAVAILABLE, reason CANONICAL_GEOGRAPHY_UNPUBLISHED and data null; the identity is validated for shape only. No geometry is returned. Responses use Cache-Control: no-store.",
         "operationId": "geography_v1_geographies__geography_type___geography_id__get",
         "parameters": [
           {
@@ -1533,11 +1533,19 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful current-release resource.",
+            "description": "Typed answer. While canonical geography identity delivery is unpublished this is availability UNAVAILABLE with data null (HTTP 200, not 5xx, because the hosting edge replaces origin 5xx responses with an HTML 504).",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResourceEnvelope_Geography_"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ResourceEnvelope_Geography_"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GeographyUnavailable"
+                    }
+                  ],
+                  "title": "Response Geography V1 Geographies  Geography Type   Geography Id  Get"
                 }
               }
             }
@@ -1666,38 +1674,6 @@
                       "code": "INVALID_REQUEST"
                     }
                   }
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Canonical data delivery is not yet available.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "examples": {
-                  "illustrative": {
-                    "summary": "Synthetic error example",
-                    "value": {
-                      "type": "https://onehealthatlas.org/problems/http-503",
-                      "title": "Request failed",
-                      "status": 503,
-                      "detail": "Canonical data delivery is not yet available.",
-                      "instance": "/v1/geographies/{geography_type}/{geography_id}",
-                      "request_id": "example-request-id",
-                      "code": "CANONICAL_DATA_UNAVAILABLE"
-                    }
-                  }
-                }
-              }
-            },
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds before retry when supplied by the service.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -3213,11 +3189,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "type": "object",
-                  "title": "Response Ready Health Ready Get"
+                  "$ref": "#/components/schemas/ReadinessResponse"
                 }
               }
             }
@@ -4227,15 +4199,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -4250,6 +4222,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -4375,6 +4361,151 @@
         }
       }
     },
+    "/v1/atlas/map-values": {
+      "get": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "Get national map layer values by county",
+        "description": "Published incidence floor, social vulnerability percentile, uninsured percent, and rural-urban continuum code for every county in the current snapshot. Optional dataset_version selects an existing release. Public cache TTL 300 seconds with informational ETag; no conditional 304.",
+        "operationId": "map_values_v1_atlas_map_values_get",
+        "parameters": [
+          {
+            "name": "dataset_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "title": "Dataset Version",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapValuesCollection"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "County or dataset release not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-404",
+                      "title": "Request failed",
+                      "status": 404,
+                      "detail": "County or dataset release not found.",
+                      "instance": "/v1/atlas/map-values",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more request values are invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-422",
+                      "title": "Request failed",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/atlas/map-values",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-429",
+                      "title": "Request failed",
+                      "status": 429,
+                      "detail": "Rate limit exceeded.",
+                      "instance": "/v1/atlas/map-values",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Atlas data service is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-503",
+                      "title": "Request failed",
+                      "status": 503,
+                      "detail": "Atlas data service is unavailable.",
+                      "instance": "/v1/atlas/map-values",
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/counties/{fips}": {
       "get": {
         "tags": [
@@ -4420,15 +4551,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -4443,6 +4574,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -4549,6 +4694,179 @@
                       "status": 503,
                       "detail": "Atlas data service is unavailable.",
                       "instance": "/v1/counties/{fips}",
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/counties/{fips}/surveillance-situations": {
+      "get": {
+        "tags": [
+          "counties"
+        ],
+        "summary": "Get both persisted county surveillance-situation classifications",
+        "description": "Primary four_state includes human surveillance; secondary tick_pathogen excludes it. Returns reviewed labels, four membership probabilities per model (0-1, sum 1 within 1e-6), immutable model/batch lineage, source vintages and interpretation limits. Unknown is an available class; No records does not establish absence. Membership is not disease risk, incidence, pathogen presence, causation or Tier 1 priority. HTTP 200 can contain typed UNAVAILABLE variants with null data, including an incompatible release. Unknown county 404; malformed FIPS 422; dependency, malformed persisted data or changing release 503. Cache-Control: no-store; no fallback or inference.",
+        "operationId": "county_surveillance_situations_get",
+        "parameters": [
+          {
+            "name": "fips",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{5}$",
+              "title": "Fips"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Both model variants, including explicit publication availability.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountySurveillanceSituations"
+                },
+                "examples": {
+                  "unpublished": {
+                    "summary": "Illustrative unpublished batch; never Unknown",
+                    "value": {
+                      "county_fips": "01001",
+                      "release_id": "example-release",
+                      "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "four_state": {
+                        "model_id": "surveillance-situation-four-state",
+                        "availability": "UNAVAILABLE",
+                        "unavailable_reason": "NOT_PUBLISHED",
+                        "compatibility": "UNAVAILABLE",
+                        "batch_id": null,
+                        "batch_version": null,
+                        "input_release_id": null,
+                        "data": null
+                      },
+                      "tick_pathogen": {
+                        "model_id": "surveillance-situation-tick-pathogen",
+                        "availability": "UNAVAILABLE",
+                        "unavailable_reason": "NOT_PUBLISHED",
+                        "compatibility": "UNAVAILABLE",
+                        "batch_id": null,
+                        "batch_version": null,
+                        "input_release_id": null,
+                        "data": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "County or dataset release not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-404",
+                      "title": "Request failed",
+                      "status": 404,
+                      "detail": "County or dataset release not found.",
+                      "instance": "/v1/counties/{fips}/surveillance-situations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more request values are invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-422",
+                      "title": "Request failed",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/counties/{fips}/surveillance-situations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-429",
+                      "title": "Request failed",
+                      "status": 429,
+                      "detail": "Rate limit exceeded.",
+                      "instance": "/v1/counties/{fips}/surveillance-situations",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Atlas data service is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-503",
+                      "title": "Request failed",
+                      "status": 503,
+                      "detail": "Atlas data service is unavailable.",
+                      "instance": "/v1/counties/{fips}/surveillance-situations",
                       "request_id": "example-request-id",
                       "code": "SERVICE_UNAVAILABLE"
                     }
@@ -4861,7 +5179,7 @@
           "counties"
         ],
         "summary": "Download a county report",
-        "description": "PDF attachment using the immutable county-v1 registered template by default. Optional dataset_version and score settings bind report inputs. Opt-in county-v2 requires dataset_version, period_start, period_end and repeated measure_id (1\u201320, repeated or comma-separated); reads canonical evidence, lineage, value states and limitations. Missing or mismatched provenance returns 503; unknown observations return 404. V1 rejects observation selectors with 422. V2 responses use no-store and revalidate authoritative context before cache/304. ETag/If-None-Match supports 304; V1 public cache TTL 300 seconds with revalidation. Unknown templates return 422; resource limits 413; renderer failure/timeout 503.",
+        "description": "PDF attachment. The default template is county-v3, the two-page County Data Brief for the published gap score and Explorer follow-up. county-v3 ignores score-setting overrides, so a What-if request cannot change the published score, response category, recommendations, or questions. Explicit county-v1 remains the immutable legacy county report and still binds score settings. Optional dataset_version selects a release. Opt-in county-v2 requires dataset_version, period_start, period_end and repeated measure_id (1\u201320, repeated or comma-separated); reads canonical evidence, lineage, value states and limitations. Missing or mismatched provenance returns 503; unknown observations return 404. county-v1 and county-v3 reject observation selectors with 422. V2 responses use no-store and revalidate authoritative context before cache/304. ETag/If-None-Match supports 304; published briefs use public cache TTL 300 seconds with revalidation. Unknown templates return 422; resource limits 413; renderer failure/timeout 503.",
         "operationId": "county_report_pdf_v1_counties__fips__report_pdf_get",
         "parameters": [
           {
@@ -4941,7 +5259,7 @@
             "schema": {
               "type": "string",
               "pattern": "^[a-z]+-v\\d+$",
-              "default": "county-v1",
+              "default": "county-v3",
               "title": "Template"
             }
           },
@@ -4959,15 +5277,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -4982,6 +5300,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -5214,15 +5546,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -5237,6 +5569,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -5450,15 +5796,15 @@
             }
           },
           {
-            "name": "low_incidence_breakpoint",
+            "name": "smooth_k",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 25,
+              "maximum": 200,
               "minimum": 5,
-              "default": 10,
-              "title": "Low Incidence Breakpoint"
+              "default": 50,
+              "title": "Smooth K"
             }
           },
           {
@@ -5473,6 +5819,20 @@
               "default": 75,
               "title": "Missing Human Weakness"
             }
+          },
+          {
+            "name": "low_incidence_breakpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "deprecated": true,
+              "title": "Low Incidence Breakpoint",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "deprecated": true
           }
         ],
         "responses": {
@@ -5843,7 +6203,14 @@
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Typed outcome. `status` is answered, no_evidence, safety_refusal, evidence_unavailable or capacity_limited. Retryable outcomes also carry Retry-After. They are not 5xx because the DigitalOcean edge replaces an origin 503 with its own 504 page and drops this body.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5858,23 +6225,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnowledgeChatResponse"
                 }
               }
             }
@@ -6014,6 +6364,12 @@
       },
       "AtlasMetadata": {
         "properties": {
+          "scoring_methodology_version": {
+            "type": "string",
+            "const": "surveillance-gap-score-v1.1",
+            "title": "Scoring Methodology Version",
+            "default": "surveillance-gap-score-v1.1"
+          },
           "release_id": {
             "type": "string",
             "title": "Release Id"
@@ -6836,6 +7192,40 @@
       },
       "CountyDetail": {
         "properties": {
+          "scoring_methodology_version": {
+            "type": "string",
+            "const": "surveillance-gap-score-v1.1",
+            "title": "Scoring Methodology Version",
+            "default": "surveillance-gap-score-v1.1"
+          },
+          "incidence_floor_2023": {
+            "title": "Incidence Floor 2023",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "svi_percentile": {
+            "title": "Svi Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "uninsured_percentile": {
+            "title": "Uninsured Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "rucc_2023": {
+            "title": "Rucc 2023",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "fips": {
             "type": "string",
             "title": "Fips"
@@ -6897,13 +7287,6 @@
               "null"
             ]
           },
-          "incidence_floor_2023": {
-            "title": "Incidence Floor 2023",
-            "type": [
-              "number",
-              "null"
-            ]
-          },
           "state_unallocated_records_2023": {
             "title": "State Unallocated Records 2023",
             "type": [
@@ -6925,15 +7308,63 @@
               "null"
             ]
           },
-          "svi_percentile": {
-            "title": "Svi Percentile",
+          "uninsured_percent": {
+            "title": "Uninsured Percent",
             "type": [
               "number",
               "null"
             ]
           },
-          "uninsured_percentile": {
-            "title": "Uninsured Percentile",
+          "release": {
+            "$ref": "#/components/schemas/AtlasMetadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "incidence_floor_2023",
+          "svi_percentile",
+          "uninsured_percentile",
+          "rucc_2023",
+          "fips",
+          "county",
+          "state",
+          "state_name",
+          "in_contiguous_tick_scope",
+          "human_status",
+          "tick_status",
+          "burgdorferi_status",
+          "evidence_completeness",
+          "score",
+          "priority",
+          "color",
+          "population",
+          "case_count_floor_2023",
+          "state_unallocated_records_2023",
+          "scapularis_status",
+          "pacificus_status",
+          "uninsured_percent",
+          "release"
+        ],
+        "title": "CountyDetail"
+      },
+      "CountyMapValues": {
+        "properties": {
+          "fips": {
+            "type": "string",
+            "pattern": "^\\d{5}$",
+            "title": "Fips"
+          },
+          "incidence_floor_2023": {
+            "title": "Incidence Floor 2023",
+            "description": "Published 2023 minimum reported incidence per 100,000; null is not zero.",
+            "minimum": 0.0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "svi_percentile": {
+            "title": "Svi Percentile",
             "type": [
               "number",
               "null"
@@ -6952,41 +7383,52 @@
               "integer",
               "null"
             ]
-          },
-          "release": {
-            "$ref": "#/components/schemas/AtlasMetadata"
           }
         },
         "type": "object",
         "required": [
-          "fips",
-          "county",
-          "state",
-          "state_name",
-          "in_contiguous_tick_scope",
-          "human_status",
-          "tick_status",
-          "burgdorferi_status",
-          "evidence_completeness",
-          "score",
-          "priority",
-          "color",
-          "population",
-          "case_count_floor_2023",
-          "incidence_floor_2023",
-          "state_unallocated_records_2023",
-          "scapularis_status",
-          "pacificus_status",
-          "svi_percentile",
-          "uninsured_percentile",
-          "uninsured_percent",
-          "rucc_2023",
-          "release"
+          "fips"
         ],
-        "title": "CountyDetail"
+        "title": "CountyMapValues"
       },
       "CountyScoreSummary": {
         "properties": {
+          "scoring_methodology_version": {
+            "type": "string",
+            "const": "surveillance-gap-score-v1.1",
+            "title": "Scoring Methodology Version",
+            "default": "surveillance-gap-score-v1.1"
+          },
+          "incidence_floor_2023": {
+            "title": "Incidence Floor 2023",
+            "description": "Published 2023 minimum reported incidence per 100,000; null is not zero.",
+            "minimum": 0.0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "svi_percentile": {
+            "title": "Svi Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "uninsured_percentile": {
+            "title": "Uninsured Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "rucc_2023": {
+            "title": "Rucc 2023",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "fips": {
             "type": "string",
             "title": "Fips"
@@ -7051,6 +7493,44 @@
           "color"
         ],
         "title": "CountyScoreSummary"
+      },
+      "CountySurveillanceSituations": {
+        "properties": {
+          "county_fips": {
+            "type": "string",
+            "pattern": "^[0-9]{5}$",
+            "title": "County Fips"
+          },
+          "release_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Release Id",
+            "description": "Active governed presentation release."
+          },
+          "bundle_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Bundle Sha256"
+          },
+          "four_state": {
+            "$ref": "#/components/schemas/SituationVariant",
+            "description": "Primary model, including human surveillance."
+          },
+          "tick_pathogen": {
+            "$ref": "#/components/schemas/SituationVariant",
+            "description": "Secondary model, excluding human surveillance."
+          }
+        },
+        "type": "object",
+        "required": [
+          "county_fips",
+          "release_id",
+          "bundle_sha256",
+          "four_state",
+          "tick_pathogen"
+        ],
+        "title": "CountySurveillanceSituations",
+        "description": "Two distinct model outputs; Unknown is a valid available classification."
       },
       "Coverage": {
         "properties": {
@@ -7693,6 +8173,15 @@
               "null"
             ]
           },
+          "smooth_k": {
+            "title": "Smooth K",
+            "maximum": 200.0,
+            "minimum": 5.0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "missing_human_weakness": {
             "title": "Missing Human Weakness",
             "multipleOf": 5.0,
@@ -7941,6 +8430,48 @@
           "state"
         ],
         "title": "GeographyType"
+      },
+      "GeographyUnavailable": {
+        "properties": {
+          "availability": {
+            "type": "string",
+            "const": "UNAVAILABLE",
+            "title": "Availability"
+          },
+          "reason": {
+            "type": "string",
+            "const": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+            "title": "Reason"
+          },
+          "data": {
+            "type": "null",
+            "title": "Data",
+            "description": "No canonical geography resource or geometry is fabricated."
+          },
+          "geography": {
+            "$ref": "#/components/schemas/GeographyIdentity",
+            "description": "The validated identity that was requested, echoed back."
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Limitations",
+            "description": "Publication and representation boundaries, not scientific absence."
+          }
+        },
+        "type": "object",
+        "required": [
+          "availability",
+          "reason",
+          "data",
+          "geography",
+          "limitations"
+        ],
+        "title": "GeographyUnavailable",
+        "description": "Typed, successful answer that canonical geography identity is not published yet.\n\nReturned with HTTP 200 by the legacy identity route (ADR 0021). It carries no release\nbecause answering must stay instant and independent of the governed directory."
       },
       "HTTPValidationError": {
         "properties": {
@@ -8836,6 +9367,27 @@
         ],
         "title": "KnowledgeClaim"
       },
+      "MapValuesCollection": {
+        "properties": {
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "counties": {
+            "items": {
+              "$ref": "#/components/schemas/CountyMapValues"
+            },
+            "type": "array",
+            "title": "Counties"
+          }
+        },
+        "type": "object",
+        "required": [
+          "release_id",
+          "counties"
+        ],
+        "title": "MapValuesCollection"
+      },
       "Measure": {
         "properties": {
           "measure_id": {
@@ -9006,6 +9558,29 @@
           "semantic_version"
         ],
         "title": "Measure"
+      },
+      "MembershipProbability": {
+        "properties": {
+          "class_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Id",
+            "description": "Version-scoped persisted class identity."
+          },
+          "probability": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Probability",
+            "description": "Latent-class membership on 0\u20131 scale; never disease risk."
+          }
+        },
+        "type": "object",
+        "required": [
+          "class_id",
+          "probability"
+        ],
+        "title": "MembershipProbability"
       },
       "MetadataFeed": {
         "properties": {
@@ -10092,6 +10667,41 @@
         ],
         "title": "PublisherMetadata"
       },
+      "ReadinessDependencies": {
+        "properties": {
+          "snowflake": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Snowflake"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snowflake"
+        ],
+        "title": "ReadinessDependencies"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ready",
+            "title": "Status",
+            "default": "ready"
+          },
+          "dependencies": {
+            "$ref": "#/components/schemas/ReadinessDependencies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dependencies"
+        ],
+        "title": "ReadinessResponse"
+      },
       "Replay": {
         "properties": {
           "provider_id": {
@@ -10328,6 +10938,12 @@
       },
       "ScoreCollection": {
         "properties": {
+          "scoring_methodology_version": {
+            "type": "string",
+            "const": "surveillance-gap-score-v1.1",
+            "title": "Scoring Methodology Version",
+            "default": "surveillance-gap-score-v1.1"
+          },
           "release_id": {
             "type": "string",
             "title": "Release Id"
@@ -10359,6 +10975,242 @@
           "counties"
         ],
         "title": "ScoreCollection"
+      },
+      "SituationClassification": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Model Id"
+          },
+          "model_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Model Version"
+          },
+          "class_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Id"
+          },
+          "class_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Name",
+            "description": "Reviewed persisted display label, verbatim."
+          },
+          "class_description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Description",
+            "description": "Reviewed persisted explanation, verbatim."
+          },
+          "probabilities": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipProbability"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Probabilities"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Limitations",
+            "description": "Persisted must_not_be_read_as list: prohibited interpretations, not outcomes."
+          },
+          "batch_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Batch Id"
+          },
+          "batch_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Batch Version"
+          },
+          "county_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "County Sha256"
+          },
+          "dictionary_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dictionary Sha256"
+          },
+          "input_release_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Input Release Id"
+          },
+          "input_bundle_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Input Bundle Sha256"
+          },
+          "fit_git_sha": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Fit Git Sha"
+          },
+          "feature_contract": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Feature Contract",
+            "description": "Persisted feature/config contract."
+          },
+          "model_provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Model Provenance"
+          },
+          "source_provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Source Provenance",
+            "description": "Persisted sources and source vintages."
+          },
+          "handoff_approval": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Handoff Approval"
+          },
+          "data_publication_authorization": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data Publication Authorization"
+          },
+          "data_authorization_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Data Authorization Id"
+          },
+          "staging_attempt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Staging Attempt"
+          },
+          "activated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Activated At",
+            "description": "Data activation time, not source vintage or request time."
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "model_version",
+          "class_id",
+          "class_name",
+          "class_description",
+          "probabilities",
+          "limitations",
+          "batch_id",
+          "batch_version",
+          "county_sha256",
+          "dictionary_sha256",
+          "input_release_id",
+          "input_bundle_sha256",
+          "fit_git_sha",
+          "feature_contract",
+          "model_provenance",
+          "source_provenance",
+          "handoff_approval",
+          "data_publication_authorization",
+          "data_authorization_id",
+          "staging_attempt",
+          "activated_at"
+        ],
+        "title": "SituationClassification"
+      },
+      "SituationVariant": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ],
+            "title": "Availability"
+          },
+          "unavailable_reason": {
+            "title": "Unavailable Reason",
+            "enum": [
+              "DEACTIVATED",
+              "NOT_PUBLISHED",
+              "UNAPPROVED_BATCH",
+              "INCOMPATIBLE_RELEASE",
+              "MISSING_ASSIGNMENT",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compatibility": {
+            "type": "string",
+            "enum": [
+              "EXACT_INPUT",
+              "ADMITTED_CARRY_FORWARD",
+              "UNAVAILABLE"
+            ],
+            "title": "Compatibility"
+          },
+          "batch_id": {
+            "title": "Batch Id",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "batch_version": {
+            "title": "Batch Version",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "input_release_id": {
+            "title": "Input Release Id",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SituationClassification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "availability",
+          "unavailable_reason",
+          "compatibility",
+          "batch_id",
+          "batch_version",
+          "input_release_id",
+          "data"
+        ],
+        "title": "SituationVariant"
       },
       "Source": {
         "properties": {
@@ -12016,7 +12868,7 @@
     },
     {
       "name": "geographies",
-      "description": "Typed geography identity; delivery is not yet available."
+      "description": "Typed geography identity; canonical delivery pending (200 UNAVAILABLE)."
     },
     {
       "name": "atlas",

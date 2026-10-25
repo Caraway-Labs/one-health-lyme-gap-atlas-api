@@ -303,6 +303,24 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                     0, (time.perf_counter() - climate_timing.finished) * 1000
                 ),
             }
+        tier1_timing = getattr(request.state, "tier1_timing", None)
+        tier1_bounds = {}
+        if tier1_timing is not None and tier1_timing.finished is not None:
+            tier1_bounds = {
+                "tier1_before_service_ms": max(0, (tier1_timing.started - started_at) * 1000),
+                "tier1_after_service_ms": max(
+                    0, (time.perf_counter() - tier1_timing.finished) * 1000
+                ),
+            }
+        context_timing = getattr(request.state, "context_timing", None)
+        context_bounds = {}
+        if context_timing is not None and context_timing.finished is not None:
+            context_bounds = {
+                "context_before_service_ms": max(0, (context_timing.started - started_at) * 1000),
+                "context_after_service_ms": max(
+                    0, (time.perf_counter() - context_timing.finished) * 1000
+                ),
+            }
         emit_completion(
             logger,
             "api_request_completed",
@@ -310,11 +328,25 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 **self._cdc_context(request, started_at),
                 "request_id": request_id,
                 **climate_bounds,
+                **tier1_bounds,
+                **context_bounds,
                 "climate_timing_ms": getattr(
                     getattr(request.state, "climate_timing", None), "durations", {}
                 ),
                 "climate_operation_counts": getattr(
                     getattr(request.state, "climate_timing", None), "counts", {}
+                ),
+                "tier1_timing_ms": getattr(
+                    getattr(request.state, "tier1_timing", None), "durations", {}
+                ),
+                "tier1_operation_counts": getattr(
+                    getattr(request.state, "tier1_timing", None), "counts", {}
+                ),
+                "context_timing_ms": getattr(
+                    getattr(request.state, "context_timing", None), "durations", {}
+                ),
+                "context_operation_counts": getattr(
+                    getattr(request.state, "context_timing", None), "counts", {}
                 ),
                 **dimensions,
                 "duration_ms": round((time.perf_counter() - started_at) * 1000),

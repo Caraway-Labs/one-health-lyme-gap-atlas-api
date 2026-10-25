@@ -60,11 +60,16 @@ Typst rendering, ETags, cache TTL, Snowflake SQL and connection settings are
 runtime policies. Similar-looking validation or DTO fields alone do not
 justify extraction to shared-python.
 
-The current API imports legacy shared `settings.SnowflakeSettings` and
-`snowflake.connect` in `config.py`, `repository.py`, `feedback.py` and
-`knowledge_chat.py`. The shared 1.0.0 package retains these shims behind its
-`snowflake` extra. API-owned settings/connectivity migration is separate debt;
-moving SQL or credentials to shared-python would reverse the accepted boundary.
+Snowflake connection construction is API-owned in
+`snowflake_connection.py` (key-pair/PAT parameters, timeouts, query tag, cached
+parsed private key, monitor path). `dependency_telemetry.connect` is the single
+instrumented entry point. Connection use rules (read pool, write pool, exceptions)
+are in [the connection standard](snowflake-connection-standard.md). Remaining debt:
+the API still imports `SnowflakeSettings` from shared `settings` (settings ownership is
+separate debt), and the data repository still imports the shared connector, which this
+API no longer uses. A test forbids importing the
+shared `snowflake` connection modules from `src/`. Moving SQL or credentials to
+shared-python would reverse the accepted boundary.
 
 ## Prioritized migration map
 

@@ -59,7 +59,7 @@ retains the original generation timestamp. PDF error responses are no-store.
 
 ## Compatibility and Web handoff
 
-Default `county-v1`, explicit `county-v1`, state-v1, existing operation IDs,
+The default county download is now `county-v3`. Explicit `county-v1`, state-v1, existing operation IDs,
 score selectors and legacy attachment/cache behavior remain supported. V1 rejects
 observation selectors rather than implying that it honored them. No public
 Observation schema change is needed. Both OpenAPI artifacts add the three

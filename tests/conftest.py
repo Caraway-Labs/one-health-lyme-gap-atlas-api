@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from typing import Any
 
 import pytest
 
@@ -45,3 +46,27 @@ def real_typst_binary(request: pytest.FixtureRequest) -> str:
             pytest.fail("Production Typst binary is required but unavailable on PATH.")
         pytest.skip("Production Typst binary unavailable")
     return binary
+
+
+@pytest.fixture(autouse=True)
+def _stub_session_baseline(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pool-creation baseline needs a cursor that answers the identity query.
+
+    Most suites fake connections for other behavior, so the pool's baseline step is a
+    no-op for them. Modules proving the baseline itself set ``REAL_SESSION_BASELINE = True``
+    (test_snowflake_read_session, test_cdc_request_session).
+    """
+    if getattr(request.module, "REAL_SESSION_BASELINE", False):
+        return
+    monkeypatch.setattr("lyme_gap_atlas_api.snowflake_read_session.apply_baseline", lambda *_: None)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_write_session_pool(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Isolate the process-wide write pool so fake connections never leak across tests."""
+    from lyme_gap_atlas_api import snowflake_write_session
+
+    pool = snowflake_write_session.WriteSessionPool()
+    monkeypatch.setattr(snowflake_write_session, "_POOL", pool)
+    yield pool
+    pool.close_all()

@@ -1,0 +1,2 @@
+content-type: application/pdf
+content-disposition: attachment; filename="Los_Angeles_CA_AtlasBrief.pdf"

@@ -57,6 +57,14 @@ publisher's literal `No records`; it never establishes absence. Optional
 CDC requests use `start_date=end_date=2025-12-31`, cumulative rather than annual
 grain. Unknown/unavailable remain distinct. See [ADR 0017](adr/0017-cdc-consumer-observations.md).
 
+## Latent-class county surveillance situations (API #253)
+
+The additive `GET /v1/counties/{fips}/surveillance-situations` returns both
+approved persisted model variants, complete membership vectors, immutable
+lineage and explicit publication availability. Unknown remains an available
+class. See [the surveillance situations contract](county-surveillance-situations.md)
+for bounds, errors, no-store freshness and scientific interpretation.
+
 ## Tier 1 county surveillance review priority (API #10)
 
 `GET /v1/counties/{fips}/tier1-surveillance-priority` returns the persisted
@@ -339,8 +347,9 @@ history and App Platform CPU/memory alerts supply backend pressure evidence.
 Public errors use RFC 9457 `application/problem+json` with stable `code`:
 `INVALID_REQUEST`, `RESOURCE_NOT_FOUND`, `UNSUPPORTED_FILTER`,
 `UNSUPPORTED_STRATIFICATION`, `QUERY_TOO_BROAD`, or `SERVICE_UNAVAILABLE`.
-`CANONICAL_DATA_UNAVAILABLE` remains the more specific code for pending
-canonical geography delivery. A stable application error body does not imply
+Pending canonical geography identity delivery is no longer an error: the identity
+route returns HTTP 200 with `availability: UNAVAILABLE`, `reason:
+CANONICAL_GEOGRAPHY_UNPUBLISHED` and `data: null` ([ADR 0021](adr/0021-geography-identity-typed-unavailable.md)). A stable application error body does not imply
 that a hosting provider's ingress preserves origin 5xx responses; verify that
 separately through each public hostname.
 The first four client errors require the appropriate downstream service to

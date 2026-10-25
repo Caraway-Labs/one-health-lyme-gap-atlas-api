@@ -39,7 +39,7 @@ def test_liveness_survives_critical_dependency_failure(outcome: bool | Exception
         live = api.get("/health/live")
         assert live.status_code == 200
         assert live.json() == {"status": "ok"}
-        assert repository.probes == 0
+        assert repository.probes == 1
         ready = api.get("/health/ready")
         assert ready.status_code == 503
         assert ready.json()["detail"] == "A required data service is unavailable"
@@ -64,7 +64,7 @@ def test_optional_accounts_and_features_do_not_gate_public_readiness() -> None:
         assert api.get("/v1/me/profile").status_code == 503
         ready = api.get("/health/ready")
         assert ready.status_code == 200
-        assert ready.json() == {"status": "ready"}
+        assert ready.json() == {"status": "ready", "dependencies": {"snowflake": "ok"}}
         assert repository.probes == 1
 
 
@@ -76,7 +76,7 @@ def test_unsafe_feedback_topology_is_unready_but_live(
     repository = ProbeRepository()
     with TestClient(create_app(repository, ApiSettings())) as api:
         assert api.get("/health/ready").status_code == 503
-        assert repository.probes == 0
+        assert repository.probes == 1
         assert api.get("/health/live").status_code == 200
 
 
@@ -95,5 +95,8 @@ def test_exporter_initialization_failure_does_not_gate_health(
     repository = ProbeRepository()
     with TestClient(create_app(repository, ApiSettings())) as api:
         assert api.get("/health/live").status_code == 200
-        assert api.get("/health/ready").json() == {"status": "ready"}
+        assert api.get("/health/ready").json() == {
+            "status": "ready",
+            "dependencies": {"snowflake": "ok"},
+        }
         assert repository.probes == 1

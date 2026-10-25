@@ -6,6 +6,7 @@ import json
 import logging
 from typing import Any
 
+import anyio
 import pytest
 
 from lyme_gap_atlas_api.knowledge_chat import (
@@ -68,7 +69,7 @@ class Answerer:
         self.results = results
         self.clock = clock
         self.elapsed = elapsed
-        self.calls: list[tuple[float, bool]] = []
+        self.calls: list[tuple[float, bool | str]] = []
 
     def answer(
         self,
@@ -77,7 +78,7 @@ class Answerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, Any]:
         self.calls.append((timeout_seconds, correction))
         self.clock.now += self.elapsed
@@ -96,7 +97,7 @@ class Store:
         return True
 
     def reserve(self, request_id: str) -> bool:
-        return True
+        raise AssertionError("Spending approval must not be called")
 
     def persist(self, **kwargs: Any) -> None:
         self.persist_calls += 1
@@ -153,7 +154,7 @@ def test_grounding_failure_gets_one_corrective_retry() -> None:
     response, answerer = run([invalid, valid_payload()])
     assert response.status == "answered"
     assert response.citations[0].pmid == "12345678"
-    assert [correction for _, correction in answerer.calls] == [False, True]
+    assert [bool(correction) for _, correction in answerer.calls] == [False, True]
 
 
 def test_repeated_grounding_failure_has_no_third_call() -> None:
@@ -179,10 +180,6 @@ def test_measured_prework_allows_longer_generation_with_persistence_reserve() ->
             super().__init__()
             self.clock = clock
 
-        def reserve(self, request_id: str) -> bool:
-            self.clock.now += 7
-            return True
-
         def persist(self, **kwargs: Any) -> None:
             self.clock.now += 4
             super().persist(**kwargs)
@@ -190,7 +187,12 @@ def test_measured_prework_allows_longer_generation_with_persistence_reserve() ->
     clock = Clock()
     answerer = Answerer([valid_payload()], clock, elapsed=12)
     store = TimedStore(clock)
-    service = KnowledgeChatService(Retriever(), answerer, store, "test-secret", clock=clock)
+    class TimedRetriever(Retriever):
+        def search(self, message: str, request_id: str) -> list[Evidence]:
+            clock.now += 7
+            return super().search(message, request_id)
+
+    service = KnowledgeChatService(TimedRetriever(), answerer, store, "test-secret", clock=clock)
     response = service.chat(
         KnowledgeChatRequest(message="What did the study find?"), "req-budget", "network"
     )
@@ -201,19 +203,16 @@ def test_measured_prework_allows_longer_generation_with_persistence_reserve() ->
 
 
 def test_generation_cap_shrinks_to_preserve_post_generation_work() -> None:
-    class TimedStore(Store):
-        def __init__(self, clock: Clock) -> None:
-            super().__init__()
-            self.clock = clock
-
-        def reserve(self, request_id: str) -> bool:
-            self.clock.now += 16
-            return True
-
     clock = Clock()
+
+    class TimedRetriever(Retriever):
+        def search(self, message: str, request_id: str) -> list[Evidence]:
+            clock.now += 16
+            return super().search(message, request_id)
+
     answerer = Answerer([valid_payload()], clock)
     service = KnowledgeChatService(
-        Retriever(), answerer, TimedStore(clock), "test-secret", clock=clock
+        TimedRetriever(), answerer, Store(), "test-secret", clock=clock
     )
     response = service.chat(
         KnowledgeChatRequest(message="What did the study find?"), "req-tight", "network"
@@ -239,12 +238,12 @@ def test_request_scoped_timing_is_structured_and_private(caplog: Any) -> None:
     contexts = [record.context for record in caplog.records if record.msg == "knowledge_chat_stage"]
     assert {item["stage"] for item in contexts} >= {
         "safety_classification",
-        "budget_reservation",
         "answer_generation_attempt_1",
         "grounding_validation_attempt_1",
         "provenance_enrichment",
         "conversation_persistence",
     }
+    assert "budget_reservation" not in {item["stage"] for item in contexts}
     assert all(item["request_id"] == "req-1" and item["duration_ms"] >= 0 for item in contexts)
     assert "What did the study find?" not in caplog.text
     assert "12345678" not in caplog.text
@@ -282,28 +281,27 @@ def test_retrieval_logs_embedding_and_fixed_neo4j_stages(caplog: Any) -> None:
             assert timeout == 5
             return self
 
-    class Driver:
-        def execute_query(self, query: Any, parameters: Any, **kwargs: Any) -> Any:
-            return (
-                [
-                    {
-                        "passage_id": "passage-1",
-                        "excerpt": EXCERPT,
-                        "summary": "Governed full-text passage",
-                        "pmid": "12345678",
-                        "title": "Paper 12345678",
-                        "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
-                    }
-                ],
-                None,
-                None,
-            )
+    async def retrieve(message: str, embedding: list[float], deadline: float) -> list[Any]:
+        return [
+            {
+                "passage_id": "passage-1",
+                "excerpt": EXCERPT,
+                "summary": "Governed full-text passage",
+                "pmid": "12345678",
+                "title": "Paper 12345678",
+                "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+            }
+        ]
 
     retriever = Neo4jRetriever.__new__(Neo4jRetriever)
     retriever._openai = OpenAIClient()  # type: ignore[assignment]
-    retriever._driver = Driver()  # type: ignore[assignment]
+    retriever._retrieve = retrieve  # type: ignore[method-assign]
     caplog.set_level(logging.INFO)
-    assert retriever.search("question", "req-1")[0].pmid == "12345678"
+
+    async def search() -> list[Evidence]:
+        return await anyio.to_thread.run_sync(retriever.search, "question", "req-1")
+
+    assert anyio.run(search)[0].pmid == "12345678"
     contexts = [record.context for record in caplog.records if record.msg == "knowledge_chat_stage"]
     assert [item["stage"] for item in contexts] == ["embedding", "neo4j_retrieval"]
     assert all(item["request_id"] == "req-1" for item in contexts)
@@ -369,7 +367,18 @@ def test_answer_specific_openai_client_has_no_sdk_retries() -> None:
             self.timeout = kwargs["timeout"]
             self.instructions = kwargs["instructions"]
             self.max_output_tokens = kwargs["max_output_tokens"]
-            return type("Response", (), {"output_text": json.dumps(valid_payload())})()
+            return type(
+                "Response",
+                (),
+                {
+                    "output_text": json.dumps(
+                        {
+                            "evidence_state": "single_study",
+                            "claims": [{"text": EXCERPT, "support_ref": "s0.0"}],
+                        }
+                    )
+                },
+            )()
 
     class Client:
         def __init__(self) -> None:
@@ -396,12 +405,21 @@ def test_oversized_provider_input_never_calls_provider() -> None:
             raise AssertionError("provider call crossed input guard")
 
     huge = [
-        Evidence("passage-1", "x" * 33_000, "Governed full-text passage", "12345678",
-                 "Paper 12345678", "https://pubmed.ncbi.nlm.nih.gov/12345678/")
+        Evidence(
+            "passage-1",
+            "x" * 33_000,
+            "Governed full-text passage",
+            "12345678",
+            "Paper 12345678",
+            "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+        )
     ]
     with pytest.raises(GenerationBudgetExceeded):
         OpenAIAnswerer(NeverCall()).answer(  # type: ignore[arg-type]
-            "question", huge, "safety-id", timeout_seconds=7,
+            "question",
+            huge,
+            "safety-id",
+            timeout_seconds=7,
         )
 
 

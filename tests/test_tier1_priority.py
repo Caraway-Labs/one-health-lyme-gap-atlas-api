@@ -11,7 +11,15 @@ from lyme_gap_atlas_api.app import create_app
 from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.models import AtlasMetadata, CountyRecord
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError, Snapshot
+from lyme_gap_atlas_api.snowflake_read_session import get_read_session_pool
 from lyme_gap_atlas_api.tier1_priority import SnowflakeTier1PriorityRepository
+
+
+@pytest.fixture(autouse=True)
+def _isolated_read_pool() -> None:
+    get_read_session_pool().close_all()
+    yield
+    get_read_session_pool().close_all()
 
 
 def row(tier: str = "HIGH", sufficiency: str = "SUFFICIENT") -> tuple[Any, ...]:
@@ -328,7 +336,7 @@ def test_repository_uses_only_presentation_view(monkeypatch: pytest.MonkeyPatch)
         def cursor(self) -> Cursor:
             return Cursor()
 
-    monkeypatch.setattr("lyme_gap_atlas_api.tier1_priority.connect", lambda _: Connection())
+    monkeypatch.setattr("lyme_gap_atlas_api.snowflake_read_session.connect", lambda _: Connection())
     repository = SnowflakeTier1PriorityRepository(
         ApiSettings(snowflake_database="ONE_HEALTH_LYME_GAP_ATLAS_DEV")
     )
@@ -381,6 +389,52 @@ def test_unavailable_is_not_absent() -> None:
     assert api.get("/v1/counties/09110/tier1-surveillance-priority").status_code == 503
 
 
+def test_two_county_reads_reuse_one_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Cursor:
+        def __init__(self, connection: "Connection") -> None:
+            self._connection = connection
+
+        def __enter__(self) -> "Cursor":
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def execute(self, *_: object, **__: object) -> None:
+            self._connection.executes += 1
+
+        def fetchall(self) -> list[tuple[Any, ...]]:
+            return [row()]
+
+    class Connection:
+        def __init__(self) -> None:
+            self.executes = 0
+            self.closed = False
+
+        def is_closed(self) -> bool:
+            return self.closed
+
+        def close(self) -> None:
+            self.closed = True
+
+        def cursor(self) -> Cursor:
+            return Cursor(self)
+
+    connections: list[Connection] = []
+
+    def connect(_: ApiSettings) -> Connection:
+        connection = Connection()
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr("lyme_gap_atlas_api.snowflake_read_session.connect", connect)
+    repo = SnowflakeTier1PriorityRepository(ApiSettings())
+    assert repo.county("09110") is not None
+    assert repo.county("09110") is not None
+    assert len(connections) == 1
+    assert connections[0].executes == 2
+
+
 def test_empty_current_view_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     class Cursor:
         def __enter__(self) -> "Cursor":
@@ -399,16 +453,19 @@ def test_empty_current_view_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> N
             return None
 
     class Connection:
-        def __enter__(self) -> "Connection":
-            return self
+        def __init__(self) -> None:
+            self.closed = False
 
-        def __exit__(self, *_: object) -> None:
-            pass
+        def is_closed(self) -> bool:
+            return self.closed
+
+        def close(self) -> None:
+            self.closed = True
 
         def cursor(self) -> Cursor:
             return Cursor()
 
-    monkeypatch.setattr("lyme_gap_atlas_api.tier1_priority.connect", lambda _: Connection())
+    monkeypatch.setattr("lyme_gap_atlas_api.snowflake_read_session.connect", lambda _: Connection())
     repo = SnowflakeTier1PriorityRepository(ApiSettings())
     with pytest.raises(AtlasDataUnavailableError, match="No active"):
         repo.county("09110")

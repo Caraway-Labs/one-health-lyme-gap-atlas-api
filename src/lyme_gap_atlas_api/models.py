@@ -87,6 +87,7 @@ def _boolean_true_schema(schema: dict[str, Any]) -> None:
 
     schema.pop("default", None)
 
+
 _STARTING_VIEW_VERSION_DESCRIPTION = (
     "Server-owned starting-view onboarding marker. Null means this profile has "
     "not completed onboarding, including every profile saved before the marker "
@@ -241,6 +242,9 @@ class SourceMetadata(BaseModel):
 
 
 class AtlasMetadata(BaseModel):
+    scoring_methodology_version: Literal["surveillance-gap-score-v1.1"] = (
+        "surveillance-gap-score-v1.1"
+    )
     release_id: str
     schema_version: str
     generated_at: datetime
@@ -281,6 +285,17 @@ class CountyRecord(BaseModel):
 
 
 class CountyScoreSummary(BaseModel):
+    scoring_methodology_version: Literal["surveillance-gap-score-v1.1"] = (
+        "surveillance-gap-score-v1.1"
+    )
+    incidence_floor_2023: float | None = Field(
+        default=None,
+        ge=0,
+        description="Published 2023 minimum reported incidence per 100,000; null is not zero.",
+    )
+    svi_percentile: float | None = None
+    uninsured_percentile: float | None = None
+    rucc_2023: int | None = None
     fips: str
     county: str
     state: str
@@ -296,10 +311,30 @@ class CountyScoreSummary(BaseModel):
 
 
 class ScoreCollection(BaseModel):
+    scoring_methodology_version: Literal["surveillance-gap-score-v1.1"] = (
+        "surveillance-gap-score-v1.1"
+    )
     release_id: str
     methodology_version: str
     settings: dict[str, int]
     counties: list[CountyScoreSummary]
+
+
+class CountyMapValues(BaseModel):
+    fips: str = Field(pattern=r"^\d{5}$")
+    incidence_floor_2023: float | None = Field(
+        default=None,
+        ge=0,
+        description="Published 2023 minimum reported incidence per 100,000; null is not zero.",
+    )
+    svi_percentile: float | None = None
+    uninsured_percent: float | None = None
+    rucc_2023: int | None = None
+
+
+class MapValuesCollection(BaseModel):
+    release_id: str
+    counties: list[CountyMapValues]
 
 
 class CountyDetail(CountyScoreSummary):
@@ -373,6 +408,7 @@ class FeedbackContext(BaseModel):
     explorer_metric: FeedbackExplorerMetric | None = None
     ecological_share: int | None = Field(default=None, ge=40, le=85, multiple_of=5)
     low_incidence_breakpoint: int | None = Field(default=None, ge=5, le=25)
+    smooth_k: int | None = Field(default=None, ge=5, le=200)
     missing_human_weakness: int | None = Field(default=None, ge=40, le=90, multiple_of=5)
     source_ids: list[str] | None = Field(default=None, max_length=8)
     evidence_item_ids: list[str] | None = Field(default=None, max_length=8)

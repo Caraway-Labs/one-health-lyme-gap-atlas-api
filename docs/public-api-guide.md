@@ -240,3 +240,12 @@ CDC unknown coverage and missing admission remain errors until Data publishes a
 reviewed availability contract. Dependency, authority, query, auth and limiter
 errors retain their existing non-2xx contracts. See
 [implementation boundaries](api-237-typed-availability.md).
+
+## County latent-class surveillance situations
+
+Use `GET /v1/counties/{fips}/surveillance-situations` for the separate primary
+four-state and secondary tick-and-pathogen models. Preserve their independent
+labels, all four membership probabilities, source vintages and model/batch
+lineage. Unknown is a valid class; an unavailable model has null data and a
+persisted reason. See the [endpoint contract](county-surveillance-situations.md)
+for examples, bounded reads, 404/422/503 errors and interpretation limits.

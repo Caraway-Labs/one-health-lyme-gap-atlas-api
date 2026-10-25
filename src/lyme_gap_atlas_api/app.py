@@ -1,16 +1,19 @@
 """FastAPI application factory and versioned REST contract."""
 
+import asyncio
 import hashlib
 import json
 import re
 import time
+import unicodedata
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import date
 from typing import Annotated, Any, Literal
 
+import anyio.to_thread
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,8 +69,11 @@ from .knowledge_chat import (
     KnowledgeChatService,
     Neo4jRetriever,
     OpenAIAnswerer,
+    OpenAIConnectionWarmer,
     SnowflakeBudgetStore,
     SnowflakeCorpusProvenanceStore,
+    build_openai_http_client,
+    warm_openai_sdk,
 )
 from .middleware import (
     FeedbackLimitMiddleware,
@@ -77,6 +83,7 @@ from .middleware import (
     RateLimitMiddleware,
     RequestContextMiddleware,
 )
+from .model_serving_probe import start_model_serving_probe
 from .models import (
     AtlasMetadata,
     CountyDetail,
@@ -84,6 +91,7 @@ from .models import (
     FeedbackSubmissionResponse,
     KnowledgeChatRequest,
     KnowledgeChatResponse,
+    MapValuesCollection,
     PrivacyRequestConfirm,
     PrivacyRequestCreate,
     PrivacyRequestCreated,
@@ -151,7 +159,15 @@ from .reports.renderer import (
 from .reports.renderers import TypstRenderer
 from .repository import AtlasDataUnavailableError, AtlasRepository, SnowflakeAtlasRepository
 from .service import AtlasService
+from .snowflake_monitor import ReadinessDependencies, ReadinessResponse, SnowflakeMonitor
+from .snowflake_read_session import get_read_session_pool
+from .snowflake_write_session import get_write_session_pool
 from .surveillance_delivery import SurveillanceResolver
+from .surveillance_situations import (
+    CountySurveillanceSituations,
+    SituationRepository,
+    SnowflakeSituationRepository,
+)
 from .telemetry import PrivateInstrumentationProvider, server_request_hook, server_response_hook
 from .telemetry_logging import operational_logger, operational_request_id, protect_dependency_logs
 from .tier1_priority import (
@@ -161,6 +177,8 @@ from .tier1_priority import (
     Tier1PriorityRepository,
     Tier1PriorityService,
 )
+from .tier1_timing import Tier1Timing, tier1_request_timing
+from .tier1_timing import phase as tier1_phase
 
 logger = operational_logger(__name__)
 
@@ -227,11 +245,16 @@ class AtlasFastAPI(FastAPI):
         for path, path_item in schema["paths"].items():
             if not _canonical_validation_is_400(path):
                 continue
+            # The geography identity route no longer has a 503 (ADR 0021): its unpublished
+            # state is a typed 200, so 503 is not required for the full-map check.
+            required = canonical_error_statuses
+            if path == "/v1/geographies/{geography_type}/{geography_id}":
+                required = canonical_error_statuses - {"503"}
             for operation in path_item.values():
                 if not isinstance(operation, dict):
                     continue
                 responses = operation.get("responses", {})
-                if canonical_error_statuses <= responses.keys():
+                if required <= responses.keys():
                     responses.pop("422", None)
         if "BriefingArtifact" not in schema.get("components", {}).get("schemas", {}):
             add_briefing_openapi(schema)
@@ -258,6 +281,13 @@ class AtlasFastAPI(FastAPI):
         ]["200"]["content"]["application/json"]["examples"] = deepcopy(
             {"unpublished": PENDING_GEOGRAPHY_EXAMPLE}
         )
+        situation_example = schema["paths"]["/v1/counties/{fips}/surveillance-situations"]["get"][
+            "responses"
+        ]["200"]["content"]["application/json"]["examples"]["unpublished"]["value"]
+        for variant in ("four_state", "tick_pathogen"):
+            situation_example[variant].update(
+                batch_id=None, batch_version=None, input_release_id=None, data=None
+            )
         self._first_party_schema = schema
         return schema
 
@@ -270,12 +300,21 @@ class AtlasFastAPI(FastAPI):
 
 def _score_settings(
     ecological_share: Annotated[int, Query(ge=40, le=85, multiple_of=5)] = 65,
-    low_incidence_breakpoint: Annotated[int, Query(ge=5, le=25)] = 10,
+    smooth_k: Annotated[int, Query(ge=5, le=200)] = 50,
     missing_human_weakness: Annotated[int, Query(ge=40, le=90, multiple_of=5)] = 75,
+    low_incidence_breakpoint: Annotated[int | None, Query(deprecated=True)] = None,
 ) -> ScoreSettings:
+    if low_incidence_breakpoint is not None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Legacy low_incidence_breakpoint is incompatible with Surveillance Gap Score v1.1; "
+                "refresh the client and use smooth_k (governed default 50)."
+            ),
+        )
     return ScoreSettings(
         ecological_share=ecological_share,
-        low_incidence_breakpoint=low_incidence_breakpoint,
+        smooth_k=smooth_k,
         missing_human_weakness=missing_human_weakness,
     )
 
@@ -304,6 +343,16 @@ def _filename_component(value: str) -> str:
     return component or "unknown"
 
 
+def _atlas_brief_filename(report: CountyReport) -> str:
+    """Short County_State_AtlasBrief name. Release identifiers stay inside the PDF."""
+
+    county = re.sub(r"\s+County$", "", report.geography.name.strip(), flags=re.IGNORECASE)
+    ascii_county = unicodedata.normalize("NFKD", county).encode("ascii", "ignore").decode("ascii")
+    token = re.sub(r"[^A-Za-z0-9]+", "_", ascii_county).strip("_") or "County"
+    state = re.sub(r"[^A-Za-z]", "", report.geography.state_code).upper() or "XX"
+    return f"{token}_{state}_AtlasBrief"
+
+
 def create_app(
     repository: AtlasRepository | None = None,
     settings: ApiSettings | None = None,
@@ -321,8 +370,10 @@ def create_app(
     intelligence_repository: FeedRepository | None = None,
     tier1_priority_repository: Tier1PriorityRepository | None = None,
     surveillance_resolver: SurveillanceResolver | None = None,
+    situation_repository: SituationRepository | None = None,
 ) -> FastAPI:
     config = settings or get_settings()
+    situations = situation_repository or SnowflakeSituationRepository(config)
     configure_logging()
     protect_dependency_logs()
     configure_tracing("one-health-lyme-gap-atlas-api")
@@ -348,7 +399,12 @@ def create_app(
                 }
             },
         )
-    service = AtlasService(repository or SnowflakeAtlasRepository(config), config.cache_ttl_seconds)
+    service = AtlasService(
+        repository or SnowflakeAtlasRepository(config),
+        config.cache_ttl_seconds,
+        max_stale_seconds=config.snapshot_max_stale_seconds,
+        refresh_backoff_seconds=config.snapshot_refresh_backoff_seconds,
+    )
     tier1_priority = Tier1PriorityService(
         tier1_priority_repository or SnowflakeTier1PriorityRepository(config)
     )
@@ -359,12 +415,15 @@ def create_app(
         ttl_seconds=config.pdf_cache_ttl_seconds,
         max_entries=config.pdf_cache_max_entries,
     )
+    openai_warmer: OpenAIConnectionWarmer | None = None
     if knowledge_chat_service is None and config.knowledge_chat_enabled:
         neo4j_password = config.neo4j_runtime_password
         openai_key = config.openai_api_key
         hash_secret = config.kg_hash_secret
         if config.neo4j_uri and neo4j_password and openai_key and hash_secret:
-            openai = OpenAI(api_key=openai_key.get_secret_value())
+            openai_http = build_openai_http_client()
+            openai = OpenAI(api_key=openai_key.get_secret_value(), http_client=openai_http)
+            openai_warmer = OpenAIConnectionWarmer(openai_http, f"{openai.base_url}models")
             knowledge_chat_service = KnowledgeChatService(
                 Neo4jRetriever(
                     config.neo4j_uri,
@@ -379,7 +438,10 @@ def create_app(
                 deadline_seconds=config.kg_chat_deadline_seconds,
                 generation_timeout_seconds=config.kg_generation_timeout_seconds,
                 snowflake_settings=config,
+                persist_in_background=True,
+                prefetch_provenance=True,
             )
+    snowflake_monitor = SnowflakeMonitor(config, service.ready if repository is not None else None)
     probe_started = False
 
     @asynccontextmanager
@@ -394,7 +456,22 @@ def create_app(
             probe_started = True
             start_reader_probe(config)
             start_county_context_probe(config)
-        yield
+            start_model_serving_probe(config)
+        snowflake_monitor.start()
+        try:
+            await asyncio.to_thread(
+                snowflake_monitor.initial_check.wait, config.snowflake_startup_check_timeout_seconds
+            )
+            if openai_warmer is not None:
+                await anyio.to_thread.run_sync(warm_openai_sdk)
+                openai_warmer.start()
+            yield
+        finally:
+            await asyncio.to_thread(snowflake_monitor.stop)
+            if openai_warmer is not None:
+                openai_warmer.stop()
+            await anyio.to_thread.run_sync(get_read_session_pool().close_all)
+            await anyio.to_thread.run_sync(get_write_session_pool().close_all)
 
     app = AtlasFastAPI(
         docs_url=None,
@@ -473,6 +550,17 @@ def create_app(
     app.add_middleware(FeedbackLimitMiddleware)
     app.add_middleware(PrivacyRequestLimitMiddleware)
     app.add_middleware(RequestContextMiddleware)
+
+    @app.middleware("http")
+    async def withhold_public_cache_while_stale(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        # A stale-while-error snapshot must not be cached downstream as if it were fresh.
+        if service.is_stale and response.headers.get("cache-control", "").startswith("public"):
+            response.headers["Cache-Control"] = "private, no-store"
+        return response
+
     # Starlette applies the most recently added middleware first. Keep CORS outermost
     # so browser clients can read an error returned by a short-circuiting limiter.
     app.add_middleware(
@@ -552,9 +640,6 @@ def create_app(
                         "/v1/methodologies/",
                     )
                 )
-                else "CANONICAL_DATA_UNAVAILABLE"
-                if exc.status_code == 503
-                and str(exc.detail) == "Canonical data delivery is not yet available."
                 else "SERVICE_UNAVAILABLE"
                 if exc.status_code == 503
                 else None
@@ -588,9 +673,9 @@ def create_app(
         return {"status": "ok"}
 
     @app.get("/health/ready", tags=["health"])
-    def ready() -> dict[str, str]:
+    async def ready() -> ReadinessResponse:
         try:
-            # Process readiness is Snowflake (+ chat wiring when enabled).
+            # Startup success is latched; later dependency outages are informational.
             # Neo4j is probed at chat time and fails closed per ADR 0007; do not
             # block App Platform deploys on a private Bolt probe that can hang.
             # Feedback idempotency is process-local; multi-worker topology fails closed.
@@ -600,8 +685,10 @@ def create_app(
                     status_code=503,
                     detail=FEEDBACK_TOPOLOGY_UNSAFE_DETAIL,
                 )
-            if service.ready() and chat_wired:
-                return {"status": "ready"}
+            if snowflake_monitor.startup_succeeded and chat_wired:
+                return ReadinessResponse(
+                    dependencies=ReadinessDependencies(snowflake=snowflake_monitor.dependency_state)
+                )
         except HTTPException:
             raise
         except Exception as exc:
@@ -609,6 +696,8 @@ def create_app(
                 status_code=503, detail="A required data service is unavailable"
             ) from exc
         raise HTTPException(status_code=503, detail="A required data service is unavailable")
+
+    app.state.snowflake_monitor = snowflake_monitor
 
     def authenticated_user(
         authorization: Annotated[str | None, Header()] = None,
@@ -1001,6 +1090,29 @@ def create_app(
             raise HTTPException(status_code=404, detail="Dataset release not found") from exc
 
     @app.get(
+        "/v1/atlas/map-values",
+        response_model=MapValuesCollection,
+        tags=["atlas"],
+        operation_id="map_values_v1_atlas_map_values_get",
+        summary="Get national map layer values by county",
+        description=(
+            "Published incidence floor, social vulnerability percentile, uninsured percent, "
+            "and rural-urban continuum code for every county in the current snapshot. "
+            "Optional dataset_version selects an existing release. Public cache TTL 300 "
+            "seconds with informational ETag; no conditional 304."
+        ),
+        responses=LEGACY_ERRORS,
+    )
+    def map_values(response: Response, dataset_version: str | None = None) -> MapValuesCollection:
+        try:
+            result = service.map_values(dataset_version)
+            response.headers["Cache-Control"] = "public, max-age=300"
+            response.headers["ETag"] = _etag(result.model_dump_json().encode())
+            return result
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail="Dataset release not found") from exc
+
+    @app.get(
         "/v1/counties/{fips}",
         response_model=CountyDetail,
         tags=["counties"],
@@ -1031,6 +1143,67 @@ def create_app(
             ) from exc
 
     @app.get(
+        "/v1/counties/{fips}/surveillance-situations",
+        response_model=CountySurveillanceSituations,
+        tags=["counties"],
+        operation_id="county_surveillance_situations_get",
+        summary="Get both persisted county surveillance-situation classifications",
+        description=(
+            "Primary four_state includes human surveillance; secondary tick_pathogen excludes it. "
+            "Returns reviewed labels, four membership probabilities per model (0-1, sum 1 within "
+            "1e-6), immutable model/batch lineage, source vintages and interpretation limits. "
+            "Unknown is an available class; No records does not establish absence. Membership "
+            "is not disease risk, incidence, pathogen presence, causation or Tier 1 priority. "
+            "HTTP 200 can contain typed UNAVAILABLE variants with null data, including an "
+            "incompatible release. Unknown county 404; malformed FIPS 422; dependency, malformed "
+            "persisted data or changing release 503. Cache-Control: no-store; "
+            "no fallback or inference."
+        ),
+        responses={
+            **LEGACY_ERRORS,
+            200: {
+                "description": "Both model variants, including explicit publication availability.",
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "unpublished": {
+                                "summary": "Illustrative unpublished batch; never Unknown",
+                                "value": {
+                                    "county_fips": "01001",
+                                    "release_id": "example-release",
+                                    "bundle_sha256": "a" * 64,
+                                    **{
+                                        variant: {
+                                            "model_id": model,
+                                            "availability": "UNAVAILABLE",
+                                            "unavailable_reason": "NOT_PUBLISHED",
+                                            "compatibility": "UNAVAILABLE",
+                                            "batch_id": None,
+                                            "batch_version": None,
+                                            "input_release_id": None,
+                                            "data": None,
+                                        }
+                                        for variant, model in {
+                                            "four_state": "surveillance-situation-four-state",
+                                            "tick_pathogen": "surveillance-situation-tick-pathogen",
+                                        }.items()
+                                    },
+                                },
+                            },
+                        }
+                    }
+                },
+            },
+        },
+    )
+    def county_surveillance_situations(
+        response: Response, fips: Annotated[str, Path(pattern=r"^[0-9]{5}$")]
+    ) -> CountySurveillanceSituations:
+        result = situations.county(fips)
+        response.headers["Cache-Control"] = "no-store"
+        return result
+
+    @app.get(
         "/v1/counties/{fips}/tier1-surveillance-priority",
         response_model=Tier1CountyPriority,
         tags=["counties"],
@@ -1048,9 +1221,14 @@ def create_app(
         responses=LEGACY_ERRORS,
     )
     def county_tier1_priority(
-        response: Response, fips: Annotated[str, Path(pattern=r"^\d{5}$")]
+        request: Request,
+        response: Response,
+        fips: Annotated[str, Path(pattern=r"^\d{5}$")],
     ) -> Tier1CountyPriority:
-        result = tier1_priority.county(fips)
+        timing = Tier1Timing()
+        request.state.tier1_timing = timing
+        with tier1_request_timing(timing):
+            result = tier1_priority.county(fips)
         if result is None:
             raise HTTPException(status_code=404, detail="No current Tier 1 county result")
         response.headers["Cache-Control"] = "public, max-age=60"
@@ -1082,15 +1260,21 @@ def create_app(
         },
     )
     def county_tier1_priority_availability(
-        response: Response, fips: Annotated[str, Path(pattern=r"^\d{5}$")]
+        request: Request,
+        response: Response,
+        fips: Annotated[str, Path(pattern=r"^\d{5}$")],
     ) -> Tier1CountyPriorityAvailability:
-        snapshot = service.snapshot()
-        current_fips = {county.fips for county in snapshot.counties}
-        if fips not in current_fips:
-            raise PublicQueryError(
-                "RESOURCE_NOT_FOUND", "County is not in the current geography release."
-            )
-        result = tier1_priority.county(fips)
+        timing = Tier1Timing()
+        request.state.tier1_timing = timing
+        with tier1_request_timing(timing):
+            with tier1_phase("geography_membership"):
+                snapshot = service.snapshot()
+                current_fips = {county.fips for county in snapshot.counties}
+                if fips not in current_fips:
+                    raise PublicQueryError(
+                        "RESOURCE_NOT_FOUND", "County is not in the current geography release."
+                    )
+            result = tier1_priority.county(fips)
         response.headers["Cache-Control"] = "public, max-age=60"
         if result is None:
             return Tier1CountyPriorityAvailability(
@@ -1123,15 +1307,20 @@ def create_app(
         operation_id="county_report_pdf_v1_counties__fips__report_pdf_get",
         summary="Download a county report",
         description=(
-            "PDF attachment using the immutable county-v1 registered template by default. "
-            "Optional dataset_version and score settings bind report inputs. "
+            "PDF attachment. The default template is county-v3, the two-page County Data Brief "
+            "for the published gap score and Explorer follow-up. county-v3 ignores score-setting "
+            "overrides, so a What-if request cannot change the published score, response "
+            "category, recommendations, or questions. Explicit county-v1 remains the immutable "
+            "legacy county report and still binds score settings. "
+            "Optional dataset_version selects a release. "
             "Opt-in county-v2 requires dataset_version, period_start, period_end and repeated "
             "measure_id (1–20, repeated or comma-separated); reads canonical evidence, lineage, "
             "value states and limitations. Missing or mismatched provenance returns 503; "
-            "unknown observations return 404. V1 rejects observation selectors with 422. "
+            "unknown observations return 404. county-v1 and county-v3 reject observation "
+            "selectors with 422. "
             "V2 responses use no-store and revalidate authoritative context before cache/304. "
-            "ETag/If-None-Match supports 304; V1 public cache TTL 300 seconds with "
-            "revalidation. Unknown templates return 422; resource limits 413; renderer "
+            "ETag/If-None-Match supports 304; published briefs use public cache TTL 300 seconds "
+            "with revalidation. Unknown templates return 422; resource limits 413; renderer "
             "failure/timeout 503."
         ),
     )
@@ -1153,7 +1342,7 @@ def create_app(
                 max_length=20,
             ),
         ] = None,
-        template: Annotated[str, Query(pattern=r"^[a-z]+-v\d+$")] = "county-v1",
+        template: Annotated[str, Query(pattern=r"^[a-z]+-v\d+$")] = "county-v3",
     ) -> Response:
         template_definition = TEMPLATE_REGISTRY.get(template)
         if template_definition is None or template_definition.geography_level != "county":
@@ -1164,7 +1353,7 @@ def create_app(
         if measure_id is not None:
             measure_id = [item for value in measure_id for item in value.split(",")]
         context_requested = any(x is not None for x in (period_start, period_end, measure_id))
-        if template == "county-v1" and context_requested:
+        if template in {"county-v1", "county-v3"} and context_requested:
             raise HTTPException(status_code=422, detail="Observation context requires county-v2.")
         if template == "county-v2" and (
             not dataset_version
@@ -1216,13 +1405,17 @@ def create_app(
                 headers={"Retry-After": "30"},
             ) from exc
 
-        filename = "-".join(
-            (
-                "lyme-gap-atlas",
-                _filename_component(report.geography.state_code),
-                _filename_component(report.geography.name),
-                _filename_component(report.geography.identifier),
-                _filename_component(report.provenance.dataset_version),
+        filename = (
+            _atlas_brief_filename(report)
+            if template == "county-v3"
+            else "-".join(
+                (
+                    "lyme-gap-atlas",
+                    _filename_component(report.geography.state_code),
+                    _filename_component(report.geography.name),
+                    _filename_component(report.geography.identifier),
+                    _filename_component(report.provenance.dataset_version),
+                )
             )
         )
         etag = _etag(payload)
@@ -1588,18 +1781,22 @@ def create_app(
         response_model=KnowledgeChatResponse,
         tags=["knowledge graph"],
         responses={
-            429: {"model": ProblemDetails},
-            503: {
-                "model": KnowledgeChatResponse,
+            200: {
+                "description": (
+                    "Typed outcome. `status` is answered, no_evidence, safety_refusal, "
+                    "evidence_unavailable or capacity_limited. Retryable outcomes also "
+                    "carry Retry-After. They are not 5xx because the DigitalOcean edge "
+                    "replaces an origin 503 with its own 504 page and drops this body."
+                ),
                 "headers": {"Retry-After": {"schema": {"type": "string"}}},
             },
+            429: {"model": ProblemDetails},
         },
     )
     def knowledge_graph_chat(
         request: Request, payload: KnowledgeChatRequest, response: Response
     ) -> KnowledgeChatResponse:
         if not config.knowledge_chat_enabled or knowledge_chat_service is None:
-            response.status_code = 503
             response.headers["Retry-After"] = "60"
             return KnowledgeChatResponse(
                 request_id=request.state.request_id,
@@ -1625,7 +1822,6 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         if result.status in {"evidence_unavailable", "capacity_limited"}:
-            response.status_code = 503
             response.headers["Retry-After"] = "30"
         return result
 

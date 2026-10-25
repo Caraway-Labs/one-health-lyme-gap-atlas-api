@@ -19,8 +19,12 @@ Start with the [public API guide](docs/public-api-guide.md) for tested requests,
 interpretation, pagination, errors, and reproducibility.
 The [OpenAPI quality gate](docs/openapi-quality.md) documents semantic review
 diffs and validated public/first-party CI artifacts for downstream consumers.
+Write public API text with the [API writing style guide](docs/api-writing-style.md),
+which also holds the shared vocabulary and approved safety wording.
 The [documentation surface contract](docs/documentation-surfaces.md) defines
 machine, Swagger, retained ReDoc and Fumadocs purposes and the Web handoff.
+For startup health and background Snowflake monitoring, see
+[readiness semantics](docs/snowflake-readiness.md).
 For operator signals, see the [API indicator contract](docs/api-operational-indicators.md)
 and [natural-traffic validation runbook](docs/production-observability-validation.md).
 Ask Atlas request bounds, diagnosis, rollback and manual regression promotion are
@@ -48,6 +52,10 @@ uv run python scripts/export_openapi.py
 uv run uvicorn lyme_gap_atlas_api.app:app --reload
 ```
 
+County latent-class classifications use the additive
+[`surveillance-situations` endpoint](docs/county-surveillance-situations.md),
+separate from Tier 1 priority.
+
 ## PDF renderer development
 
 PDF exports use the pinned Typst binary in the production image. Build and verify it locally with:
@@ -58,7 +66,7 @@ docker run --rm lyme-atlas-api:pdf typst --version
 ```
 
 `TypstRenderer` accepts only server-registered template keys, not paths or client-supplied Typst.
-`county-v1` and `state-v1` are immutable server-side identifiers. They consume normalized JSON
+`county-v1`, `county-v2`, `county-v3`, and `state-v1` are server-side identifiers. They consume normalized JSON
 written by the report layer as `input.json`; report data is never interpolated into Typst source.
 Shared components live in `reports/templates/shared/v1`. Material template/schema changes require
 a new template version rather than modifying an already released v1 layout. Defaults can be overridden with
@@ -69,11 +77,11 @@ configure it with `PDF_CACHE_ENABLED=true`, `PDF_CACHE_TTL_SECONDS=300`, and
 `PDF_CACHE_MAX_ENTRIES=128`. A cache hit returns the original artifact, including its
 generation timestamp, until the TTL expires or a material report input changes.
 
-For Investigate exports, use the opt-in `county-v2` [observation context contract](docs/county-report-investigate-contract.md). Legacy v1 remains the default.
+For Investigate exports, use the opt-in `county-v2` [observation context contract](docs/county-report-investigate-contract.md). The default county download is `county-v3`, the published two-page County Data Brief in plain epidemiologist language (Gap review score, Why it surfaced, six review factors, and Suggested follow-up). Explicit `county-v1` remains available and unchanged.
 
 ## PDF export operations
 
-The API exposes only versioned, server-registered templates: `county-v1` and `state-v1`.
+The API exposes only versioned, server-registered templates: `county-v3` (default County Data Brief), `county-v1`, `county-v2`, and `state-v1`.
 Clients may select a supported template key but cannot supply Typst source or filesystem paths.
 
 ```powershell
@@ -105,6 +113,10 @@ configured `SNOWFLAKE_PRESENTATION_DATABASE` and
 both its connection and presentation databases to
 `ONE_HEALTH_LYME_GAP_ATLAS_PROD`. See `.env.example`; never use `SYSADMIN` in
 this service.
+Snowflake connection handling (read pool, write pool, session baseline,
+readiness, stale-serve and the no-silent-replay rule) is recorded in the
+[Snowflake connection standard](docs/snowflake-connection-standard.md); new routes
+must follow it.
 Neo4j Community runtime authorization is recorded as accepted debt in the
 knowledge-graph repository's ADR 0008: API retrieval remains constrained by
 the application, network, and feature-flag controls rather than database roles.

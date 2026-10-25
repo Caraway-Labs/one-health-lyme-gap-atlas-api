@@ -2,26 +2,32 @@
 
 from __future__ import annotations
 
+import asyncio
+import base64
 import hashlib
 import hmac
 import json
+import logging
 import re
 import secrets
 import socket
 import ssl
 import time
 import uuid
-from collections.abc import Callable, Iterator
+from array import array
+from collections.abc import Callable, Iterator, Mapping
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass
-from threading import Thread, get_ident
-from typing import Any, Protocol, TypedDict, cast
+from threading import Event, Lock, Thread, get_ident
+from typing import Any, Literal, Protocol, TypedDict, cast
 
+import anyio.from_thread
+import httpx
 from lyme_gap_atlas_kg import CONFIGURATION_VERSION, asset_path
 from lyme_gap_atlas_shared.settings import SnowflakeSettings
-from lyme_gap_atlas_shared.snowflake import connect
-from neo4j import GraphDatabase, Query
+from neo4j import READ_ACCESS, AsyncGraphDatabase, GraphDatabase
 from neo4j.exceptions import (
     AuthError,
     ConfigurationError,
@@ -29,7 +35,13 @@ from neo4j.exceptions import (
     ServiceUnavailable,
     SessionExpired,
 )
-from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    DefaultHttpxClient,
+    OpenAI,
+)
 from opentelemetry import trace
 
 from .assistant_policy import classify_question, load_assistant_policy
@@ -42,7 +54,9 @@ from .models import (
     KnowledgeClaim,
     SourceUsed,
 )
-from .neo4j_diagnostics import log_serving_graph_probe
+from .neo4j_diagnostics import _server_error_category, log_serving_graph_probe
+from .snowflake_connection import connect
+from .snowflake_write_session import get_write_session_pool
 from .telemetry_logging import emit_completion, operational_logger
 
 logger = operational_logger(__name__)
@@ -52,24 +66,47 @@ _DIAGNOSTICS: ContextVar[dict[str, Any] | None] = ContextVar(
     "knowledge_chat_diagnostics", default=None
 )
 _REQUEST_ID: ContextVar[str] = ContextVar("knowledge_chat_request_id", default="unavailable")
+_RETRIEVAL_DEADLINE: ContextVar[float | None] = ContextVar(
+    "knowledge_chat_retrieval_deadline", default=None
+)
+_NEO4J_RETRIEVAL_SECONDS = 5.0
+_PERSIST_WORKERS = 4
+_PERSIST_QUEUE_LIMIT = 32
+_PROVENANCE_WORKERS = 4
+_PROVENANCE_CACHE_TTL_SECONDS = 600.0
+_PROVENANCE_ABSENT_TTL_SECONDS = 60.0
+_PROVENANCE_CACHE_MAX = 2000
+_PROVENANCE_MIN_WAIT_SECONDS = 0.5
 
 
 class _RequestSnowflakeSession:
-    """Lazy, exclusive worker-thread ownership; never a cross-request pool."""
+    """Lazy, exclusive worker-thread ownership of one write-pool connection per request.
+
+    The connection goes back to the write pool only if the whole request succeeded and no
+    statement raised; any error, cancellation or doubt closes it (``failed``).
+    """
 
     def __init__(self, settings: SnowflakeSettings, stack: ExitStack) -> None:
         self.settings = settings
         self.stack = stack
         self.owner = get_ident()
         self.connection: Any = None
+        self.failed = False
+
+    def _finish(self) -> None:
+        pool = get_write_session_pool()
+        if self.failed:
+            pool.discard(self.connection)
+        else:
+            pool.release(self.connection)
 
     def get(self) -> Any:
         if get_ident() != self.owner:
             raise RuntimeError("Snowflake request session cannot cross worker threads")
         if self.connection is None:
             with _snowflake_timing("connection_setup"):
-                self.connection = connect(self.settings)
-                self.stack.callback(self.connection.close)
+                self.connection = get_write_session_pool().checkout(self.settings, connect)
+                self.stack.callback(self._finish)
         elif self.connection.is_closed():
             # Never retry an uncertain reservation or write on a new connection.
             raise RuntimeError("Snowflake request session is closed")
@@ -115,6 +152,10 @@ def _request_snowflake_session(settings: SnowflakeSettings | None) -> Iterator[N
         token = _SNOWFLAKE_SESSION.set(session)
         try:
             yield
+        except BaseException:
+            if session is not None:
+                session.failed = True
+            raise
         finally:
             try:
                 if session is not None and session.connection is not None:
@@ -129,19 +170,14 @@ def _chat_snowflake_connection(settings: SnowflakeSettings) -> Iterator[Any]:
     session = _SNOWFLAKE_SESSION.get()
     if session is not None and session.settings is settings:
         connection = session.get()
-        # Match the locked connector's __exit__ decision using effective session
-        # parameters (login can update them), while deferring close to teardown.
+        # The API-owned connect() sets autocommit=True, so each statement is its own
+        # transaction: no per-operation COMMIT/ROLLBACK round trip and no reads of
+        # connector internals. Release/discard is deferred to request teardown.
         try:
             yield connection
         except BaseException:
-            if not connection._session_parameters.get("AUTOCOMMIT", False):
-                with _snowflake_timing("transaction_rollback"):
-                    connection.rollback()
+            session.failed = True  # a failed statement leaves the session in doubt
             raise
-        else:
-            if not connection._session_parameters.get("AUTOCOMMIT", False):
-                with _snowflake_timing("transaction_commit"):
-                    connection.commit()
     else:
         # Standalone adapters and injected test stores retain their original lifecycle.
         with connect(settings) as connection:
@@ -427,7 +463,7 @@ class Answerer(Protocol):
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, Any]: ...
 
 
@@ -450,6 +486,246 @@ class BudgetStore(Protocol):
 
 class CorpusProvenanceStore(Protocol):
     def lookup(self, pmids: list[str]) -> dict[str, dict[str, Any]]: ...
+
+
+_OPENAI_KEEPALIVE_SECONDS = 120.0
+_OPENAI_WARM_INTERVAL_SECONDS = 20.0
+_OPENAI_LOGGED_PATHS = ("/v1/embeddings", "/v1/responses")
+
+
+class _ConnectionTrace:
+    """httpcore trace callback: did this request open a connection, and how long did it take?
+
+    ``connect_tcp`` includes name resolution; ``start_tls`` is the handshake. A request
+    served from the keep-alive pool records neither event.
+    """
+
+    def __init__(self) -> None:
+        self._started: dict[str, float] = {}
+        self.durations: dict[str, float] = {}
+
+    def __call__(self, event_name: str, info: Mapping[str, Any]) -> None:
+        base, _, phase = event_name.rpartition(".")
+        now = time.perf_counter()
+        if phase == "started":
+            self._started[base] = now
+        elif phase in ("complete", "failed") and base in self._started:
+            self.durations[base] = now - self._started[base]
+
+    @property
+    def new_connection(self) -> bool:
+        return "connection.connect_tcp" in self._started
+
+    def milliseconds(self, base: str) -> int | None:
+        value = self.durations.get(base)
+        return None if value is None else round(value * 1000)
+
+
+def _attach_trace(request: httpx.Request) -> None:
+    request.extensions["trace"] = _ConnectionTrace()
+
+
+def _trace_fields(response: httpx.Response) -> dict[str, Any]:
+    trace = response.request.extensions.get("trace")
+    if not isinstance(trace, _ConnectionTrace):
+        return {}
+    return {
+        "new_connection": trace.new_connection,
+        "connect_ms": trace.milliseconds("connection.connect_tcp"),
+        "tls_ms": trace.milliseconds("connection.start_tls"),
+        "headers_wait_ms": trace.milliseconds("http11.receive_response_headers"),
+    }
+
+
+def _log_provider_response(response: httpx.Response) -> None:
+    """Record OpenAI's own server time so it can be separated from connection time."""
+    path = response.request.url.path
+    if not path.startswith(_OPENAI_LOGGED_PATHS):
+        return
+    processing = response.headers.get("openai-processing-ms", "")
+    logger.info(
+        "knowledge_chat_provider_http",
+        extra={
+            "context": {
+                "request_id": _REQUEST_ID.get(),
+                "path": path,
+                "status_code": response.status_code,
+                "openai_processing_ms": int(processing) if processing.isdigit() else None,
+                **_trace_fields(response),
+            }
+        },
+    )
+
+
+def build_openai_http_client() -> httpx.Client:
+    """Shared pool that keeps idle OpenAI connections alive between sparse requests.
+
+    ``OpenAI.with_options(...)`` copies reuse this pool, so a warm connection serves
+    both embeddings and generation. SDK default timeouts and redirect handling are kept.
+    """
+    return DefaultHttpxClient(
+        limits=httpx.Limits(
+            max_connections=100,
+            max_keepalive_connections=10,
+            keepalive_expiry=_OPENAI_KEEPALIVE_SECONDS,
+        ),
+        event_hooks={"request": [_attach_trace], "response": [_log_provider_response]},
+    )
+
+
+_WARMUP_EMBEDDING = base64.b64encode(array("f", [0.0] * 1024).tobytes()).decode()
+_WARMUP_GENERATION = '{"evidence_state":"limited","claims":[]}'
+
+
+def _warmup_transport_handler(request: httpx.Request) -> httpx.Response:
+    """Canned OpenAI responses; the warm-up never leaves the process."""
+    if request.url.path.endswith("/embeddings"):
+        return httpx.Response(
+            200,
+            json={
+                "object": "list",
+                "model": "text-embedding-3-small",
+                "usage": {"prompt_tokens": 1, "total_tokens": 1},
+                "data": [{"object": "embedding", "index": 0, "embedding": _WARMUP_EMBEDDING}],
+            },
+        )
+    return httpx.Response(
+        200,
+        json={
+            "id": "warmup",
+            "object": "response",
+            "created_at": 0,
+            "status": "completed",
+            "model": "warmup",
+            "parallel_tool_calls": False,
+            "tool_choice": "auto",
+            "tools": [],
+            "output": [
+                {
+                    "id": "warmup-message",
+                    "type": "message",
+                    "role": "assistant",
+                    "status": "completed",
+                    "content": [
+                        {"type": "output_text", "text": _WARMUP_GENERATION, "annotations": []}
+                    ],
+                }
+            ],
+        },
+    )
+
+
+def warm_openai_sdk(transport: httpx.BaseTransport | None = None) -> None:
+    """Pay the OpenAI SDK's one-time start-up cost before the first user request.
+
+    The first embeddings call in a process costs seconds locally (lazy imports and
+    request/response type construction) and the first generation call about half a
+    second, while later calls take milliseconds. Production showed the same pattern: the
+    first request after each deploy spent ~1.6 s client-side before the HTTP exchange.
+    This runs the real embedding call and ``OpenAIAnswerer.answer`` against a canned
+    in-process transport, so nothing is sent to OpenAI and nothing is billed.
+    """
+    started = time.perf_counter()
+    outcome = "success"
+    embedding_ms = generation_ms = None
+    try:
+        canned = transport or httpx.MockTransport(_warmup_transport_handler)
+        client = OpenAI(api_key="warmup-not-a-secret", http_client=httpx.Client(transport=canned))
+        step = time.perf_counter()
+        client.with_options(max_retries=0, timeout=5).embeddings.create(
+            model="text-embedding-3-small", input="warm-up", dimensions=1024
+        )
+        embedding_ms = round((time.perf_counter() - step) * 1000)
+        step = time.perf_counter()
+        passage = Evidence(
+            "warmup-0",
+            "Warm up sentence.",
+            "",
+            "0",
+            "Warm-up",
+            "https://pubmed.ncbi.nlm.nih.gov/0/",
+        )
+        OpenAIAnswerer(client, "warmup").answer("warm-up", [passage], "warmup", timeout_seconds=5)
+        generation_ms = round((time.perf_counter() - step) * 1000)
+    except Exception:
+        outcome = "failure"
+    logger.info(
+        "openai_sdk_warmup",
+        extra={
+            "context": {
+                "outcome": outcome,
+                "embedding_ms": embedding_ms,
+                "generation_ms": generation_ms,
+                "elapsed_ms": round((time.perf_counter() - started) * 1000),
+            }
+        },
+    )
+
+
+class OpenAIConnectionWarmer:
+    """Keeps one TCP/TLS connection to OpenAI open while the chat service is idle.
+
+    The request is unauthenticated and costs nothing (the provider answers 401); its
+    only purpose is to hold a live connection in the shared pool. Each ping that had
+    to open a new connection, or that failed, is logged with connect/TLS timings so a
+    pool that keeps being torn down is visible.
+    """
+
+    def __init__(
+        self,
+        http_client: httpx.Client,
+        url: str,
+        interval_seconds: float = _OPENAI_WARM_INTERVAL_SECONDS,
+    ) -> None:
+        self._client = http_client
+        self._url = url
+        self._interval = interval_seconds
+        self._stop = Event()
+        self._thread: Thread | None = None
+
+    def start(self) -> None:
+        if self._thread is not None:
+            return
+        self._thread = Thread(target=self._run, name="openai-connection-warmer", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2)
+
+    def warm(self) -> None:
+        started = time.perf_counter()
+        try:
+            response = self._client.get(self._url, timeout=5)
+        except Exception as error:
+            logger.info(
+                "openai_connection_warm_failed",
+                extra={
+                    "context": {
+                        "error_type": failure_class(error),
+                        "elapsed_ms": round((time.perf_counter() - started) * 1000),
+                    }
+                },
+            )
+            return
+        fields = _trace_fields(response)
+        logger.log(
+            logging.INFO if fields.get("new_connection") else logging.DEBUG,
+            "openai_connection_warm",
+            extra={
+                "context": {
+                    "elapsed_ms": round((time.perf_counter() - started) * 1000),
+                    "status_code": response.status_code,
+                    **fields,
+                }
+            },
+        )
+
+    def _run(self) -> None:
+        self.warm()
+        while not self._stop.wait(self._interval):
+            self.warm()
 
 
 class EmbeddingFailure(RuntimeError):
@@ -483,6 +759,8 @@ def _neo4j_failure_category(error: BaseException) -> str:
             pending.append(current.__cause__)
         if isinstance(current, BaseExceptionGroup):
             pending.extend(reversed(current.exceptions[:8]))
+    if any(_server_error_category(item) == "transaction_timeout" for item in chain):
+        return "timeout"
     for exception_type, category in (
         (AuthError, "authentication"),
         (ConfigurationError, "configuration"),
@@ -503,6 +781,8 @@ class Neo4jRetriever:
     """Read-only retriever exposing no arbitrary-Cypher interface."""
 
     def __init__(self, uri: str, user: str, password: str, openai: OpenAI) -> None:
+        self._uri = uri
+        self._auth = (user, password)
         # Short connect timeout so readiness/chat fail closed instead of hanging
         # App Platform health checks when Neo4j is unreachable from the VPC path.
         self._driver = GraphDatabase.driver(
@@ -565,13 +845,20 @@ class Neo4jRetriever:
         records: list[Any] = []
         try:
             with _timed_stage(request_id, "neo4j_retrieval"):
-                records, _, _ = self._driver.execute_query(
-                    Query(HYBRID_SEARCH, timeout=5),
-                    {"query": message, "embedding": embedding},
-                    database_="neo4j",
+                deadline = min(
+                    _RETRIEVAL_DEADLINE.get() or float("inf"),
+                    time.monotonic() + _NEO4J_RETRIEVAL_SECONDS,
                 )
+                # FastAPI calls this synchronous service on an AnyIO worker.
+                # Await actual async cancellation/cleanup, never abandon a worker
+                # or race session cleanup against a still-running query task.
+                records = anyio.from_thread.run(self._retrieve, message, embedding, deadline)
         except Exception as exc:
-            category = "neo4j_timeout" if isinstance(exc, TimeoutError) else "neo4j_query_failure"
+            category = (
+                "neo4j_timeout"
+                if _neo4j_failure_category(exc) == "timeout"
+                else "neo4j_query_failure"
+            )
             raise Neo4jQueryFailure from exc
         finally:
             logger.info(
@@ -601,6 +888,37 @@ class Neo4jRetriever:
             )
             for record in records
         ]
+
+    async def _retrieve(self, message: str, embedding: list[float], deadline: float) -> list[Any]:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError
+        loop_deadline = asyncio.get_running_loop().time() + remaining
+        # The timeout surrounds driver entry, eager result consumption AND exit.
+        # Driver 6.2 cancellation kills/releases the session's connection; pool
+        # close kills remaining connections if it is itself cancelled. A scoped
+        # pool prevents an unhealthy socket from returning to another request.
+        async with asyncio.timeout_at(loop_deadline):
+            async with AsyncGraphDatabase.driver(
+                self._uri,
+                auth=self._auth,
+                connection_acquisition_timeout=3.0,
+                connection_timeout=3.0,
+                connection_write_timeout=3.0,
+                max_transaction_retry_time=0,
+                max_connection_pool_size=1,
+            ) as driver:
+                # Explicit transaction: no managed retry timer/backoff (including
+                # the first retry possible with retry_time=0 on coarse clocks).
+                async with (
+                    driver.session(database="neo4j", default_access_mode=READ_ACCESS) as session,
+                    await session.begin_transaction(timeout=min(5.0, remaining)) as tx,
+                ):
+                    result = await tx.run(
+                        HYBRID_SEARCH, {"query": message, "embedding": embedding}
+                    )
+                    records, _, _ = await result.to_eager_result()
+                return records
 
 
 def _governance_database(settings: SnowflakeSettings) -> str:
@@ -749,34 +1067,6 @@ class SnowflakeCorpusProvenanceStore:
             return result
 
 
-_CLAIM_GROUNDING_INSTRUCTIONS = (
-    "Build every claim from its support quotes, not the other way around. "
-    "For each claim, first select returned passage IDs and their matching PMIDs, then select "
-    "one or two adjacent numbered quote segments from each cited passage. Set support_quote_refs "
-    "to an object "
-    'keyed by each cited passage ID, for example {"passage-1": 0}; use the exact IDs in '
-    "passage_ids as keys, with no other keys. Use [0, 1] for two adjacent segments when "
-    "the second contains a material study qualifier. The server copies the selected text "
-    "into support_quotes and rejects invalid references. Do not write quote text yourself. "
-    "Every claim, including a claim about a study limitation, must have at least one returned "
-    "passage ID, its matching PMID, and a quote reference from that passage. Never add "
-    "a claim with empty passage_ids, pmids, or support_quote_refs; omit any finding or limitation "
-    "that the supplied excerpts do not explicitly support. Do not add an uncited concluding "
-    "claim or a placeholder claim to answer every part of the question. "
-    "Return at most three short claims, each citing at most two returned passages. Copy every "
-    "passage ID and PMID exactly from the supplied passage record; omit a claim if its IDs "
-    "cannot be copied exactly. If findings conflict, use claims to show both sides; use a "
-    "remaining claim for a material limitation only when directly supported. "
-    "Only then write one short, atomic claim about a finding explicitly present in those quotes. "
-    "Use a close extractive paraphrase: preserve the source's important scientific nouns, "
-    "entities, verbs, relationships, and material species, geography, population, and outcome "
-    "qualifiers. Avoid distant synonyms, smoother but unsupported interpretation, and combining "
-    "unrelated findings. Make each claim no broader than its cited quotes. Do not add unsupported "
-    "numbers or causal language. The validated claims[].text are the user-visible answer units; "
-    "keep answer consistent with those claims and do not add separate broader findings. "
-)
-
-
 def _quote_segments(excerpt: str) -> list[tuple[str, int, int]]:
     """Keep every sentence-sized segment and its exact excerpt offsets."""
     segments: list[tuple[str, int, int]] = []
@@ -792,50 +1082,141 @@ def _quote_segments(excerpt: str) -> list[tuple[str, int, int]]:
     return segments
 
 
-def _resolve_quote_refs(candidate: dict[str, Any], evidence: list[Evidence]) -> dict[str, Any]:
-    """Resolve model-selected positions to literal quotes before the existing validator."""
-    by_id = {item.passage_id: item for item in evidence}
-    claims = candidate.get("claims")
-    if not isinstance(claims, list):
-        return candidate
-    for claim in claims:
-        if not isinstance(claim, dict) or "support_quote_refs" not in claim:
-            continue
-        refs = claim.pop("support_quote_refs")
-        if "support_quotes" in claim:
-            claim["support_quotes"] = {}
-            continue
-        if not isinstance(refs, dict):
-            claim["support_quotes"] = {}
-            continue
-        quotes: dict[str, str] = {}
-        for passage_id, index in refs.items():
-            item = by_id.get(passage_id)
-            segments = _quote_segments(item.excerpt) if item is not None else []
-            bounds = [index, index] if type(index) is int else index
-            if (
-                isinstance(bounds, list)
-                and len(bounds) == 2
-                and all(type(value) is int for value in bounds)
-                and 0 <= bounds[0] <= bounds[1] < len(segments)
-                and bounds[1] - bounds[0] <= 1
-                and item is not None
-            ):
-                quotes[passage_id] = item.excerpt[segments[bounds[0]][1]:segments[bounds[1]][2]]
-            else:
-                quotes[passage_id] = ""
-        claim["support_quotes"] = quotes
-    return candidate
-
-
 class GenerationBudgetExceeded(Exception):
     """The local request bound was reached before a grounded answer existed."""
 
 
+class GenerationReferenceError(ValueError):
+    """A model-selected reference cannot resolve to supplied literal evidence."""
+
+
+_CLAIM_GROUNDING_INSTRUCTIONS = (
+    "Select supporting reference IDs BEFORE writing each claim. "
+    "Return at most two short atomic claims, each supported by exactly one reference. "
+    "Choose only an allowed support_ref. A reference such as s0.0 selects one sentence; "
+    "s0.0-1 selects two adjacent sentences when the second carries a material qualifier. "
+    "The server resolves references to exact quotes and canonical citations. "
+    "Prefer copying a relevant selected sentence verbatim as the claim. If shortening it, "
+    "use a close extractive paraphrase preserving scientific nouns, entities, verbs, "
+    "relationships and material species, geography, period, population, sampling, "
+    "denominator, outcome, validation and study limitations. Make each claim no broader "
+    "than its selected quotes. Do not add unsupported numbers or causal language. "
+    "Every finding or limitation needs support; omit unsupported claims. If excerpts "
+    "do not answer the question, return no claims. If findings conflict, cite both sides "
+    "in the two claims and preserve the disagreement. Do not infer consensus from paper "
+    "count. Claims are the displayed answer: do not produce a separate answer or copy "
+    "PMIDs, passage IDs, claim IDs or a separate quote field into the output. "
+    'Example for reference s0.0 reading "In Germany, Ixodes abundance was associated '
+    'with Borrelia prevalence.": {"evidence_state":"single_study","claims":[{"text":'
+    '"In Germany, Ixodes abundance was associated with Borrelia prevalence.",'
+    '"support_ref":"s0.0"}]}. '
+    "Use the example shape only, never its finding unless supplied in the actual evidence. "
+)
+
+
+def _quote_options(evidence: list[Evidence]) -> dict[str, tuple[Evidence, int, int]]:
+    options = {}
+    for source, item in enumerate(evidence):
+        segments = _quote_segments(item.excerpt)
+        for index, segment in enumerate(segments):
+            options[f"s{source}.{index}"] = (item, segment[1], segment[2])
+            if index + 1 < len(segments):
+                options[f"s{source}.{index}-{index + 1}"] = (
+                    item,
+                    segment[1],
+                    segments[index + 1][2],
+                )
+    return options
+
+
+def _generation_schema(evidence: list[Evidence]) -> dict[str, Any]:
+    refs = list(_quote_options(evidence))
+    # Stay within the provider's documented enum limits; never truncate evidence silently.
+    if not refs or len(refs) > 994 or (len(refs) > 250 and sum(map(len, refs)) > 15000):
+        raise GenerationBudgetExceeded
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["evidence_state", "claims"],
+        "properties": {
+            "evidence_state": {
+                "type": "string",
+                "enum": [
+                    "single_study",
+                    "consistent",
+                    "limited",
+                    "mixed",
+                    "conflicting",
+                    "insufficient_to_compare",
+                ],
+            },
+            "claims": {
+                "type": "array",
+                "maxItems": 2,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["support_ref", "text"],
+                    "properties": {
+                        "support_ref": {"type": "string", "enum": refs},
+                        "text": {"type": "string"},
+                    },
+                },
+            },
+        },
+    }
+
+
+def _resolve_generation(candidate: Any, evidence: list[Evidence]) -> dict[str, Any]:
+    """Resolve explicit indices only; never infer support for a missing reference."""
+    if not isinstance(candidate, dict) or set(candidate) != {"evidence_state", "claims"}:
+        raise GenerationReferenceError("invalid_generated_shape")
+    raw_claims = candidate["claims"]
+    if not isinstance(raw_claims, list) or len(raw_claims) > 2:
+        raise GenerationReferenceError("invalid_generated_shape")
+    claims: list[dict[str, Any]] = []
+    for number, raw in enumerate(raw_claims, 1):
+        if (
+            not isinstance(raw, dict)
+            or set(raw) != {"text", "support_ref"}
+            or not isinstance(raw["text"], str)
+        ):
+            raise GenerationReferenceError("invalid_generated_shape")
+        ref = raw["support_ref"]
+        options = _quote_options(evidence)
+        if not isinstance(ref, str) or ref not in options:
+            raise GenerationReferenceError("support quote is absent from cited passage")
+        item, start, end = options[ref]
+        quotes = {item.passage_id: item.excerpt[start:end]}
+        claims.append(
+            {
+                "claim_id": f"claim-{number}",
+                "text": raw["text"],
+                "passage_ids": list(quotes),
+                "pmids": [item.pmid],
+                "support_quotes": quotes,
+            }
+        )
+    return {
+        "answer": "\n\n".join(claim["text"] for claim in claims),
+        "evidence_state": candidate["evidence_state"],
+        "claims": claims,
+    }
+
+
 class OpenAIAnswerer:
-    def __init__(self, client: OpenAI, model: str = "gpt-5.6-luna") -> None:
+    def __init__(
+        self,
+        client: OpenAI,
+        model: str = "gpt-5.6-luna",
+        *,
+        reasoning_effort: Literal["none", "low"] = "none",
+    ) -> None:
         self._client = client
         self._model = model
+        if reasoning_effort not in {"none", "low"}:
+            raise ValueError("unsupported chat reasoning effort")
+        self._reasoning_effort = reasoning_effort
 
     @property
     def model_id(self) -> str:
@@ -848,7 +1229,7 @@ class OpenAIAnswerer:
         safety_id: str,
         *,
         timeout_seconds: float,
-        correction: bool = False,
+        correction: bool | str = False,
     ) -> dict[str, Any]:
         policy = load_assistant_policy()
         question_class = classify_question(message)
@@ -857,16 +1238,23 @@ class OpenAIAnswerer:
         # validated Evidence after generation; summaries cannot support quotes.
         passages = [
             {
-                "passage_id": item.passage_id,
-                "quote_segments": [segment[0] for segment in _quote_segments(item.excerpt)],
-                "pmid": item.pmid,
+                "source": source,
+                "segments": [
+                    {"ref": f"s{source}.{index}", "text": segment[0]}
+                    for index, segment in enumerate(_quote_segments(item.excerpt))
+                ],
                 "title": item.title,
             }
-            for item in evidence
+            for source, item in enumerate(evidence)
         ]
+        failure = correction if correction in _GROUNDING_REASONS else "invalid_generated_shape"
         correction_instruction = (
-            "The previous candidate failed deterministic grounding. Regenerate carefully from "
-            "only the supplied passages. Do not reuse the previous candidate."
+            "The previous candidate failed deterministic grounding. "
+            f"Validation failure: {failure}. "
+            "Correct that failure using only supplied segments. For unsupported wording, "
+            "use a shorter extractive claim with the source qualifiers. For invalid references, "
+            "select one allowed support_ref; use an adjacent-pair reference for two sentences. "
+            "Omit any claim that cannot be supported."
             if correction
             else ""
         )
@@ -879,22 +1267,23 @@ class OpenAIAnswerer:
             raise GenerationBudgetExceeded
         logger.info(
             "knowledge_chat_provider_input_size",
-            extra={"context": {
-                "request_id": _REQUEST_ID.get(),
-                "passage_count": len(passages),
-                "input_characters": len(provider_input),
-            }},
+            extra={
+                "context": {
+                    "request_id": _REQUEST_ID.get(),
+                    "passage_count": len(passages),
+                    "input_characters": len(provider_input),
+                }
+            },
         )
         response = self._client.with_options(max_retries=0).responses.create(
             model=self._model,
             max_output_tokens=2048,
             store=False,
-            reasoning={"effort": "low"},
+            reasoning={"effort": self._reasoning_effort},
             safety_identifier=safety_id,
             instructions=(
                 "Answer only from supplied steward-approved PubMed/PMC full-text passages. "
-                "Return JSON with answer, evidence_state, and claims. Each claim has claim_id, "
-                "text, passage_ids, pmids, and support_quote_refs. "
+                "Return the structured evidence_state and claims, each with support_ref and text. "
                 f"{_CLAIM_GROUNDING_INSTRUCTIONS}"
                 "State must be one of single_study, consistent, limited, mixed, conflicting, "
                 "insufficient_to_compare. Do not infer consensus from paper count. Preserve "
@@ -909,7 +1298,14 @@ class OpenAIAnswerer:
                 f"{correction_instruction}"
             ),
             input=provider_input,
-            text={"format": {"type": "json_object"}},
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "grounded_claims_v2",
+                    "strict": True,
+                    "schema": _generation_schema(evidence),
+                }
+            },
             timeout=timeout_seconds,
         )
         logger.info(
@@ -937,7 +1333,7 @@ class OpenAIAnswerer:
         if provider_status not in (None, "completed"):
             raise ValueError("provider response not complete")
         with _span("generated_json_parsing", _REQUEST_ID.get()):
-            return _resolve_quote_refs(json.loads(response.output_text), evidence)
+            return _resolve_generation(json.loads(response.output_text), evidence)
 
 
 def _unsafe_request(message: str) -> bool:
@@ -977,6 +1373,84 @@ def _unsafe_request(message: str) -> bool:
     return medical or injection or clearly_unsafe
 
 
+@dataclass(frozen=True)
+class _ProvenanceResult:
+    rows: dict[str, dict[str, Any]]
+    cache_hits: int
+
+
+class _ProvenanceCache:
+    """Bounded, expiring PMID to provenance-row cache; a ``None`` row means absent."""
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        self._items: dict[str, tuple[float, dict[str, Any] | None]] = {}
+        self._lock = Lock()
+        self._clock = clock
+
+    def get(self, pmid: str) -> tuple[bool, dict[str, Any] | None]:
+        now = self._clock()
+        with self._lock:
+            item = self._items.get(pmid)
+            if item is None:
+                return False, None
+            if item[0] <= now:
+                del self._items[pmid]
+                return False, None
+            return True, item[1]
+
+    def put(self, pmid: str, row: dict[str, Any] | None) -> None:
+        now = self._clock()
+        ttl = _PROVENANCE_ABSENT_TTL_SECONDS if row is None else _PROVENANCE_CACHE_TTL_SECONDS
+        with self._lock:
+            if len(self._items) >= _PROVENANCE_CACHE_MAX and pmid not in self._items:
+                self._items = {k: v for k, v in self._items.items() if v[0] > now}
+                if len(self._items) >= _PROVENANCE_CACHE_MAX:
+                    del self._items[min(self._items, key=lambda key: self._items[key][0])]
+            self._items[pmid] = (now + ttl, row)
+
+
+class _PrefetchedProvenance:
+    """CorpusProvenanceStore view over a lookup already running beside generation."""
+
+    def __init__(
+        self,
+        future: Future[_ProvenanceResult],
+        request_id: str,
+        clock: Callable[[], float],
+        deadline: float,
+    ) -> None:
+        self._future = future
+        self._request_id = request_id
+        self._clock = clock
+        self._deadline = deadline
+
+    def lookup(self, pmids: list[str]) -> dict[str, dict[str, Any]]:
+        started = time.perf_counter()
+        wait = max(_PROVENANCE_MIN_WAIT_SECONDS, self._deadline - self._clock() - 1.0)
+        outcome = "success"
+        cache_hits = 0
+        try:
+            result = self._future.result(timeout=wait)
+            cache_hits = result.cache_hits
+            return {pmid: result.rows[pmid] for pmid in pmids if pmid in result.rows}
+        except BaseException:
+            outcome = "failure"
+            raise
+        finally:
+            logger.info(
+                "knowledge_chat_provenance_prefetch",
+                extra={
+                    "context": {
+                        "request_id": self._request_id,
+                        "prefetch": True,
+                        "wait_ms": round((time.perf_counter() - started) * 1000),
+                        "cache_hit_count": cache_hits,
+                        "outcome": outcome,
+                    }
+                },
+            )
+
+
 class KnowledgeChatService:
     def __init__(
         self,
@@ -990,6 +1464,8 @@ class KnowledgeChatService:
         generation_timeout_seconds: float = 16.0,
         clock: Callable[[], float] = time.monotonic,
         snowflake_settings: SnowflakeSettings | None = None,
+        persist_in_background: bool = False,
+        prefetch_provenance: bool = False,
     ) -> None:
         self._retriever = retriever
         self._answerer = answerer
@@ -1000,6 +1476,74 @@ class KnowledgeChatService:
         self._generation_timeout_seconds = generation_timeout_seconds
         self._clock = clock
         self._snowflake_settings = snowflake_settings
+        # Conversation persistence is write-only bookkeeping: the response never
+        # depends on it, so production returns first and saves afterwards.
+        self._persist_executor = (
+            ThreadPoolExecutor(
+                max_workers=_PERSIST_WORKERS, thread_name_prefix="kg-chat-persist"
+            )
+            if persist_in_background and budget_store is not None
+            else None
+        )
+        self._persist_pending = 0
+        self._persist_lock = Lock()
+        # Provenance rows are immutable per corpus artifact, so the lookup starts as
+        # soon as retrieval returns and overlaps answer generation.
+        self._provenance_executor = (
+            ThreadPoolExecutor(
+                max_workers=_PROVENANCE_WORKERS, thread_name_prefix="kg-chat-provenance"
+            )
+            if prefetch_provenance and provenance_store is not None
+            else None
+        )
+        self._provenance_cache = _ProvenanceCache()
+
+    def _provenance_rows(self, pmids: list[str]) -> _ProvenanceResult:
+        """Serve cached rows and query Snowflake only for the PMIDs not cached."""
+        store = self._provenance
+        if store is None:
+            return _ProvenanceResult({}, 0)
+        rows: dict[str, dict[str, Any]] = {}
+        missing: list[str] = []
+        hits = 0
+        for pmid in pmids:
+            found, row = self._provenance_cache.get(pmid)
+            if not found:
+                missing.append(pmid)
+                continue
+            hits += 1
+            if row is not None:
+                rows[pmid] = row
+        if missing:
+            fetched = store.lookup(missing)
+            for pmid in missing:
+                row = fetched.get(pmid)
+                self._provenance_cache.put(pmid, row)
+                if row is not None:
+                    rows[pmid] = row
+        return _ProvenanceResult(rows, hits)
+
+    def _start_provenance_prefetch(
+        self, evidence: list[Evidence], request_id: str
+    ) -> Future[_ProvenanceResult] | None:
+        executor = self._provenance_executor
+        if executor is None:
+            return None
+        pmids = list(dict.fromkeys(item.pmid for item in evidence if item.pmid))[:20]
+        if not pmids:
+            return None
+
+        def work() -> _ProvenanceResult:
+            request_token = _REQUEST_ID.set(request_id)
+            try:
+                return self._provenance_rows(pmids)
+            finally:
+                _REQUEST_ID.reset(request_token)
+
+        try:
+            return executor.submit(work)
+        except RuntimeError:
+            return None
 
     def _hash(self, value: str) -> str:
         return hmac.new(self._secret, value.encode(), hashlib.sha256).hexdigest()
@@ -1025,6 +1569,67 @@ class KnowledgeChatService:
             response=response,
         )
         return True
+
+    def _persist_in_background(
+        self,
+        request: KnowledgeChatRequest,
+        response: KnowledgeChatResponse,
+        token: str,
+        network_hash: str,
+    ) -> None:
+        """Queue persistence; never raises and never blocks the request thread.
+
+        The worker thread has no request-scoped Snowflake session (contextvars are
+        not copied by the executor), so it opens and closes its own connection.
+        A failed write is logged with the request id and error class only. It is
+        not retried here because procedure idempotency for a partly written
+        conversation is not established.
+        """
+        executor = self._persist_executor
+        request_id = response.request_id
+        if executor is None:
+            return
+        with self._persist_lock:
+            if self._persist_pending >= _PERSIST_QUEUE_LIMIT:
+                dropped = True
+            else:
+                self._persist_pending += 1
+                dropped = False
+        if dropped:
+            self._log_persistence_failure(request_id, "queue_full")
+            return
+
+        def work() -> None:
+            request_token = _REQUEST_ID.set(request_id)
+            try:
+                with _timed_stage(request_id, "conversation_persistence"):
+                    self._persist(request, response, token, network_hash)
+            except Exception as exc:
+                self._log_persistence_failure(request_id, failure_class(exc))
+            finally:
+                _REQUEST_ID.reset(request_token)
+                with self._persist_lock:
+                    self._persist_pending -= 1
+
+        try:
+            executor.submit(work)
+        except RuntimeError:
+            with self._persist_lock:
+                self._persist_pending -= 1
+            self._log_persistence_failure(request_id, "executor_shutdown")
+
+    @staticmethod
+    def _log_persistence_failure(request_id: str, error_class: str) -> None:
+        logger.warning(
+            "knowledge_chat_persistence_failed",
+            extra={
+                "context": {
+                    "request_id": request_id,
+                    "background": True,
+                    "error_type": error_class,
+                }
+            },
+        )
 
     def chat(
         self,
@@ -1136,6 +1741,9 @@ class KnowledgeChatService:
             )
 
         def persist(result: KnowledgeChatResponse) -> None:
+            if self._persist_executor is not None:
+                self._persist_in_background(request, result, token, safety_id)
+                return
             with _timed_stage(request_id, "conversation_persistence"):
                 self._persist(request, result, token, safety_id)
 
@@ -1158,7 +1766,24 @@ class KnowledgeChatService:
             # context. Prior assistant text is never admitted as evidence.
             prior_questions = [turn.content for turn in request.history if turn.role == "user"][-2:]
             contextual_question = "\n".join([*prior_questions, request.message])
-            evidence = self._retriever.search(contextual_question, request_id)
+            retrieval_token = _RETRIEVAL_DEADLINE.set(
+                time.monotonic() + max(0.0, deadline - self._clock())
+            )
+            try:
+                evidence = self._retriever.search(contextual_question, request_id)
+            finally:
+                _RETRIEVAL_DEADLINE.reset(retrieval_token)
+            evidence, duplicate_passages = _dedupe_passages(evidence)
+            if duplicate_passages:
+                logger.warning(
+                    "knowledge_chat_duplicate_passage_ids",
+                    extra={
+                        "context": {
+                            "request_id": request_id,
+                            "duplicate_passage_count": duplicate_passages,
+                        }
+                    },
+                )
             diagnostics = _DIAGNOSTICS.get()
             if diagnostics is not None:
                 diagnostics["retrieval_passage_count"] = len(evidence)
@@ -1166,8 +1791,11 @@ class KnowledgeChatService:
         except EmbeddingFailure:
             return unavailable("embedding_failure")
         except Neo4jQueryFailure as exc:
-            return unavailable("neo4j_timeout" if isinstance(exc.__cause__, TimeoutError)
-                               else "neo4j_query_failure")
+            return unavailable(
+                "neo4j_timeout"
+                if exc.__cause__ is not None and _neo4j_failure_category(exc.__cause__) == "timeout"
+                else "neo4j_query_failure"
+            )
         except RuntimeError:
             return unavailable("retrieval_dependency_unavailable")
         except Exception:
@@ -1186,25 +1814,30 @@ class KnowledgeChatService:
                 return unavailable("persistence_failure")
         if self._clock() >= deadline:
             return unavailable("deadline_exhausted")
-        try:
-            if self._store is not None:
-                with _timed_stage(request_id, "budget_reservation"):
-                    allowed = self._store.reserve(request_id)
-                if not allowed:
-                    return (
-                        KnowledgeChatResponse(
-                            **base,
-                            status="capacity_limited",
-                            answer=CAPACITY_LIMITED,
-                            evidence_state="not_applicable",
-                        ),
-                        "capacity_limited",
-                    )
-        except Exception:
-            return unavailable("budget_failure")
-        if self._clock() >= deadline:
-            return unavailable("deadline_exhausted")
+        # Product-owner-authorized bypass (2026-10-18): do not ask Snowflake
+        # for spending approval or create a chat budget reservation. Existing
+        # rate limits, provider bounds, grounding and persistence remain active.
+        # try:
+        #     if self._store is not None:
+        #         with _timed_stage(request_id, "budget_reservation"):
+        #             allowed = self._store.reserve(request_id)
+        #         if not allowed:
+        #             return (
+        #                 KnowledgeChatResponse(
+        #                     **base,
+        #                     status="capacity_limited",
+        #                     answer=CAPACITY_LIMITED,
+        #                     evidence_state="not_applicable",
+        #                 ),
+        #                 "capacity_limited",
+        #             )
+        # except Exception:
+        #     return unavailable("budget_failure")
+        # if self._clock() >= deadline:
+        #     return unavailable("deadline_exhausted")
 
+        provenance_prefetch = self._start_provenance_prefetch(evidence, request_id)
+        correction: bool | str = False
         for attempt in (1, 2):
             diagnostics = _DIAGNOSTICS.get()
             remaining = deadline - self._clock()
@@ -1217,6 +1850,7 @@ class KnowledgeChatService:
                 self._generation_timeout_seconds,
                 remaining - _POST_GENERATION_RESERVE_SECONDS,
             )
+            reference_failure = None
             try:
                 with _timed_stage(request_id, f"answer_generation_attempt_{attempt}"):
                     if diagnostics is not None:
@@ -1226,19 +1860,27 @@ class KnowledgeChatService:
                         evidence,
                         safety_id,
                         timeout_seconds=timeout,
-                        correction=attempt == 2,
+                        correction=correction,
                     )
+            except GenerationReferenceError as exc:
+                reference_failure = str(exc)
+                generated = {}
             except (APITimeoutError, TimeoutError):
                 return unavailable("generation_timeout")
             except GenerationBudgetExceeded:
                 return unavailable("budget_exhausted")
             except APIStatusError as exc:
-                logger.warning("knowledge_chat_provider_failure", extra={"context": {
-                    "request_id": request_id,
-                    "provider": "openai",
-                    "failure_category": "provider_rejection",
-                    "status_code": exc.status_code,
-                }})
+                logger.warning(
+                    "knowledge_chat_provider_failure",
+                    extra={
+                        "context": {
+                            "request_id": request_id,
+                            "provider": "openai",
+                            "failure_category": "provider_rejection",
+                            "status_code": exc.status_code,
+                        }
+                    },
+                )
                 return unavailable("provider_rejection")
             except (APIConnectionError, OSError):
                 return unavailable("generation_transport_error")
@@ -1246,11 +1888,52 @@ class KnowledgeChatService:
                 return unavailable("malformed_generated_json")
             except Exception:
                 return unavailable("generation_error")
+            if reference_failure is None and generated.get("claims") == []:
+                # Well-formed output that supports no claim from the retrieved passages
+                # is a corpus gap, not a fault: no retry, no model-knowledge fallback.
+                if diagnostics is not None:
+                    diagnostics["validation_outcome"] = "answer has no grounded claims"
+                result = KnowledgeChatResponse(
+                    **base,
+                    status="no_evidence",
+                    answer=NO_EVIDENCE,
+                    evidence_state="no_relevant_corpus_evidence",
+                )
+                try:
+                    persist(result)
+                    return result, "no_evidence"
+                except Exception:
+                    return unavailable("persistence_failure")
             try:
                 with _timed_stage(request_id, f"grounding_validation_attempt_{attempt}"):
-                    claims, citations = _validate_grounding(generated, evidence)
-                    evidence_state = _validate_evidence_state(generated, citations)
+                    if reference_failure is not None:
+                        raise ValueError(reference_failure)
+                    claims, citations, dropped = _grounded_claims(generated, evidence)
+                    if not claims or not str(generated.get("answer", "")).strip():
+                        raise ValueError(dropped[0] if dropped else "answer has no grounded claims")
+                    evidence_state = _validate_evidence_state(
+                        generated, citations, partial=bool(dropped)
+                    )
+                if dropped:
+                    logger.info(
+                        "knowledge_chat_grounding_partial",
+                        extra={
+                            "context": {
+                                "request_id": request_id,
+                                "attempt": attempt,
+                                "kept_claim_count": len(claims),
+                                "dropped_claim_count": len(dropped),
+                                "reasons": [
+                                    reason
+                                    if reason in _GROUNDING_REASONS
+                                    else "invalid_generated_shape"
+                                    for reason in dropped
+                                ],
+                            }
+                        },
+                    )
             except Exception as exc:
+                correction = _grounding_reason(exc)
                 if diagnostics is not None:
                     diagnostics["validation_outcome"] = _grounding_reason(exc)
                 logger.info(
@@ -1272,8 +1955,13 @@ class KnowledgeChatService:
             if diagnostics is not None:
                 diagnostics["validation_outcome"] = "passed"
             try:
+                provenance: CorpusProvenanceStore | None = self._provenance
+                if provenance_prefetch is not None:
+                    provenance = _PrefetchedProvenance(
+                        provenance_prefetch, request_id, self._clock, deadline
+                    )
                 with _timed_stage(request_id, "provenance_enrichment"):
-                    citations = _enrich_citations(citations, self._provenance, request_id)
+                    citations = _enrich_citations(citations, provenance, request_id)
                 result = KnowledgeChatResponse(
                     **base,
                     status="answered",
@@ -1340,58 +2028,106 @@ def _enrich_citations(
     return enriched
 
 
-def _validate_grounding(
-    generated: dict[str, Any], evidence: list[Evidence]
-) -> tuple[list[KnowledgeClaim], list[KnowledgeCitation]]:
-    available = {item.passage_id: item for item in evidence}
-    claims: list[KnowledgeClaim] = []
-    citation_map: dict[str, KnowledgeCitation] = {}
-    for raw in generated.get("claims", []):
-        passage_ids = list(dict.fromkeys(raw.get("passage_ids", [])))
-        pmids = set(raw.get("pmids", []))
-        if not passage_ids or any(item not in available for item in passage_ids):
-            raise ValueError("unsupported passage citation")
-        actual_pmids = {available[item].pmid for item in passage_ids}
-        if pmids != actual_pmids:
-            raise ValueError("invented or missing PMID")
-        quotes = _support_quotes(raw.get("support_quotes"), passage_ids)
-        for passage_id in passage_ids:
-            quote = quotes[passage_id]
-            if (
-                not isinstance(quote, str)
-                or not quote.strip()
-                or quote not in available[passage_id].excerpt
-            ):
-                raise ValueError("support quote is absent from cited passage")
-        _validate_claim_text(str(raw["text"]), list(quotes.values()))
-        citation_ids: list[str] = []
-        for pmid in sorted(actual_pmids):
-            items = [available[item] for item in passage_ids if available[item].pmid == pmid]
-            citation_id = f"pmid:{pmid}"
-            citation_ids.append(citation_id)
-            existing = citation_map.get(citation_id)
-            claim_ids = list(
-                dict.fromkeys((existing.claim_ids if existing else []) + [raw["claim_id"]])
-            )
-            cited_passages = list(
-                dict.fromkeys(
-                    (existing.passage_ids if existing else []) + [item.passage_id for item in items]
-                )
-            )
-            citation_map[citation_id] = KnowledgeCitation(
-                citation_id=citation_id,
+def _dedupe_passages(evidence: list[Evidence]) -> tuple[list[Evidence], int]:
+    """Keep the first row for each passage id (rows are ranked best first).
+
+    Grounding resolves a claim's passage id back to one retrieved row. Two rows
+    sharing an id (for example the same passage reached through two paper
+    nodes) made the cited PMID depend on which row won the lookup, which
+    rejected otherwise valid claims as "invented or missing PMID".
+    """
+    seen: set[str] = set()
+    unique: list[Evidence] = []
+    for item in evidence:
+        if item.passage_id in seen:
+            continue
+        seen.add(item.passage_id)
+        unique.append(item)
+    return unique, len(evidence) - len(unique)
+
+
+def _ground_claim(
+    raw: Any, available: dict[str, Evidence]
+) -> tuple[KnowledgeClaim, list[KnowledgeCitation]]:
+    """Validate one claim against the retrieved passages it cites."""
+    passage_ids = list(dict.fromkeys(raw.get("passage_ids", [])))
+    pmids = set(raw.get("pmids", []))
+    if not passage_ids or any(item not in available for item in passage_ids):
+        raise ValueError("unsupported passage citation")
+    actual_pmids = {available[item].pmid for item in passage_ids}
+    if pmids != actual_pmids:
+        raise ValueError("invented or missing PMID")
+    quotes = _support_quotes(raw.get("support_quotes"), passage_ids)
+    for passage_id in passage_ids:
+        quote = quotes[passage_id]
+        if (
+            not isinstance(quote, str)
+            or not quote.strip()
+            or quote not in available[passage_id].excerpt
+        ):
+            raise ValueError("support quote is absent from cited passage")
+    _validate_claim_text(str(raw["text"]), list(quotes.values()))
+    citations: list[KnowledgeCitation] = []
+    for pmid in sorted(actual_pmids):
+        items = [available[item] for item in passage_ids if available[item].pmid == pmid]
+        citations.append(
+            KnowledgeCitation(
+                citation_id=f"pmid:{pmid}",
                 pmid=pmid,
                 title=items[0].title,
                 pubmed_url=items[0].pubmed_url,
-                claim_ids=claim_ids,
-                passage_ids=cited_passages,
+                claim_ids=[raw["claim_id"]],
+                passage_ids=list(dict.fromkeys(item.passage_id for item in items)),
             )
-        claims.append(
-            KnowledgeClaim(claim_id=raw["claim_id"], text=raw["text"], citation_ids=citation_ids)
         )
+    claim = KnowledgeClaim(
+        claim_id=raw["claim_id"],
+        text=raw["text"],
+        citation_ids=[citation.citation_id for citation in citations],
+    )
+    return claim, citations
+
+
+def _grounded_claims(
+    generated: dict[str, Any], evidence: list[Evidence]
+) -> tuple[list[KnowledgeClaim], list[KnowledgeCitation], list[str]]:
+    """Ground each claim on its own: valid claims, merged citations, dropped reasons."""
+    available = {item.passage_id: item for item in evidence}
+    claims: list[KnowledgeClaim] = []
+    citation_map: dict[str, KnowledgeCitation] = {}
+    dropped: list[str] = []
+    for raw in generated.get("claims", []):
+        try:
+            claim, claim_citations = _ground_claim(raw, available)
+        except ValueError as exc:
+            dropped.append(str(exc))
+            continue
+        claims.append(claim)
+        for citation in claim_citations:
+            existing = citation_map.get(citation.citation_id)
+            if existing is not None:
+                citation = citation.model_copy(
+                    update={
+                        "claim_ids": list(dict.fromkeys(existing.claim_ids + citation.claim_ids)),
+                        "passage_ids": list(
+                            dict.fromkeys(existing.passage_ids + citation.passage_ids)
+                        ),
+                    }
+                )
+            citation_map[citation.citation_id] = citation
+    return claims, list(citation_map.values()), dropped
+
+
+def _validate_grounding(
+    generated: dict[str, Any], evidence: list[Evidence]
+) -> tuple[list[KnowledgeClaim], list[KnowledgeCitation]]:
+    """Strict form: every claim must ground, otherwise the first failure is raised."""
+    claims, citations, dropped = _grounded_claims(generated, evidence)
+    if dropped:
+        raise ValueError(dropped[0])
     if not claims or not str(generated.get("answer", "")).strip():
         raise ValueError("answer has no grounded claims")
-    return claims, list(citation_map.values())
+    return claims, citations
 
 
 def _support_quotes(value: Any, passage_ids: list[str]) -> dict[str, Any]:
@@ -1466,7 +2202,7 @@ def _validate_claim_text(text: str, quotes: list[str]) -> None:
 
 
 def _validate_evidence_state(
-    generated: dict[str, Any], citations: list[KnowledgeCitation]
+    generated: dict[str, Any], citations: list[KnowledgeCitation], *, partial: bool = False
 ) -> EvidenceState:
     raw = generated.get("evidence_state")
     allowed = {
@@ -1479,6 +2215,10 @@ def _validate_evidence_state(
     }
     if raw not in allowed:
         raise ValueError("invalid evidence state")
+    if partial:
+        # A claim was dropped, so the model's characterization of the whole answer
+        # no longer applies. Never keep or raise it; report the conservative state.
+        return "limited"
     cited_papers = {citation.pmid for citation in citations}
     if len(cited_papers) == 1:
         return "single_study"

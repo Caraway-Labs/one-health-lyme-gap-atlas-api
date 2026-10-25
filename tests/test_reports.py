@@ -90,7 +90,25 @@ def test_county_report_preserves_zero_missing_and_provenance(reports: ReportServ
     assert report.provenance.dataset_version == "alpha-2026-08-06"
     assert report.provenance.scoring_settings == ScoreSettings().model_dump()
     assert report.identity.template_version == "county-v1"
+    assert report.brief is None
     assert report.identity.generated_at == datetime(2026, 9, 3, 12, 0, tzinfo=UTC)
+
+
+def test_county_data_brief_uses_published_settings(reports: ReportService) -> None:
+    published = reports.county_report("08001", ScoreSettings(), template_version="county-v3")
+    what_if = reports.county_report(
+        "08001",
+        ScoreSettings(ecological_share=85, smooth_k=100, missing_human_weakness=40),
+        template_version="county-v3",
+    )
+
+    assert published.brief is not None
+    assert len(published.brief.categories) == 6
+    assert len(published.brief.workstreams) == 5
+    assert len(published.brief.questions) == 4
+    assert published.score == what_if.score
+    assert published.brief.response_title == what_if.brief.response_title
+    assert published.provenance.scoring_settings["ecological_share"] == 65
 
 
 def test_state_report_is_typed_and_uses_same_versioned_atlas_data(reports: ReportService) -> None:

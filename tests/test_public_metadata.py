@@ -3,6 +3,7 @@
 import base64
 import json
 
+from _pooled import lend
 from fastapi.testclient import TestClient
 
 from lyme_gap_atlas_api.app import create_app
@@ -139,7 +140,7 @@ def test_repository_reads_only_governed_metadata_views(monkeypatch) -> None:
             return Cursor()
 
     monkeypatch.setattr(
-        "lyme_gap_atlas_api.public_metadata.connect", lambda _settings: Connection()
+        "lyme_gap_atlas_api.public_metadata.read_connection", lend(lambda _settings: Connection())
     )
     SnowflakeMetadataRepository(ApiSettings()).load_metadata()
     assert len(statements) == 2
