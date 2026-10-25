@@ -2280,7 +2280,7 @@
           "geographies"
         ],
         "summary": "Get geography identity",
-        "description": "Validated county/state FIPS identity. While canonical identity delivery is unpublished the response is HTTP 200 with availability UNAVAILABLE, reason CANONICAL_GEOGRAPHY_UNPUBLISHED and data null; the identity is validated for shape only. No geometry is returned. Responses use Cache-Control: no-store.",
+        "description": "Validated county/state FIPS identity. While canonical identity delivery is unpublished the response is HTTP 200 with availability UNAVAILABLE, reason CANONICAL_GEOGRAPHY_UNPUBLISHED and data null; the identity is validated for shape only. No geometry is returned. Responses use `Cache-Control: no-store`.",
         "operationId": "geography_v1_geographies__geography_type___geography_id__get",
         "parameters": [
           {
@@ -7801,7 +7801,7 @@
                 },
                 "examples": {
                   "new_york_county": {
-                    "summary": "Persisted review priority for `36061`",
+                    "summary": "Published review priority for `36061`",
                     "value": {
                       "county_fips": "36061",
                       "priority_tier": "HIGH",
@@ -8021,7 +8021,7 @@
                 },
                 "examples": {
                   "available": {
-                    "summary": "A county with a persisted review priority",
+                    "summary": "A county with a published review priority",
                     "value": {
                       "availability": "AVAILABLE",
                       "geography_release_id": "governed-2026-10-15-january-climate-prod",
