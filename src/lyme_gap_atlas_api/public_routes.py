@@ -34,7 +34,20 @@ from .public_contract import (
 )
 from .public_docs import (
     COLLECTION_DESCRIPTION,
+    DESCRIPTION_400,
+    DESCRIPTION_404,
+    DESCRIPTION_413,
+    DESCRIPTION_414,
+    DESCRIPTION_429,
+    DESCRIPTION_503,
     DETAIL_DESCRIPTION,
+    EXAMPLE_GET_BODY,
+    EXAMPLE_INVALID_REQUEST,
+    EXAMPLE_QUERY_STRING_TOO_LONG,
+    EXAMPLE_RATE_LIMITED,
+    EXAMPLE_RESOURCE_NOT_FOUND,
+    EXAMPLE_SERVICE_UNAVAILABLE,
+    PUBLIC_400_EXAMPLES,
     problem_response,
 )
 from .public_metadata import MetadataService
@@ -46,57 +59,49 @@ from .service import AtlasService
 router = APIRouter()
 
 PROBLEMS: dict[int | str, dict[str, Any]] = {
-    400: {
-        "description": "INVALID_REQUEST, UNSUPPORTED_FILTER, "
-        "UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
-        "content": {
-            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
-        },
-    },
-    404: {
-        "description": "RESOURCE_NOT_FOUND; application/problem+json",
-        "content": {
-            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
-        },
-    },
-    429: {
-        "description": "Rate limited; Retry-After; application/problem+json",
-        "content": {
-            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
-        },
-    },
-    413: {
-        "description": "GET request body rejected; application/problem+json",
-        "content": {
-            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
-        },
-    },
-    414: {
-        "description": "Query string too long; application/problem+json",
-        "content": {
-            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
-        },
-    },
-    503: {
-        "description": "Service unavailable; application/problem+json",
-        "content": {
-            "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}
-        },
-    },
+    400: problem_response(
+        400,
+        "INVALID_REQUEST",
+        EXAMPLE_INVALID_REQUEST.detail,
+        description=DESCRIPTION_400,
+        examples=PUBLIC_400_EXAMPLES,
+    ),
+    404: problem_response(
+        404,
+        "RESOURCE_NOT_FOUND",
+        EXAMPLE_RESOURCE_NOT_FOUND.detail,
+        description=DESCRIPTION_404,
+        examples=(EXAMPLE_RESOURCE_NOT_FOUND,),
+    ),
+    429: problem_response(
+        429,
+        "RATE_LIMITED",
+        EXAMPLE_RATE_LIMITED.detail,
+        description=DESCRIPTION_429,
+        examples=(EXAMPLE_RATE_LIMITED,),
+    ),
+    413: problem_response(
+        413,
+        "INVALID_REQUEST",
+        EXAMPLE_GET_BODY.detail,
+        description=DESCRIPTION_413,
+        examples=(EXAMPLE_GET_BODY,),
+    ),
+    414: problem_response(
+        414,
+        "INVALID_REQUEST",
+        EXAMPLE_QUERY_STRING_TOO_LONG.detail,
+        description=DESCRIPTION_414,
+        examples=(EXAMPLE_QUERY_STRING_TOO_LONG,),
+    ),
+    503: problem_response(
+        503,
+        "SERVICE_UNAVAILABLE",
+        EXAMPLE_SERVICE_UNAVAILABLE.detail,
+        description=DESCRIPTION_503,
+        examples=(EXAMPLE_SERVICE_UNAVAILABLE,),
+    ),
 }
-
-for _status, _code in {
-    400: "INVALID_REQUEST",
-    404: "RESOURCE_NOT_FOUND",
-    429: "RATE_LIMITED",
-    413: "INVALID_REQUEST",
-    414: "INVALID_REQUEST",
-    503: "SERVICE_UNAVAILABLE",
-}.items():
-    _documented = problem_response(_status, _code, str(PROBLEMS[_status]["description"]))
-    PROBLEMS[_status]["content"] = _documented["content"]
-    if "headers" in _documented:
-        PROBLEMS[_status]["headers"] = _documented["headers"]
 PROBLEMS[200] = {"description": "Successful current-release resource."}
 
 OBSERVATIONS_DESCRIPTION = """Query published county observations for one measure and up to 500 \

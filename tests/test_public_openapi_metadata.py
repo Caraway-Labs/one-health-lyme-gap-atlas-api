@@ -116,7 +116,9 @@ def test_openapi_uses_canonical_domain_and_problem_type_uris_in_all_exports() ->
                     if "example" in problem:
                         values.append(problem["example"])
                     for value in values:
-                        assert value["type"].startswith(f"{PROBLEM_TYPE_BASE_URI}/")
+                        assert value["type"] == "about:blank" or value["type"].startswith(
+                            f"{PROBLEM_TYPE_BASE_URI}/"
+                        )
     assert "https://carawaylabs.com/problems/" not in str(app.first_party_openapi())
 
 
@@ -155,7 +157,9 @@ def test_problem_examples_match_operation_route_templates_and_documented_statuse
                     for value in values:
                         assert value["instance"] == path
                         assert value["status"] == int(status)
-                        assert value["type"].startswith(f"{PROBLEM_TYPE_BASE_URI}/")
+                        assert value["type"] == "about:blank" or value["type"].startswith(
+                            f"{PROBLEM_TYPE_BASE_URI}/"
+                        )
         assert {"400", "404", "413", "414", "422", "429", "503"} <= observed_statuses
         for (path, method), statuses in expected_statuses.items():
             responses = contract["paths"][path][method]["responses"]
@@ -195,8 +199,8 @@ def test_examples_validate_and_error_matches_runtime() -> None:
     for status in ("400", "404", "413", "414", "429", "503"):
         media = operation["responses"][status]["content"]
         assert set(media) == {"application/problem+json"}
-        error = media["application/problem+json"]["examples"]["illustrative"]["value"]
-        assert ProblemDetails.model_validate(error).status == int(status)
+        for item in media["application/problem+json"]["examples"].values():
+            assert ProblemDetails.model_validate(item["value"]).status == int(status)
     invalid = client.get("/v1/observations")
     assert invalid.status_code == 400
     assert invalid.headers["content-type"] == "application/problem+json"

@@ -457,21 +457,37 @@ class CountyDetail(CountyScoreSummary):
 class ProblemDetails(BaseModel):
     """RFC 9457 error body (`application/problem+json`). Some errors add a stable `code`."""
 
-    type: str = Field(description="URI that identifies the kind of problem.")
-    title: str = Field(description="Short summary of the problem.")
-    status: int = Field(description="HTTP status code of the response.")
-    detail: str = Field(description="Explanation of this occurrence of the problem.")
-    instance: str = Field(description="URI that identifies this occurrence of the problem.")
+    type: str = Field(
+        description="URI that names the kind of problem, such as `.../problems/validation`. "
+        "Branch on `code` when it is present."
+    )
+    title: str = Field(
+        description="Short summary of the kind of problem. Read `detail` for this occurrence."
+    )
+    status: int = Field(description="HTTP status code of the response, repeated in the body.")
+    detail: str = Field(
+        description="Explanation of this occurrence of the problem, in English. "
+        "Show it to a developer; do not match on its wording."
+    )
+    instance: str = Field(
+        description="Path of the request that failed, for example `/v1/observations`."
+    )
     request_id: str = Field(
-        description="Identifies the request. Quote it when you contact support."
+        description="Identifies this request. Include it when you contact support. "
+        "It matches the `X-Request-ID` response header."
     )
     code: str | None = Field(
         default=None,
-        description="Stable machine-readable error code, such as `QUERY_TOO_BROAD`. "
-        "Present when the response defines one.",
+        description="Stable machine-readable error code: `INVALID_REQUEST`, "
+        "`UNSUPPORTED_FILTER`, `UNSUPPORTED_STRATIFICATION`, `QUERY_TOO_BROAD`, "
+        "`RESOURCE_NOT_FOUND`, `RATE_LIMITED`, or `SERVICE_UNAVAILABLE`. "
+        "Branch on this field. It is absent on some errors, such as HTTP 422 validation errors.",
     )
     errors: list[dict[str, Any]] | None = Field(
-        default=None, description="Details of each invalid input, when the request had several."
+        default=None,
+        description="One entry for each invalid input when a request fails validation. "
+        "Each entry has `loc` (where the value was sent), `msg`, and `type`. "
+        "`null` or absent when the error is not about specific inputs.",
     )
 
 
