@@ -57,3 +57,26 @@ def test_guide_documents_all_value_states_and_cumulative_cdc_selector() -> None:
     for query in cdc:
         assert "year" not in query
         assert query["start_date"] == query["end_date"] == [PERIOD.isoformat()]
+
+
+def test_landing_description_is_a_quickstart_within_budget() -> None:
+    from lyme_gap_atlas_api.public_docs import API_DESCRIPTION
+
+    assert "curl" in API_DESCRIPTION
+    assert "https://api.onehealthatlas.org" in API_DESCRIPTION
+    assert "no API key" in API_DESCRIPTION
+    assert "case_count_floor_2023" in API_DESCRIPTION
+    assert "36061" in API_DESCRIPTION
+    assert "Contract consumers" not in API_DESCRIPTION
+    assert "Fumadocs" not in API_DESCRIPTION
+    assert len(API_DESCRIPTION) < 3200
+    for heading in (
+        "Quickstart",
+        "Responses",
+        "Pagination",
+        "Errors",
+        "Caching and retries",
+        "Interpreting results",
+        "Stability",
+    ):
+        assert f"## {heading}" in API_DESCRIPTION

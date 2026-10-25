@@ -3,7 +3,7 @@
   "info": {
     "title": "One Health Lyme Gap Atlas API",
     "summary": "Governed Atlas analytics, metadata, and provenance",
-    "description": "Read-only structured data from the One Health Lyme Gap Atlas.\nOrdinary public reads are anonymous and require no API key.\n\n## Interpretation and reproducibility\nV1 (`/v1`) is the HTTP contract version; the application version is separate.\nRead source, methodology, semantic/release versions, and limitations together.\nSurveillance floors and gap scores are not diagnoses, individual risk estimates,\nor causal claims. Null, zero, suppressed values, and no linked records have\ndistinct meanings. Response time is not publisher freshness.\n\n## Queries and errors\nCanonical collections use `data`, `meta`, and `links`; details use `data`.\nPagination defaults to 100 items (maximum 500). Send opaque `next_page_token`\nas `page_token` with the same filters; null means exhaustion. Tokens bind to\nquery/release and may expire on restart. Current-release observations require\none measure, 1\u2013500 county FIPS IDs, and a year or complete inclusive date range.\nThe default pre-execution logical-result ceiling is 10,000, not truncation.\nOnly the annual 2023 period is currently published; no strata are supported.\n\nErrors use RFC 9457 `application/problem+json` with `request_id` for support.\nCanonical errors carry stable `code` values; legacy Atlas routes retain their\nexisting error semantics (including 422 validation). Respect `Retry-After` on\n429/503. Canonical metadata/observations cache for 60 seconds; supported detail\nresources return ETags and 304 on matching `If-None-Match`. See each operation\nfor legacy cache and export behavior.\n\n## Contract consumers\nFumadocs, `/docs`, and `/redoc` consume the canonical public `openapi.json`\nat `/openapi.json`. Internal product operations are not part of this contract.\nExisting operation IDs remain stable for\ngenerated clients. Breaking public changes require an approved migration and\ndeprecation plan; optional additive fields may appear within V1.\nOnly separately approved ML outputs may be published. Internal conversational\nAI, literature retrieval, account, and feedback product routes are excluded.\n",
+    "description": "Read-only JSON API for county and state Lyme disease surveillance,\npublic-health context, and the sources behind them. It is for developers, analysts, and\npublic-health practitioners. The base URL is\n`https://api.onehealthatlas.org`, and public reads need no API key.\n\n## Quickstart\nGet the 2023 case-count floor for New York County (FIPS `36061`):\n\n```bash\ncurl 'https://api.onehealthatlas.org/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=36061&year=2023'\n```\n\nThe response is trimmed to the fields that matter. The values are an example:\n\n```json\n{\n  \"data\": [{\n    \"measure_id\": \"case_count_floor_2023\",\n    \"geography\": {\"geography_type\": \"county\", \"geography_id\": \"36061\"},\n    \"value\": 1114.0, \"value_state\": \"OBSERVED\", \"unit\": \"cases\",\n    \"source_label\": \"CDC Lyme surveillance\", \"release_id\": \"...\",\n    \"limitations\": [\"...\"]\n  }],\n  \"meta\": {\"next_page_token\": null, \"availability\": \"AVAILABLE\"},\n  \"links\": {\"self\": null}\n}\n```\n\n## Responses\nCollections return `data` (the items), `meta` (paging, `availability`, `release_id`,\nresponse time), and `links`. A single resource returns `data`.\n\n## Pagination\n`page_size` defaults to 100 (maximum 500). Send `meta.next_page_token` as `page_token`,\nunchanged and with the same filters. A `null` token means there are no more pages.\n\n## Errors\nErrors use RFC 9457 `application/problem+json` with a stable `code` and a `request_id`\nto quote when you ask for support. A query that selects more than 10,000 results is\nrejected with 400 `QUERY_TOO_BROAD`, not truncated.\n\n## Caching and retries\nMetadata and observation responses can be cached for 60 seconds. Detail responses\nreturn an `ETag`; send it as `If-None-Match` to get an empty 304 when nothing changed.\nWait for `Retry-After` seconds before you retry a 429 or 503.\n\n## Interpreting results\nRead each value with its `value_state`, source, methodology version, `release_id`, and\n`limitations`. Atlas results are not a diagnosis. Atlas results are not an estimate of\nan individual's risk. Surveillance floors are minimum counts, not complete incidence.\nNull, zero, suppressed, and no linked record mean different things. The response time\nshows when Atlas built the response. It does not show when the publisher last updated\nthe data.\n\n## Stability\n`/v1` is the contract version, and the application version is separate. Optional fields\nmay be added within V1. Breaking changes follow a published deprecation plan.\n",
     "contact": {
       "name": "One Health Atlas",
       "url": "https://onehealthatlas.org/"
@@ -4636,31 +4636,31 @@
   "tags": [
     {
       "name": "discovery",
-      "description": "Current-release indicators and measurable variables."
+      "description": "List the indicators and measures you can query."
     },
     {
       "name": "observations",
-      "description": "Bounded county observations with explicit value states."
+      "description": "Query measure values for counties, each with an explicit `value_state`."
     },
     {
       "name": "provenance",
-      "description": "Governed source and methodology identities and versions."
+      "description": "Look up the sources and methodologies behind a value, with versions."
     },
     {
       "name": "geographies",
-      "description": "Typed geography identity; canonical delivery pending (200 UNAVAILABLE)."
+      "description": "Validate a county or state FIPS code. Atlas does not yet publish place records, so these operations return HTTP 200 with `availability` set to `UNAVAILABLE`."
     },
     {
       "name": "atlas",
-      "description": "Existing release analytics and separate display geometry."
+      "description": "Get release metadata, scores, rankings, and map geometry."
     },
     {
       "name": "counties",
-      "description": "Existing county details and versioned PDF reports."
+      "description": "Get county detail and download county PDF reports."
     },
     {
       "name": "states",
-      "description": "Existing state PDF reports."
+      "description": "Download state PDF reports."
     }
   ],
   "externalDocs": {
