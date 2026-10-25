@@ -35,12 +35,17 @@
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Return only the indicator with this exact ID. Omit it to list every indicator. An ID that matches nothing returns an empty list.",
+              "examples": [
+                "human_disease_burden"
+              ],
               "title": "Indicator Id",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Return only the indicator with this exact ID. Omit it to list every indicator. An ID that matches nothing returns an empty list."
           },
           {
             "name": "page_size",
@@ -265,8 +270,13 @@
             "required": true,
             "schema": {
               "type": "string",
+              "description": "Exact indicator ID from the indicator list. An unknown ID returns 404.",
+              "examples": [
+                "human_disease_burden"
+              ],
               "title": "Indicator Id"
-            }
+            },
+            "description": "Exact indicator ID from the indicator list. An unknown ID returns 404."
           }
         ],
         "responses": {
@@ -460,36 +470,51 @@
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Return only the measure with this exact ID. Omit it to list every measure. An ID that matches nothing returns an empty list.",
+              "examples": [
+                "case_count_floor_2023"
+              ],
               "title": "Measure Id",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Return only the measure with this exact ID. Omit it to list every measure. An ID that matches nothing returns an empty list."
           },
           {
             "name": "indicator_id",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Return only measures that belong to this indicator ID. Omit it to list every measure.",
+              "examples": [
+                "human_disease_burden"
+              ],
               "title": "Indicator Id",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Return only measures that belong to this indicator ID. Omit it to list every measure."
           },
           {
             "name": "geography_type",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Return only measures whose `geography_semantics` field equals this value exactly, for example `COUNTY_FIPS_5`. Omit it to list every measure.",
+              "examples": [
+                "COUNTY_FIPS_5"
+              ],
               "title": "Geography Type",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Return only measures whose `geography_semantics` field equals this value exactly, for example `COUNTY_FIPS_5`. Omit it to list every measure."
           },
           {
             "name": "page_size",
@@ -714,8 +739,13 @@
             "required": true,
             "schema": {
               "type": "string",
+              "description": "Exact measure ID from the measure list. An unknown ID returns 404.",
+              "examples": [
+                "case_count_floor_2023"
+              ],
               "title": "Measure Id"
-            }
+            },
+            "description": "Exact measure ID from the measure list. An unknown ID returns 404."
           }
         ],
         "responses": {
@@ -1127,8 +1157,13 @@
             "required": true,
             "schema": {
               "type": "string",
+              "description": "Exact source ID, as given in a `source_id` field. An unknown ID returns 404.",
+              "examples": [
+                "human"
+              ],
               "title": "Source Id"
-            }
+            },
+            "description": "Exact source ID, as given in a `source_id` field. An unknown ID returns 404."
           }
         ],
         "responses": {
@@ -1323,8 +1358,13 @@
             "required": true,
             "schema": {
               "type": "string",
+              "description": "Exact methodology ID, as given in a `methodology_id` field. An unknown ID returns 404.",
+              "examples": [
+                "human_confirmed_probable_case_floor_v1"
+              ],
               "title": "Methodology Id"
-            }
+            },
+            "description": "Exact methodology ID, as given in a `methodology_id` field. An unknown ID returns 404."
           }
         ],
         "responses": {
@@ -1518,8 +1558,13 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/GeographyType"
-            }
+              "$ref": "#/components/schemas/GeographyType",
+              "description": "Kind of place: `county` or `state`. Any other value returns 400 `INVALID_REQUEST`.",
+              "examples": [
+                "county"
+              ]
+            },
+            "description": "Kind of place: `county` or `state`. Any other value returns 400 `INVALID_REQUEST`."
           },
           {
             "name": "geography_id",
@@ -1527,8 +1572,13 @@
             "required": true,
             "schema": {
               "type": "string",
+              "description": "FIPS code of the place, sent as a string with leading zeros kept: five digits for a county, two for a state. A code of the wrong length or with non-digits returns 400 `INVALID_REQUEST`. Connecticut counties use planning-region codes such as `09110`.",
+              "examples": [
+                "08001"
+              ],
               "title": "Geography Id"
-            }
+            },
+            "description": "FIPS code of the place, sent as a string with leading zeros kept: five digits for a county, two for a state. A code of the wrong length or with non-digits returns 400 `INVALID_REQUEST`. Connecticut counties use planning-region codes such as `09110`."
           }
         ],
         "responses": {
@@ -1695,8 +1745,13 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/GeographyType"
-            }
+              "$ref": "#/components/schemas/GeographyType",
+              "description": "Kind of place: `county` or `state`. Any other value returns 400 `INVALID_REQUEST`.",
+              "examples": [
+                "county"
+              ]
+            },
+            "description": "Kind of place: `county` or `state`. Any other value returns 400 `INVALID_REQUEST`."
           },
           {
             "name": "geography_id",
@@ -1704,8 +1759,13 @@
             "required": true,
             "schema": {
               "type": "string",
+              "description": "FIPS code of the place, sent as a string with leading zeros kept: five digits for a county, two for a state. A code of the wrong length or with non-digits returns 400 `INVALID_REQUEST`. Connecticut counties use planning-region codes such as `09110`.",
+              "examples": [
+                "08001"
+              ],
               "title": "Geography Id"
-            }
+            },
+            "description": "FIPS code of the place, sent as a string with leading zeros kept: five digits for a county, two for a state. A code of the wrong length or with non-digits returns 400 `INVALID_REQUEST`. Connecticut counties use planning-region codes such as `09110`."
           }
         ],
         "responses": {
@@ -1925,8 +1985,13 @@
             "in": "query",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/GeographyType"
-            }
+              "$ref": "#/components/schemas/GeographyType",
+              "description": "Kind of place. Only `county` is supported; `state` returns 400 `UNSUPPORTED_FILTER`.",
+              "examples": [
+                "county"
+              ]
+            },
+            "description": "Kind of place. Only `county` is supported; `state` returns 400 `UNSUPPORTED_FILTER`."
           },
           {
             "name": "geography_id",
@@ -3719,33 +3784,48 @@
             "schema": {
               "type": "string",
               "pattern": "^[A-Z]{2}$",
+              "description": "Two-letter uppercase USPS state code, for example `CO`. A malformed value returns 422. A state not in the current release returns 404.",
+              "examples": [
+                "CO"
+              ],
               "title": "State"
-            }
+            },
+            "description": "Two-letter uppercase USPS state code, for example `CO`. A malformed value returns 422. A state not in the current release returns 404."
           },
           {
             "name": "observation_context",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Optional label for the observation context you are reviewing. Atlas echoes it in the response and does not use it to change the result, which always reflects the current cumulative county status. Use up to 80 characters; a longer value returns 422.",
+              "examples": [
+                "Current cumulative county status"
+              ],
               "title": "Observation Context",
               "maxLength": 80,
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Optional label for the observation context you are reviewing. Atlas echoes it in the response and does not use it to change the result, which always reflects the current cumulative county status. Use up to 80 characters; a longer value returns 422."
           },
           {
             "name": "dataset_version",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404.",
+              "examples": [
+                "governed-2026-10-15-january-climate-prod"
+              ],
               "title": "Dataset Version",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404."
           }
         ],
         "responses": {
@@ -3885,12 +3965,17 @@
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404.",
+              "examples": [
+                "governed-2026-10-15-january-climate-prod"
+              ],
               "title": "Dataset Version",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404."
           }
         ],
         "responses": {
@@ -4030,12 +4115,17 @@
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404.",
+              "examples": [
+                "governed-2026-10-15-january-climate-prod"
+              ],
               "title": "Dataset Version",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404."
           }
         ],
         "responses": {
@@ -4178,12 +4268,17 @@
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404.",
+              "examples": [
+                "governed-2026-10-15-january-climate-prod"
+              ],
               "title": "Dataset Version",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404."
           },
           {
             "name": "ecological_share",
@@ -4194,9 +4289,14 @@
               "multipleOf": 5,
               "maximum": 85,
               "minimum": 40,
+              "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                65
+              ],
               "default": 65,
               "title": "Ecological Share"
-            }
+            },
+            "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "smooth_k",
@@ -4206,9 +4306,14 @@
               "type": "integer",
               "maximum": 200,
               "minimum": 5,
+              "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                50
+              ],
               "default": 50,
               "title": "Smooth K"
-            }
+            },
+            "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "missing_human_weakness",
@@ -4219,15 +4324,21 @@
               "multipleOf": 5,
               "maximum": 90,
               "minimum": 40,
+              "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                75
+              ],
               "default": 75,
               "title": "Missing Human Weakness"
-            }
+            },
+            "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "low_incidence_breakpoint",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
               "deprecated": true,
               "title": "Low Incidence Breakpoint",
               "type": [
@@ -4235,6 +4346,7 @@
                 "null"
               ]
             },
+            "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
             "deprecated": true
           }
         ],
@@ -4522,20 +4634,30 @@
             "schema": {
               "type": "string",
               "pattern": "^\\d{5}$",
+              "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404.",
+              "examples": [
+                "08001"
+              ],
               "title": "Fips"
-            }
+            },
+            "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404."
           },
           {
             "name": "dataset_version",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404.",
+              "examples": [
+                "governed-2026-10-15-january-climate-prod"
+              ],
               "title": "Dataset Version",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404."
           },
           {
             "name": "ecological_share",
@@ -4546,9 +4668,14 @@
               "multipleOf": 5,
               "maximum": 85,
               "minimum": 40,
+              "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                65
+              ],
               "default": 65,
               "title": "Ecological Share"
-            }
+            },
+            "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "smooth_k",
@@ -4558,9 +4685,14 @@
               "type": "integer",
               "maximum": 200,
               "minimum": 5,
+              "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                50
+              ],
               "default": 50,
               "title": "Smooth K"
-            }
+            },
+            "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "missing_human_weakness",
@@ -4571,15 +4703,21 @@
               "multipleOf": 5,
               "maximum": 90,
               "minimum": 40,
+              "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                75
+              ],
               "default": 75,
               "title": "Missing Human Weakness"
-            }
+            },
+            "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "low_incidence_breakpoint",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
               "deprecated": true,
               "title": "Low Incidence Breakpoint",
               "type": [
@@ -4587,6 +4725,7 @@
                 "null"
               ]
             },
+            "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
             "deprecated": true
           }
         ],
@@ -4728,9 +4867,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^[0-9]{5}$",
+              "pattern": "^\\d{5}$",
+              "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404.",
+              "examples": [
+                "08001"
+              ],
               "title": "Fips"
-            }
+            },
+            "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404."
           }
         ],
         "responses": {
@@ -4902,8 +5046,13 @@
             "schema": {
               "type": "string",
               "pattern": "^\\d{5}$",
+              "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404.",
+              "examples": [
+                "08001"
+              ],
               "title": "Fips"
-            }
+            },
+            "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404."
           }
         ],
         "responses": {
@@ -5045,8 +5194,13 @@
             "schema": {
               "type": "string",
               "pattern": "^\\d{5}$",
+              "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404.",
+              "examples": [
+                "08001"
+              ],
               "title": "Fips"
-            }
+            },
+            "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404."
           }
         ],
         "responses": {
@@ -5189,20 +5343,30 @@
             "schema": {
               "type": "string",
               "pattern": "^\\d{5}$",
+              "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404.",
+              "examples": [
+                "08001"
+              ],
               "title": "Fips"
-            }
+            },
+            "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404."
           },
           {
             "name": "dataset_version",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404.",
+              "examples": [
+                "governed-2026-10-15-january-climate-prod"
+              ],
               "title": "Dataset Version",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404."
           },
           {
             "name": "period_start",
@@ -5259,9 +5423,14 @@
             "schema": {
               "type": "string",
               "pattern": "^[a-z]+-v\\d+$",
+              "description": "County report template. Accepted values are `county-v3` (default; the two-page County Data Brief, which ignores score settings), `county-v1`, and `county-v2` (requires `dataset_version`, `period_start`, `period_end`, and `measure_id`). A well-formed value that is not accepted returns 422.",
+              "examples": [
+                "county-v3"
+              ],
               "default": "county-v3",
               "title": "Template"
-            }
+            },
+            "description": "County report template. Accepted values are `county-v3` (default; the two-page County Data Brief, which ignores score settings), `county-v1`, and `county-v2` (requires `dataset_version`, `period_start`, `period_end`, and `measure_id`). A well-formed value that is not accepted returns 422."
           },
           {
             "name": "ecological_share",
@@ -5272,9 +5441,14 @@
               "multipleOf": 5,
               "maximum": 85,
               "minimum": 40,
+              "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                65
+              ],
               "default": 65,
               "title": "Ecological Share"
-            }
+            },
+            "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "smooth_k",
@@ -5284,9 +5458,14 @@
               "type": "integer",
               "maximum": 200,
               "minimum": 5,
+              "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                50
+              ],
               "default": 50,
               "title": "Smooth K"
-            }
+            },
+            "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "missing_human_weakness",
@@ -5297,15 +5476,21 @@
               "multipleOf": 5,
               "maximum": 90,
               "minimum": 40,
+              "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                75
+              ],
               "default": 75,
               "title": "Missing Human Weakness"
-            }
+            },
+            "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "low_incidence_breakpoint",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
               "deprecated": true,
               "title": "Low Incidence Breakpoint",
               "type": [
@@ -5313,6 +5498,7 @@
                 "null"
               ]
             },
+            "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
             "deprecated": true
           }
         ],
@@ -5506,20 +5692,30 @@
             "schema": {
               "type": "string",
               "pattern": "^[A-Z]{2}$",
+              "description": "Two-letter uppercase USPS state code, for example `CO`. A malformed value returns 422. A state not in the current release returns 404.",
+              "examples": [
+                "CO"
+              ],
               "title": "State"
-            }
+            },
+            "description": "Two-letter uppercase USPS state code, for example `CO`. A malformed value returns 422. A state not in the current release returns 404."
           },
           {
             "name": "dataset_version",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404.",
+              "examples": [
+                "governed-2026-10-15-january-climate-prod"
+              ],
               "title": "Dataset Version",
               "type": [
                 "string",
                 "null"
               ]
-            }
+            },
+            "description": "Data release to read, as a `release_id`. Omit it to use the current release. Copy a value from `release_id` in the metadata response. An unknown release returns 404."
           },
           {
             "name": "template",
@@ -5528,9 +5724,14 @@
             "schema": {
               "type": "string",
               "pattern": "^[a-z]+-v\\d+$",
+              "description": "State report template. The only accepted value is `state-v1`, which is also the default. Any other value returns 422.",
+              "examples": [
+                "state-v1"
+              ],
               "default": "state-v1",
               "title": "Template"
-            }
+            },
+            "description": "State report template. The only accepted value is `state-v1`, which is also the default. Any other value returns 422."
           },
           {
             "name": "ecological_share",
@@ -5541,9 +5742,14 @@
               "multipleOf": 5,
               "maximum": 85,
               "minimum": 40,
+              "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                65
+              ],
               "default": 65,
               "title": "Ecological Share"
-            }
+            },
+            "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "smooth_k",
@@ -5553,9 +5759,14 @@
               "type": "integer",
               "maximum": 200,
               "minimum": 5,
+              "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                50
+              ],
               "default": 50,
               "title": "Smooth K"
-            }
+            },
+            "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "missing_human_weakness",
@@ -5566,15 +5777,21 @@
               "multipleOf": 5,
               "maximum": 90,
               "minimum": 40,
+              "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                75
+              ],
               "default": 75,
               "title": "Missing Human Weakness"
-            }
+            },
+            "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "low_incidence_breakpoint",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
               "deprecated": true,
               "title": "Low Incidence Breakpoint",
               "type": [
@@ -5582,6 +5799,7 @@
                 "null"
               ]
             },
+            "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
             "deprecated": true
           }
         ],
@@ -5751,9 +5969,14 @@
             "schema": {
               "type": "string",
               "pattern": "^(ALL|[A-Z]{2})$",
+              "description": "Limit rows to one state. Use a two-letter uppercase USPS state code, or `ALL` for every state. The default is `ALL`. Any other value returns 422.",
+              "examples": [
+                "CO"
+              ],
               "default": "ALL",
               "title": "State"
-            }
+            },
+            "description": "Limit rows to one state. Use a two-letter uppercase USPS state code, or `ALL` for every state. The default is `ALL`. Any other value returns 422."
           },
           {
             "name": "q",
@@ -5762,9 +5985,14 @@
             "schema": {
               "type": "string",
               "maxLength": 100,
+              "description": "Filter rows by text. Matching ignores case and keeps rows where the county name, state code, or county FIPS code contains the text. Use up to 100 characters; a longer value returns 422. The default is empty, which keeps every row.",
+              "examples": [
+                "boulder"
+              ],
               "default": "",
               "title": "Q"
-            }
+            },
+            "description": "Filter rows by text. Matching ignores case and keeps rows where the county name, state code, or county FIPS code contains the text. Use up to 100 characters; a longer value returns 422. The default is empty, which keeps every row."
           },
           {
             "name": "evidence",
@@ -5778,9 +6006,14 @@
                 "complete"
               ],
               "type": "string",
+              "description": "Limit rows by available evidence. `all` keeps every county. `ecological` keeps counties with a tick or pathogen signal. `human` keeps counties with a published human case count. `complete` keeps counties whose `evidence_completeness` is 5 or more. The default is `all`. Any other value returns 422.",
+              "examples": [
+                "all"
+              ],
               "default": "all",
               "title": "Evidence"
-            }
+            },
+            "description": "Limit rows by available evidence. `all` keeps every county. `ecological` keeps counties with a tick or pathogen signal. `human` keeps counties with a published human case count. `complete` keeps counties whose `evidence_completeness` is 5 or more. The default is `all`. Any other value returns 422."
           },
           {
             "name": "ecological_share",
@@ -5791,9 +6024,14 @@
               "multipleOf": 5,
               "maximum": 85,
               "minimum": 40,
+              "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                65
+              ],
               "default": 65,
               "title": "Ecological Share"
-            }
+            },
+            "description": "Percent of the gap score weighted to ecological evidence (tick and pathogen signals). The rest goes to community vulnerability (social vulnerability, insurance access, and rurality). Use a multiple of 5 from 40 to 85. The default is 65. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "smooth_k",
@@ -5803,9 +6041,14 @@
               "type": "integer",
               "maximum": 200,
               "minimum": 5,
+              "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                50
+              ],
               "default": 50,
               "title": "Smooth K"
-            }
+            },
+            "description": "Smoothing constant for the human-case signal. It sets the reported incidence at which the human weakness signal falls to 50: a larger value keeps the signal high for more counties. Use a whole number from 5 to 200. The default is 50. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "missing_human_weakness",
@@ -5816,15 +6059,21 @@
               "multipleOf": 5,
               "maximum": 90,
               "minimum": 40,
+              "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422.",
+              "examples": [
+                75
+              ],
               "default": 75,
               "title": "Missing Human Weakness"
-            }
+            },
+            "description": "Human weakness signal (0-100) that Atlas assumes for a county with no published human case count or incidence. A missing count is not zero. Use a multiple of 5 from 40 to 90. The default is 75. The published score always uses the default. Another value gives a what-if scenario, not the published score. A value outside the accepted range returns 422."
           },
           {
             "name": "low_incidence_breakpoint",
             "in": "query",
             "required": false,
             "schema": {
+              "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
               "deprecated": true,
               "title": "Low Incidence Breakpoint",
               "type": [
@@ -5832,6 +6081,7 @@
                 "null"
               ]
             },
+            "description": "Deprecated. Do not send it. Any value returns 422. Use `smooth_k` to change how the human-case signal is smoothed.",
             "deprecated": true
           }
         ],

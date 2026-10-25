@@ -216,3 +216,49 @@ def test_examples_validate_and_error_matches_runtime() -> None:
     }.items():
         for field in fields:
             assert models[model]["properties"][field]["description"]
+
+
+def _parameters(schema: dict) -> list[tuple[str, str, dict]]:
+    return [
+        (f"{method.upper()} {path}", parameter["name"], parameter)
+        for path, item in schema["paths"].items()
+        for method, operation in item.items()
+        if isinstance(operation, dict)
+        for parameter in operation.get("parameters", [])
+    ]
+
+
+def test_every_public_parameter_has_a_description() -> None:
+    schema = create_app(settings=ApiSettings()).openapi()
+    parameters = _parameters(schema)
+    assert parameters
+    missing = [
+        f"{operation} {name}"
+        for operation, name, parameter in parameters
+        if not str(parameter.get("description", "")).strip()
+    ]
+    assert missing == []
+
+
+def test_shared_parameters_use_one_description() -> None:
+    schema = create_app(settings=ApiSettings()).openapi()
+    for name in (
+        "dataset_version",
+        "ecological_share",
+        "smooth_k",
+        "missing_human_weakness",
+        "low_incidence_breakpoint",
+        "fips",
+    ):
+        descriptions = {
+            parameter["description"]
+            for _, parameter_name, parameter in _parameters(schema)
+            if parameter_name == name
+        }
+        assert len(descriptions) == 1, name
+    fips = next(p for _, n, p in _parameters(schema) if n == "fips")
+    for phrase in ("five digits", "leading zeros", "string", "09110"):
+        assert phrase in fips["description"]
+    assert all(
+        isinstance(example, str) for example in fips["schema"].get("examples", [])
+    )

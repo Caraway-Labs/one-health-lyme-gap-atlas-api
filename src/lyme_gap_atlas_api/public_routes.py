@@ -3,7 +3,7 @@
 from datetime import date
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 
 from .climate_timing import ClimateTiming, climate_request_timing
 from .config import ApiSettings
@@ -122,6 +122,29 @@ DETAIL_RESPONSES = {
 }
 
 
+GeographyTypePath = Annotated[
+    GeographyType,
+    Path(
+        description=(
+            "Kind of place: `county` or `state`. Any other value returns 400 `INVALID_REQUEST`."
+        ),
+        examples=["county"],
+    ),
+]
+GeographyIdPath = Annotated[
+    str,
+    Path(
+        description=(
+            "FIPS code of the place, sent as a string with leading zeros kept: "
+            "five digits for a county, two for a state. "
+            "A code of the wrong length or with non-digits returns 400 `INVALID_REQUEST`. "
+            "Connecticut counties use planning-region codes such as `09110`."
+        ),
+        examples=["08001"],
+    ),
+]
+
+
 def collection_pagination(
     request: Request,
     page_size: Annotated[
@@ -172,7 +195,16 @@ def indicators(
     response: Response,
     pagination: Annotated[tuple[int, str | None], Depends(collection_pagination)],
     service: Annotated[MetadataService, Depends(metadata_service)],
-    indicator_id: str | None = None,
+    indicator_id: Annotated[
+        str | None,
+        Query(
+            description=(
+                "Return only the indicator with this exact ID. "
+                "Omit it to list every indicator. An ID that matches nothing returns an empty list."
+            ),
+            examples=["human_disease_burden"],
+        ),
+    ] = None,
 ) -> CollectionEnvelope[Indicator]:
     metadata_cache(response)
     metadata_query(request, {"page_size", "page_token", "indicator_id"})
@@ -195,7 +227,13 @@ def indicators(
     description=DETAIL_DESCRIPTION,
 )
 def indicator(
-    indicator_id: str,
+    indicator_id: Annotated[
+        str,
+        Path(
+            description=("Exact indicator ID from the indicator list. An unknown ID returns 404."),
+            examples=["human_disease_burden"],
+        ),
+    ],
     response: Response,
     service: Annotated[MetadataService, Depends(metadata_service)],
 ) -> ResourceEnvelope[Indicator]:
@@ -221,9 +259,36 @@ def measures(
     response: Response,
     pagination: Annotated[tuple[int, str | None], Depends(collection_pagination)],
     service: Annotated[MetadataService, Depends(metadata_service)],
-    measure_id: str | None = None,
-    indicator_id: str | None = None,
-    geography_type: str | None = None,
+    measure_id: Annotated[
+        str | None,
+        Query(
+            description=(
+                "Return only the measure with this exact ID. "
+                "Omit it to list every measure. An ID that matches nothing returns an empty list."
+            ),
+            examples=["case_count_floor_2023"],
+        ),
+    ] = None,
+    indicator_id: Annotated[
+        str | None,
+        Query(
+            description=(
+                "Return only measures that belong to this indicator ID. "
+                "Omit it to list every measure."
+            ),
+            examples=["human_disease_burden"],
+        ),
+    ] = None,
+    geography_type: Annotated[
+        str | None,
+        Query(
+            description=(
+                "Return only measures whose `geography_semantics` field equals this value "
+                "exactly, for example `COUNTY_FIPS_5`. Omit it to list every measure."
+            ),
+            examples=["COUNTY_FIPS_5"],
+        ),
+    ] = None,
 ) -> CollectionEnvelope[Measure]:
     metadata_cache(response)
     metadata_query(
@@ -257,7 +322,13 @@ def measures(
     description=DETAIL_DESCRIPTION,
 )
 def measure(
-    measure_id: str,
+    measure_id: Annotated[
+        str,
+        Path(
+            description="Exact measure ID from the measure list. An unknown ID returns 404.",
+            examples=["case_count_floor_2023"],
+        ),
+    ],
     response: Response,
     service: Annotated[MetadataService, Depends(metadata_service)],
 ) -> ResourceEnvelope[Measure]:
@@ -306,7 +377,15 @@ def sources(
     description=DETAIL_DESCRIPTION,
 )
 def source(
-    source_id: str,
+    source_id: Annotated[
+        str,
+        Path(
+            description=(
+                "Exact source ID, as given in a `source_id` field. An unknown ID returns 404."
+            ),
+            examples=["human"],
+        ),
+    ],
     response: Response,
     service: Annotated[ProvenanceService, Depends(provenance_service)],
 ) -> ResourceEnvelope[Source]:
@@ -324,7 +403,16 @@ def source(
     description=DETAIL_DESCRIPTION,
 )
 def methodology(
-    methodology_id: str,
+    methodology_id: Annotated[
+        str,
+        Path(
+            description=(
+                "Exact methodology ID, as given in a `methodology_id` field. "
+                "An unknown ID returns 404."
+            ),
+            examples=["human_confirmed_probable_case_floor_v1"],
+        ),
+    ],
     response: Response,
     service: Annotated[ProvenanceService, Depends(provenance_service)],
 ) -> ResourceEnvelope[Methodology]:
@@ -347,7 +435,7 @@ def methodology(
     ),
 )
 def geography(
-    geography_type: GeographyType, geography_id: str, response: Response
+    geography_type: GeographyTypePath, geography_id: GeographyIdPath, response: Response
 ) -> GeographyUnavailable:
     from .public_contract import GeographyIdentity
 
@@ -389,8 +477,8 @@ def geography(
 def geography_availability(
     request: Request,
     response: Response,
-    geography_type: GeographyType,
-    geography_id: str,
+    geography_type: GeographyTypePath,
+    geography_id: GeographyIdPath,
 ) -> CanonicalGeographyAvailability:
     try:
         GeographyIdentity(geography_type=geography_type, geography_id=geography_id)
@@ -418,7 +506,16 @@ def observation_query(
             examples=["case_count_floor_2023"],
         ),
     ],
-    geography_type: GeographyType,
+    geography_type: Annotated[
+        GeographyType,
+        Query(
+            description=(
+                "Kind of place. Only `county` is supported; `state` returns 400 "
+                "`UNSUPPORTED_FILTER`."
+            ),
+            examples=["county"],
+        ),
+    ],
     geography_id: Annotated[
         list[str],
         Query(
