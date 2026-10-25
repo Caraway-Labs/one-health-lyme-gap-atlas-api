@@ -1,0 +1,102 @@
+# Reviewed budgets, banned terms, exceptions, and operation-ID policy for the
+# public OpenAPI documentation-quality gate (scripts/openapi_quality.py).
+#
+# Every change to this file is a reviewed change: it alters what the public
+# reference may say. Rule rationale: docs/api-writing-style.md.
+# How to add an exception: docs/openapi-quality.md#adding-a-justified-exception.
+
+[budgets]
+# Longest allowed operation description, in characters (the longest operation
+# is a documented multi-section reference; shorter ones are far under this).
+max_description_chars = 3500
+# Longest allowed prose paragraph, in sentences. The style guide asks for
+# "under about four"; the gate fails above five. Tables, headings and list
+# items are not counted as prose.
+max_paragraph_sentences = 5
+# Longest allowed operation summary, in characters.
+max_summary_chars = 60
+
+[operation_ids]
+# Stability check: public and first-party operation IDs must equal the
+# reviewed fixtures in tests/fixtures/*-operation-ids.json. Always enforced.
+#
+# Naming-convention check (verbNoun camelCase, e.g. "listMeasures"). The
+# convention is NOT decided: it awaits the owner's decision on #357 and no
+# operation ID has been renamed. Until then the check is ADVISORY: it prints
+# warnings and never fails the gate.
+#   "off"       - skip the check
+#   "advisory"  - print warnings, do not fail (current setting)
+#   "enforce"   - fail the gate
+# Switch to "enforce" in the same change that applies the approved renames
+# and updates the fixtures. Do not switch it earlier.
+naming_convention = "advisory"
+naming_pattern = "^(list|get|query|check|download)[A-Z][A-Za-z0-9]*$"
+
+# Banned terms in public text (info, tags, operations, parameters, responses,
+# headers, schemas, example summaries and descriptions). Case-insensitive
+# regular expressions. Replacements live in the "Banned and replace list" of
+# docs/api-writing-style.md.
+[[banned_terms]]
+pattern = 'logical-result ceiling'
+replace = "result limit"
+
+[[banned_terms]]
+pattern = 'admitted data'
+replace = "describe what the data is"
+
+[[banned_terms]]
+pattern = '\bpersisted\b'
+replace = "published (of a result) or stored (of storage)"
+
+[[banned_terms]]
+pattern = 'typed (200|availability|503)'
+replace = "the HTTP status code or the availability field"
+
+[[banned_terms]]
+pattern = '\blegacy\b'
+replace = "describe the behavior"
+
+[[banned_terms]]
+pattern = 'fumadocs'
+replace = "remove tooling notes from the reference"
+
+[[banned_terms]]
+pattern = 'consumer-safe'
+replace = "suitable for public use"
+
+[[banned_terms]]
+pattern = '(producer|source)-native'
+replace = "as supplied by the publisher"
+
+[[banned_terms]]
+pattern = 'fail(s)? closed'
+replace = "return an error instead of partial data"
+
+[[banned_terms]]
+pattern = '\bno-store\b'
+replace = "the response must not be cached"
+
+[[banned_terms]]
+pattern = 'resource503'
+replace = "HTTP 503"
+
+[[banned_terms]]
+pattern = '\b(projector|projectors)\b'
+replace = "describe the data, not the pipeline"
+
+[[banned_terms]]
+pattern = '\b(API|ADR|Data|Web|ML)\s?#\d+'
+replace = "remove ticket references"
+
+[[banned_terms]]
+pattern = '(^|[\s(])#\d{2,}\b'
+replace = "remove issue numbers"
+
+# Justified exceptions. Each needs a non-empty "justification" and a narrow
+# "location" (fnmatch pattern over the location printed by the gate). An entry
+# that no longer matches any finding fails the gate, so exceptions cannot rot.
+#
+# [[exceptions]]
+# rule = "response-200-example"
+# location = "GET /v1/example"
+# justification = "Why a fix is impossible or wrong, in one sentence."
