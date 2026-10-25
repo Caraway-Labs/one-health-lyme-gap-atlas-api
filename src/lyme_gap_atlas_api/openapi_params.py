@@ -84,16 +84,20 @@ LowIncidenceBreakpoint = Annotated[
     ),
 ]
 
+
+
+_COUNTY_FIPS_DESCRIPTION = (
+    "County FIPS code: exactly five digits, sent as a string with leading zeros kept, "
+    "for example `01001`, not `1001`. Connecticut uses planning-region codes such as "
+    "`09110`. A malformed value returns 422. A county not in the current release returns 404."
+)
+
 CountyFipsPath = Annotated[
     str,
-    Path(
-        pattern=r"^\d{5}$",
-        description=(
-            "County FIPS code: exactly five digits, sent as a string with leading zeros kept, "
-            "for example `01001`, not `1001`. Connecticut uses planning-region codes such as "
-            "`09110`. A malformed value returns 422. A county not in the current release "
-            "returns 404."
-        ),
-        examples=["08001"],
-    ),
+    Path(pattern=r"^\d{5}$", description=_COUNTY_FIPS_DESCRIPTION, examples=["08001"]),
+]
+# Same text; this route validated with an ASCII-only pattern before, and keeps it.
+CountyFipsAsciiPath = Annotated[
+    str,
+    Path(pattern=r"^[0-9]{5}$", description=_COUNTY_FIPS_DESCRIPTION, examples=["08001"]),
 ]

@@ -767,8 +767,13 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/GeographyType"
-            }
+              "$ref": "#/components/schemas/GeographyType",
+              "description": "Kind of place: `county` or `state`. Any other value returns 400 `INVALID_REQUEST`.",
+              "examples": [
+                "county"
+              ]
+            },
+            "description": "Kind of place: `county` or `state`. Any other value returns 400 `INVALID_REQUEST`."
           },
           {
             "name": "geography_id",
@@ -776,8 +781,13 @@
             "required": true,
             "schema": {
               "type": "string",
+              "description": "FIPS code of the place, sent as a string with leading zeros kept: five digits for a county, two for a state. A code of the wrong length or with non-digits returns 400 `INVALID_REQUEST`. Connecticut counties use planning-region codes such as `09110`.",
+              "examples": [
+                "08001"
+              ],
               "title": "Geography Id"
-            }
+            },
+            "description": "FIPS code of the place, sent as a string with leading zeros kept: five digits for a county, two for a state. A code of the wrong length or with non-digits returns 400 `INVALID_REQUEST`. Connecticut counties use planning-region codes such as `09110`."
           }
         ],
         "responses": {

@@ -103,6 +103,7 @@ from .models import (
 )
 from .openapi_nullable import normalize_nullable_types
 from .openapi_params import (
+    CountyFipsAsciiPath,
     CountyFipsPath,
     DatasetVersion,
     EcologicalShare,
@@ -1228,7 +1229,7 @@ def create_app(
         },
     )
     def county_surveillance_situations(
-        response: Response, fips: CountyFipsPath
+        response: Response, fips: CountyFipsAsciiPath
     ) -> CountySurveillanceSituations:
         result = situations.county(fips)
         response.headers["Cache-Control"] = "no-store"

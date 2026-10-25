@@ -1541,7 +1541,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^\\d{5}$",
+              "pattern": "^[0-9]{5}$",
               "description": "County FIPS code: exactly five digits, sent as a string with leading zeros kept, for example `01001`, not `1001`. Connecticut uses planning-region codes such as `09110`. A malformed value returns 422. A county not in the current release returns 404.",
               "examples": [
                 "08001"
