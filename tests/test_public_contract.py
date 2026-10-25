@@ -339,3 +339,33 @@ def test_valid_canonical_geographies_return_typed_unavailable_200(
     assert body["geography"] == {"geography_type": geography_type, "geography_id": geography_id}
     assert body["limitations"]
     assert "geometry" not in body
+
+
+def test_every_public_schema_and_property_has_a_description() -> None:
+    schemas = create_app(settings=ApiSettings()).openapi()["components"]["schemas"]
+    undocumented = [name for name, schema in schemas.items() if not schema.get("description")]
+    assert undocumented == []
+    undocumented = [
+        f"{name}.{prop}"
+        for name, schema in schemas.items()
+        for prop, value in (schema.get("properties") or {}).items()
+        if not value.get("description")
+    ]
+    assert undocumented == []
+
+
+def test_generic_envelopes_have_readable_titles() -> None:
+    schemas = create_app(settings=ApiSettings()).openapi()["components"]["schemas"]
+    for name in schemas:
+        if name.startswith(("CollectionEnvelope_", "ResourceEnvelope_")):
+            assert "_" not in schemas[name]["title"]
+            assert "[" not in schemas[name]["title"]
+
+
+def test_value_state_schema_describes_every_state() -> None:
+    schemas = create_app(settings=ApiSettings()).openapi()["components"]["schemas"]
+    description = schemas["ValueState"]["description"]
+    for state in ValueState:
+        assert f"`{state.value}`" in description
+    assert "does not establish biological absence" in description
+    assert "never turn `null` into zero" in description.lower()

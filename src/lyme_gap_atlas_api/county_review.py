@@ -102,17 +102,32 @@ class ReviewEvidenceReference(BaseModel):
 
 
 class PublicReviewEvidenceReference(BaseModel):
-    family: str
-    source_product: str
-    source_version: str
-    public_record_ref: str
-    county_fips: str
-    release_id: str
-    source_as_of: str
-    retrieved_at: datetime
-    target: str
-    status: str
-    limitations: list[str]
+    """A source record that supports a review candidate."""
+
+    family: str = Field(description="Kind of evidence, such as `county_pathogen_status`.")
+    source_product: str = Field(description="Source product the record comes from.")
+    source_version: str = Field(description="Version of the source product.")
+    public_record_ref: str = Field(
+        description="Public reference to the source record, for finding it at the publisher."
+    )
+    county_fips: str = Field(description="Five-digit FIPS code of the county, with leading zeros.")
+    release_id: str = Field(
+        description="Identifies the published data release the record came from."
+    )
+    source_as_of: str = Field(
+        description="Date the source says its data was current, for example `2025-12-31`."
+    )
+    retrieved_at: datetime = Field(
+        description="When Atlas retrieved the record from the publisher, with a UTC offset."
+    )
+    target: str = Field(
+        description="Organism or taxon the record is about, such as a tick species or a pathogen."
+    )
+    status: str = Field(
+        description="Status the publisher reports, such as `Present`, `Reported`, or "
+        "`No records`. `No records` does not establish absence."
+    )
+    limitations: list[str] = Field(description="Factual notes on what this record does not show.")
 
 
 class CountyEvidence(BaseModel):
@@ -123,23 +138,40 @@ class CountyEvidence(BaseModel):
 
 
 class Candidate(BaseModel):
-    county_fips: str
-    county_name: str
-    county_url: str
-    reason_codes: list[str]
-    reason_text: str
-    evidence_families: list[str]
-    evidence_references: list[PublicReviewEvidenceReference]
-    completeness: Literal["limited"] = "limited"
-    limitations: list[str]
-    freshness_comparability: str
-    suggested_next_check: str
+    """A county that merits a closer look. It is a prompt to review records, not a finding."""
+
+    county_fips: str = Field(description="Five-digit FIPS code of the county, with leading zeros.")
+    county_name: str = Field(description="County name.")
+    county_url: str = Field(description="Path of the county resource in this API.")
+    reason_codes: list[str] = Field(description="Codes that explain why the county is listed.")
+    reason_text: str = Field(description="Plain-language explanation of why the county is listed.")
+    evidence_families: list[str] = Field(
+        description="Kinds of evidence the reason draws on, such as `county_vector_status`."
+    )
+    evidence_references: list[PublicReviewEvidenceReference] = Field(
+        description="Source records that support the reason."
+    )
+    completeness: Literal["limited"] = Field(
+        default="limited",
+        description="How complete the supporting evidence is. It is always `limited`.",
+    )
+    limitations: list[str] = Field(
+        description="Factual notes on what the candidate does not show. Keep them with it."
+    )
+    freshness_comparability: str = Field(
+        description="What is known about how current and comparable the evidence is."
+    )
+    suggested_next_check: str = Field(
+        description="A step a reviewer can take to check the evidence further."
+    )
 
 
 class DataGap(BaseModel):
-    county_fips: str
-    code: str
-    detail: str
+    """A reason Atlas could not evaluate a county. A gap is not evidence of absence."""
+
+    county_fips: str = Field(description="Five-digit FIPS code of the county, with leading zeros.")
+    code: str = Field(description="Stable code for the kind of gap, such as `OUT_OF_SCOPE`.")
+    detail: str = Field(description="Plain-language explanation of the gap.")
 
 
 class CountyEvaluation(BaseModel):
@@ -151,29 +183,58 @@ class CountyEvaluation(BaseModel):
 
 
 class ReviewCoverage(BaseModel):
-    assessed_counties: int
-    eligible_counties: int
-    abstained_counties: int
-    evaluated_counties: int
-    rule_coverage: dict[str, str]
+    """How many counties the review looked at and what happened to each."""
+
+    assessed_counties: int = Field(description="Counties in the requested state that were checked.")
+    eligible_counties: int = Field(description="Counties that met the rule's eligibility checks.")
+    abstained_counties: int = Field(
+        description="Counties where the evidence could not be safely evaluated."
+    )
+    evaluated_counties: int = Field(description="Counties that were fully evaluated.")
+    rule_coverage: dict[str, str] = Field(
+        description="Each review rule by name, marked `enabled` or `disabled`."
+    )
 
 
 class StateReview(BaseModel):
-    requested_state: str
-    methodology_id: str
-    methodology_version: str
-    configuration_sha256: str
-    data_release_version: str
-    evaluated_at: datetime
-    requested_observation_context: str | None
-    effective_observation_context: str
+    """Counties in a state that merit a closer look, with gaps and coverage.
+
+    A review is not a diagnosis and not a disease-risk estimate. An empty result does not
+    show that no county needs attention.
+    """
+
+    requested_state: str = Field(description="Two-letter state or District of Columbia code.")
+    methodology_id: str = Field(description="Identifies the review methodology.")
+    methodology_version: str = Field(description="Version of the review methodology.")
+    configuration_sha256: str = Field(
+        description="SHA-256 checksum of the review configuration. Use it to confirm which "
+        "rules ran."
+    )
+    data_release_version: str = Field(
+        description="Identifies the published data release the review read."
+    )
+    evaluated_at: datetime = Field(
+        description="When Atlas ran the review, with a UTC offset. It is not when the "
+        "publishers last updated their data."
+    )
+    requested_observation_context: str | None = Field(
+        description="Observation context the request asked for. `null` when none was asked for."
+    )
+    effective_observation_context: str = Field(description="Observation context the review used.")
     result_state: Literal[
         "candidates_found", "insufficient_evidence", "unsupported", "none_stand_out"
-    ]
-    review_candidates: list[Candidate]
-    data_gaps: list[DataGap]
-    coverage: ReviewCoverage
-    limitations: list[str]
+    ] = Field(
+        description="Overall outcome. `candidates_found` lists counties to review. "
+        "`insufficient_evidence` means the evidence could not be evaluated. `unsupported` means "
+        "no review rule is approved. `none_stand_out` means no evaluated county stood out; "
+        "it does not show that nothing needs attention."
+    )
+    review_candidates: list[Candidate] = Field(description="Counties that merit a closer look.")
+    data_gaps: list[DataGap] = Field(
+        description="Counties Atlas could not evaluate, with the reason."
+    )
+    coverage: ReviewCoverage = Field(description="How many counties were assessed.")
+    limitations: list[str] = Field(description="Factual notes on what the review does not show.")
 
 
 def evaluate_d(evidence: CountyEvidence, rule: RuleConfig) -> CountyEvaluation:

@@ -4925,34 +4925,41 @@
   "components": {
     "schemas": {
       "ProblemDetails": {
-        "description": "RFC 9457 error. Stable codes are included when the response contract defines one.",
+        "description": "RFC 9457 error body (`application/problem+json`). Some errors add a stable `code`.",
         "properties": {
           "type": {
+            "description": "URI that identifies the kind of problem.",
             "title": "Type",
             "type": "string"
           },
           "title": {
+            "description": "Short summary of the problem.",
             "title": "Title",
             "type": "string"
           },
           "status": {
+            "description": "HTTP status code of the response.",
             "title": "Status",
             "type": "integer"
           },
           "detail": {
+            "description": "Explanation of this occurrence of the problem.",
             "title": "Detail",
             "type": "string"
           },
           "instance": {
+            "description": "URI that identifies this occurrence of the problem.",
             "title": "Instance",
             "type": "string"
           },
           "request_id": {
+            "description": "Identifies the request. Quote it when you contact support.",
             "title": "Request Id",
             "type": "string"
           },
           "code": {
             "default": null,
+            "description": "Stable machine-readable error code, such as `QUERY_TOO_BROAD`. Present when the response defines one.",
             "title": "Code",
             "type": [
               "string",
@@ -4961,6 +4968,7 @@
           },
           "errors": {
             "default": null,
+            "description": "Details of each invalid input, when the request had several.",
             "title": "Errors",
             "items": {
               "additionalProperties": true,
@@ -5054,53 +5062,64 @@
             "type": "string",
             "const": "surveillance-gap-score-v1.1",
             "title": "Scoring Methodology Version",
+            "description": "Version of the Surveillance Gap Score method that produced the score. Scores from different versions are not comparable.",
             "default": "surveillance-gap-score-v1.1"
           },
           "release_id": {
             "type": "string",
-            "title": "Release Id"
+            "title": "Release Id",
+            "description": "Identifies the published data release. Results from different releases are not directly comparable."
           },
           "schema_version": {
             "type": "string",
-            "title": "Schema Version"
+            "title": "Schema Version",
+            "description": "Version of the release data layout."
           },
           "generated_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Generated At"
+            "title": "Generated At",
+            "description": "When the release was built, with a UTC offset. It is not when the publishers last updated their data."
           },
           "loaded_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Loaded At"
+            "title": "Loaded At",
+            "description": "When Atlas loaded the release for serving, with a UTC offset. It is not when the publishers last updated their data."
           },
           "scope": {
             "type": "string",
-            "title": "Scope"
+            "title": "Scope",
+            "description": "Geographic and time coverage of the release."
           },
           "bundle_sha256": {
             "type": "string",
-            "title": "Bundle Sha256"
+            "title": "Bundle Sha256",
+            "description": "SHA-256 checksum of the release contents. Use it to confirm you are looking at the same release."
           },
           "score_defaults": {
             "additionalProperties": true,
             "type": "object",
-            "title": "Score Defaults"
+            "title": "Score Defaults",
+            "description": "Default settings the score uses when a request supplies none."
           },
           "methodology_version": {
             "type": "string",
-            "title": "Methodology Version"
+            "title": "Methodology Version",
+            "description": "Version of the release methodology that the scores follow."
           },
           "limitations": {
             "type": "string",
-            "title": "Limitations"
+            "title": "Limitations",
+            "description": "What the release does not show. Read it before you use a score."
           },
           "sources": {
             "items": {
               "$ref": "#/components/schemas/SourceMetadata"
             },
             "type": "array",
-            "title": "Sources"
+            "title": "Sources",
+            "description": "Source datasets used in the release."
           },
           "states": {
             "items": {
@@ -5110,7 +5129,8 @@
               "type": "object"
             },
             "type": "array",
-            "title": "States"
+            "title": "States",
+            "description": "States and the District of Columbia in the release. Each entry has a `code` and a `name`."
           }
         },
         "type": "object",
@@ -5127,29 +5147,35 @@
           "sources",
           "states"
         ],
-        "title": "AtlasMetadata"
+        "title": "AtlasMetadata",
+        "description": "Describes the published data release behind the scores and county records."
       },
       "SourceMetadata": {
         "properties": {
           "key": {
             "type": "string",
-            "title": "Key"
+            "title": "Key",
+            "description": "Stable key of the source within this release."
           },
           "label": {
             "type": "string",
-            "title": "Label"
+            "title": "Label",
+            "description": "Display name of the source."
           },
           "vintage": {
             "type": "string",
-            "title": "Vintage"
+            "title": "Vintage",
+            "description": "Reference year or period of the source dataset."
           },
           "url": {
             "type": "string",
-            "title": "Url"
+            "title": "Url",
+            "description": "Web address of the source."
           },
           "note": {
             "type": "string",
-            "title": "Note"
+            "title": "Note",
+            "description": "How Atlas uses the source and any limit on that use."
           }
         },
         "type": "object",
@@ -5160,7 +5186,8 @@
           "url",
           "note"
         ],
-        "title": "SourceMetadata"
+        "title": "SourceMetadata",
+        "description": "A source dataset listed in the release metadata."
       },
       "ScoreCollection": {
         "properties": {
@@ -5168,29 +5195,34 @@
             "type": "string",
             "const": "surveillance-gap-score-v1.1",
             "title": "Scoring Methodology Version",
+            "description": "Version of the Surveillance Gap Score method that produced the score. Scores from different versions are not comparable.",
             "default": "surveillance-gap-score-v1.1"
           },
           "release_id": {
             "type": "string",
-            "title": "Release Id"
+            "title": "Release Id",
+            "description": "Identifies the published data release. Results from different releases are not directly comparable."
           },
           "methodology_version": {
             "type": "string",
-            "title": "Methodology Version"
+            "title": "Methodology Version",
+            "description": "Version of the release methodology that the scores follow."
           },
           "settings": {
             "additionalProperties": {
               "type": "integer"
             },
             "type": "object",
-            "title": "Settings"
+            "title": "Settings",
+            "description": "Score settings used for this response, such as `ecological_share`, `smooth_k`, and `missing_human_weakness`."
           },
           "counties": {
             "items": {
               "$ref": "#/components/schemas/CountyScoreSummary"
             },
             "type": "array",
-            "title": "Counties"
+            "title": "Counties",
+            "description": "One entry for each county."
           }
         },
         "type": "object",
@@ -5200,7 +5232,8 @@
           "settings",
           "counties"
         ],
-        "title": "ScoreCollection"
+        "title": "ScoreCollection",
+        "description": "Surveillance Gap Scores for every county in the release, for one set of settings."
       },
       "CountyScoreSummary": {
         "properties": {
@@ -5208,11 +5241,12 @@
             "type": "string",
             "const": "surveillance-gap-score-v1.1",
             "title": "Scoring Methodology Version",
+            "description": "Version of the Surveillance Gap Score method that produced the score. Scores from different versions are not comparable.",
             "default": "surveillance-gap-score-v1.1"
           },
           "incidence_floor_2023": {
             "title": "Incidence Floor 2023",
-            "description": "Published 2023 minimum reported incidence per 100,000; null is not zero.",
+            "description": "Published 2023 minimum reported incidence per 100,000 people. A floor is a minimum, not a complete count. `null` is not zero.",
             "minimum": 0.0,
             "type": [
               "number",
@@ -5221,6 +5255,7 @@
           },
           "svi_percentile": {
             "title": "Svi Percentile",
+            "description": "Social Vulnerability Index percentile of the county. Value from 0 to 1. `null` when none is published; `null` is not zero.",
             "type": [
               "number",
               "null"
@@ -5228,6 +5263,7 @@
           },
           "uninsured_percentile": {
             "title": "Uninsured Percentile",
+            "description": "Percentile of the county's uninsured share among counties. Value from 0 to 1. `null` when none is published; `null` is not zero.",
             "type": [
               "number",
               "null"
@@ -5235,6 +5271,7 @@
           },
           "rucc_2023": {
             "title": "Rucc 2023",
+            "description": "2023 Rural-Urban Continuum Code, from 1 (most urban) to 9 (most rural). `null` when none is published.",
             "type": [
               "integer",
               "null"
@@ -5242,50 +5279,62 @@
           },
           "fips": {
             "type": "string",
-            "title": "Fips"
+            "title": "Fips",
+            "description": "Five-digit county FIPS code, with leading zeros."
           },
           "county": {
             "type": "string",
-            "title": "County"
+            "title": "County",
+            "description": "County name."
           },
           "state": {
             "type": "string",
-            "title": "State"
+            "title": "State",
+            "description": "Two-letter state or District of Columbia code."
           },
           "state_name": {
             "type": "string",
-            "title": "State Name"
+            "title": "State Name",
+            "description": "Full state name."
           },
           "in_contiguous_tick_scope": {
             "type": "boolean",
-            "title": "In Contiguous Tick Scope"
+            "title": "In Contiguous Tick Scope",
+            "description": "Whether the county is inside the contiguous area the tick data covers."
           },
           "human_status": {
             "type": "string",
-            "title": "Human Status"
+            "title": "Human Status",
+            "description": "State of the human-case data for the county. `published_count_floor` means a published case-count floor exists. `no_county_linked_record` means no record is linked to the county; it is neither null nor zero."
           },
           "tick_status": {
             "type": "string",
-            "title": "Tick Status"
+            "title": "Tick Status",
+            "description": "Tick evidence status the publisher reports: `Established`, `Reported`, `No records`, or `Unknown`. `No records` and `Unknown` do not establish absence."
           },
           "burgdorferi_status": {
             "type": "string",
-            "title": "Burgdorferi Status"
+            "title": "Burgdorferi Status",
+            "description": "Evidence status for the Lyme disease bacterium Borrelia burgdorferi: `Present`, `No records`, or `Unknown`. `No records` and `Unknown` do not establish absence."
           },
           "evidence_completeness": {
             "type": "integer",
-            "title": "Evidence Completeness"
+            "title": "Evidence Completeness",
+            "description": "Whole-number measure of how much supporting evidence the county has. A higher number means more evidence is present. It does not rate evidence quality."
           },
           "score": {
-            "$ref": "#/components/schemas/Score"
+            "$ref": "#/components/schemas/Score",
+            "description": "The score and the signals it combines."
           },
           "priority": {
             "type": "string",
-            "title": "Priority"
+            "title": "Priority",
+            "description": "Review-priority label for the score band. A lower label is not a safety finding."
           },
           "color": {
             "type": "string",
-            "title": "Color"
+            "title": "Color",
+            "description": "Hex color for the score band, for use in a map or legend."
           }
         },
         "type": "object",
@@ -5303,7 +5352,8 @@
           "priority",
           "color"
         ],
-        "title": "CountyScoreSummary"
+        "title": "CountyScoreSummary",
+        "description": "A county's Surveillance Gap Score with the evidence signals behind it.\n\nThe score is a review aid. Atlas results are not a diagnosis. Atlas results are not an\nestimate of an individual's risk."
       },
       "Score": {
         "properties": {
@@ -5311,55 +5361,64 @@
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Score"
+            "title": "Score",
+            "description": "Overall Surveillance Gap Score. A higher value means a higher review priority."
           },
           "human_weakness": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Human Weakness"
+            "title": "Human Weakness",
+            "description": "How little human-case surveillance evidence the county has. A higher value means weaker human-case evidence. A county with no published count gets the configured default weakness."
           },
           "ecological": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Ecological"
+            "title": "Ecological",
+            "description": "Combined tick and pathogen signal: 60 percent `tick_signal` and 40 percent `pathogen_signal`."
           },
           "community": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Community"
+            "title": "Community",
+            "description": "Combined community signal: 50 percent `svi_signal`, 30 percent `access_signal`, and 20 percent `rural_signal`."
           },
           "tick_signal": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Tick Signal"
+            "title": "Tick Signal",
+            "description": "Signal from the publisher's tick status: 100 for `Established`, 55 for `Reported`, and 0 for `No records` or `Unknown`. Neither 0 case establishes absence."
           },
           "pathogen_signal": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Pathogen Signal"
+            "title": "Pathogen Signal",
+            "description": "100 when the publisher reports the Lyme disease bacterium as `Present`, otherwise 0. A 0 does not establish absence."
           },
           "svi_signal": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Svi Signal"
+            "title": "Svi Signal",
+            "description": "Social Vulnerability Index percentile of the county, scaled to 0 to 100."
           },
           "access_signal": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Access Signal"
+            "title": "Access Signal",
+            "description": "Percentile of the county's uninsured share among counties, scaled to 0 to 100."
           },
           "rural_signal": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Rural Signal"
+            "title": "Rural Signal",
+            "description": "Rural-Urban Continuum Code of the county, scaled so the most urban code is 0 and the most rural code is 100."
           }
         },
         "type": "object",
@@ -5374,7 +5433,8 @@
           "access_signal",
           "rural_signal"
         ],
-        "title": "Score"
+        "title": "Score",
+        "description": "The Surveillance Gap Score and the signals it combines. Every value runs from 0 to 100. Atlas results are not a diagnosis."
       },
       "CountyDetail": {
         "properties": {
@@ -5382,10 +5442,12 @@
             "type": "string",
             "const": "surveillance-gap-score-v1.1",
             "title": "Scoring Methodology Version",
+            "description": "Version of the Surveillance Gap Score method that produced the score. Scores from different versions are not comparable.",
             "default": "surveillance-gap-score-v1.1"
           },
           "incidence_floor_2023": {
             "title": "Incidence Floor 2023",
+            "description": "Published 2023 minimum reported incidence per 100,000 people. `null` is not zero.",
             "type": [
               "number",
               "null"
@@ -5393,6 +5455,7 @@
           },
           "svi_percentile": {
             "title": "Svi Percentile",
+            "description": "Social Vulnerability Index percentile of the county. Value from 0 to 1. `null` when none is published; `null` is not zero.",
             "type": [
               "number",
               "null"
@@ -5400,6 +5463,7 @@
           },
           "uninsured_percentile": {
             "title": "Uninsured Percentile",
+            "description": "Percentile of the county's uninsured share among counties. Value from 0 to 1. `null` when none is published; `null` is not zero.",
             "type": [
               "number",
               "null"
@@ -5407,6 +5471,7 @@
           },
           "rucc_2023": {
             "title": "Rucc 2023",
+            "description": "2023 Rural-Urban Continuum Code, from 1 (most urban) to 9 (most rural). `null` when none is published.",
             "type": [
               "integer",
               "null"
@@ -5414,53 +5479,66 @@
           },
           "fips": {
             "type": "string",
-            "title": "Fips"
+            "title": "Fips",
+            "description": "Five-digit county FIPS code, with leading zeros."
           },
           "county": {
             "type": "string",
-            "title": "County"
+            "title": "County",
+            "description": "County name."
           },
           "state": {
             "type": "string",
-            "title": "State"
+            "title": "State",
+            "description": "Two-letter state or District of Columbia code."
           },
           "state_name": {
             "type": "string",
-            "title": "State Name"
+            "title": "State Name",
+            "description": "Full state name."
           },
           "in_contiguous_tick_scope": {
             "type": "boolean",
-            "title": "In Contiguous Tick Scope"
+            "title": "In Contiguous Tick Scope",
+            "description": "Whether the county is inside the contiguous area the tick data covers."
           },
           "human_status": {
             "type": "string",
-            "title": "Human Status"
+            "title": "Human Status",
+            "description": "State of the human-case data for the county. `published_count_floor` means a published case-count floor exists. `no_county_linked_record` means no record is linked to the county; it is neither null nor zero."
           },
           "tick_status": {
             "type": "string",
-            "title": "Tick Status"
+            "title": "Tick Status",
+            "description": "Tick evidence status the publisher reports: `Established`, `Reported`, `No records`, or `Unknown`. `No records` and `Unknown` do not establish absence."
           },
           "burgdorferi_status": {
             "type": "string",
-            "title": "Burgdorferi Status"
+            "title": "Burgdorferi Status",
+            "description": "Evidence status for the Lyme disease bacterium Borrelia burgdorferi: `Present`, `No records`, or `Unknown`. `No records` and `Unknown` do not establish absence."
           },
           "evidence_completeness": {
             "type": "integer",
-            "title": "Evidence Completeness"
+            "title": "Evidence Completeness",
+            "description": "Whole-number measure of how much supporting evidence the county has. A higher number means more evidence is present. It does not rate evidence quality."
           },
           "score": {
-            "$ref": "#/components/schemas/Score"
+            "$ref": "#/components/schemas/Score",
+            "description": "The score and the signals it combines."
           },
           "priority": {
             "type": "string",
-            "title": "Priority"
+            "title": "Priority",
+            "description": "Review-priority label for the score band. A lower label is not a safety finding."
           },
           "color": {
             "type": "string",
-            "title": "Color"
+            "title": "Color",
+            "description": "Hex color for the score band, for use in a map or legend."
           },
           "population": {
             "title": "Population",
+            "description": "County population. `null` when none is published.",
             "type": [
               "integer",
               "null"
@@ -5468,6 +5546,7 @@
           },
           "case_count_floor_2023": {
             "title": "Case Count Floor 2023",
+            "description": "Published 2023 minimum count of reported human cases. A floor is a minimum, not a complete count. `null` is not zero.",
             "type": [
               "integer",
               "null"
@@ -5475,6 +5554,7 @@
           },
           "state_unallocated_records_2023": {
             "title": "State Unallocated Records 2023",
+            "description": "2023 state-level records the publisher did not assign to a county. The count belongs to the state, not this county. `null` when none is published.",
             "type": [
               "integer",
               "null"
@@ -5482,6 +5562,7 @@
           },
           "scapularis_status": {
             "title": "Scapularis Status",
+            "description": "Publisher status for the tick Ixodes scapularis. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -5489,6 +5570,7 @@
           },
           "pacificus_status": {
             "title": "Pacificus Status",
+            "description": "Publisher status for the tick Ixodes pacificus. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -5496,13 +5578,15 @@
           },
           "uninsured_percent": {
             "title": "Uninsured Percent",
+            "description": "Share of the county population without health insurance, as a percent. `null` when none is published.",
             "type": [
               "number",
               "null"
             ]
           },
           "release": {
-            "$ref": "#/components/schemas/AtlasMetadata"
+            "$ref": "#/components/schemas/AtlasMetadata",
+            "description": "The data release this record came from."
           }
         },
         "type": "object",
@@ -5531,25 +5615,28 @@
           "uninsured_percent",
           "release"
         ],
-        "title": "CountyDetail"
+        "title": "CountyDetail",
+        "description": "A county's score plus the release facts behind it."
       },
       "CountySurveillanceSituations": {
         "properties": {
           "county_fips": {
             "type": "string",
             "pattern": "^[0-9]{5}$",
-            "title": "County Fips"
+            "title": "County Fips",
+            "description": "Five-digit county FIPS code, with leading zeros."
           },
           "release_id": {
             "type": "string",
             "minLength": 1,
             "title": "Release Id",
-            "description": "Active governed presentation release."
+            "description": "Identifies the current data release."
           },
           "bundle_sha256": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
-            "title": "Bundle Sha256"
+            "title": "Bundle Sha256",
+            "description": "SHA-256 checksum of the current data release."
           },
           "four_state": {
             "$ref": "#/components/schemas/SituationVariant",
@@ -5575,7 +5662,8 @@
         "properties": {
           "model_id": {
             "type": "string",
-            "title": "Model Id"
+            "title": "Model Id",
+            "description": "Identifies the situation model."
           },
           "availability": {
             "type": "string",
@@ -5583,10 +5671,12 @@
               "AVAILABLE",
               "UNAVAILABLE"
             ],
-            "title": "Availability"
+            "title": "Availability",
+            "description": "Whether a published classification exists. `UNAVAILABLE` is not a finding about the county."
           },
           "unavailable_reason": {
             "title": "Unavailable Reason",
+            "description": "Why no classification is published: `NOT_PUBLISHED`, `DEACTIVATED`, `UNAPPROVED_BATCH`, `INCOMPATIBLE_RELEASE`, or `MISSING_ASSIGNMENT`. `null` when `availability` is `AVAILABLE`.",
             "enum": [
               "DEACTIVATED",
               "NOT_PUBLISHED",
@@ -5607,10 +5697,12 @@
               "ADMITTED_CARRY_FORWARD",
               "UNAVAILABLE"
             ],
-            "title": "Compatibility"
+            "title": "Compatibility",
+            "description": "How the classification relates to the current data release. `EXACT_INPUT` means the model read the current release. `ADMITTED_CARRY_FORWARD` means a reviewed result computed from an earlier release is published for the current one. `UNAVAILABLE` means there is no classification."
           },
           "batch_id": {
             "title": "Batch Id",
+            "description": "Identifies the batch of results. `null` when unavailable.",
             "type": [
               "string",
               "null"
@@ -5618,6 +5710,7 @@
           },
           "batch_version": {
             "title": "Batch Version",
+            "description": "Version of the batch. `null` when unavailable.",
             "type": [
               "string",
               "null"
@@ -5625,6 +5718,7 @@
           },
           "input_release_id": {
             "title": "Input Release Id",
+            "description": "Identifies the data release the model read. `null` when unavailable.",
             "type": [
               "string",
               "null"
@@ -5638,7 +5732,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The classification. `null` when unavailable."
           }
         },
         "type": "object",
@@ -5652,36 +5747,40 @@
           "input_release_id",
           "data"
         ],
-        "title": "SituationVariant"
+        "title": "SituationVariant",
+        "description": "The result of one situation model for a county, or the reason there is none."
       },
       "SituationClassification": {
         "properties": {
           "model_id": {
             "type": "string",
             "minLength": 1,
-            "title": "Model Id"
+            "title": "Model Id",
+            "description": "Identifies the model that assigned the class."
           },
           "model_version": {
             "type": "string",
             "minLength": 1,
-            "title": "Model Version"
+            "title": "Model Version",
+            "description": "Version of the model."
           },
           "class_id": {
             "type": "string",
             "minLength": 1,
-            "title": "Class Id"
+            "title": "Class Id",
+            "description": "Identifies the assigned class."
           },
           "class_name": {
             "type": "string",
             "minLength": 1,
             "title": "Class Name",
-            "description": "Reviewed persisted display label, verbatim."
+            "description": "Display label of the class, exactly as reviewed."
           },
           "class_description": {
             "type": "string",
             "minLength": 1,
             "title": "Class Description",
-            "description": "Reviewed persisted explanation, verbatim."
+            "description": "Explanation of the class, exactly as reviewed."
           },
           "probabilities": {
             "items": {
@@ -5690,7 +5789,8 @@
             "type": "array",
             "maxItems": 4,
             "minItems": 4,
-            "title": "Probabilities"
+            "title": "Probabilities",
+            "description": "Membership probability for each of the four classes."
           },
           "limitations": {
             "items": {
@@ -5699,85 +5799,97 @@
             "type": "array",
             "minItems": 1,
             "title": "Limitations",
-            "description": "Persisted must_not_be_read_as list: prohibited interpretations, not outcomes."
+            "description": "Readings of the class that are not supported. They list what not to conclude, not outcomes."
           },
           "batch_id": {
             "type": "string",
             "minLength": 1,
-            "title": "Batch Id"
+            "title": "Batch Id",
+            "description": "Identifies the batch of results."
           },
           "batch_version": {
             "type": "string",
             "minLength": 1,
-            "title": "Batch Version"
+            "title": "Batch Version",
+            "description": "Version of the batch."
           },
           "county_sha256": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
-            "title": "County Sha256"
+            "title": "County Sha256",
+            "description": "SHA-256 checksum of this county's input record."
           },
           "dictionary_sha256": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
-            "title": "Dictionary Sha256"
+            "title": "Dictionary Sha256",
+            "description": "SHA-256 checksum of the class dictionary the model used."
           },
           "input_release_id": {
             "type": "string",
             "minLength": 1,
-            "title": "Input Release Id"
+            "title": "Input Release Id",
+            "description": "Identifies the data release the model read."
           },
           "input_bundle_sha256": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
-            "title": "Input Bundle Sha256"
+            "title": "Input Bundle Sha256",
+            "description": "SHA-256 checksum of the data release the model read."
           },
           "fit_git_sha": {
             "type": "string",
             "minLength": 1,
-            "title": "Fit Git Sha"
+            "title": "Fit Git Sha",
+            "description": "Commit of the code that fitted the model, for reproducibility."
           },
           "feature_contract": {
             "additionalProperties": true,
             "type": "object",
             "title": "Feature Contract",
-            "description": "Persisted feature/config contract."
+            "description": "The input features and settings the model used."
           },
           "model_provenance": {
             "additionalProperties": true,
             "type": "object",
-            "title": "Model Provenance"
+            "title": "Model Provenance",
+            "description": "Records of how the model was fitted and reviewed."
           },
           "source_provenance": {
             "additionalProperties": true,
             "type": "object",
             "title": "Source Provenance",
-            "description": "Persisted sources and source vintages."
+            "description": "Sources and source vintages the model used."
           },
           "handoff_approval": {
             "additionalProperties": true,
             "type": "object",
-            "title": "Handoff Approval"
+            "title": "Handoff Approval",
+            "description": "Record of the review that approved the model output for use."
           },
           "data_publication_authorization": {
             "additionalProperties": true,
             "type": "object",
-            "title": "Data Publication Authorization"
+            "title": "Data Publication Authorization",
+            "description": "Record of the approval to publish the batch."
           },
           "data_authorization_id": {
             "type": "string",
             "minLength": 1,
-            "title": "Data Authorization Id"
+            "title": "Data Authorization Id",
+            "description": "Identifies the approval to publish the batch."
           },
           "staging_attempt": {
             "type": "string",
             "minLength": 1,
-            "title": "Staging Attempt"
+            "title": "Staging Attempt",
+            "description": "Identifies the staging run that prepared the batch."
           },
           "activated_at": {
             "type": "string",
             "format": "date-time",
             "title": "Activated At",
-            "description": "Data activation time, not source vintage or request time."
+            "description": "When the batch became active. It is not the source vintage or the request time."
           }
         },
         "type": "object",
@@ -5805,7 +5917,8 @@
           "staging_attempt",
           "activated_at"
         ],
-        "title": "SituationClassification"
+        "title": "SituationClassification",
+        "description": "The surveillance situation class assigned to a county, with how it was produced.\n\nA class describes the pattern of surveillance evidence. It is not a diagnosis and not an\nestimate of an individual's risk."
       },
       "MembershipProbability": {
         "properties": {
@@ -5813,14 +5926,14 @@
             "type": "string",
             "minLength": 1,
             "title": "Class Id",
-            "description": "Version-scoped persisted class identity."
+            "description": "Identifies the class. It is specific to a model version."
           },
           "probability": {
             "type": "number",
             "maximum": 1.0,
             "minimum": 0.0,
             "title": "Probability",
-            "description": "Latent-class membership on 0\u20131 scale; never disease risk."
+            "description": "Probability of membership in the class, from 0 to 1. The four values sum to 1. It is not a disease risk."
           }
         },
         "type": "object",
@@ -5828,7 +5941,8 @@
           "class_id",
           "probability"
         ],
-        "title": "MembershipProbability"
+        "title": "MembershipProbability",
+        "description": "The model's membership probability for one situation class."
       },
       "Tier1CountyPriority": {
         "properties": {
@@ -5836,7 +5950,7 @@
             "type": "string",
             "pattern": "^\\d{5}$",
             "title": "County Fips",
-            "description": "Five-digit county FIPS for this persisted result."
+            "description": "Five-digit county FIPS code, with leading zeros."
           },
           "priority_tier": {
             "title": "Priority Tier",
@@ -5890,13 +6004,13 @@
             "type": "string",
             "minLength": 1,
             "title": "Release Id",
-            "description": "Governed source release for this batch."
+            "description": "Identifies the published data release the batch used."
           },
           "source_commit": {
             "type": "string",
             "minLength": 1,
             "title": "Source Commit",
-            "description": "ML source commit for reproducibility."
+            "description": "Commit of the model code that produced the result, for reproducibility."
           },
           "prediction_batch_version": {
             "type": "string",
@@ -5922,12 +6036,14 @@
             },
             "type": "array",
             "maxItems": 3,
-            "title": "Reasons"
+            "title": "Reasons",
+            "description": "Up to three reasons for the priority. Empty when none apply."
           },
           "limitation_ref": {
             "type": "string",
             "minLength": 1,
-            "title": "Limitation Ref"
+            "title": "Limitation Ref",
+            "description": "Reference to the document that lists what this result does not show."
           }
         },
         "type": "object",
@@ -5947,7 +6063,7 @@
           "limitation_ref"
         ],
         "title": "Tier1CountyPriority",
-        "description": "Model-assisted surveillance review priority; never disease or clinical risk.",
+        "description": "Model-assisted surveillance review priority for one county.\n\nThe priority helps decide where to look first. It is not a measure of disease or clinical\nrisk, and it is not a diagnosis.",
         "examples": [
           {
             "county_fips": "09110",
@@ -5976,12 +6092,14 @@
           "code": {
             "type": "string",
             "minLength": 1,
-            "title": "Code"
+            "title": "Code",
+            "description": "Stable code for the reason."
           },
           "text": {
             "type": "string",
             "minLength": 1,
-            "title": "Text"
+            "title": "Text",
+            "description": "Plain-language statement of the reason."
           }
         },
         "type": "object",
@@ -5989,7 +6107,8 @@
           "code",
           "text"
         ],
-        "title": "PriorityReason"
+        "title": "PriorityReason",
+        "description": "One reason a county received its review priority."
       },
       "Tier1CountyPriorityAvailability": {
         "properties": {
@@ -6000,17 +6119,17 @@
               "UNAVAILABLE"
             ],
             "title": "Availability",
-            "description": "Whether a persisted Tier 1 result exists for this supported current geography."
+            "description": "Whether a published Tier 1 result exists for this county."
           },
           "geography_release_id": {
             "type": "string",
             "minLength": 1,
             "title": "Geography Release Id",
-            "description": "Current governed geography release used to validate the requested FIPS."
+            "description": "Identifies the geography release used to confirm the county exists."
           },
           "reason": {
             "title": "Reason",
-            "description": "Stable reason when no persisted result is published; null when data is available.",
+            "description": "Why no result is published. `NO_PUBLISHED_MODEL` means no model result is published for the county. `null` when a result is available.",
             "enum": [
               "NO_PUBLISHED_MODEL",
               null
@@ -6029,7 +6148,7 @@
                 "type": "null"
               }
             ],
-            "description": "The exact persisted Tier 1 result, or null when none is published."
+            "description": "The published Tier 1 result, or `null` when none is published."
           }
         },
         "type": "object",
@@ -6040,7 +6159,7 @@
           "data"
         ],
         "title": "Tier1CountyPriorityAvailability",
-        "description": "Availability lookup that separates confirmed absence from request failure."
+        "description": "Whether a Tier 1 result is published for a county, with the result when it is.\n\n`UNAVAILABLE` means no result is published. It is not a finding about the county."
       },
       "GeographyType": {
         "type": "string",
@@ -6048,28 +6167,33 @@
           "county",
           "state"
         ],
-        "title": "GeographyType"
+        "title": "GeographyType",
+        "description": "Kind of place. `county` uses five-digit FIPS and `state` uses two-digit FIPS."
       },
       "ResourceEnvelope_Geography_": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/Geography"
+            "$ref": "#/components/schemas/Geography",
+            "description": "The requested resource."
           }
         },
         "type": "object",
         "required": [
           "data"
         ],
-        "title": "ResourceEnvelope[Geography]"
+        "title": "Geography response",
+        "description": "One county or state identity, wrapped in `data`. The identity carries no geometry."
       },
       "Geography": {
         "properties": {
           "geography": {
-            "$ref": "#/components/schemas/GeographyIdentity"
+            "$ref": "#/components/schemas/GeographyIdentity",
+            "description": "Type and FIPS code of the place."
           },
           "label": {
             "type": "string",
-            "title": "Label"
+            "title": "Label",
+            "description": "Display name of the place."
           },
           "parent": {
             "anyOf": [
@@ -6079,7 +6203,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The state that contains a county. `null` for a state."
           }
         },
         "type": "object",
@@ -6088,17 +6213,18 @@
           "label"
         ],
         "title": "Geography",
-        "description": "County/state identity metadata; geometry is a separate display resource."
+        "description": "Identity and display name of a county or state. It carries no geometry."
       },
       "GeographyIdentity": {
         "properties": {
           "geography_type": {
-            "$ref": "#/components/schemas/GeographyType"
+            "$ref": "#/components/schemas/GeographyType",
+            "description": "Kind of place: `county` or `state`. It sets how long `geography_id` is."
           },
           "geography_id": {
             "type": "string",
             "title": "Geography Id",
-            "description": "FIPS string with leading zeros: five digits for counties, two for states."
+            "description": "FIPS code with leading zeros: five digits for a county, two for a state. Example: `08001`."
           }
         },
         "type": "object",
@@ -6107,28 +6233,30 @@
           "geography_id"
         ],
         "title": "GeographyIdentity",
-        "description": "Stable FIPS join identity, independent of display or analysis polygons."
+        "description": "Identifies one place by type and FIPS code. It carries no geometry."
       },
       "GeographyUnavailable": {
         "properties": {
           "availability": {
             "type": "string",
             "const": "UNAVAILABLE",
-            "title": "Availability"
+            "title": "Availability",
+            "description": "Always `UNAVAILABLE`: the geography data is not published."
           },
           "reason": {
             "type": "string",
             "const": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
-            "title": "Reason"
+            "title": "Reason",
+            "description": "Why the data is unavailable. The geography data has not been published."
           },
           "data": {
             "type": "null",
             "title": "Data",
-            "description": "No canonical geography resource or geometry is fabricated."
+            "description": "Always `null`. The API returns no geography data or geometry."
           },
           "geography": {
             "$ref": "#/components/schemas/GeographyIdentity",
-            "description": "The validated identity that was requested, echoed back."
+            "description": "The identity you requested, returned unchanged after a format check."
           },
           "limitations": {
             "items": {
@@ -6149,30 +6277,32 @@
           "limitations"
         ],
         "title": "GeographyUnavailable",
-        "description": "Typed, successful answer that canonical geography identity is not published yet.\n\nReturned with HTTP 200 by the legacy identity route (ADR 0021). It carries no release\nbecause answering must stay instant and independent of the governed directory."
+        "description": "HTTP 200 answer that canonical geography data is not published yet.\n\nThe API checks the shape of the requested identity only. It does not confirm that the place\nexists. Use the availability route for a county to confirm that."
       },
       "CanonicalGeographyAvailability": {
         "properties": {
           "availability": {
             "type": "string",
             "const": "UNAVAILABLE",
-            "title": "Availability"
+            "title": "Availability",
+            "description": "Always `UNAVAILABLE`: the county's geography data is not published."
           },
           "reason": {
             "type": "string",
             "const": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
-            "title": "Reason"
+            "title": "Reason",
+            "description": "Why the data is unavailable. The geography data has not been published."
           },
           "data": {
             "type": "null",
             "title": "Data",
-            "description": "No canonical geography resource or geometry is fabricated."
+            "description": "Always `null`. The API returns no geography data or geometry."
           },
           "release_id": {
             "type": "string",
             "minLength": 1,
             "title": "Release Id",
-            "description": "Governed county directory release used to confirm identity."
+            "description": "Identifies the county directory release used to confirm the county."
           },
           "limitations": {
             "items": {
@@ -6192,7 +6322,8 @@
           "release_id",
           "limitations"
         ],
-        "title": "CanonicalGeographyAvailability"
+        "title": "CanonicalGeographyAvailability",
+        "description": "The county exists, but its canonical geography data is not published yet."
       },
       "CollectionEnvelope_Indicator_": {
         "properties": {
@@ -6201,13 +6332,16 @@
               "$ref": "#/components/schemas/Indicator"
             },
             "type": "array",
-            "title": "Data"
+            "title": "Data",
+            "description": "The items on this page. Empty when there are none."
           },
           "meta": {
-            "$ref": "#/components/schemas/CollectionMeta"
+            "$ref": "#/components/schemas/CollectionMeta",
+            "description": "Paging, release, and availability details."
           },
           "links": {
-            "$ref": "#/components/schemas/CollectionLinks"
+            "$ref": "#/components/schemas/CollectionLinks",
+            "description": "Links related to this response."
           }
         },
         "type": "object",
@@ -6216,20 +6350,24 @@
           "meta",
           "links"
         ],
-        "title": "CollectionEnvelope[Indicator]"
+        "title": "Indicator collection",
+        "description": "A page of indicators, with paging details and links. Read `meta.next_page_token` to get the next page."
       },
       "Indicator": {
         "properties": {
           "indicator_id": {
             "type": "string",
-            "title": "Indicator Id"
+            "title": "Indicator Id",
+            "description": "Stable identifier of the indicator. Use it with `/v1/indicators/{indicator_id}`."
           },
           "label": {
             "type": "string",
-            "title": "Label"
+            "title": "Label",
+            "description": "Short display name of the indicator."
           },
           "definition": {
             "title": "Definition",
+            "description": "Plain-language definition of the indicator. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -6240,16 +6378,17 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Measure Ids"
+            "title": "Measure Ids",
+            "description": "Identifiers of the measures that belong to this indicator, in sorted order."
           },
           "semantic_version": {
             "type": "string",
             "title": "Semantic Version",
-            "description": "Governed semantic contract version, separate from HTTP V1 and application version."
+            "description": "Version of the data contract the value follows. It is separate from the API version and the application version."
           },
           "release_version": {
             "title": "Release Version",
-            "description": "Governed current-release relationship version.",
+            "description": "Identifies the published data release this record belongs to.",
             "type": [
               "string",
               "null"
@@ -6257,6 +6396,7 @@
           },
           "domain": {
             "title": "Domain",
+            "description": "Broad subject area the indicator belongs to, such as `climate`. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -6264,6 +6404,7 @@
           },
           "category": {
             "title": "Category",
+            "description": "Finer grouping inside the domain. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -6275,10 +6416,11 @@
             },
             "type": "array",
             "title": "Limitations",
-            "description": "Governed interpretation limitations; preserve alongside values and versions."
+            "description": "Factual notes on what the result does not show or where its evidence is bounded. Keep them with the value when you display or store it."
           },
           "standards_mappings": {
             "title": "Standards Mappings",
+            "description": "Optional reviewed links to external standards. `null` when none exist. A mapping does not mean Atlas exchanges data with that standard.",
             "items": {
               "$ref": "#/components/schemas/StandardsMapping"
             },
@@ -6296,28 +6438,34 @@
           "measure_ids",
           "semantic_version"
         ],
-        "title": "Indicator"
+        "title": "Indicator",
+        "description": "A public-health concept that groups related measures."
       },
       "StandardsMapping": {
         "properties": {
           "standard": {
             "type": "string",
-            "title": "Standard"
+            "title": "Standard",
+            "description": "Name of the external standard, such as `LOINC`."
           },
           "version": {
             "type": "string",
-            "title": "Version"
+            "title": "Version",
+            "description": "Version of the external standard that the mapping targets."
           },
           "target": {
             "type": "string",
-            "title": "Target"
+            "title": "Target",
+            "description": "Code or element in the external standard."
           },
           "relationship": {
             "type": "string",
-            "title": "Relationship"
+            "title": "Relationship",
+            "description": "How the Atlas concept relates to the target, such as `exact` or `broader`."
           },
           "mapping_reference": {
             "title": "Mapping Reference",
+            "description": "Reference to the reviewed mapping record. `null` when none.",
             "type": [
               "string",
               "null"
@@ -6331,13 +6479,14 @@
           "target",
           "relationship"
         ],
-        "title": "StandardsMapping"
+        "title": "StandardsMapping",
+        "description": "Optional reviewed link from a public-health concept to an external standard."
       },
       "CollectionMeta": {
         "properties": {
           "next_page_token": {
             "title": "Next Page Token",
-            "description": "Opaque query/release-bound continuation. Null means exhaustion; tokens may expire on restart.",
+            "description": "Send this value as `page_token` to get the next page, with the same filters. Do not parse it. `null` means there are no more pages. A token can stop working after a service restart.",
             "type": [
               "string",
               "null"
@@ -6347,11 +6496,11 @@
             "type": "string",
             "format": "date-time",
             "title": "Response At",
-            "description": "UTC response construction time; not source freshness or observation time."
+            "description": "When Atlas built this response, in UTC. It is not when the publisher last updated the data and not when the observation was made."
           },
           "availability": {
             "title": "Availability",
-            "description": "Observation selection availability, not biological presence. Omitted on other collections. An exhausted continuation remains AVAILABLE.",
+            "description": "Whether Atlas has published results for the selection. It does not describe biological presence. Returned for observations and omitted on other collections. A later page that runs out of items stays `AVAILABLE`.",
             "enum": [
               "AVAILABLE",
               "UNAVAILABLE",
@@ -6364,7 +6513,7 @@
           },
           "reason": {
             "title": "Reason",
-            "description": "No published rows after a successful initial non-CDC query; otherwise omitted.",
+            "description": "Why `availability` is `UNAVAILABLE`. `NO_PUBLISHED_RESULTS` means the first query found no published results. Omitted otherwise.",
             "enum": [
               "NO_PUBLISHED_RESULTS",
               null
@@ -6376,7 +6525,7 @@
           },
           "release_id": {
             "title": "Release Id",
-            "description": "Current governed release actually read for this query.",
+            "description": "Identifies the published data release this query read. Results from different releases are not directly comparable.",
             "type": [
               "string",
               "null"
@@ -6384,7 +6533,7 @@
           },
           "limitations": {
             "title": "Limitations",
-            "description": "Selection availability caveats; observations only.",
+            "description": "Notes on what the availability result does and does not show. Returned with `availability` on observation collections and omitted elsewhere.",
             "items": {
               "type": "string"
             },
@@ -6395,12 +6544,14 @@
           }
         },
         "type": "object",
-        "title": "CollectionMeta"
+        "title": "CollectionMeta",
+        "description": "Paging, release, and availability details for a list response."
       },
       "CollectionLinks": {
         "properties": {
           "self": {
             "title": "Self",
+            "description": "Link to this page of results. `null` when the API supplies none.",
             "type": [
               "string",
               "null"
@@ -6408,19 +6559,22 @@
           }
         },
         "type": "object",
-        "title": "CollectionLinks"
+        "title": "CollectionLinks",
+        "description": "Links related to a list response."
       },
       "ResourceEnvelope_Indicator_": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/Indicator"
+            "$ref": "#/components/schemas/Indicator",
+            "description": "The requested resource."
           }
         },
         "type": "object",
         "required": [
           "data"
         ],
-        "title": "ResourceEnvelope[Indicator]"
+        "title": "Indicator response",
+        "description": "One indicator, wrapped in `data`."
       },
       "CollectionEnvelope_Measure_": {
         "properties": {
@@ -6429,13 +6583,16 @@
               "$ref": "#/components/schemas/Measure"
             },
             "type": "array",
-            "title": "Data"
+            "title": "Data",
+            "description": "The items on this page. Empty when there are none."
           },
           "meta": {
-            "$ref": "#/components/schemas/CollectionMeta"
+            "$ref": "#/components/schemas/CollectionMeta",
+            "description": "Paging, release, and availability details."
           },
           "links": {
-            "$ref": "#/components/schemas/CollectionLinks"
+            "$ref": "#/components/schemas/CollectionLinks",
+            "description": "Links related to this response."
           }
         },
         "type": "object",
@@ -6444,24 +6601,32 @@
           "meta",
           "links"
         ],
-        "title": "CollectionEnvelope[Measure]"
+        "title": "Measure collection",
+        "description": "A page of measures, with paging details and links. Read `meta.next_page_token` to get the next page."
       },
       "Measure": {
         "properties": {
           "measure_id": {
             "type": "string",
-            "title": "Measure Id"
+            "title": "Measure Id",
+            "description": "Stable identifier of the measure. Pass it as `measure_id` to `/v1/observations`.",
+            "examples": [
+              "case_count_floor_2023"
+            ]
           },
           "indicator_id": {
             "type": "string",
-            "title": "Indicator Id"
+            "title": "Indicator Id",
+            "description": "Identifier of the indicator this measure belongs to."
           },
           "label": {
             "type": "string",
-            "title": "Label"
+            "title": "Label",
+            "description": "Short display name of the measure."
           },
           "definition": {
             "title": "Definition",
+            "description": "Plain-language definition of the measure. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -6470,11 +6635,11 @@
           "semantic_version": {
             "type": "string",
             "title": "Semantic Version",
-            "description": "Governed semantic contract version, separate from HTTP V1 and application version."
+            "description": "Version of the data contract the value follows. It is separate from the API version and the application version."
           },
           "release_version": {
             "title": "Release Version",
-            "description": "Governed current-release relationship version.",
+            "description": "Identifies the published data release this record belongs to.",
             "type": [
               "string",
               "null"
@@ -6482,6 +6647,7 @@
           },
           "measure_type": {
             "title": "Measure Type",
+            "description": "How the value is produced, such as `DERIVED`. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -6489,6 +6655,7 @@
           },
           "unit": {
             "title": "Unit",
+            "description": "Unit of the value, such as `mm` or `degree_Celsius`. `null` when the measure has no unit.",
             "type": [
               "string",
               "null"
@@ -6496,7 +6663,7 @@
           },
           "denominator": {
             "title": "Denominator",
-            "description": "Governed denominator; null means it is not supplied and must not be inferred.",
+            "description": "What the value is measured against, such as a population. `null` means Atlas supplies no denominator; do not infer one.",
             "type": [
               "string",
               "null"
@@ -6504,6 +6671,7 @@
           },
           "geography_types": {
             "title": "Geography Types",
+            "description": "Kinds of place the measure covers. `null` when not listed. Listing a measure does not promise data for every county and period.",
             "items": {
               "$ref": "#/components/schemas/GeographyType"
             },
@@ -6514,6 +6682,7 @@
           },
           "temporal_grains": {
             "title": "Temporal Grains",
+            "description": "Time intervals the measure is reported in, such as `DAY`. `null` when not listed.",
             "items": {
               "type": "string"
             },
@@ -6524,6 +6693,7 @@
           },
           "geography_semantics": {
             "title": "Geography Semantics",
+            "description": "What the place dimension means for this measure. `null` when not published.",
             "type": [
               "string",
               "null"
@@ -6531,6 +6701,7 @@
           },
           "temporal_semantics": {
             "title": "Temporal Semantics",
+            "description": "What the time dimension means for this measure. `null` when not published.",
             "type": [
               "string",
               "null"
@@ -6538,6 +6709,7 @@
           },
           "allowed_value_states": {
             "title": "Allowed Value States",
+            "description": "The `value_state` values this measure can return. `null` when not listed.",
             "items": {
               "$ref": "#/components/schemas/ValueState"
             },
@@ -6548,6 +6720,7 @@
           },
           "allowed_strata": {
             "title": "Allowed Strata",
+            "description": "Breakdowns, such as age group, that the measure supports. `null` when it has none.",
             "items": {
               "type": "string"
             },
@@ -6558,6 +6731,7 @@
           },
           "missingness_semantics": {
             "title": "Missingness Semantics",
+            "description": "How the measure reports missing, withheld, or unavailable values. Read it before you treat `null` as a finding.",
             "type": [
               "string",
               "null"
@@ -6565,7 +6739,7 @@
           },
           "methodology_id": {
             "title": "Methodology Id",
-            "description": "Exact governed methodology resource ID; null when not governed.",
+            "description": "Identifies the methodology resource. Use it with `/v1/methodologies/{methodology_id}`. `null` when no methodology resource applies.",
             "type": [
               "string",
               "null"
@@ -6573,6 +6747,7 @@
           },
           "methodology": {
             "title": "Methodology",
+            "description": "Short name of the method that produces the value.",
             "type": [
               "string",
               "null"
@@ -6580,6 +6755,7 @@
           },
           "source_ids": {
             "title": "Source Ids",
+            "description": "Identifiers of the sources the measure draws on. `null` when not listed.",
             "items": {
               "type": "string"
             },
@@ -6594,10 +6770,11 @@
             },
             "type": "array",
             "title": "Limitations",
-            "description": "Governed interpretation limitations; preserve alongside values and versions."
+            "description": "Factual notes on what the result does not show or where its evidence is bounded. Keep them with the value when you display or store it."
           },
           "standards_mappings": {
             "title": "Standards Mappings",
+            "description": "Optional reviewed links to external standards. `null` when none exist.",
             "items": {
               "$ref": "#/components/schemas/StandardsMapping"
             },
@@ -6615,7 +6792,8 @@
           "definition",
           "semantic_version"
         ],
-        "title": "Measure"
+        "title": "Measure",
+        "description": "One variable you can query, such as a case count. It belongs to one indicator."
       },
       "ValueState": {
         "type": "string",
@@ -6629,50 +6807,57 @@
           "NO_RECORDS"
         ],
         "title": "ValueState",
-        "description": "Public V1 states, including the governed county status added by API #54."
+        "description": "How to read an observation's `value`. Check it before you use the value.\n\n- `OBSERVED`: a nonzero value the publisher reported. Use `value` as given.\n- `ZERO`: a reported numeric zero. It is different from a missing value.\n- `MISSING`: no value was reported and `value` is `null`. It is not zero.\n- `SUPPRESSED`: the value exists but is withheld, and `value` is `null`. It is not zero. Do not estimate it.\n- `UNAVAILABLE`: Atlas has no published result for this selection, and `value` is `null`. It does not mean zero or absence.\n- `NO_COUNTY_LINKED_RECORD`: a governed status meaning no record is linked to the county. `value` is the text `no_county_linked_record`. It is neither null nor zero.\n- `NO_RECORDS`: the publisher's literal \"No records\" result. `value` is the text `No records`. It does not establish biological absence.\n\nShow these states differently from each other. Never turn `null` into zero."
       },
       "ResourceEnvelope_Measure_": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/Measure"
+            "$ref": "#/components/schemas/Measure",
+            "description": "The requested resource."
           }
         },
         "type": "object",
         "required": [
           "data"
         ],
-        "title": "ResourceEnvelope[Measure]"
+        "title": "Measure response",
+        "description": "One measure, wrapped in `data`."
       },
       "ResourceEnvelope_Methodology_": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/Methodology"
+            "$ref": "#/components/schemas/Methodology",
+            "description": "The requested resource."
           }
         },
         "type": "object",
         "required": [
           "data"
         ],
-        "title": "ResourceEnvelope[Methodology]"
+        "title": "Methodology response",
+        "description": "One methodology, wrapped in `data`."
       },
       "Methodology": {
         "properties": {
           "methodology_id": {
             "type": "string",
             "title": "Methodology Id",
-            "description": "Exact governed methodology resource ID; null when not governed."
+            "description": "Identifies the methodology. Use it with `/v1/methodologies/{methodology_id}`."
           },
           "measure_id": {
             "type": "string",
-            "title": "Measure Id"
+            "title": "Measure Id",
+            "description": "Identifier of the measure the methodology applies to."
           },
           "version": {
             "type": "string",
-            "title": "Version"
+            "title": "Version",
+            "description": "Version of this methodology resource."
           },
           "description": {
             "type": "string",
-            "title": "Description"
+            "title": "Description",
+            "description": "Plain-language description of the method."
           },
           "limitations": {
             "items": {
@@ -6680,17 +6865,17 @@
             },
             "type": "array",
             "title": "Limitations",
-            "description": "Governed interpretation limitations; preserve alongside values and versions."
+            "description": "Factual notes on what the result does not show or where its evidence is bounded. Keep them with the value when you display or store it."
           },
           "semantic_version": {
             "type": "string",
             "title": "Semantic Version",
-            "description": "Governed semantic contract version, separate from HTTP V1 and application version."
+            "description": "Version of the data contract the value follows. It is separate from the API version and the application version."
           },
           "release_version": {
             "type": "string",
             "title": "Release Version",
-            "description": "Governed current-release relationship version."
+            "description": "Identifies the published data release this record belongs to."
           }
         },
         "type": "object",
@@ -6703,7 +6888,8 @@
           "semantic_version",
           "release_version"
         ],
-        "title": "Methodology"
+        "title": "Methodology",
+        "description": "The method Atlas used to produce or interpret a measure's values."
       },
       "CollectionEnvelope_CountyContextObservation_": {
         "properties": {
@@ -6712,13 +6898,16 @@
               "$ref": "#/components/schemas/CountyContextObservation"
             },
             "type": "array",
-            "title": "Data"
+            "title": "Data",
+            "description": "The items on this page. Empty when there are none."
           },
           "meta": {
-            "$ref": "#/components/schemas/CollectionMeta"
+            "$ref": "#/components/schemas/CollectionMeta",
+            "description": "Paging, release, and availability details."
           },
           "links": {
-            "$ref": "#/components/schemas/CollectionLinks"
+            "$ref": "#/components/schemas/CollectionLinks",
+            "description": "Links related to this response."
           }
         },
         "type": "object",
@@ -6727,13 +6916,14 @@
           "meta",
           "links"
         ],
-        "title": "County Context Observation Collection"
+        "title": "County Context Observation Collection",
+        "description": "A page of county population or rurality observations, with paging details and links. Read `meta.availability` and `meta.next_page_token` before you use `data`."
       },
       "CountyContextObservation": {
         "properties": {
           "metadata_revision_id": {
             "title": "Metadata Revision Id",
-            "description": "Reviewed consumer-safe metadata revision; not private lineage.",
+            "description": "Identifies the reviewed metadata revision that describes this observation. `null` when none applies.",
             "type": [
               "string",
               "null"
@@ -6742,14 +6932,16 @@
           "observation_id": {
             "type": "string",
             "title": "Observation Id",
-            "description": "Stable observation identity and compact provenance reference."
+            "description": "Stable identifier of the observation. It also serves as the provenance reference."
           },
           "measure_id": {
             "type": "string",
-            "title": "Measure Id"
+            "title": "Measure Id",
+            "description": "Identifier of the measure. See `/v1/measures/{measure_id}`."
           },
           "geography": {
-            "$ref": "#/components/schemas/GeographyIdentity"
+            "$ref": "#/components/schemas/GeographyIdentity",
+            "description": "The place the value describes."
           },
           "temporal_grain": {
             "type": "string",
@@ -6757,11 +6949,12 @@
               "PERIOD",
               "VINTAGE_YEAR"
             ],
-            "title": "Temporal Grain"
+            "title": "Temporal Grain",
+            "description": "`PERIOD` for a dated reference period. `VINTAGE_YEAR` for a classification that has no dates."
           },
           "value": {
             "title": "Value",
-            "description": "Integer population/category or exact nonzero decimal text; ZERO is integer 0.",
+            "description": "An integer for a population or category, or exact decimal text. `ZERO` is the integer 0. Read it with `value_state`.",
             "type": [
               "integer",
               "string",
@@ -6770,15 +6963,16 @@
           },
           "value_state": {
             "$ref": "#/components/schemas/ValueState",
-            "description": "OBSERVED is nonzero; ZERO is numeric zero; MISSING/SUPPRESSED/UNAVAILABLE require null; NO_COUNTY_LINKED_RECORD retains the literal no_county_linked_record; NO_RECORDS retains CDC's No records. Neither establishes biological absence."
+            "description": "How to read `value`. The `ValueState` schema explains each state and what a client should do. Never treat a `null` value as zero."
           },
           "unit": {
             "type": "string",
-            "title": "Unit"
+            "title": "Unit",
+            "description": "Unit of `value`, such as `count` or `mm`."
           },
           "denominator": {
             "title": "Denominator",
-            "description": "Governed denominator; null means it is not supplied and must not be inferred.",
+            "description": "What the value is measured against, such as a population. `null` means Atlas supplies no denominator; do not infer one.",
             "type": [
               "string",
               "null"
@@ -6789,15 +6983,17 @@
               "type": "string"
             },
             "type": "object",
-            "title": "Strata"
+            "title": "Strata",
+            "description": "Breakdown the value applies to, such as an age group. Empty when the release has no strata."
           },
           "source_id": {
             "type": "string",
             "title": "Source Id",
-            "description": "Public source resource key; distinct from lineage_source_id and dataset_id."
+            "description": "Public key of the source resource. Use it with `/v1/sources/{source_id}`. It differs from `lineage_source_id` and `dataset_id`."
           },
           "lineage_source_id": {
             "title": "Lineage Source Id",
+            "description": "Identifies the source in Atlas lineage records. It differs from `source_id`.",
             "type": [
               "string",
               "null"
@@ -6805,6 +7001,7 @@
           },
           "dataset_id": {
             "title": "Dataset Id",
+            "description": "Identifies the publisher's dataset. It differs from `source_id`.",
             "type": [
               "string",
               "null"
@@ -6812,7 +7009,7 @@
           },
           "methodology_id": {
             "title": "Methodology Id",
-            "description": "Exact governed methodology resource ID; null when not governed.",
+            "description": "Identifies the methodology resource. Use it with `/v1/methodologies/{methodology_id}`. `null` when no methodology resource applies.",
             "type": [
               "string",
               "null"
@@ -6820,6 +7017,7 @@
           },
           "methodology": {
             "title": "Methodology",
+            "description": "Short name of the method that produced the value.",
             "type": [
               "string",
               "null"
@@ -6827,6 +7025,7 @@
           },
           "release_methodology_version": {
             "title": "Release Methodology Version",
+            "description": "Version of the methodology as published in this release. `null` when none.",
             "type": [
               "string",
               "null"
@@ -6835,25 +7034,26 @@
           "methodology_version": {
             "type": "string",
             "title": "Methodology Version",
-            "description": "Transformation version, distinct from methodology resource version."
+            "description": "Version of the transformation applied to this observation. It is separate from the version of the methodology resource."
           },
           "semantic_version": {
             "type": "string",
             "title": "Semantic Version",
-            "description": "Governed semantic contract version, separate from HTTP V1 and application version."
+            "description": "Version of the data contract the value follows. It is separate from the API version and the application version."
           },
           "release_id": {
             "type": "string",
             "title": "Release Id",
-            "description": "Governed release identity for reproducibility."
+            "description": "Identifies the published data release the result came from. Results from different releases are not directly comparable."
           },
           "provenance_ref": {
             "type": "string",
             "title": "Provenance Ref",
-            "description": "Structured observation provenance identity; not a literature citation."
+            "description": "Identifies the provenance record for this observation. It is not a literature citation."
           },
           "source_label": {
             "title": "Source Label",
+            "description": "Display name of the source. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -6861,6 +7061,7 @@
           },
           "source_vintage": {
             "title": "Source Vintage",
+            "description": "Reference year or period of the source dataset, such as `ACS 2018-2022`. It is not an annual value.",
             "type": [
               "string",
               "null"
@@ -6868,6 +7069,7 @@
           },
           "source_url": {
             "title": "Source Url",
+            "description": "Web address of the source. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -6875,7 +7077,7 @@
           },
           "source_published_at": {
             "title": "Source Published At",
-            "description": "Publisher timestamp when governed; null is not inferred freshness.",
+            "description": "When the publisher published the data. Includes a UTC offset. `null` when not recorded; do not assume the data is fresh.",
             "format": "date-time",
             "type": [
               "string",
@@ -6884,7 +7086,7 @@
           },
           "atlas_acquired_at": {
             "title": "Atlas Acquired At",
-            "description": "Atlas acquisition time when governed; distinct from source publication and processing.",
+            "description": "When Atlas retrieved the data from the publisher. Includes a UTC offset. `null` when not recorded.",
             "format": "date-time",
             "type": [
               "string",
@@ -6893,7 +7095,7 @@
           },
           "atlas_processed_at": {
             "title": "Atlas Processed At",
-            "description": "Atlas processing time when governed; distinct from response time.",
+            "description": "When Atlas processed the data. Includes a UTC offset. It is not the response time. `null` when not recorded.",
             "format": "date-time",
             "type": [
               "string",
@@ -6906,10 +7108,11 @@
             },
             "type": "array",
             "title": "Limitations",
-            "description": "Governed interpretation limitations; preserve alongside values and versions."
+            "description": "Factual notes on what the result does not show or where its evidence is bounded. Keep them with the value when you display or store it."
           },
           "evidence": {
-            "$ref": "#/components/schemas/EvidenceReference"
+            "$ref": "#/components/schemas/EvidenceReference",
+            "description": "Compact pointer to the Atlas resource that backs this observation."
           },
           "environmental_context": {
             "anyOf": [
@@ -6920,7 +7123,7 @@
                 "type": "null"
               }
             ],
-            "description": "Present only for reviewed environmental context. DECIMAL quantities may use exact numeric strings; native DOUBLE remains a JSON number."
+            "description": "Coverage details. Present only for environmental measures. Exact decimal quantities may be strings."
           },
           "surveillance_context": {
             "anyOf": [
@@ -6931,11 +7134,11 @@
                 "type": "null"
               }
             ],
-            "description": "Only supplied through an admitted Data release/bundle and supported slice. Omitted or null carries no evidence-state, comparability or lag claim. Comparison is case-definition scope only; alignment is descriptive, not causal."
+            "description": "Optional surveillance evidence. Omitted or `null` supports no claim about evidence state, comparability, or lag."
           },
           "period_start": {
             "title": "Period Start",
-            "description": "ACS reference-period start; null for RUCC vintage.",
+            "description": "First date of the reference period. `null` for a classification vintage.",
             "format": "date",
             "type": [
               "string",
@@ -6944,7 +7147,7 @@
           },
           "period_end": {
             "title": "Period End",
-            "description": "ACS reference-period end; null for RUCC vintage.",
+            "description": "Last date of the reference period. `null` for a classification vintage.",
             "format": "date",
             "type": [
               "string",
@@ -6952,7 +7155,8 @@
             ]
           },
           "county_context": {
-            "$ref": "#/components/schemas/CountyContext"
+            "$ref": "#/components/schemas/CountyContext",
+            "description": "Describes the field the value came from."
           }
         },
         "type": "object",
@@ -6977,21 +7181,24 @@
           "period_end",
           "county_context"
         ],
-        "title": "CountyContextObservation"
+        "title": "CountyContextObservation",
+        "description": "A county population or rurality value, reported for a reference period or a vintage."
       },
       "EvidenceReference": {
         "properties": {
           "resource_type": {
             "type": "string",
-            "title": "Resource Type"
+            "title": "Resource Type",
+            "description": "Kind of Atlas resource the reference points to, such as `observation`."
           },
           "resource_id": {
             "type": "string",
-            "title": "Resource Id"
+            "title": "Resource Id",
+            "description": "Identifier of that resource."
           },
           "source_id": {
             "title": "Source Id",
-            "description": "Public source resource key; distinct from lineage_source_id and dataset_id.",
+            "description": "Public key of the source resource. Use it with `/v1/sources/{source_id}`. It differs from `lineage_source_id` and `dataset_id`.",
             "type": [
               "string",
               "null"
@@ -6999,7 +7206,7 @@
           },
           "provenance_ref": {
             "title": "Provenance Ref",
-            "description": "Structured observation provenance identity; not a literature citation.",
+            "description": "Identifies the provenance record for the observation. It is not a literature citation.",
             "type": [
               "string",
               "null"
@@ -7007,7 +7214,7 @@
           },
           "semantic_version": {
             "title": "Semantic Version",
-            "description": "Governed semantic contract version, separate from HTTP V1 and application version.",
+            "description": "Version of the data contract the value follows. It is separate from the API version and the application version.",
             "type": [
               "string",
               "null"
@@ -7015,7 +7222,7 @@
           },
           "methodology_version": {
             "title": "Methodology Version",
-            "description": "Transformation version, distinct from methodology resource version.",
+            "description": "Version of the transformation applied to this observation. It is separate from the version of the methodology resource.",
             "type": [
               "string",
               "null"
@@ -7023,7 +7230,7 @@
           },
           "release_id": {
             "title": "Release Id",
-            "description": "Governed release identity for reproducibility.",
+            "description": "Identifies the published data release the result came from. Results from different releases are not directly comparable.",
             "type": [
               "string",
               "null"
@@ -7031,6 +7238,7 @@
           },
           "uri": {
             "title": "Uri",
+            "description": "Web address of the referenced resource, when one exists.",
             "type": [
               "string",
               "null"
@@ -7042,7 +7250,8 @@
           "resource_type",
           "resource_id"
         ],
-        "title": "EvidenceReference"
+        "title": "EvidenceReference",
+        "description": "Compact pointer to the Atlas resource that backs a result."
       },
       "EnvironmentalContext": {
         "properties": {
@@ -7054,20 +7263,23 @@
               "SOURCE_MISSING",
               "OUT_OF_SOURCE_COVERAGE"
             ],
-            "title": "Coverage Status"
+            "title": "Coverage Status",
+            "description": "How much of the county the source covers for this day."
           },
           "source_time_present": {
             "type": "boolean",
-            "title": "Source Time Present"
+            "title": "Source Time Present",
+            "description": "Whether the source supplied a time for this observation."
           },
           "day_convention": {
             "type": "string",
             "minLength": 1,
             "title": "Day Convention",
-            "description": "Publisher labeled 24-hour period, not a midnight calendar day."
+            "description": "How the publisher defines a day. It is a labeled 24-hour period, not necessarily a midnight-to-midnight calendar day."
           },
           "expected_area_m2": {
             "title": "Expected Area M2",
+            "description": "County area expected to be covered, in square meters. `null` when unknown.",
             "type": [
               "number",
               "string",
@@ -7076,6 +7288,7 @@
           },
           "intersected_area_m2": {
             "title": "Intersected Area M2",
+            "description": "County area that overlaps the source grid, in square meters. `null` when unknown.",
             "type": [
               "number",
               "string",
@@ -7084,6 +7297,7 @@
           },
           "source_supported_area_m2": {
             "title": "Source Supported Area M2",
+            "description": "County area the source supports, in square meters. `null` when unknown.",
             "type": [
               "number",
               "string",
@@ -7092,6 +7306,7 @@
           },
           "valid_area_m2": {
             "title": "Valid Area M2",
+            "description": "County area with a valid source value for this day, in square meters. `null` when unknown.",
             "type": [
               "number",
               "string",
@@ -7100,7 +7315,7 @@
           },
           "source_coverage_fraction": {
             "title": "Source Coverage Fraction",
-            "description": "Monthly source-supported/legal county area; separate from daily completeness.",
+            "description": "Monthly share of the county area that the source supports. It is separate from daily completeness.",
             "type": [
               "number",
               "string",
@@ -7109,7 +7324,7 @@
           },
           "valid_fraction_of_supported_area": {
             "title": "Valid Fraction Of Supported Area",
-            "description": "Daily valid/source-supported area; completeness threshold 0.95.",
+            "description": "Daily share of the supported area that has a valid value. Atlas treats 0.95 as the completeness threshold.",
             "type": [
               "number",
               "string",
@@ -7118,7 +7333,7 @@
           },
           "upstream_date_modified": {
             "title": "Upstream Date Modified",
-            "description": "Upstream modification metadata; never original publication or first availability.",
+            "description": "Modification date the source reports. It is not the original publication date or the date the data first became available.",
             "type": [
               "string",
               "null"
@@ -7126,16 +7341,18 @@
           },
           "weight_version": {
             "type": "string",
-            "title": "Weight Version"
+            "title": "Weight Version",
+            "description": "Version of the area weights used to combine grid cells into a county value."
           },
           "geometry_version": {
             "type": "string",
             "title": "Geometry Version",
-            "description": "Analysis geometry identity only; no polygons."
+            "description": "Version of the county boundaries used for the calculation. The API returns no boundary geometry."
           },
           "metadata_revision_id": {
             "type": "string",
-            "title": "Metadata Revision Id"
+            "title": "Metadata Revision Id",
+            "description": "Identifies the reviewed metadata revision that describes this context."
           }
         },
         "type": "object",
@@ -7155,7 +7372,7 @@
           "metadata_revision_id"
         ],
         "title": "EnvironmentalContext",
-        "description": "Coverage independent of value state; numeric strings preserve exact DECIMAL."
+        "description": "How completely the source covers a county and day. It is separate from `value_state`.\n\nArea values are square meters. Exact decimal quantities may be strings."
       },
       "SurveillanceContext": {
         "properties": {
@@ -7167,7 +7384,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "County evidence state. `null` when none is supplied."
           },
           "methodology_comparison": {
             "anyOf": [
@@ -7177,7 +7395,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Comparability of case definitions. `null` when none is supplied."
           },
           "temporal_alignment": {
             "anyOf": [
@@ -7187,23 +7406,26 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Time alignment details. `null` when none is supplied."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "SurveillanceContext"
+        "title": "SurveillanceContext",
+        "description": "Optional surveillance evidence attached to an observation.\n\nA missing or `null` part supports no claim about evidence state, comparability, or lag.\nComparison covers case definitions only. Alignment is descriptive, not causal."
       },
       "SurveillanceEvidenceContext": {
         "properties": {
           "contract_version": {
             "type": "string",
             "const": "atlas-surveillance-evidence-v3",
-            "title": "Contract Version"
+            "title": "Contract Version",
+            "description": "Version of the contract that defines this object."
           },
           "normalized_state": {
             "title": "Normalized State",
-            "description": "Data-owned county evidence state, projected without classification. Null means the older companion did not supply normalization; unknown supports no biological absence conclusion. Original publisher value remains Observation.value.",
+            "description": "County evidence state supplied with the data, without extra classification. `unknown` supports no conclusion about biological absence. `null` means no normalized state was supplied. The publisher's original value stays in the observation `value`.",
             "enum": [
               "established",
               "detected",
@@ -7224,7 +7446,8 @@
               "no_qualifying_record",
               "unknown"
             ],
-            "title": "State"
+            "title": "State",
+            "description": "Evidence state for the county. None of these values proves absence."
           },
           "reason_codes": {
             "items": {
@@ -7232,28 +7455,34 @@
             },
             "type": "array",
             "minItems": 1,
-            "title": "Reason Codes"
+            "title": "Reason Codes",
+            "description": "Codes that explain why the state applies."
           },
           "evidence_tier": {
             "type": "string",
             "const": "GOVERNED_MAPPING",
-            "title": "Evidence Tier"
+            "title": "Evidence Tier",
+            "description": "How the state was derived. `GOVERNED_MAPPING` means a reviewed mapping."
           },
           "observation_key": {
             "type": "string",
-            "title": "Observation Key"
+            "title": "Observation Key",
+            "description": "Identifies the observation this state describes."
           },
           "revision_id": {
             "type": "string",
-            "title": "Revision Id"
+            "title": "Revision Id",
+            "description": "Identifies the revision of the evidence record."
           },
           "value_state": {
             "type": "string",
-            "title": "Value State"
+            "title": "Value State",
+            "description": "The `value_state` of the observation this state describes."
           },
           "source_rule_id": {
             "type": "string",
-            "title": "Source Rule Id"
+            "title": "Source Rule Id",
+            "description": "Identifies the rule that mapped the source value."
           },
           "limitations": {
             "items": {
@@ -7261,11 +7490,13 @@
             },
             "type": "array",
             "minItems": 1,
-            "title": "Limitations"
+            "title": "Limitations",
+            "description": "Factual notes on what the result does not show or where its evidence is bounded. Keep them with the value when you display or store it."
           },
           "evidence_revision_id": {
             "type": "string",
-            "title": "Evidence Revision Id"
+            "title": "Evidence Revision Id",
+            "description": "Identifies the revision of the evidence set."
           }
         },
         "additionalProperties": false,
@@ -7283,14 +7514,15 @@
           "evidence_revision_id"
         ],
         "title": "SurveillanceEvidenceContext",
-        "description": "Data-projector evidence, never an API classification."
+        "description": "Evidence state for a county as supplied with the data. Atlas adds no classification."
       },
       "MethodologyComparisonContext": {
         "properties": {
           "contract_version": {
             "type": "string",
             "const": "atlas-lyme-surveillance-methodology-v1",
-            "title": "Contract Version"
+            "title": "Contract Version",
+            "description": "Version of the contract that defines this object."
           },
           "comparison_state": {
             "type": "string",
@@ -7300,14 +7532,16 @@
               "NOT_COMPARABLE",
               "UNKNOWN"
             ],
-            "title": "Comparison State"
+            "title": "Comparison State",
+            "description": "Whether the case definitions allow a comparison. `UNKNOWN` is not `COMPARABLE`."
           },
           "reason_codes": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Reason Codes"
+            "title": "Reason Codes",
+            "description": "Codes that explain the comparison state."
           },
           "methodology_era_ids": {
             "items": {
@@ -7317,10 +7551,12 @@
               ]
             },
             "type": "array",
-            "title": "Methodology Era Ids"
+            "title": "Methodology Era Ids",
+            "description": "Surveillance case-definition eras the compared values fall in. An entry is `null` when the era is unknown."
           },
           "jurisdiction_class": {
             "title": "Jurisdiction Class",
+            "description": "Group of jurisdictions that share a reporting approach. `null` when unknown.",
             "type": [
               "string",
               "null"
@@ -7331,19 +7567,21 @@
               "type": "string"
             },
             "type": "array",
-            "title": "References"
+            "title": "References",
+            "description": "Public references that support the comparison."
           },
           "limitations": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Limitations"
+            "title": "Limitations",
+            "description": "Factual notes on what the result does not show or where its evidence is bounded. Keep them with the value when you display or store it."
           },
           "left_observation_id": {
             "type": "string",
             "title": "Left Observation Id",
-            "description": "Public ID of the comparison's left input."
+            "description": "Identifier of the observation on the left side of the comparison."
           }
         },
         "additionalProperties": false,
@@ -7358,43 +7596,52 @@
           "limitations",
           "left_observation_id"
         ],
-        "title": "MethodologyComparisonContext"
+        "title": "MethodologyComparisonContext",
+        "description": "Whether this observation can be compared with another across surveillance methods."
       },
       "TemporalAlignmentContext": {
         "properties": {
           "contract_version": {
             "type": "string",
             "const": "atlas-temporal-alignment-v1",
-            "title": "Contract Version"
+            "title": "Contract Version",
+            "description": "Version of the contract that defines this object."
           },
           "method_id": {
             "type": "string",
-            "title": "Method Id"
+            "title": "Method Id",
+            "description": "Identifies the alignment method."
           },
           "method_version": {
             "type": "string",
-            "title": "Method Version"
+            "title": "Method Version",
+            "description": "Version of the alignment method."
           },
           "source_id": {
             "type": "string",
-            "title": "Source Id"
+            "title": "Source Id",
+            "description": "Identifies the source of the aligned observation."
           },
           "measure_id": {
             "type": "string",
-            "title": "Measure Id"
+            "title": "Measure Id",
+            "description": "Identifies the measure that was aligned."
           },
           "aggregation_rule": {
             "type": "string",
-            "title": "Aggregation Rule"
+            "title": "Aggregation Rule",
+            "description": "Rule used to combine values inside the observation window."
           },
           "coverage_denominator": {
             "type": "string",
-            "title": "Coverage Denominator"
+            "title": "Coverage Denominator",
+            "description": "What the coverage is counted against, such as days in the window."
           },
           "decision_cutoff": {
             "type": "string",
             "format": "date-time",
-            "title": "Decision Cutoff"
+            "title": "Decision Cutoff",
+            "description": "Time after which new data is not used for the alignment. Includes a UTC offset."
           },
           "disposition": {
             "type": "string",
@@ -7404,33 +7651,40 @@
               "RETROSPECTIVE_ONLY",
               "UNKNOWN_AVAILABILITY"
             ],
-            "title": "Disposition"
+            "title": "Disposition",
+            "description": "Whether the observation can be used for the target window."
           },
           "reason_codes": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Reason Codes"
+            "title": "Reason Codes",
+            "description": "Codes that explain the disposition."
           },
           "limitations": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Limitations"
+            "title": "Limitations",
+            "description": "Factual notes on what the result does not show or where its evidence is bounded. Keep them with the value when you display or store it."
           },
           "observation_window": {
-            "$ref": "#/components/schemas/TemporalWindowContext"
+            "$ref": "#/components/schemas/TemporalWindowContext",
+            "description": "Time span the observation covers."
           },
           "target_window": {
-            "$ref": "#/components/schemas/TemporalWindowContext"
+            "$ref": "#/components/schemas/TemporalWindowContext",
+            "description": "Time span being compared against."
           },
           "lag": {
-            "$ref": "#/components/schemas/TemporalLagContext"
+            "$ref": "#/components/schemas/TemporalLagContext",
+            "description": "Lag between the two windows."
           },
           "coverage": {
-            "$ref": "#/components/schemas/TemporalCoverageContext"
+            "$ref": "#/components/schemas/TemporalCoverageContext",
+            "description": "Expected and observed coverage of the observation window."
           },
           "reference_period": {
             "anyOf": [
@@ -7440,7 +7694,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Reference period of the source dataset. `null` when none applies."
           }
         },
         "additionalProperties": false,
@@ -7462,29 +7717,34 @@
           "lag",
           "coverage"
         ],
-        "title": "TemporalAlignmentContext"
+        "title": "TemporalAlignmentContext",
+        "description": "Describes how an observation's time span lines up with a target time span.\n\nThe alignment is descriptive. It does not show cause."
       },
       "TemporalWindowContext": {
         "properties": {
           "start": {
             "type": "string",
             "format": "date",
-            "title": "Start"
+            "title": "Start",
+            "description": "First date in the window."
           },
           "end_exclusive": {
             "type": "string",
             "format": "date",
-            "title": "End Exclusive"
+            "title": "End Exclusive",
+            "description": "First date after the window. It is not in the window."
           },
           "calendar": {
             "type": "string",
             "const": "GREGORIAN",
-            "title": "Calendar"
+            "title": "Calendar",
+            "description": "Calendar the dates use."
           },
           "timezone": {
             "type": "string",
             "const": "UTC",
-            "title": "Timezone"
+            "title": "Timezone",
+            "description": "Time zone the dates use."
           }
         },
         "additionalProperties": false,
@@ -7495,7 +7755,8 @@
           "calendar",
           "timezone"
         ],
-        "title": "TemporalWindowContext"
+        "title": "TemporalWindowContext",
+        "description": "A span of time with an inclusive start and an exclusive end."
       },
       "TemporalLagContext": {
         "properties": {
@@ -7507,7 +7768,8 @@
               "ROLLING",
               "SEASONAL"
             ],
-            "title": "Kind"
+            "title": "Kind",
+            "description": "Type of lag rule that applies."
           },
           "anchor": {
             "type": "string",
@@ -7515,14 +7777,17 @@
               "START",
               "END_EXCLUSIVE"
             ],
-            "title": "Anchor"
+            "title": "Anchor",
+            "description": "Edge of the target window that the lag is measured from."
           },
           "offset_days": {
             "type": "integer",
-            "title": "Offset Days"
+            "title": "Offset Days",
+            "description": "Number of days between the anchor and the window."
           },
           "window_days": {
             "title": "Window Days",
+            "description": "Length of a rolling window in days. `null` for other kinds.",
             "type": [
               "integer",
               "null"
@@ -7530,6 +7795,7 @@
           },
           "season_id": {
             "title": "Season Id",
+            "description": "Identifies the season for a seasonal lag. `null` otherwise.",
             "type": [
               "string",
               "null"
@@ -7543,7 +7809,8 @@
           "anchor",
           "offset_days"
         ],
-        "title": "TemporalLagContext"
+        "title": "TemporalLagContext",
+        "description": "How far an observation window sits before its target window."
       },
       "TemporalCoverageContext": {
         "properties": {
@@ -7556,7 +7823,8 @@
                 "type": "number"
               }
             ],
-            "title": "Expected"
+            "title": "Expected",
+            "description": "Amount of coverage expected, in `unit`."
           },
           "observed": {
             "anyOf": [
@@ -7567,15 +7835,18 @@
                 "type": "number"
               }
             ],
-            "title": "Observed"
+            "title": "Observed",
+            "description": "Amount of coverage present, in `unit`."
           },
           "unit": {
             "type": "string",
-            "title": "Unit"
+            "title": "Unit",
+            "description": "Unit of `expected` and `observed`, such as `day`."
           },
           "partial_allowed": {
             "type": "boolean",
-            "title": "Partial Allowed"
+            "title": "Partial Allowed",
+            "description": "Whether the method accepts less than the expected coverage."
           }
         },
         "additionalProperties": false,
@@ -7586,27 +7857,32 @@
           "unit",
           "partial_allowed"
         ],
-        "title": "TemporalCoverageContext"
+        "title": "TemporalCoverageContext",
+        "description": "How much of the expected time span the observation covers."
       },
       "TemporalReferencePeriodContext": {
         "properties": {
           "id": {
             "type": "string",
-            "title": "Id"
+            "title": "Id",
+            "description": "Identifies the reference period."
           },
           "start": {
             "type": "string",
             "format": "date",
-            "title": "Start"
+            "title": "Start",
+            "description": "First date in the reference period."
           },
           "end_exclusive": {
             "type": "string",
             "format": "date",
-            "title": "End Exclusive"
+            "title": "End Exclusive",
+            "description": "First date after the reference period. It is not in the period."
           },
           "source_vintage": {
             "type": "string",
-            "title": "Source Vintage"
+            "title": "Source Vintage",
+            "description": "Reference year or period of the source dataset. It is not an annual value."
           }
         },
         "additionalProperties": false,
@@ -7617,23 +7893,29 @@
           "end_exclusive",
           "source_vintage"
         ],
-        "title": "TemporalReferencePeriodContext"
+        "title": "TemporalReferencePeriodContext",
+        "description": "The reference period of a source dataset."
       },
       "CountyContext": {
         "properties": {
           "contract_version": {
             "type": "string",
             "const": "atlas-county-context-consumer/1",
-            "title": "Contract Version"
+            "title": "Contract Version",
+            "description": "Version of the contract that defines this object."
           },
           "vintage_year": {
             "type": "integer",
             "title": "Vintage Year",
-            "description": "Source product/classification vintage, not an annual date."
+            "description": "Year of the source product or classification. It is not an annual date.",
+            "examples": [
+              2023
+            ]
           },
           "source_field": {
             "type": "string",
-            "title": "Source Field"
+            "title": "Source Field",
+            "description": "Name of the field in the source product."
           },
           "value_type": {
             "type": "string",
@@ -7641,11 +7923,12 @@
               "integer",
               "number"
             ],
-            "title": "Value Type"
+            "title": "Value Type",
+            "description": "Whether `value` is an integer or a decimal number."
           },
           "category_label": {
             "title": "Category Label",
-            "description": "Authoritative category label; null for quantities.",
+            "description": "Official label of the category. `null` for quantities.",
             "type": [
               "string",
               "null"
@@ -7653,18 +7936,21 @@
           },
           "definition": {
             "type": "string",
-            "title": "Definition"
+            "title": "Definition",
+            "description": "Plain-language definition of the field."
           },
           "allowed_value_states": {
             "items": {
               "$ref": "#/components/schemas/ValueState"
             },
             "type": "array",
-            "title": "Allowed Value States"
+            "title": "Allowed Value States",
+            "description": "The `value_state` values this field can return."
           },
           "metadata_methodology_version": {
             "type": "string",
-            "title": "Metadata Methodology Version"
+            "title": "Metadata Methodology Version",
+            "description": "Version of the methodology metadata that describes this field."
           }
         },
         "type": "object",
@@ -7678,7 +7964,8 @@
           "allowed_value_states",
           "metadata_methodology_version"
         ],
-        "title": "CountyContext"
+        "title": "CountyContext",
+        "description": "Describes the county context field that a population or rurality value came from."
       },
       "CollectionEnvelope_Observation_": {
         "properties": {
@@ -7687,13 +7974,16 @@
               "$ref": "#/components/schemas/Observation"
             },
             "type": "array",
-            "title": "Data"
+            "title": "Data",
+            "description": "The items on this page. Empty when there are none."
           },
           "meta": {
-            "$ref": "#/components/schemas/CollectionMeta"
+            "$ref": "#/components/schemas/CollectionMeta",
+            "description": "Paging, release, and availability details."
           },
           "links": {
-            "$ref": "#/components/schemas/CollectionLinks"
+            "$ref": "#/components/schemas/CollectionLinks",
+            "description": "Links related to this response."
           }
         },
         "type": "object",
@@ -7702,13 +7992,14 @@
           "meta",
           "links"
         ],
-        "title": "Standard Observation Collection"
+        "title": "Standard Observation Collection",
+        "description": "A page of observations, with paging details and links. Read `meta.availability` and `meta.next_page_token` before you use `data`."
       },
       "Observation": {
         "properties": {
           "metadata_revision_id": {
             "title": "Metadata Revision Id",
-            "description": "Reviewed consumer-safe metadata revision; not private lineage.",
+            "description": "Identifies the reviewed metadata revision that describes this observation. `null` when none applies.",
             "type": [
               "string",
               "null"
@@ -7717,22 +8008,25 @@
           "observation_id": {
             "type": "string",
             "title": "Observation Id",
-            "description": "Stable observation identity and compact provenance reference."
+            "description": "Stable identifier of the observation. It also serves as the provenance reference."
           },
           "measure_id": {
             "type": "string",
-            "title": "Measure Id"
+            "title": "Measure Id",
+            "description": "Identifier of the measure. See `/v1/measures/{measure_id}`."
           },
           "geography": {
-            "$ref": "#/components/schemas/GeographyIdentity"
+            "$ref": "#/components/schemas/GeographyIdentity",
+            "description": "The place the value describes."
           },
           "temporal_grain": {
             "type": "string",
-            "title": "Temporal Grain"
+            "title": "Temporal Grain",
+            "description": "Time interval the value covers, such as `YEAR` or `DAY`."
           },
           "value": {
             "title": "Value",
-            "description": "Read with value_state and unit; null never means zero.",
+            "description": "The reported value. Read it with `value_state` and `unit`. `null` never means zero.",
             "type": [
               "number",
               "string",
@@ -7741,15 +8035,16 @@
           },
           "value_state": {
             "$ref": "#/components/schemas/ValueState",
-            "description": "OBSERVED is nonzero; ZERO is numeric zero; MISSING/SUPPRESSED/UNAVAILABLE require null; NO_COUNTY_LINKED_RECORD retains the literal no_county_linked_record; NO_RECORDS retains CDC's No records. Neither establishes biological absence."
+            "description": "How to read `value`. The `ValueState` schema explains each state and what a client should do. Never treat a `null` value as zero."
           },
           "unit": {
             "type": "string",
-            "title": "Unit"
+            "title": "Unit",
+            "description": "Unit of `value`, such as `count` or `mm`."
           },
           "denominator": {
             "title": "Denominator",
-            "description": "Governed denominator; null means it is not supplied and must not be inferred.",
+            "description": "What the value is measured against, such as a population. `null` means Atlas supplies no denominator; do not infer one.",
             "type": [
               "string",
               "null"
@@ -7760,15 +8055,17 @@
               "type": "string"
             },
             "type": "object",
-            "title": "Strata"
+            "title": "Strata",
+            "description": "Breakdown the value applies to, such as an age group. Empty when the release has no strata."
           },
           "source_id": {
             "type": "string",
             "title": "Source Id",
-            "description": "Public source resource key; distinct from lineage_source_id and dataset_id."
+            "description": "Public key of the source resource. Use it with `/v1/sources/{source_id}`. It differs from `lineage_source_id` and `dataset_id`."
           },
           "lineage_source_id": {
             "title": "Lineage Source Id",
+            "description": "Identifies the source in Atlas lineage records. It differs from `source_id`.",
             "type": [
               "string",
               "null"
@@ -7776,6 +8073,7 @@
           },
           "dataset_id": {
             "title": "Dataset Id",
+            "description": "Identifies the publisher's dataset. It differs from `source_id`.",
             "type": [
               "string",
               "null"
@@ -7783,7 +8081,7 @@
           },
           "methodology_id": {
             "title": "Methodology Id",
-            "description": "Exact governed methodology resource ID; null when not governed.",
+            "description": "Identifies the methodology resource. Use it with `/v1/methodologies/{methodology_id}`. `null` when no methodology resource applies.",
             "type": [
               "string",
               "null"
@@ -7791,6 +8089,7 @@
           },
           "methodology": {
             "title": "Methodology",
+            "description": "Short name of the method that produced the value.",
             "type": [
               "string",
               "null"
@@ -7798,6 +8097,7 @@
           },
           "release_methodology_version": {
             "title": "Release Methodology Version",
+            "description": "Version of the methodology as published in this release. `null` when none.",
             "type": [
               "string",
               "null"
@@ -7806,25 +8106,26 @@
           "methodology_version": {
             "type": "string",
             "title": "Methodology Version",
-            "description": "Transformation version, distinct from methodology resource version."
+            "description": "Version of the transformation applied to this observation. It is separate from the version of the methodology resource."
           },
           "semantic_version": {
             "type": "string",
             "title": "Semantic Version",
-            "description": "Governed semantic contract version, separate from HTTP V1 and application version."
+            "description": "Version of the data contract the value follows. It is separate from the API version and the application version."
           },
           "release_id": {
             "type": "string",
             "title": "Release Id",
-            "description": "Governed release identity for reproducibility."
+            "description": "Identifies the published data release the result came from. Results from different releases are not directly comparable."
           },
           "provenance_ref": {
             "type": "string",
             "title": "Provenance Ref",
-            "description": "Structured observation provenance identity; not a literature citation."
+            "description": "Identifies the provenance record for this observation. It is not a literature citation."
           },
           "source_label": {
             "title": "Source Label",
+            "description": "Display name of the source. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -7832,6 +8133,7 @@
           },
           "source_vintage": {
             "title": "Source Vintage",
+            "description": "Reference year or period of the source dataset, such as `ACS 2018-2022`. It is not an annual value.",
             "type": [
               "string",
               "null"
@@ -7839,6 +8141,7 @@
           },
           "source_url": {
             "title": "Source Url",
+            "description": "Web address of the source. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -7846,7 +8149,7 @@
           },
           "source_published_at": {
             "title": "Source Published At",
-            "description": "Publisher timestamp when governed; null is not inferred freshness.",
+            "description": "When the publisher published the data. Includes a UTC offset. `null` when not recorded; do not assume the data is fresh.",
             "format": "date-time",
             "type": [
               "string",
@@ -7855,7 +8158,7 @@
           },
           "atlas_acquired_at": {
             "title": "Atlas Acquired At",
-            "description": "Atlas acquisition time when governed; distinct from source publication and processing.",
+            "description": "When Atlas retrieved the data from the publisher. Includes a UTC offset. `null` when not recorded.",
             "format": "date-time",
             "type": [
               "string",
@@ -7864,7 +8167,7 @@
           },
           "atlas_processed_at": {
             "title": "Atlas Processed At",
-            "description": "Atlas processing time when governed; distinct from response time.",
+            "description": "When Atlas processed the data. Includes a UTC offset. It is not the response time. `null` when not recorded.",
             "format": "date-time",
             "type": [
               "string",
@@ -7877,10 +8180,11 @@
             },
             "type": "array",
             "title": "Limitations",
-            "description": "Governed interpretation limitations; preserve alongside values and versions."
+            "description": "Factual notes on what the result does not show or where its evidence is bounded. Keep them with the value when you display or store it."
           },
           "evidence": {
-            "$ref": "#/components/schemas/EvidenceReference"
+            "$ref": "#/components/schemas/EvidenceReference",
+            "description": "Compact pointer to the Atlas resource that backs this observation."
           },
           "environmental_context": {
             "anyOf": [
@@ -7891,7 +8195,7 @@
                 "type": "null"
               }
             ],
-            "description": "Present only for reviewed environmental context. DECIMAL quantities may use exact numeric strings; native DOUBLE remains a JSON number."
+            "description": "Coverage details. Present only for environmental measures. Exact decimal quantities may be strings."
           },
           "surveillance_context": {
             "anyOf": [
@@ -7902,19 +8206,19 @@
                 "type": "null"
               }
             ],
-            "description": "Only supplied through an admitted Data release/bundle and supported slice. Omitted or null carries no evidence-state, comparability or lag claim. Comparison is case-definition scope only; alignment is descriptive, not causal."
+            "description": "Optional surveillance evidence. Omitted or `null` supports no claim about evidence state, comparability, or lag."
           },
           "period_start": {
             "type": "string",
             "format": "date",
             "title": "Period Start",
-            "description": "Inclusive start of the governed observation period."
+            "description": "First date the observation covers (inclusive)."
           },
           "period_end": {
             "type": "string",
             "format": "date",
             "title": "Period End",
-            "description": "Inclusive end of the governed observation period."
+            "description": "Last date the observation covers (inclusive)."
           }
         },
         "type": "object",
@@ -7938,7 +8242,8 @@
           "period_start",
           "period_end"
         ],
-        "title": "Observation"
+        "title": "Observation",
+        "description": "One value for a measure, a county, and a period, with its state and provenance."
       },
       "CollectionEnvelope_Source_": {
         "properties": {
@@ -7947,13 +8252,16 @@
               "$ref": "#/components/schemas/Source"
             },
             "type": "array",
-            "title": "Data"
+            "title": "Data",
+            "description": "The items on this page. Empty when there are none."
           },
           "meta": {
-            "$ref": "#/components/schemas/CollectionMeta"
+            "$ref": "#/components/schemas/CollectionMeta",
+            "description": "Paging, release, and availability details."
           },
           "links": {
-            "$ref": "#/components/schemas/CollectionLinks"
+            "$ref": "#/components/schemas/CollectionLinks",
+            "description": "Links related to this response."
           }
         },
         "type": "object",
@@ -7962,21 +8270,24 @@
           "meta",
           "links"
         ],
-        "title": "CollectionEnvelope[Source]"
+        "title": "Source collection",
+        "description": "A page of sources, with paging details and links. Read `meta.next_page_token` to get the next page."
       },
       "Source": {
         "properties": {
           "source_id": {
             "type": "string",
             "title": "Source Id",
-            "description": "Public source resource key; distinct from lineage_source_id and dataset_id."
+            "description": "Public key of the source resource. Use it with `/v1/sources/{source_id}`. It differs from `lineage_source_id` and `dataset_id`."
           },
           "label": {
             "type": "string",
-            "title": "Label"
+            "title": "Label",
+            "description": "Display name of the source."
           },
           "publisher": {
             "title": "Publisher",
+            "description": "Organization that publishes the data. `null` when none is recorded.",
             "type": [
               "string",
               "null"
@@ -7984,24 +8295,27 @@
           },
           "lineage_source_id": {
             "type": "string",
-            "title": "Lineage Source Id"
+            "title": "Lineage Source Id",
+            "description": "Identifies the source in Atlas lineage records. It differs from `source_id`."
           },
           "dataset_id": {
             "type": "string",
-            "title": "Dataset Id"
+            "title": "Dataset Id",
+            "description": "Identifies the publisher's dataset. It differs from `source_id`."
           },
           "semantic_version": {
             "type": "string",
             "title": "Semantic Version",
-            "description": "Governed semantic contract version, separate from HTTP V1 and application version."
+            "description": "Version of the data contract the value follows. It is separate from the API version and the application version."
           },
           "release_version": {
             "type": "string",
             "title": "Release Version",
-            "description": "Governed current-release relationship version."
+            "description": "Identifies the published data release this record belongs to."
           },
           "source_url": {
             "title": "Source Url",
+            "description": "Web address of the source. `null` when none is published.",
             "type": [
               "string",
               "null"
@@ -8009,6 +8323,7 @@
           },
           "source_vintage": {
             "title": "Source Vintage",
+            "description": "Reference year or period of the source dataset. It is not an annual value.",
             "type": [
               "string",
               "null"
@@ -8016,6 +8331,7 @@
           },
           "source_version": {
             "title": "Source Version",
+            "description": "Version label the publisher gives the dataset, when it has one.",
             "type": [
               "string",
               "null"
@@ -8023,6 +8339,7 @@
           },
           "published_at": {
             "title": "Published At",
+            "description": "Deprecated. Use `upstream_updated_at`. When the publisher published the data.",
             "deprecated": true,
             "format": "date-time",
             "type": [
@@ -8032,7 +8349,7 @@
           },
           "atlas_acquired_at": {
             "title": "Atlas Acquired At",
-            "description": "Atlas acquisition time when governed; distinct from source publication and processing.",
+            "description": "Deprecated. Use `source_retrieved_at`. When Atlas retrieved the data.",
             "deprecated": true,
             "format": "date-time",
             "type": [
@@ -8042,7 +8359,7 @@
           },
           "upstream_updated_at": {
             "title": "Upstream Updated At",
-            "description": "Governed publisher update time; null when unavailable.",
+            "description": "When the publisher last updated the data. `null` when unavailable. Do not use the response time in its place.",
             "format": "date-time",
             "type": [
               "string",
@@ -8051,7 +8368,7 @@
           },
           "source_retrieved_at": {
             "title": "Source Retrieved At",
-            "description": "Governed source retrieval time; null when unavailable.",
+            "description": "When Atlas last retrieved the data from the publisher. `null` when unavailable.",
             "format": "date-time",
             "type": [
               "string",
@@ -8064,7 +8381,7 @@
             },
             "type": "array",
             "title": "Limitations",
-            "description": "Governed interpretation limitations; preserve alongside values and versions."
+            "description": "Factual notes on what the result does not show or where its evidence is bounded. Keep them with the value when you display or store it."
           }
         },
         "type": "object",
@@ -8077,49 +8394,59 @@
           "semantic_version",
           "release_version"
         ],
-        "title": "Source"
+        "title": "Source",
+        "description": "The organization and dataset a value came from."
       },
       "ResourceEnvelope_Source_": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/Source"
+            "$ref": "#/components/schemas/Source",
+            "description": "The requested resource."
           }
         },
         "type": "object",
         "required": [
           "data"
         ],
-        "title": "ResourceEnvelope[Source]"
+        "title": "Source response",
+        "description": "One source, wrapped in `data`."
       },
       "StateReview": {
         "properties": {
           "requested_state": {
             "type": "string",
-            "title": "Requested State"
+            "title": "Requested State",
+            "description": "Two-letter state or District of Columbia code."
           },
           "methodology_id": {
             "type": "string",
-            "title": "Methodology Id"
+            "title": "Methodology Id",
+            "description": "Identifies the review methodology."
           },
           "methodology_version": {
             "type": "string",
-            "title": "Methodology Version"
+            "title": "Methodology Version",
+            "description": "Version of the review methodology."
           },
           "configuration_sha256": {
             "type": "string",
-            "title": "Configuration Sha256"
+            "title": "Configuration Sha256",
+            "description": "SHA-256 checksum of the review configuration. Use it to confirm which rules ran."
           },
           "data_release_version": {
             "type": "string",
-            "title": "Data Release Version"
+            "title": "Data Release Version",
+            "description": "Identifies the published data release the review read."
           },
           "evaluated_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Evaluated At"
+            "title": "Evaluated At",
+            "description": "When Atlas ran the review, with a UTC offset. It is not when the publishers last updated their data."
           },
           "requested_observation_context": {
             "title": "Requested Observation Context",
+            "description": "Observation context the request asked for. `null` when none was asked for.",
             "type": [
               "string",
               "null"
@@ -8127,7 +8454,8 @@
           },
           "effective_observation_context": {
             "type": "string",
-            "title": "Effective Observation Context"
+            "title": "Effective Observation Context",
+            "description": "Observation context the review used."
           },
           "result_state": {
             "type": "string",
@@ -8137,31 +8465,36 @@
               "unsupported",
               "none_stand_out"
             ],
-            "title": "Result State"
+            "title": "Result State",
+            "description": "Overall outcome. `candidates_found` lists counties to review. `insufficient_evidence` means the evidence could not be evaluated. `unsupported` means no review rule is approved. `none_stand_out` means no evaluated county stood out; it does not show that nothing needs attention."
           },
           "review_candidates": {
             "items": {
               "$ref": "#/components/schemas/Candidate"
             },
             "type": "array",
-            "title": "Review Candidates"
+            "title": "Review Candidates",
+            "description": "Counties that merit a closer look."
           },
           "data_gaps": {
             "items": {
               "$ref": "#/components/schemas/DataGap"
             },
             "type": "array",
-            "title": "Data Gaps"
+            "title": "Data Gaps",
+            "description": "Counties Atlas could not evaluate, with the reason."
           },
           "coverage": {
-            "$ref": "#/components/schemas/ReviewCoverage"
+            "$ref": "#/components/schemas/ReviewCoverage",
+            "description": "How many counties were assessed."
           },
           "limitations": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Limitations"
+            "title": "Limitations",
+            "description": "Factual notes on what the review does not show."
           }
         },
         "type": "object",
@@ -8180,51 +8513,60 @@
           "coverage",
           "limitations"
         ],
-        "title": "StateReview"
+        "title": "StateReview",
+        "description": "Counties in a state that merit a closer look, with gaps and coverage.\n\nA review is not a diagnosis and not a disease-risk estimate. An empty result does not\nshow that no county needs attention."
       },
       "Candidate": {
         "properties": {
           "county_fips": {
             "type": "string",
-            "title": "County Fips"
+            "title": "County Fips",
+            "description": "Five-digit FIPS code of the county, with leading zeros."
           },
           "county_name": {
             "type": "string",
-            "title": "County Name"
+            "title": "County Name",
+            "description": "County name."
           },
           "county_url": {
             "type": "string",
-            "title": "County Url"
+            "title": "County Url",
+            "description": "Path of the county resource in this API."
           },
           "reason_codes": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Reason Codes"
+            "title": "Reason Codes",
+            "description": "Codes that explain why the county is listed."
           },
           "reason_text": {
             "type": "string",
-            "title": "Reason Text"
+            "title": "Reason Text",
+            "description": "Plain-language explanation of why the county is listed."
           },
           "evidence_families": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Evidence Families"
+            "title": "Evidence Families",
+            "description": "Kinds of evidence the reason draws on, such as `county_vector_status`."
           },
           "evidence_references": {
             "items": {
               "$ref": "#/components/schemas/PublicReviewEvidenceReference"
             },
             "type": "array",
-            "title": "Evidence References"
+            "title": "Evidence References",
+            "description": "Source records that support the reason."
           },
           "completeness": {
             "type": "string",
             "const": "limited",
             "title": "Completeness",
+            "description": "How complete the supporting evidence is. It is always `limited`.",
             "default": "limited"
           },
           "limitations": {
@@ -8232,15 +8574,18 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Limitations"
+            "title": "Limitations",
+            "description": "Factual notes on what the candidate does not show. Keep them with it."
           },
           "freshness_comparability": {
             "type": "string",
-            "title": "Freshness Comparability"
+            "title": "Freshness Comparability",
+            "description": "What is known about how current and comparable the evidence is."
           },
           "suggested_next_check": {
             "type": "string",
-            "title": "Suggested Next Check"
+            "title": "Suggested Next Check",
+            "description": "A step a reviewer can take to check the evidence further."
           }
         },
         "type": "object",
@@ -8256,57 +8601,69 @@
           "freshness_comparability",
           "suggested_next_check"
         ],
-        "title": "Candidate"
+        "title": "Candidate",
+        "description": "A county that merits a closer look. It is a prompt to review records, not a finding."
       },
       "PublicReviewEvidenceReference": {
         "properties": {
           "family": {
             "type": "string",
-            "title": "Family"
+            "title": "Family",
+            "description": "Kind of evidence, such as `county_pathogen_status`."
           },
           "source_product": {
             "type": "string",
-            "title": "Source Product"
+            "title": "Source Product",
+            "description": "Source product the record comes from."
           },
           "source_version": {
             "type": "string",
-            "title": "Source Version"
+            "title": "Source Version",
+            "description": "Version of the source product."
           },
           "public_record_ref": {
             "type": "string",
-            "title": "Public Record Ref"
+            "title": "Public Record Ref",
+            "description": "Public reference to the source record, for finding it at the publisher."
           },
           "county_fips": {
             "type": "string",
-            "title": "County Fips"
+            "title": "County Fips",
+            "description": "Five-digit FIPS code of the county, with leading zeros."
           },
           "release_id": {
             "type": "string",
-            "title": "Release Id"
+            "title": "Release Id",
+            "description": "Identifies the published data release the record came from."
           },
           "source_as_of": {
             "type": "string",
-            "title": "Source As Of"
+            "title": "Source As Of",
+            "description": "Date the source says its data was current, for example `2025-12-31`."
           },
           "retrieved_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Retrieved At"
+            "title": "Retrieved At",
+            "description": "When Atlas retrieved the record from the publisher, with a UTC offset."
           },
           "target": {
             "type": "string",
-            "title": "Target"
+            "title": "Target",
+            "description": "Organism or taxon the record is about, such as a tick species or a pathogen."
           },
           "status": {
             "type": "string",
-            "title": "Status"
+            "title": "Status",
+            "description": "Status the publisher reports, such as `Present`, `Reported`, or `No records`. `No records` does not establish absence."
           },
           "limitations": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Limitations"
+            "title": "Limitations",
+            "description": "Factual notes on what this record does not show."
           }
         },
         "type": "object",
@@ -8323,21 +8680,25 @@
           "status",
           "limitations"
         ],
-        "title": "PublicReviewEvidenceReference"
+        "title": "PublicReviewEvidenceReference",
+        "description": "A source record that supports a review candidate."
       },
       "DataGap": {
         "properties": {
           "county_fips": {
             "type": "string",
-            "title": "County Fips"
+            "title": "County Fips",
+            "description": "Five-digit FIPS code of the county, with leading zeros."
           },
           "code": {
             "type": "string",
-            "title": "Code"
+            "title": "Code",
+            "description": "Stable code for the kind of gap, such as `OUT_OF_SCOPE`."
           },
           "detail": {
             "type": "string",
-            "title": "Detail"
+            "title": "Detail",
+            "description": "Plain-language explanation of the gap."
           }
         },
         "type": "object",
@@ -8346,32 +8707,38 @@
           "code",
           "detail"
         ],
-        "title": "DataGap"
+        "title": "DataGap",
+        "description": "A reason Atlas could not evaluate a county. A gap is not evidence of absence."
       },
       "ReviewCoverage": {
         "properties": {
           "assessed_counties": {
             "type": "integer",
-            "title": "Assessed Counties"
+            "title": "Assessed Counties",
+            "description": "Counties in the requested state that were checked."
           },
           "eligible_counties": {
             "type": "integer",
-            "title": "Eligible Counties"
+            "title": "Eligible Counties",
+            "description": "Counties that met the rule's eligibility checks."
           },
           "abstained_counties": {
             "type": "integer",
-            "title": "Abstained Counties"
+            "title": "Abstained Counties",
+            "description": "Counties where the evidence could not be safely evaluated."
           },
           "evaluated_counties": {
             "type": "integer",
-            "title": "Evaluated Counties"
+            "title": "Evaluated Counties",
+            "description": "Counties that were fully evaluated."
           },
           "rule_coverage": {
             "additionalProperties": {
               "type": "string"
             },
             "type": "object",
-            "title": "Rule Coverage"
+            "title": "Rule Coverage",
+            "description": "Each review rule by name, marked `enabled` or `disabled`."
           }
         },
         "type": "object",
@@ -8382,7 +8749,8 @@
           "evaluated_counties",
           "rule_coverage"
         ],
-        "title": "ReviewCoverage"
+        "title": "ReviewCoverage",
+        "description": "How many counties the review looked at and what happened to each."
       }
     }
   }
