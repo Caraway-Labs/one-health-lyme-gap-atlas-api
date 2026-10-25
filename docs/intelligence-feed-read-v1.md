@@ -27,29 +27,43 @@ read-enable flag, parameter binding, query/result/page ceilings, state-bound
 pagination, request middleware, dependency telemetry, and no-store policy.
 No ingestion, data migrations, registry changes, grants, or infrastructure are added.
 
-Each entry exposes title, publisher, canonical original URL, publication UTC
+Each list entry exposes title, publisher, canonical original URL, publication UTC
 when known, its explicit publisher-date state, source and revision provenance,
-limitations, publisher family, summary, tags, authors, and a credit line. A
-PubMed entry also exposes the article abstract, the abstract's copyright line,
-and the PMID. The summary and the abstract are plain text. The feed returns no
-article bodies or media. A summary or abstract that fails the plain-text checks
-is withheld on that entry; the response for the rest of the page is unchanged.
-The log records how many of those texts were withheld and does not record the
-text. Missing, invalid, or withheld publication dates remain null; fetch time
-never substitutes for them. Inclusive publication filters exclude unknown dates.
-Entries with a publisher date are newest first. Entries with an unknown
-publisher date are last. Matching publisher dates use a stable tie-break of
-item id, revision id, source id, and registry version. An available empty
-view returns 200 with `data: []` and no continuation; disabled,
-inaccessible or invalid projections return a sanitized 503. The metadata feed
-does not include source operational state. Source operational state is on
-`/v1/intelligence/sources`.
+limitations, publisher family and display label, summary, tags, authors, a
+credit line, and `pubmed_url`. `pubmed_url` is
+`https://pubmed.ncbi.nlm.nih.gov/<pmid>/` when the entry has a PMID and null
+otherwise. A PubMed list entry also exposes `abstract_state`, `copyright_line`,
+`abstract_preview`, and `abstract_has_more`. The preview is at most 1,000
+characters, cut at a word boundary, with no ellipsis character. An abstract at
+or under that length is the whole text and `abstract_has_more` is false. The
+preview is null and `abstract_has_more` is false when `abstract_state` is not
+present. A present abstract whose first word is longer than the preview length
+has an empty `abstract_preview` and `abstract_has_more` true. The list does not
+include the full abstract text. An entry that is not PubMed has
+`abstract_preview` null, `abstract_has_more` false, `abstract_state` null, and
+`copyright_line` null, the same absence as a null abstract on the by-id route.
+The summary and any abstract text are plain text. The feed returns no article
+bodies or media. A summary or abstract that fails the plain-text checks, or an
+abstract longer than 6,000 characters, is withheld on that entry; the response
+for the rest of the page is unchanged. The log records how many of those texts
+were withheld and does not record the text. Missing, invalid, or withheld
+publication dates remain null; fetch time never substitutes for them. Inclusive
+publication filters exclude unknown dates. Entries with a publisher date are
+newest first. Entries with an unknown publisher date are last. Matching
+publisher dates use a stable tie-break of item id, revision id, source id, and
+registry version. An available empty view returns 200 with `data: []` and no
+continuation; disabled, inaccessible or invalid projections return a sanitized
+503. The metadata feed does not include source operational state. Source
+operational state is on `/v1/intelligence/sources`.
 
-`GET /v1/intelligence/feed/{item_id}` reads the same fields for one current
-entry from the same governed view. The item id is the 64-character digest.
-Cache-Control is no-store. A malformed id returns 422. An id that is not in
-the feed returns 404 `INTELLIGENCE_ITEM_NOT_FOUND`. Disabled or unavailable
-returns 503.
+`GET /v1/intelligence/feed/{item_id}` reads one current entry from the same
+governed view. A PubMed entry includes the full abstract as `abstract.text`,
+`abstract.state`, and `abstract.copyright_line`, plus `pubmed_url` and the
+credit line. It does not include the list preview fields. The item id is the
+64-character digest. Cache-Control is no-store. A malformed id returns 422. An
+id that is not in the feed returns 404 `INTELLIGENCE_ITEM_NOT_FOUND`. Disabled
+or unavailable returns 503. Suppressed abstracts stay suppressed on both routes:
+no text and no preview.
 
 ### Release route and acceptance
 

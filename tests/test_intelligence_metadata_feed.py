@@ -14,8 +14,11 @@ from lyme_gap_atlas_api.config import ApiSettings
 from lyme_gap_atlas_api.intelligence_feed import (
     _SOURCE_FAMILIES,
     _SOURCE_FAMILY_LABELS,
+    ABSTRACT_PREVIEW_MAX_LENGTH,
+    ABSTRACT_TEXT_MAX_LENGTH,
     FEED_COLUMNS,
-    FeedEntry,
+    FEED_ENTRY_COLUMNS,
+    FeedListEntry,
     _pack_feed_row,
 )
 from lyme_gap_atlas_api.repository import AtlasDataUnavailableError
@@ -121,7 +124,12 @@ def test_metadata_only_and_unknown_publication_date() -> None:
     assert not ({"excerpt", "body", "images", "publisher_metadata"} & set(entry))
     assert entry["source_family"] == "cdc_eid"
     assert entry["description"] == {"text": None, "state": "withheld"}
-    assert entry["abstract"] is None
+    assert "abstract" not in entry
+    assert entry["abstract_preview"] is None
+    assert entry["abstract_has_more"] is False
+    assert entry["abstract_state"] is None
+    assert entry["copyright_line"] is None
+    assert entry["pubmed_url"] is None
     assert entry["tags"] == []
     assert entry["authors"] == []
     assert entry["pmid"] is None
@@ -190,12 +198,25 @@ def test_openapi_excludes_content_and_public_analytics() -> None:
         ]["value"]["code"]
         == "INTELLIGENCE_ITEM_NOT_FOUND"
     )
-    properties = contract["components"]["schemas"]["FeedEntry"]["properties"]
-    assert set(properties) == set(FEED_COLUMNS) | {"source"}
-    assert properties["source_family_label"]["description"] == "Display label for source_family."
-    assert "excerpt" not in json.dumps(properties)
-    assert properties["description"]["$ref"].endswith("/FeedDescription")
-    assert "FeedAbstract" in json.dumps(properties["abstract"])
+    list_properties = contract["components"]["schemas"]["FeedListEntry"]["properties"]
+    entry_properties = contract["components"]["schemas"]["FeedEntry"]["properties"]
+    assert set(list_properties) == set(FEED_COLUMNS) | {"source"}
+    assert set(entry_properties) == set(FEED_ENTRY_COLUMNS) | {"source"}
+    assert list_properties["source_family_label"]["description"] == (
+        "Display label for source_family."
+    )
+    assert "excerpt" not in json.dumps(list_properties)
+    assert "abstract" not in list_properties
+    assert list_properties["description"]["$ref"].endswith("/FeedDescription")
+    assert "FeedAbstract" in json.dumps(entry_properties["abstract"])
+    abstract_text = contract["components"]["schemas"]["FeedAbstract"]["properties"]["text"]
+    assert abstract_text["maxLength"] == ABSTRACT_TEXT_MAX_LENGTH
+    assert str(ABSTRACT_TEXT_MAX_LENGTH) in abstract_text["description"]
+    assert str(ABSTRACT_TEXT_MAX_LENGTH) in operation["description"]
+    assert str(ABSTRACT_PREVIEW_MAX_LENGTH) in operation["description"]
+    assert "full abstract text" in operation["description"]
+    assert str(ABSTRACT_TEXT_MAX_LENGTH) in entry_operation["description"]
+    assert "abstract.text" in entry_operation["description"]
 
 
 @pytest.mark.parametrize(
@@ -270,7 +291,8 @@ def _entry(feed: dict[str, Any], **document: Any) -> dict[str, Any]:
 def test_description_states(description: Any, expected: dict[str, Any]) -> None:
     entry = _entry(_feed(description=description))
     assert entry["description"] == expected
-    assert entry["abstract"] is None
+    assert "abstract" not in entry
+    assert entry["abstract_state"] is None
     assert entry["pmid"] is None
     assert entry["source_family"] == "cdc_mmwr"
     assert entry["attribution"] == _CDC_ATTRIBUTION
@@ -286,7 +308,8 @@ def test_legacy_row_withholds_description_and_returns_empty_labels() -> None:
     assert entry["description"] == {"text": None, "state": "withheld"}
     assert entry["tags"] == []
     assert entry["authors"] == []
-    assert entry["abstract"] is None
+    assert entry["abstract_state"] is None
+    assert "abstract" not in entry
 
 
 def test_invalid_description_withholds_one_entry_and_logs_a_count(
@@ -332,10 +355,26 @@ def test_invalid_or_inconsistent_description_is_withheld(description: dict[str, 
     assert entry["description"] == {"text": None, "state": "withheld"}
 
 
+def _listed_and_detail(
+    feed: dict[str, Any], **document: Any
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    repository = MetadataRepository()
+    repository.document["publisher_metadata"] = feed
+    repository.document.update(document)
+    http = client(repository)
+    listed_response = http.get("/v1/intelligence/feed?page_size=1")
+    assert listed_response.status_code == 200, listed_response.text
+    listed = listed_response.json()["data"][0]
+    detail_response = http.get(f"/v1/intelligence/feed/{listed['item_id']}")
+    assert detail_response.status_code == 200, detail_response.text
+    return listed, detail_response.json()["data"]
+
+
 def test_pubmed_abstract_is_not_copied_into_description() -> None:
     pmid = "41234567"
     abstract = "We collected 1,204 host-seeking nymphs."
-    entry = _entry(
+    copyright_line = "© 2026 Elsevier GmbH."
+    listed, detail = _listed_and_detail(
         _feed(
             source_family="pubmed",
             description={
@@ -347,7 +386,7 @@ def test_pubmed_abstract_is_not_copied_into_description() -> None:
             abstract={
                 "text": abstract,
                 "state": "present",
-                "copyright_line": "© 2026 Elsevier GmbH.",
+                "copyright_line": copyright_line,
             },
             categories=["Lyme disease", "Ixodes scapularis"],
             authors=["Smith J", "Lee K"],
@@ -356,17 +395,26 @@ def test_pubmed_abstract_is_not_copied_into_description() -> None:
         canonical_url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
         publisher="Ticks and Tick-borne Diseases",
     )
-    assert entry["description"] == {"text": None, "state": "not_provided"}
-    assert entry["abstract"] == {
+    assert listed["description"] == {"text": None, "state": "not_provided"}
+    assert "abstract" not in listed
+    assert listed["abstract_preview"] == abstract
+    assert listed["abstract_has_more"] is False
+    assert listed["abstract_state"] == "present"
+    assert listed["copyright_line"] == copyright_line
+    assert detail["abstract"] == {
         "text": abstract,
         "state": "present",
-        "copyright_line": "© 2026 Elsevier GmbH.",
+        "copyright_line": copyright_line,
     }
-    assert entry["pmid"] == pmid
-    assert entry["canonical_url"] == f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
-    assert entry["attribution"] == _PUBMED_ATTRIBUTION
-    assert entry["tags"] == ["Lyme disease", "Ixodes scapularis"]
-    assert entry["authors"] == ["Smith J", "Lee K"]
+    without_preview = {key: value for key, value in listed.items() if key != "abstract_preview"}
+    assert abstract not in json.dumps(without_preview)
+    for entry in (listed, detail):
+        assert entry["pmid"] == pmid
+        assert entry["pubmed_url"] == f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+        assert entry["canonical_url"] == f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+        assert entry["attribution"] == _PUBMED_ATTRIBUTION
+        assert entry["tags"] == ["Lyme disease", "Ixodes scapularis"]
+        assert entry["authors"] == ["Smith J", "Lee K"]
 
 
 @pytest.mark.parametrize(
@@ -390,7 +438,7 @@ def test_pubmed_abstract_is_not_copied_into_description() -> None:
             {"text": None, "state": "withheld", "copyright_line": None},
         ),
         (
-            {"text": "y" * 6001, "state": "present"},
+            {"text": "y" * (ABSTRACT_TEXT_MAX_LENGTH + 1), "state": "present"},
             {"text": None, "state": "withheld", "copyright_line": None},
         ),
         (
@@ -404,7 +452,7 @@ def test_pubmed_abstract_is_not_copied_into_description() -> None:
     ],
 )
 def test_pubmed_abstract_states(abstract: Any, expected: dict[str, Any]) -> None:
-    entry = _entry(
+    listed, detail = _listed_and_detail(
         _feed(
             source_family="pubmed",
             abstract=abstract,
@@ -412,12 +460,23 @@ def test_pubmed_abstract_states(abstract: Any, expected: dict[str, Any]) -> None
             description={"text": "not the abstract", "state": "present"},
         )
     )
-    assert entry["abstract"] == expected
-    assert entry["description"] == {"text": None, "state": "not_provided"}
+    assert detail["abstract"] == expected
+    assert detail["description"] == {"text": None, "state": "not_provided"}
+    assert "abstract" not in listed
+    assert listed["abstract_state"] == expected["state"]
+    assert listed["description"] == {"text": None, "state": "not_provided"}
+    if expected["state"] == "present":
+        assert listed["abstract_preview"] == expected["text"]
+        assert listed["abstract_has_more"] is False
+        assert listed["copyright_line"] == expected["copyright_line"]
+    else:
+        assert listed["abstract_preview"] is None
+        assert listed["abstract_has_more"] is False
+        assert listed["copyright_line"] is None
 
 
 def test_suppression_hides_abstract_text_and_leaves_other_fields() -> None:
-    shown = _entry(
+    shown, shown_detail = _listed_and_detail(
         _feed(
             source_family="pubmed",
             abstract={"text": "Visible abstract", "state": "present", "copyright_line": "© 2026"},
@@ -427,7 +486,7 @@ def test_suppression_hides_abstract_text_and_leaves_other_fields() -> None:
         ),
         title="Borrelia study",
     )
-    hidden = _entry(
+    hidden, hidden_detail = _listed_and_detail(
         _feed(
             source_family="pubmed",
             abstract_suppressed=True,
@@ -438,11 +497,30 @@ def test_suppression_hides_abstract_text_and_leaves_other_fields() -> None:
         ),
         title="Borrelia study",
     )
-    assert hidden["abstract"] == {"text": None, "state": "suppressed", "copyright_line": None}
+    assert hidden["abstract_state"] == "suppressed"
+    assert hidden["abstract_preview"] is None
+    assert hidden["abstract_has_more"] is False
+    assert hidden["copyright_line"] is None
+    assert hidden_detail["abstract"] == {
+        "text": None,
+        "state": "suppressed",
+        "copyright_line": None,
+    }
     assert "Visible abstract" not in json.dumps(hidden)
-    unchanged = ("title", "description", "tags", "authors", "pmid", "attribution", "canonical_url")
+    assert "Visible abstract" not in json.dumps(hidden_detail)
+    unchanged = (
+        "title",
+        "description",
+        "tags",
+        "authors",
+        "pmid",
+        "pubmed_url",
+        "attribution",
+        "canonical_url",
+    )
     for field in unchanged:
         assert hidden[field] == shown[field]
+        assert hidden_detail[field] == shown_detail[field]
 
 
 def test_non_pubmed_abstract_stays_null_when_a_stored_abstract_or_flag_is_present() -> None:
@@ -453,9 +531,14 @@ def test_non_pubmed_abstract_stays_null_when_a_stored_abstract_or_flag_is_presen
             description={"text": "Publisher summary", "state": "present"},
         )
     )
-    assert entry["abstract"] is None
+    assert "abstract" not in entry
+    assert entry["abstract_preview"] is None
+    assert entry["abstract_has_more"] is False
+    assert entry["abstract_state"] is None
+    assert entry["copyright_line"] is None
     assert entry["description"] == {"text": "Publisher summary", "state": "present"}
     assert entry["pmid"] is None
+    assert entry["pubmed_url"] is None
 
 
 def test_every_source_family_has_a_label() -> None:
@@ -464,7 +547,7 @@ def test_every_source_family_has_a_label() -> None:
     entry = _entry(_feed())
     entry["source_family_label"] = "Other"
     with pytest.raises(ValidationError):
-        FeedEntry.model_validate(entry)
+        FeedListEntry.model_validate(entry)
 
 
 @pytest.mark.parametrize(
@@ -562,9 +645,15 @@ def test_entry_by_id_matches_the_list_and_unknown_ids_are_not_found() -> None:
     response = http.get(f"/v1/intelligence/feed/{item_id}")
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
-    assert response.json()["data"] == listed
+    detail = response.json()["data"]
+    shared = set(listed) & set(detail)
+    for field in shared:
+        assert detail[field] == listed[field]
+    assert "abstract" not in listed
+    assert detail["abstract"] is None
+    assert listed["abstract_state"] is None
     assert listed["source_family_label"] == "CDC MMWR"
-    assert response.json()["data"]["source_family_label"] == "CDC MMWR"
+    assert detail["source_family_label"] == "CDC MMWR"
     assert response.json()["meta"] == {"projection_version": "intelligence-feed-read-v2"}
     missing = http.get("/v1/intelligence/feed/" + "ab" * 32)
     assert missing.status_code == 404
