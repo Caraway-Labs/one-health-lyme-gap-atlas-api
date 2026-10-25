@@ -320,6 +320,23 @@ class ScoreCollection(BaseModel):
     counties: list[CountyScoreSummary]
 
 
+class CountyMapValues(BaseModel):
+    fips: str = Field(pattern=r"^\d{5}$")
+    incidence_floor_2023: float | None = Field(
+        default=None,
+        ge=0,
+        description="Published 2023 minimum reported incidence per 100,000; null is not zero.",
+    )
+    svi_percentile: float | None = None
+    uninsured_percent: float | None = None
+    rucc_2023: int | None = None
+
+
+class MapValuesCollection(BaseModel):
+    release_id: str
+    counties: list[CountyMapValues]
+
+
 class CountyDetail(CountyScoreSummary):
     population: int | None
     case_count_floor_2023: int | None

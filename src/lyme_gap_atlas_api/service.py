@@ -16,7 +16,15 @@ from lyme_gap_atlas_shared.domain import (
     score_county,
 )
 
-from .models import AtlasMetadata, CountyDetail, CountyRecord, CountyScoreSummary, ScoreCollection
+from .models import (
+    AtlasMetadata,
+    CountyDetail,
+    CountyMapValues,
+    CountyRecord,
+    CountyScoreSummary,
+    MapValuesCollection,
+    ScoreCollection,
+)
 from .repository import AtlasDataUnavailableError, AtlasRepository, Snapshot
 from .telemetry_logging import operational_logger
 
@@ -142,6 +150,27 @@ class AtlasService:
             release_id=snapshot.metadata.release_id,
             methodology_version=snapshot.metadata.methodology_version,
             settings=settings.model_dump(),
+            counties=counties,
+        )
+
+    def map_values(self, dataset_version: str | None = None) -> MapValuesCollection:
+        snapshot = self.snapshot()
+        self._require_version(snapshot, dataset_version)
+        counties = sorted(
+            (
+                CountyMapValues(
+                    fips=record.fips,
+                    incidence_floor_2023=record.incidence_floor_2023,
+                    svi_percentile=record.svi_percentile,
+                    uninsured_percent=record.uninsured_percent,
+                    rucc_2023=record.rucc_2023,
+                )
+                for record in snapshot.counties
+            ),
+            key=lambda item: item.fips,
+        )
+        return MapValuesCollection(
+            release_id=snapshot.metadata.release_id,
             counties=counties,
         )
 

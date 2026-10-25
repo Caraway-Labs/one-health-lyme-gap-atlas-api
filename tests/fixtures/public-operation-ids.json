@@ -11,6 +11,7 @@
   "/v1/atlas/metadata": "metadata_v1_atlas_metadata_get",
   "/v1/atlas/geometry": "geometry_v1_atlas_geometry_get",
   "/v1/atlas/scores": "scores_v1_atlas_scores_get",
+  "/v1/atlas/map-values": "map_values_v1_atlas_map_values_get",
   "/v1/counties/{fips}": "county_v1_counties__fips__get",
   "/v1/counties/{fips}/tier1-surveillance-priority": "county_tier1_surveillance_priority_get",
   "/v1/counties/{fips}/tier1-surveillance-priority/availability": "county_tier1_surveillance_priority_availability_get",

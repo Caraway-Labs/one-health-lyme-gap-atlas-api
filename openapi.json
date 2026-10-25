@@ -169,6 +169,151 @@
         }
       }
     },
+    "/v1/atlas/map-values": {
+      "get": {
+        "tags": [
+          "atlas"
+        ],
+        "summary": "Get national map layer values by county",
+        "description": "Published incidence floor, social vulnerability percentile, uninsured percent, and rural-urban continuum code for every county in the current snapshot. Optional dataset_version selects an existing release. Public cache TTL 300 seconds with informational ETag; no conditional 304.",
+        "operationId": "map_values_v1_atlas_map_values_get",
+        "parameters": [
+          {
+            "name": "dataset_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "title": "Dataset Version",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapValuesCollection"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "County or dataset release not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-404",
+                      "title": "Request failed",
+                      "status": 404,
+                      "detail": "County or dataset release not found.",
+                      "instance": "/v1/atlas/map-values",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more request values are invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-422",
+                      "title": "Request failed",
+                      "status": 422,
+                      "detail": "One or more request values are invalid.",
+                      "instance": "/v1/atlas/map-values",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-429",
+                      "title": "Request failed",
+                      "status": 429,
+                      "detail": "Rate limit exceeded.",
+                      "instance": "/v1/atlas/map-values",
+                      "request_id": "example-request-id"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Atlas data service is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "illustrative": {
+                    "summary": "Synthetic error example",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/http-503",
+                      "title": "Request failed",
+                      "status": 503,
+                      "detail": "Atlas data service is unavailable.",
+                      "instance": "/v1/atlas/map-values",
+                      "request_id": "example-request-id",
+                      "code": "SERVICE_UNAVAILABLE"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before retry when supplied by the service.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/atlas/metadata": {
       "get": {
         "tags": [
@@ -4582,6 +4727,71 @@
         ],
         "title": "ProblemDetails",
         "type": "object"
+      },
+      "MapValuesCollection": {
+        "properties": {
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "counties": {
+            "items": {
+              "$ref": "#/components/schemas/CountyMapValues"
+            },
+            "type": "array",
+            "title": "Counties"
+          }
+        },
+        "type": "object",
+        "required": [
+          "release_id",
+          "counties"
+        ],
+        "title": "MapValuesCollection"
+      },
+      "CountyMapValues": {
+        "properties": {
+          "fips": {
+            "type": "string",
+            "pattern": "^\\d{5}$",
+            "title": "Fips"
+          },
+          "incidence_floor_2023": {
+            "title": "Incidence Floor 2023",
+            "description": "Published 2023 minimum reported incidence per 100,000; null is not zero.",
+            "minimum": 0.0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "svi_percentile": {
+            "title": "Svi Percentile",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "uninsured_percent": {
+            "title": "Uninsured Percent",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "rucc_2023": {
+            "title": "Rucc 2023",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "fips"
+        ],
+        "title": "CountyMapValues"
       },
       "AtlasMetadata": {
         "properties": {

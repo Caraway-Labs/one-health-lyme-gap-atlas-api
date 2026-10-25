@@ -91,6 +91,7 @@ from .models import (
     FeedbackSubmissionResponse,
     KnowledgeChatRequest,
     KnowledgeChatResponse,
+    MapValuesCollection,
     PrivacyRequestConfirm,
     PrivacyRequestCreate,
     PrivacyRequestCreated,
@@ -1082,6 +1083,29 @@ def create_app(
     ) -> ScoreCollection:
         try:
             result = service.scores(score_settings, dataset_version)
+            response.headers["Cache-Control"] = "public, max-age=300"
+            response.headers["ETag"] = _etag(result.model_dump_json().encode())
+            return result
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail="Dataset release not found") from exc
+
+    @app.get(
+        "/v1/atlas/map-values",
+        response_model=MapValuesCollection,
+        tags=["atlas"],
+        operation_id="map_values_v1_atlas_map_values_get",
+        summary="Get national map layer values by county",
+        description=(
+            "Published incidence floor, social vulnerability percentile, uninsured percent, "
+            "and rural-urban continuum code for every county in the current snapshot. "
+            "Optional dataset_version selects an existing release. Public cache TTL 300 "
+            "seconds with informational ETag; no conditional 304."
+        ),
+        responses=LEGACY_ERRORS,
+    )
+    def map_values(response: Response, dataset_version: str | None = None) -> MapValuesCollection:
+        try:
+            result = service.map_values(dataset_version)
             response.headers["Cache-Control"] = "public, max-age=300"
             response.headers["ETag"] = _etag(result.model_dump_json().encode())
             return result
