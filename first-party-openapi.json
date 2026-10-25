@@ -13111,31 +13111,31 @@
   "tags": [
     {
       "name": "discovery",
-      "description": "Current-release indicators and measurable variables."
+      "description": "List the indicators and measures you can query."
     },
     {
       "name": "observations",
-      "description": "Bounded county observations with explicit value states."
+      "description": "Query measure values for counties, each with an explicit `value_state`."
     },
     {
       "name": "provenance",
-      "description": "Governed source and methodology identities and versions."
+      "description": "Look up the sources and methodologies behind a value, with versions."
     },
     {
       "name": "geographies",
-      "description": "Typed geography identity; canonical delivery pending (200 UNAVAILABLE)."
+      "description": "Validate a county or state FIPS code. Atlas does not yet publish place records, so these operations return HTTP 200 with `availability` set to `UNAVAILABLE`."
     },
     {
       "name": "atlas",
-      "description": "Existing release analytics and separate display geometry."
+      "description": "Get release metadata, scores, rankings, and map geometry."
     },
     {
       "name": "counties",
-      "description": "Existing county details and versioned PDF reports."
+      "description": "Get county detail and download county PDF reports."
     },
     {
       "name": "states",
-      "description": "Existing state PDF reports."
+      "description": "Download state PDF reports."
     }
   ],
   "externalDocs": {
