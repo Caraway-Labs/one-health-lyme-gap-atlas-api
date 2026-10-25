@@ -1,0 +1,15 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "ranking": "/v1/atlas/ranking.csv"
+    }
+  },
+  "text/csv": {
+    "ranking": {
+      "summary": "Header row and the first two data rows",
+      "value": "rank,fips,county,state,score,priority,human_status,tick_status,burgdorferi_status,evidence_completeness,scoring_methodology_version,smooth_k\n1,06037,Los Angeles County,CA,85.6,Priority 1 — Investigate,published_count_floor,Established,Present,100,surveillance-gap-score-v1.1,50\n2,18039,Elkhart County,IN,85.1,Priority 1 — Investigate,published_count_floor,Established,Present,100,surveillance-gap-score-v1.1,50\n",
+      "description": "Response headers: `Content-Type: text/csv; charset=utf-8` and `Content-Disposition: attachment; filename=\"lyme-gap-atlas-ranking-all.csv\"`. The body lists every county; this sample shows the header row and two data rows."
+    }
+  }
+}

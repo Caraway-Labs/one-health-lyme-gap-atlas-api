@@ -1,0 +1,40 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "case_count_floor_2023": "/v1/measures/case_count_floor_2023"
+    }
+  },
+  "application/json": {
+    "case_count_floor_2023": {
+      "summary": "One measure",
+      "value": {
+        "data": {
+          "measure_id": "case_count_floor_2023",
+          "indicator_id": "human_disease_burden",
+          "label": "Published case-count floor",
+          "definition": null,
+          "semantic_version": "2.0.0",
+          "release_version": "governed-2026-10-15-january-climate-prod",
+          "measure_type": "integer",
+          "unit": "cases",
+          "denominator": null,
+          "geography_types": null,
+          "temporal_grains": null,
+          "geography_semantics": "COUNTY_FIPS_5",
+          "temporal_semantics": "2023",
+          "allowed_value_states": null,
+          "allowed_strata": null,
+          "missingness_semantics": "Null means no county-linked published value.",
+          "methodology_id": null,
+          "methodology": "x5j9 confirmed plus probable",
+          "source_ids": null,
+          "limitations": [
+            "Privacy-protected floor."
+          ],
+          "standards_mappings": null
+        }
+      }
+    }
+  }
+}

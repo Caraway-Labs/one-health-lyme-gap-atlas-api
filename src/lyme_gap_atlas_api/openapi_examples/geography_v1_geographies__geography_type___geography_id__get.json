@@ -1,0 +1,26 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "county": "/v1/geographies/county/36061"
+    }
+  },
+  "application/json": {
+    "county": {
+      "summary": "County identity while canonical delivery is unpublished",
+      "value": {
+        "availability": "UNAVAILABLE",
+        "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
+        "data": null,
+        "geography": {
+          "geography_type": "county",
+          "geography_id": "36061"
+        },
+        "limitations": [
+          "Canonical geography identity delivery is not published by this API capability.",
+          "The requested identity is validated for shape only; membership in the current release is not asserted (use the county availability route for that). No canonical, display, or analysis geometry is returned or inferred."
+        ]
+      }
+    }
+  }
+}

@@ -33,13 +33,8 @@ from .public_contract import (
     Source,
 )
 from .public_docs import (
-    AVAILABLE_OBSERVATION_EXAMPLE,
     COLLECTION_DESCRIPTION,
     DETAIL_DESCRIPTION,
-    EXHAUSTED_OBSERVATIONS_EXAMPLE,
-    KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE,
-    MISSING_OBSERVATION_EXAMPLE,
-    PENDING_GEOGRAPHY_EXAMPLE,
     problem_response,
 )
 from .public_metadata import MetadataService
@@ -513,10 +508,7 @@ def geography(
     responses={
         **PROBLEMS,
         200: {
-            "description": "Confirmed current county identity; canonical publication is pending.",
-            "content": {
-                "application/json": {"examples": {"unpublished": PENDING_GEOGRAPHY_EXAMPLE}}
-            },
+            "description": "Confirmed current county identity; canonical publication is pending."
         },
     },
     operation_id="canonicalGeographyAvailability",
@@ -690,19 +682,7 @@ def observation_service(request: Request) -> ObservationService:
     response_model=ObservationCollection,
     responses={
         **PROBLEMS,
-        200: {
-            "description": "Bounded current-release observations.",
-            "content": {
-                "application/json": {
-                    "examples": {
-                        "empty": EXHAUSTED_OBSERVATIONS_EXAMPLE,
-                        "available": AVAILABLE_OBSERVATION_EXAMPLE,
-                        "known_unavailable": KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE,
-                        "missing": MISSING_OBSERVATION_EXAMPLE,
-                    }
-                }
-            },
-        },
+        200: {"description": "Bounded current-release observations."},
     },
     description=OBSERVATIONS_DESCRIPTION,
     operation_id="observations_v1_observations_get",

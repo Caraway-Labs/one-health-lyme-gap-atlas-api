@@ -1,0 +1,74 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "measures": "/v1/measures"
+    }
+  },
+  "application/json": {
+    "measures": {
+      "summary": "Two measures from the current release",
+      "value": {
+        "data": [
+          {
+            "measure_id": "burgdorferi_status",
+            "indicator_id": "pathogen_surveillance",
+            "label": "Borrelia burgdorferi status",
+            "definition": null,
+            "semantic_version": "2.0.0",
+            "release_version": "governed-2026-10-15-january-climate-prod",
+            "measure_type": "string",
+            "unit": "status",
+            "denominator": null,
+            "geography_types": null,
+            "temporal_grains": null,
+            "geography_semantics": "COUNTY_FIPS_5",
+            "temporal_semantics": "as published",
+            "allowed_value_states": null,
+            "allowed_strata": null,
+            "missingness_semantics": "No records is not absence.",
+            "methodology_id": null,
+            "methodology": "distinct pathogen mapping",
+            "source_ids": null,
+            "limitations": [
+              "Not individual infection risk."
+            ],
+            "standards_mappings": null
+          },
+          {
+            "measure_id": "case_count_floor_2023",
+            "indicator_id": "human_disease_burden",
+            "label": "Published case-count floor",
+            "definition": null,
+            "semantic_version": "2.0.0",
+            "release_version": "governed-2026-10-15-january-climate-prod",
+            "measure_type": "integer",
+            "unit": "cases",
+            "denominator": null,
+            "geography_types": null,
+            "temporal_grains": null,
+            "geography_semantics": "COUNTY_FIPS_5",
+            "temporal_semantics": "2023",
+            "allowed_value_states": null,
+            "allowed_strata": null,
+            "missingness_semantics": "Null means no county-linked published value.",
+            "methodology_id": null,
+            "methodology": "x5j9 confirmed plus probable",
+            "source_ids": null,
+            "limitations": [
+              "Privacy-protected floor."
+            ],
+            "standards_mappings": null
+          }
+        ],
+        "meta": {
+          "next_page_token": null,
+          "response_at": "2026-10-25T02:45:04.129145Z"
+        },
+        "links": {
+          "self": null
+        }
+      }
+    }
+  }
+}

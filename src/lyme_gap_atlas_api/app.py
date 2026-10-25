@@ -125,13 +125,9 @@ from .public_contract import PublicQueryError
 from .public_docs import (
     API_DESCRIPTION,
     API_SUMMARY,
-    AVAILABLE_OBSERVATION_EXAMPLE,
-    EXHAUSTED_OBSERVATIONS_EXAMPLE,
-    KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE,
     LEGACY_ERRORS,
-    MISSING_OBSERVATION_EXAMPLE,
-    PENDING_GEOGRAPHY_EXAMPLE,
     TAGS,
+    apply_response_examples,
     problem_response,
     problem_type_uri,
     route_problem_instances,
@@ -271,30 +267,7 @@ class AtlasFastAPI(FastAPI):
         route_problem_instances(schema)
         normalize_nullable_types(schema)
         schema["info"]["x-logo"] = deepcopy(LOGO)
-        # FastAPI's OpenAPI serialization drops nulls inside response examples.
-        # Restore these meaningful missingness/pagination values after serialization.
-        schema["paths"]["/v1/observations"]["get"]["responses"]["200"]["content"][
-            "application/json"
-        ]["examples"] = deepcopy(
-            {
-                "empty": EXHAUSTED_OBSERVATIONS_EXAMPLE,
-                "available": AVAILABLE_OBSERVATION_EXAMPLE,
-                "known_unavailable": KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE,
-                "missing": MISSING_OBSERVATION_EXAMPLE,
-            }
-        )
-        schema["paths"]["/v1/geographies/{geography_type}/{geography_id}/availability"]["get"][
-            "responses"
-        ]["200"]["content"]["application/json"]["examples"] = deepcopy(
-            {"unpublished": PENDING_GEOGRAPHY_EXAMPLE}
-        )
-        situation_example = schema["paths"]["/v1/counties/{fips}/surveillance-situations"]["get"][
-            "responses"
-        ]["200"]["content"]["application/json"]["examples"]["unpublished"]["value"]
-        for variant in ("four_state", "tick_pathogen"):
-            situation_example[variant].update(
-                batch_id=None, batch_version=None, input_release_id=None, data=None
-            )
+        apply_response_examples(schema)
         self._first_party_schema = schema
         return schema
 
@@ -1205,37 +1178,7 @@ def create_app(
         responses={
             **LEGACY_ERRORS,
             200: {
-                "description": "Both model variants, including explicit publication availability.",
-                "content": {
-                    "application/json": {
-                        "examples": {
-                            "unpublished": {
-                                "summary": "Illustrative unpublished batch; never Unknown",
-                                "value": {
-                                    "county_fips": "01001",
-                                    "release_id": "example-release",
-                                    "bundle_sha256": "a" * 64,
-                                    **{
-                                        variant: {
-                                            "model_id": model,
-                                            "availability": "UNAVAILABLE",
-                                            "unavailable_reason": "NOT_PUBLISHED",
-                                            "compatibility": "UNAVAILABLE",
-                                            "batch_id": None,
-                                            "batch_version": None,
-                                            "input_release_id": None,
-                                            "data": None,
-                                        }
-                                        for variant, model in {
-                                            "four_state": "surveillance-situation-four-state",
-                                            "tick_pathogen": "surveillance-situation-tick-pathogen",
-                                        }.items()
-                                    },
-                                },
-                            },
-                        }
-                    }
-                },
+                "description": "Both model variants, including explicit publication availability."
             },
         },
     )

@@ -1,6 +1,8 @@
 """Framework-native documentation metadata; no request or data behavior."""
 
+import json
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 API_SUMMARY = "Governed Atlas analytics, metadata, and provenance"
@@ -203,88 +205,38 @@ LEGACY_ERRORS: dict[int | str, dict[str, Any]] = {
     503: problem_response(503, "SERVICE_UNAVAILABLE", "Atlas data service is unavailable."),
 }
 
-EMPTY_COLLECTION_EXAMPLE = {
-    "summary": "Illustrative exhausted page; no observations matched",
-    "value": {
-        "data": [],
-        "meta": {
-            "next_page_token": None,
-            "response_at": "2026-01-01T00:00:00Z",
-        },
-        "links": {"self": None},
-    },
-}
+EXAMPLES_DIR = Path(__file__).parent / "openapi_examples"
 
-MISSING_OBSERVATION_EXAMPLE = {
-    "summary": "Synthetic missing-value example; not a published county result",
-    "value": {
-        "data": [
-            {
-                "observation_id": "example-observation",
-                "measure_id": "case_count_floor_2023",
-                "geography": {"geography_type": "county", "geography_id": "08001"},
-                "period_start": "2023-01-01",
-                "period_end": "2023-12-31",
-                "temporal_grain": "year",
-                "value": None,
-                "value_state": "MISSING",
-                "unit": "cases",
-                "denominator": None,
-                "source_id": "human",
-                "methodology_id": None,
-                "methodology_version": "example-transform-v1",
-                "semantic_version": "example-semantic-v1",
-                "release_id": "example-release",
-                "provenance_ref": "example-observation",
-                "limitations": ["Synthetic documentation example; no measured value is asserted."],
-                "evidence": {"resource_type": "observation", "resource_id": "example-observation"},
-            }
-        ],
-        "meta": {"next_page_token": None, "response_at": "2026-01-01T00:00:00Z"},
-        "links": {"self": None},
-    },
-}
 
-KNOWN_UNAVAILABLE_COLLECTION_EXAMPLE = {
-    "summary": "Successful initial query with no published results; not negative evidence",
-    "value": {
-        "data": [],
-        "meta": {
-            "next_page_token": None,
-            "response_at": "2026-01-01T00:00:00Z",
-            "availability": "UNAVAILABLE",
-            "reason": "NO_PUBLISHED_RESULTS",
-            "release_id": "example-release",
-            "limitations": [
-                "No published observations match this selection in the checked release. "
-                "This does not establish biological absence, source coverage, "
-                "or geography membership."
-            ],
-        },
-        "links": {"self": None},
-    },
-}
+def load_response_examples(directory: Path = EXAMPLES_DIR) -> dict[str, dict[str, Any]]:
+    """Read committed response captures as ``{operationId: {media type: {name: example}}}``.
 
-AVAILABLE_OBSERVATION_EXAMPLE: dict[str, Any] = deepcopy(MISSING_OBSERVATION_EXAMPLE)
-AVAILABLE_OBSERVATION_EXAMPLE["summary"] = "Synthetic available published observation example"
-AVAILABLE_OBSERVATION_EXAMPLE["value"]["data"][0].update(value=12, value_state="OBSERVED")
-AVAILABLE_OBSERVATION_EXAMPLE["value"]["meta"].update(
-    availability="AVAILABLE", release_id="example-release", limitations=[]
-)
+    Keys that start with an underscore hold capture notes and never reach the spec.
+    """
+    return {
+        path.stem: {
+            media_type: examples
+            for media_type, examples in json.loads(path.read_text(encoding="utf-8")).items()
+            if not media_type.startswith("_")
+        }
+        for path in sorted(directory.glob("*.json"))
+    }
 
-EXHAUSTED_OBSERVATIONS_EXAMPLE: dict[str, Any] = deepcopy(EMPTY_COLLECTION_EXAMPLE)
-EXHAUSTED_OBSERVATIONS_EXAMPLE["summary"] = "Empty continuation page; not an unavailable selection"
-EXHAUSTED_OBSERVATIONS_EXAMPLE["value"]["meta"].update(
-    availability="AVAILABLE", release_id="example-release", limitations=[]
-)
 
-PENDING_GEOGRAPHY_EXAMPLE: dict[str, Any] = {
-    "summary": "Confirmed county identity; canonical geography publication pending",
-    "value": {
-        "availability": "UNAVAILABLE",
-        "reason": "CANONICAL_GEOGRAPHY_UNPUBLISHED",
-        "data": None,
-        "release_id": "example-release",
-        "limitations": ["Illustrative checked county directory; no geometry is delivered."],
-    },
-}
+RESPONSE_EXAMPLES = load_response_examples()
+
+
+def apply_response_examples(schema: dict[str, Any]) -> None:
+    """Attach the captured named examples to each operation's `200` response.
+
+    Examples are added after FastAPI serializes the spec because that step drops
+    the `null` values that make missing and unavailable results meaningful.
+    """
+    for path_item in schema["paths"].values():
+        for operation in path_item.values():
+            examples = RESPONSE_EXAMPLES.get(operation.get("operationId", ""))
+            if not examples:
+                continue
+            content = operation["responses"]["200"]["content"]
+            for media_type, named in examples.items():
+                content[media_type]["examples"] = deepcopy(named)

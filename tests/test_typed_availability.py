@@ -313,6 +313,6 @@ def test_availability_examples_keep_required_nulls_in_both_schema_exports():
         observations = schema["paths"]["/v1/observations"]["get"]["responses"]["200"]["content"][
             "application/json"
         ]["examples"]
-        assert observations["known_unavailable"]["value"]["meta"]["availability"] == "UNAVAILABLE"
-        assert observations["available"]["value"]["meta"]["availability"] == "AVAILABLE"
+        assert observations["empty"]["value"]["meta"]["availability"] == "UNAVAILABLE"
+        assert observations["observed"]["value"]["meta"]["availability"] == "AVAILABLE"
         assert observations["empty"]["value"]["meta"]["next_page_token"] is None

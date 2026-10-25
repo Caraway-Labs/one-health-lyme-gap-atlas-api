@@ -1,0 +1,484 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "available": "/v1/counties/36061/surveillance-situations"
+    }
+  },
+  "application/json": {
+    "available": {
+      "summary": "Both model variants for `36061`",
+      "value": {
+        "county_fips": "36061",
+        "release_id": "governed-2026-10-15-january-climate-prod",
+        "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+        "four_state": {
+          "model_id": "surveillance-situation-four-state",
+          "availability": "AVAILABLE",
+          "unavailable_reason": null,
+          "compatibility": "EXACT_INPUT",
+          "batch_id": "surveillance-situation-batch",
+          "batch_version": "v1",
+          "input_release_id": "governed-2026-10-15-january-climate-prod",
+          "data": {
+            "model_id": "surveillance-situation-four-state",
+            "model_version": "v1",
+            "class_id": "surveillance-situation-four-state.v1.class-0",
+            "class_name": "Established blacklegged tick",
+            "class_description": "Counties where the blacklegged tick is established or reported and the western blacklegged tick has no records. A published human floor or a pathogen record is common in this class and is not required for every county.",
+            "probabilities": [
+              {
+                "class_id": "surveillance-situation-four-state.v1.class-0",
+                "probability": 0.909921698607346
+              },
+              {
+                "class_id": "surveillance-situation-four-state.v1.class-1",
+                "probability": 0.0
+              },
+              {
+                "class_id": "surveillance-situation-four-state.v1.class-2",
+                "probability": 2.089071954984944e-238
+              },
+              {
+                "class_id": "surveillance-situation-four-state.v1.class-3",
+                "probability": 0.09007830139265394
+              }
+            ],
+            "limitations": [
+              "disease risk",
+              "incidence",
+              "pathogen absence",
+              "tier 1 priority"
+            ],
+            "batch_id": "surveillance-situation-batch",
+            "batch_version": "v1",
+            "county_sha256": "02b62d7a4cb8970b3cd2506f5206a386a9ceed7cb2253baea16299be2d06ec9b",
+            "dictionary_sha256": "c0fecc0766c7e485b670624793cd2b02a1c8bafd49c740bcc8db9c62e9d2494b",
+            "input_release_id": "governed-2026-10-15-january-climate-prod",
+            "input_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+            "fit_git_sha": "cd936fe345664e606c916b137dd642caa0d6d73b",
+            "feature_contract": {
+              "dataset_id": "surveillance-latent-class-counties",
+              "dataset_version": "v1.1",
+              "document": "docs/contracts/119-surveillance-latent-class-dataset-v1.md",
+              "feature_set_id": "surveillance-latent-class-indicators",
+              "feature_set_version": "v1.1"
+            },
+            "model_provenance": {
+              "algorithm": "in-repository categorical latent class EM",
+              "approval_state": "approved_for_data_handoff",
+              "batch_id": "surveillance-situation-batch",
+              "batch_schema": "docs/contracts/138-surveillance-situation-batch-v1.schema.json",
+              "batch_version": "v1",
+              "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+              "class_dictionary": "config/models/138-surveillance-situation-class-dictionary-v1.json",
+              "class_dictionary_sha256": "c0fecc0766c7e485b670624793cd2b02a1c8bafd49c740bcc8db9c62e9d2494b",
+              "config": "config/experiments/119-latent-class-v1.json",
+              "county_artifact": "outputs/138-surveillance-situation-batch-v1/county-assignments.json",
+              "county_row_count": 6288,
+              "county_sha256": "02b62d7a4cb8970b3cd2506f5206a386a9ceed7cb2253baea16299be2d06ec9b",
+              "dependencies": {
+                "numpy": "2.2.6",
+                "scikit-learn": "1.9.1"
+              },
+              "feature_contract": {
+                "dataset_id": "surveillance-latent-class-counties",
+                "dataset_version": "v1.1",
+                "document": "docs/contracts/119-surveillance-latent-class-dataset-v1.md",
+                "feature_set_id": "surveillance-latent-class-indicators",
+                "feature_set_version": "v1.1"
+              },
+              "git_sha": "cd936fe345664e606c916b137dd642caa0d6d73b",
+              "handoff_document": "docs/contracts/138-surveillance-situation-batch-v1.md",
+              "inheritance_rule": "A later Atlas release does not silently inherit these assignments. Carry-forward, a new batch version, or a block requires a dated decision.",
+              "missingness_contract": {
+                "document": "config/models/138-surveillance-situation-models-v1.json",
+                "imputation": "forbidden",
+                "no_records": "category",
+                "unavailable_is_not_zero": true,
+                "unknown": "real_class_not_missing_assignment"
+              },
+              "model_contract": "config/models/138-surveillance-situation-models-v1.json",
+              "models": [
+                {
+                  "class_count": 4,
+                  "id": "surveillance-situation-four-state",
+                  "role": "primary_descriptive_classification",
+                  "version": "v1"
+                },
+                {
+                  "class_count": 4,
+                  "id": "surveillance-situation-tick-pathogen",
+                  "role": "secondary_tick_pathogen_grouping",
+                  "version": "v1"
+                }
+              ],
+              "population_scope": {
+                "county_count": 3144,
+                "geography": "US counties and county equivalents, including Alaska and Hawaii",
+                "population": 331097593,
+                "population_role": "reporting denominator"
+              },
+              "primary_seed": 1192026,
+              "probability_sum_tolerance": 1e-06,
+              "prohibited_readings": [
+                "disease risk",
+                "incidence",
+                "pathogen absence",
+                "tier 1 priority"
+              ],
+              "release_id": "governed-2026-10-15-january-climate-prod",
+              "result": "config/experiments/119-latent-class-v1-result.json",
+              "result_commit": "a2f9bad41f1ddb793e364399afbdd5fbad008b7a",
+              "run": {
+                "log_likelihood_tolerance": 1e-08,
+                "max_em_iterations": 2000,
+                "random_starts_per_seed": 20,
+                "training_location": "local machine",
+                "wall_clock_seconds_recorded": false
+              },
+              "schema": "atlas-ml-surveillance-situation-batch-manifest/138-v1",
+              "snowflake_objects_written": [],
+              "stored_estimator": "in-repository categorical latent class EM"
+            },
+            "source_provenance": {
+              "context_nlcd_2025": {
+                "dataset_id": "annual-nlcd-c1v2-2025-reviewed-demo-cohort",
+                "limitations": "Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission.",
+                "source_id": "mrlc_annual_nlcd_derived_county_aggregates",
+                "source_url": "https://www.mrlc.gov/downloads/sciweb1/shared/mrlc/data-bundles/Annual_NLCD_LndCov_2025_CU_C1V2.zip",
+                "vintage": "C1V2-2025"
+              },
+              "context_rucc": {
+                "dataset_id": "rural-urban-continuum-codes-2023",
+                "limitations": "RUCC is a contextual county classification; vintages are not automatically comparable and it is not a causal or individual risk measure.",
+                "source_id": "usda_ers",
+                "source_url": "https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/",
+                "vintage": "2023"
+              },
+              "context_svi": {
+                "dataset_id": "atsdr-svi-2022-county-layer",
+                "limitations": "Contextual population and vulnerability measures are not causal drivers or individual risk factors. The same reviewed source supplies county identity and geometry.",
+                "source_id": "cdc_atsdr_svi",
+                "source_url": "https://www.atsdr.cdc.gov/placeandhealth/svi/data_documentation_download.html",
+                "vintage": "2022 (2018-2022 ACS)"
+              },
+              "human": {
+                "dataset_id": "x5j9-wybp",
+                "limitations": "County-of-residence surveillance. County-linked values are published privacy-protected floors, not complete incidence estimates.",
+                "source_id": "cdc_lyme",
+                "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+                "vintage": "2023"
+              },
+              "pathogen": {
+                "dataset_id": "cdc-ixodes-pathogen-status-2025",
+                "limitations": "This is a distinct restricted pathogen source. No records is not absence; 33 absent canonical counties are classified as unknown source coverage.",
+                "source_id": "cdc_arbonet_tick_module",
+                "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+                "vintage": "through 2025-12-31"
+              },
+              "tick": {
+                "dataset_id": "cdc-ixodes-county-status-2025",
+                "limitations": "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "source_id": "cdc_arbonet_tick_module",
+                "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+                "vintage": "through 2025-12-31"
+              }
+            },
+            "handoff_approval": {
+              "approval_state": "approved_for_data_handoff",
+              "approved_at": "2026-10-18T11:37:14-06:00",
+              "approver": "Matthew Caraway",
+              "batch_id": "surveillance-situation-batch",
+              "batch_version": "v1",
+              "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+              "class_dictionary": "config/models/138-surveillance-situation-class-dictionary-v1.json",
+              "class_dictionary_sha256": "c0fecc0766c7e485b670624793cd2b02a1c8bafd49c740bcc8db9c62e9d2494b",
+              "compatibility_dated": "2026-10-18",
+              "compatibility_disposition": "carry forward",
+              "compatibility_note": "docs/eda/143-release-compatibility.md",
+              "county_artifact": "outputs/138-surveillance-situation-batch-v1/county-assignments.json",
+              "county_sha256": "02b62d7a4cb8970b3cd2506f5206a386a9ceed7cb2253baea16299be2d06ec9b",
+              "downstream": [
+                {
+                  "issue": 253,
+                  "repository": "Caraway-Labs/one-health-lyme-gap-atlas-api"
+                },
+                {
+                  "issue": 650,
+                  "repository": "Caraway-Labs/one-health-lyme-gap-atlas-web"
+                }
+              ],
+              "git_sha": "cd936fe345664e606c916b137dd642caa0d6d73b",
+              "handoff_note": "docs/contracts/138-surveillance-situation-data-handoff-v1.md",
+              "manifest": "config/models/138-surveillance-situation-batch-v1.json",
+              "models": [
+                {
+                  "id": "surveillance-situation-four-state",
+                  "version": "v1"
+                },
+                {
+                  "id": "surveillance-situation-tick-pathogen",
+                  "version": "v1"
+                }
+              ],
+              "production_mutation": "This repository does not mutate production Snowflake.",
+              "publisher": {
+                "issue": 702,
+                "repository": "Caraway-Labs/one-health-lyme-gap-atlas-data"
+              },
+              "release_id": "governed-2026-10-15-january-climate-prod",
+              "result_commit": "a2f9bad41f1ddb793e364399afbdd5fbad008b7a",
+              "schema": "atlas-ml-surveillance-situation-batch-approval/138-v1",
+              "snowflake_objects_written": []
+            },
+            "data_publication_authorization": {
+              "approval_reference": "Human Data-owner execution authorizes staging and activation of both frozen ML138 v1 models on governed-2026-10-15-january-climate-prod only; no Tier1 admission",
+              "approved_at": "2026-10-18 20:41:39.987 -0700",
+              "approved_by": "MATTHEWCARAWAY",
+              "decision_id": "ri706-ml138-prod-v1-20261018",
+              "dev_image_digest": "sha256:bda0fd73557729b0db91534f25ad74749ec0d8e4456a0b8cc7e702e9672a5097",
+              "reviewed_code_commit": "d92c1557d24e5b63cc4309c76b3767ac24bbfcb3"
+            },
+            "data_authorization_id": "ri706-ml138-prod-v1-20261018",
+            "staging_attempt": "ml138-v1-02b62d7a4cb8970b",
+            "activated_at": "2026-10-18T20:48:15.330000-07:00"
+          }
+        },
+        "tick_pathogen": {
+          "model_id": "surveillance-situation-tick-pathogen",
+          "availability": "AVAILABLE",
+          "unavailable_reason": null,
+          "compatibility": "EXACT_INPUT",
+          "batch_id": "surveillance-situation-batch",
+          "batch_version": "v1",
+          "input_release_id": "governed-2026-10-15-january-climate-prod",
+          "data": {
+            "model_id": "surveillance-situation-tick-pathogen",
+            "model_version": "v1",
+            "class_id": "surveillance-situation-tick-pathogen.v1.class-0",
+            "class_name": "Established blacklegged tick",
+            "class_description": "Counties where the blacklegged tick is established or reported and the western blacklegged tick has no records. Counties with pathogen present and counties with no pathogen record are both in this class. The class probability does not measure pathogen presence.",
+            "probabilities": [
+              {
+                "class_id": "surveillance-situation-tick-pathogen.v1.class-0",
+                "probability": 0.9991722300466057
+              },
+              {
+                "class_id": "surveillance-situation-tick-pathogen.v1.class-1",
+                "probability": 0.0008277699533944034
+              },
+              {
+                "class_id": "surveillance-situation-tick-pathogen.v1.class-2",
+                "probability": 7.546843489664015e-309
+              },
+              {
+                "class_id": "surveillance-situation-tick-pathogen.v1.class-3",
+                "probability": 0.0
+              }
+            ],
+            "limitations": [
+              "disease risk",
+              "incidence",
+              "pathogen absence",
+              "tier 1 priority"
+            ],
+            "batch_id": "surveillance-situation-batch",
+            "batch_version": "v1",
+            "county_sha256": "02b62d7a4cb8970b3cd2506f5206a386a9ceed7cb2253baea16299be2d06ec9b",
+            "dictionary_sha256": "c0fecc0766c7e485b670624793cd2b02a1c8bafd49c740bcc8db9c62e9d2494b",
+            "input_release_id": "governed-2026-10-15-january-climate-prod",
+            "input_bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+            "fit_git_sha": "cd936fe345664e606c916b137dd642caa0d6d73b",
+            "feature_contract": {
+              "dataset_id": "surveillance-latent-class-counties",
+              "dataset_version": "v1.1",
+              "document": "docs/contracts/119-surveillance-latent-class-dataset-v1.md",
+              "feature_set_id": "surveillance-latent-class-indicators",
+              "feature_set_version": "v1.1"
+            },
+            "model_provenance": {
+              "algorithm": "in-repository categorical latent class EM",
+              "approval_state": "approved_for_data_handoff",
+              "batch_id": "surveillance-situation-batch",
+              "batch_schema": "docs/contracts/138-surveillance-situation-batch-v1.schema.json",
+              "batch_version": "v1",
+              "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+              "class_dictionary": "config/models/138-surveillance-situation-class-dictionary-v1.json",
+              "class_dictionary_sha256": "c0fecc0766c7e485b670624793cd2b02a1c8bafd49c740bcc8db9c62e9d2494b",
+              "config": "config/experiments/119-latent-class-v1.json",
+              "county_artifact": "outputs/138-surveillance-situation-batch-v1/county-assignments.json",
+              "county_row_count": 6288,
+              "county_sha256": "02b62d7a4cb8970b3cd2506f5206a386a9ceed7cb2253baea16299be2d06ec9b",
+              "dependencies": {
+                "numpy": "2.2.6",
+                "scikit-learn": "1.9.1"
+              },
+              "feature_contract": {
+                "dataset_id": "surveillance-latent-class-counties",
+                "dataset_version": "v1.1",
+                "document": "docs/contracts/119-surveillance-latent-class-dataset-v1.md",
+                "feature_set_id": "surveillance-latent-class-indicators",
+                "feature_set_version": "v1.1"
+              },
+              "git_sha": "cd936fe345664e606c916b137dd642caa0d6d73b",
+              "handoff_document": "docs/contracts/138-surveillance-situation-batch-v1.md",
+              "inheritance_rule": "A later Atlas release does not silently inherit these assignments. Carry-forward, a new batch version, or a block requires a dated decision.",
+              "missingness_contract": {
+                "document": "config/models/138-surveillance-situation-models-v1.json",
+                "imputation": "forbidden",
+                "no_records": "category",
+                "unavailable_is_not_zero": true,
+                "unknown": "real_class_not_missing_assignment"
+              },
+              "model_contract": "config/models/138-surveillance-situation-models-v1.json",
+              "models": [
+                {
+                  "class_count": 4,
+                  "id": "surveillance-situation-four-state",
+                  "role": "primary_descriptive_classification",
+                  "version": "v1"
+                },
+                {
+                  "class_count": 4,
+                  "id": "surveillance-situation-tick-pathogen",
+                  "role": "secondary_tick_pathogen_grouping",
+                  "version": "v1"
+                }
+              ],
+              "population_scope": {
+                "county_count": 3144,
+                "geography": "US counties and county equivalents, including Alaska and Hawaii",
+                "population": 331097593,
+                "population_role": "reporting denominator"
+              },
+              "primary_seed": 1192026,
+              "probability_sum_tolerance": 1e-06,
+              "prohibited_readings": [
+                "disease risk",
+                "incidence",
+                "pathogen absence",
+                "tier 1 priority"
+              ],
+              "release_id": "governed-2026-10-15-january-climate-prod",
+              "result": "config/experiments/119-latent-class-v1-result.json",
+              "result_commit": "a2f9bad41f1ddb793e364399afbdd5fbad008b7a",
+              "run": {
+                "log_likelihood_tolerance": 1e-08,
+                "max_em_iterations": 2000,
+                "random_starts_per_seed": 20,
+                "training_location": "local machine",
+                "wall_clock_seconds_recorded": false
+              },
+              "schema": "atlas-ml-surveillance-situation-batch-manifest/138-v1",
+              "snowflake_objects_written": [],
+              "stored_estimator": "in-repository categorical latent class EM"
+            },
+            "source_provenance": {
+              "context_nlcd_2025": {
+                "dataset_id": "annual-nlcd-c1v2-2025-reviewed-demo-cohort",
+                "limitations": "Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission.",
+                "source_id": "mrlc_annual_nlcd_derived_county_aggregates",
+                "source_url": "https://www.mrlc.gov/downloads/sciweb1/shared/mrlc/data-bundles/Annual_NLCD_LndCov_2025_CU_C1V2.zip",
+                "vintage": "C1V2-2025"
+              },
+              "context_rucc": {
+                "dataset_id": "rural-urban-continuum-codes-2023",
+                "limitations": "RUCC is a contextual county classification; vintages are not automatically comparable and it is not a causal or individual risk measure.",
+                "source_id": "usda_ers",
+                "source_url": "https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/",
+                "vintage": "2023"
+              },
+              "context_svi": {
+                "dataset_id": "atsdr-svi-2022-county-layer",
+                "limitations": "Contextual population and vulnerability measures are not causal drivers or individual risk factors. The same reviewed source supplies county identity and geometry.",
+                "source_id": "cdc_atsdr_svi",
+                "source_url": "https://www.atsdr.cdc.gov/placeandhealth/svi/data_documentation_download.html",
+                "vintage": "2022 (2018-2022 ACS)"
+              },
+              "human": {
+                "dataset_id": "x5j9-wybp",
+                "limitations": "County-of-residence surveillance. County-linked values are published privacy-protected floors, not complete incidence estimates.",
+                "source_id": "cdc_lyme",
+                "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+                "vintage": "2023"
+              },
+              "pathogen": {
+                "dataset_id": "cdc-ixodes-pathogen-status-2025",
+                "limitations": "This is a distinct restricted pathogen source. No records is not absence; 33 absent canonical counties are classified as unknown source coverage.",
+                "source_id": "cdc_arbonet_tick_module",
+                "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+                "vintage": "through 2025-12-31"
+              },
+              "tick": {
+                "dataset_id": "cdc-ixodes-county-status-2025",
+                "limitations": "Tick status is cumulative surveillance evidence; no records is not absence and status is not abundance, pathogen prevalence, diagnosis, or individual risk.",
+                "source_id": "cdc_arbonet_tick_module",
+                "source_url": "https://www.cdc.gov/ticks/data-research/facts-stats/tick-surveillance-data-sets.html",
+                "vintage": "through 2025-12-31"
+              }
+            },
+            "handoff_approval": {
+              "approval_state": "approved_for_data_handoff",
+              "approved_at": "2026-10-18T11:37:14-06:00",
+              "approver": "Matthew Caraway",
+              "batch_id": "surveillance-situation-batch",
+              "batch_version": "v1",
+              "bundle_sha256": "53e50aa37c701635e96c48cd4931c4c4a9e7e695c146263fb9bb335e541ae74d",
+              "class_dictionary": "config/models/138-surveillance-situation-class-dictionary-v1.json",
+              "class_dictionary_sha256": "c0fecc0766c7e485b670624793cd2b02a1c8bafd49c740bcc8db9c62e9d2494b",
+              "compatibility_dated": "2026-10-18",
+              "compatibility_disposition": "carry forward",
+              "compatibility_note": "docs/eda/143-release-compatibility.md",
+              "county_artifact": "outputs/138-surveillance-situation-batch-v1/county-assignments.json",
+              "county_sha256": "02b62d7a4cb8970b3cd2506f5206a386a9ceed7cb2253baea16299be2d06ec9b",
+              "downstream": [
+                {
+                  "issue": 253,
+                  "repository": "Caraway-Labs/one-health-lyme-gap-atlas-api"
+                },
+                {
+                  "issue": 650,
+                  "repository": "Caraway-Labs/one-health-lyme-gap-atlas-web"
+                }
+              ],
+              "git_sha": "cd936fe345664e606c916b137dd642caa0d6d73b",
+              "handoff_note": "docs/contracts/138-surveillance-situation-data-handoff-v1.md",
+              "manifest": "config/models/138-surveillance-situation-batch-v1.json",
+              "models": [
+                {
+                  "id": "surveillance-situation-four-state",
+                  "version": "v1"
+                },
+                {
+                  "id": "surveillance-situation-tick-pathogen",
+                  "version": "v1"
+                }
+              ],
+              "production_mutation": "This repository does not mutate production Snowflake.",
+              "publisher": {
+                "issue": 702,
+                "repository": "Caraway-Labs/one-health-lyme-gap-atlas-data"
+              },
+              "release_id": "governed-2026-10-15-january-climate-prod",
+              "result_commit": "a2f9bad41f1ddb793e364399afbdd5fbad008b7a",
+              "schema": "atlas-ml-surveillance-situation-batch-approval/138-v1",
+              "snowflake_objects_written": []
+            },
+            "data_publication_authorization": {
+              "approval_reference": "Human Data-owner execution authorizes staging and activation of both frozen ML138 v1 models on governed-2026-10-15-january-climate-prod only; no Tier1 admission",
+              "approved_at": "2026-10-18 20:41:39.987 -0700",
+              "approved_by": "MATTHEWCARAWAY",
+              "decision_id": "ri706-ml138-prod-v1-20261018",
+              "dev_image_digest": "sha256:bda0fd73557729b0db91534f25ad74749ec0d8e4456a0b8cc7e702e9672a5097",
+              "reviewed_code_commit": "d92c1557d24e5b63cc4309c76b3767ac24bbfcb3"
+            },
+            "data_authorization_id": "ri706-ml138-prod-v1-20261018",
+            "staging_attempt": "ml138-v1-02b62d7a4cb8970b",
+            "activated_at": "2026-10-18T20:48:15.330000-07:00"
+          }
+        }
+      }
+    }
+  }
+}

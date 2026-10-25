@@ -1,0 +1,52 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "colorado": "/v1/states/CO/review"
+    }
+  },
+  "application/json": {
+    "colorado": {
+      "summary": "County review for Colorado, trimmed to two data gaps",
+      "value": {
+        "requested_state": "CO",
+        "methodology_id": "atlas-county-review",
+        "methodology_version": "1.0.0",
+        "configuration_sha256": "db6df73f7bce474000165fb2b0bad9767390c21aed160a1377be6a4893004d99",
+        "data_release_version": "governed-2026-10-15-january-climate-prod",
+        "evaluated_at": "2026-10-25T02:46:14.482274Z",
+        "requested_observation_context": null,
+        "effective_observation_context": "Current cumulative county status; human snapshot 2023",
+        "result_state": "unsupported",
+        "review_candidates": [],
+        "data_gaps": [
+          {
+            "county_fips": "08001",
+            "code": "SOURCE_NATIVE_LINEAGE_UNAVAILABLE",
+            "detail": "Summary statuses lack exact source rows and revisions."
+          },
+          {
+            "county_fips": "08003",
+            "code": "SOURCE_NATIVE_LINEAGE_UNAVAILABLE",
+            "detail": "Summary statuses lack exact source rows and revisions."
+          }
+        ],
+        "coverage": {
+          "assessed_counties": 64,
+          "eligible_counties": 0,
+          "abstained_counties": 0,
+          "evaluated_counties": 0,
+          "rule_coverage": {
+            "human_emerging": "disabled",
+            "vector_transition": "disabled",
+            "human_vector_discordance": "disabled",
+            "pathogen_present_vector_reported": "disabled"
+          }
+        },
+        "limitations": [
+          "Review is not disease risk; no candidate rule is approved in 1.0.0."
+        ]
+      }
+    }
+  }
+}

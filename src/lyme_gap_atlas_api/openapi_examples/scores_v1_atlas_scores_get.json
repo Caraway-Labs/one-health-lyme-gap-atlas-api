@@ -1,0 +1,83 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "scores": "/v1/atlas/scores"
+    }
+  },
+  "application/json": {
+    "scores": {
+      "summary": "Scores for the first two counties of the release",
+      "value": {
+        "scoring_methodology_version": "surveillance-gap-score-v1.1",
+        "release_id": "governed-2026-10-15-january-climate-prod",
+        "methodology_version": "semantic-2.0.0",
+        "settings": {
+          "ecological_share": 65,
+          "smooth_k": 50,
+          "missing_human_weakness": 75
+        },
+        "counties": [
+          {
+            "scoring_methodology_version": "surveillance-gap-score-v1.1",
+            "incidence_floor_2023": 0.15,
+            "svi_percentile": 0.8629,
+            "uninsured_percentile": 0.5504,
+            "rucc_2023": 1,
+            "fips": "06037",
+            "county": "Los Angeles County",
+            "state": "CA",
+            "state_name": "California",
+            "in_contiguous_tick_scope": true,
+            "human_status": "published_count_floor",
+            "tick_status": "Established",
+            "burgdorferi_status": "Present",
+            "evidence_completeness": 100,
+            "score": {
+              "score": 85.6,
+              "human_weakness": 99.7,
+              "ecological": 100.0,
+              "community": 59.7,
+              "tick_signal": 100.0,
+              "pathogen_signal": 100.0,
+              "svi_signal": 86.3,
+              "access_signal": 55.0,
+              "rural_signal": 0.0
+            },
+            "priority": "Priority 1 — Investigate",
+            "color": "#e9602b"
+          },
+          {
+            "scoring_methodology_version": "surveillance-gap-score-v1.1",
+            "incidence_floor_2023": 2.9,
+            "svi_percentile": 0.8132,
+            "uninsured_percentile": 0.8635,
+            "rucc_2023": 3,
+            "fips": "18039",
+            "county": "Elkhart County",
+            "state": "IN",
+            "state_name": "Indiana",
+            "in_contiguous_tick_scope": true,
+            "human_status": "published_count_floor",
+            "tick_status": "Established",
+            "burgdorferi_status": "Present",
+            "evidence_completeness": 100,
+            "score": {
+              "score": 85.1,
+              "human_weakness": 94.5,
+              "ecological": 100.0,
+              "community": 71.6,
+              "tick_signal": 100.0,
+              "pathogen_signal": 100.0,
+              "svi_signal": 81.3,
+              "access_signal": 86.4,
+              "rural_signal": 25.0
+            },
+            "priority": "Priority 1 — Investigate",
+            "color": "#e9602b"
+          }
+        ]
+      }
+    }
+  }
+}

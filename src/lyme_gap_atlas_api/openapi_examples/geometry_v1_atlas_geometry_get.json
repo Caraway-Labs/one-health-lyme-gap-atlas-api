@@ -1,0 +1,57 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "counties": "/v1/atlas/geometry"
+    }
+  },
+  "application/geo+json": {
+    "counties": {
+      "summary": "One county feature from the full collection",
+      "value": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "id": "56045",
+            "properties": {
+              "fips": "56045"
+            },
+            "geometry": {
+              "coordinates": [
+                [
+                  [
+                    -105.081,
+                    43.966
+                  ],
+                  [
+                    -105.079,
+                    44.176
+                  ],
+                  [
+                    -104.055,
+                    44.18
+                  ],
+                  [
+                    -104.055,
+                    43.503
+                  ],
+                  [
+                    -105.08,
+                    43.498
+                  ],
+                  [
+                    -105.081,
+                    43.966
+                  ]
+                ]
+              ],
+              "type": "Polygon"
+            }
+          }
+        ]
+      },
+      "description": "Response headers: `Content-Type: application/geo+json`, a weak `ETag`, and `Cache-Control: public, max-age=31536000, immutable`. The body is a `FeatureCollection` with one feature per county; this sample keeps one feature."
+    }
+  }
+}

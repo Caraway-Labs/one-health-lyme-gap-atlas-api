@@ -1,0 +1,32 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "map_values": "/v1/atlas/map-values"
+    }
+  },
+  "application/json": {
+    "map_values": {
+      "summary": "Map values for the first two counties",
+      "value": {
+        "release_id": "governed-2026-10-15-january-climate-prod",
+        "counties": [
+          {
+            "fips": "01001",
+            "incidence_floor_2023": null,
+            "svi_percentile": 0.2663,
+            "uninsured_percent": 7.4,
+            "rucc_2023": 2
+          },
+          {
+            "fips": "01003",
+            "incidence_floor_2023": 2.14,
+            "svi_percentile": 0.3487,
+            "uninsured_percent": 9.3,
+            "rucc_2023": 3
+          }
+        ]
+      }
+    }
+  }
+}

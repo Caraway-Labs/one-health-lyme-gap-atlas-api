@@ -1,0 +1,165 @@
+{
+  "_capture": {
+    "captured_on": "2026-10-25",
+    "requests": {
+      "observed": "/v1/observations?measure_id=case_count_floor_2023&geography_type=county&year=2023&geography_id=36061",
+      "missing": "/v1/observations?measure_id=case_count_floor_2023&geography_type=county&year=2023&geography_id=08001",
+      "empty": "/v1/observations?measure_id=case_count_floor_2023&geography_type=county&year=1999&geography_id=36061"
+    }
+  },
+  "application/json": {
+    "observed": {
+      "summary": "An observed value: New York County (`36061`)",
+      "value": {
+        "data": [
+          {
+            "metadata_revision_id": null,
+            "observation_id": "33793650b65062f83a847f9426481f94c4ee3810000d45e812e2fb0693429cd1",
+            "measure_id": "case_count_floor_2023",
+            "geography": {
+              "geography_type": "county",
+              "geography_id": "36061"
+            },
+            "temporal_grain": "YEAR",
+            "value": 1114.0,
+            "value_state": "OBSERVED",
+            "unit": "cases",
+            "denominator": null,
+            "strata": {},
+            "source_id": "human",
+            "lineage_source_id": "cdc_lyme",
+            "dataset_id": "x5j9-wybp",
+            "methodology_id": "human_confirmed_probable_case_floor_v1",
+            "methodology": "x5j9 confirmed plus probable",
+            "release_methodology_version": "semantic-2.0.0",
+            "methodology_version": "semantic_county_assembly_v1",
+            "semantic_version": "2.0.0",
+            "release_id": "governed-2026-10-15-january-climate-prod",
+            "provenance_ref": "33793650b65062f83a847f9426481f94c4ee3810000d45e812e2fb0693429cd1",
+            "source_label": "CDC Lyme surveillance",
+            "source_vintage": "2023",
+            "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+            "source_published_at": null,
+            "atlas_acquired_at": "2026-09-07T17:21:14.768948-07:00",
+            "atlas_processed_at": null,
+            "limitations": [
+              "Published surveillance values are privacy-protected floors, not complete incidence estimates.",
+              "Privacy-protected floor.",
+              "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+            ],
+            "evidence": {
+              "resource_type": "observation",
+              "resource_id": "33793650b65062f83a847f9426481f94c4ee3810000d45e812e2fb0693429cd1",
+              "source_id": "human",
+              "provenance_ref": "33793650b65062f83a847f9426481f94c4ee3810000d45e812e2fb0693429cd1",
+              "semantic_version": "2.0.0",
+              "methodology_version": "semantic_county_assembly_v1",
+              "release_id": "governed-2026-10-15-january-climate-prod",
+              "uri": null
+            },
+            "environmental_context": null,
+            "surveillance_context": null,
+            "period_start": "2023-01-01",
+            "period_end": "2023-12-31"
+          }
+        ],
+        "meta": {
+          "next_page_token": null,
+          "response_at": "2026-10-25T02:46:22.070184Z",
+          "availability": "AVAILABLE",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "limitations": []
+        },
+        "links": {
+          "self": null
+        }
+      }
+    },
+    "missing": {
+      "summary": "A missing value: Boulder County (`08001`) has no published value",
+      "value": {
+        "data": [
+          {
+            "metadata_revision_id": null,
+            "observation_id": "43c0ce4e82c89ba4d75ebca07f97e63d75fdf18a0dae9fed778aa22266c81273",
+            "measure_id": "case_count_floor_2023",
+            "geography": {
+              "geography_type": "county",
+              "geography_id": "08001"
+            },
+            "temporal_grain": "YEAR",
+            "value": null,
+            "value_state": "MISSING",
+            "unit": "cases",
+            "denominator": null,
+            "strata": {},
+            "source_id": "human",
+            "lineage_source_id": "cdc_lyme",
+            "dataset_id": "x5j9-wybp",
+            "methodology_id": "human_confirmed_probable_case_floor_v1",
+            "methodology": "x5j9 confirmed plus probable",
+            "release_methodology_version": "semantic-2.0.0",
+            "methodology_version": "semantic_county_assembly_v1",
+            "semantic_version": "2.0.0",
+            "release_id": "governed-2026-10-15-january-climate-prod",
+            "provenance_ref": "43c0ce4e82c89ba4d75ebca07f97e63d75fdf18a0dae9fed778aa22266c81273",
+            "source_label": "CDC Lyme surveillance",
+            "source_vintage": "2023",
+            "source_url": "https://data.cdc.gov/resource/x5j9-wybp.json",
+            "source_published_at": null,
+            "atlas_acquired_at": "2026-09-07T17:21:14.768948-07:00",
+            "atlas_processed_at": null,
+            "limitations": [
+              "Published surveillance values are privacy-protected floors, not complete incidence estimates.",
+              "Privacy-protected floor.",
+              "This is a deterministic surveillance follow-up priority release, not a diagnosis, prediction, causal claim, exposure map, or individual risk estimate. Published human values are privacy-protected floors; no records is not absence. Human rows with explicitly unavailable state geography are retained in source provenance but are not allocated to county or state release values. Restricted pathogen source gaps are explicitly unknown source coverage. Selected 2025 TIGER geographies 09110 and 51013 only; unselected counties are not zero. COMPLETE describes valid source-supported area; preserve source coverage fraction. 09110 is Capitol Planning Region, with no historical Connecticut county crosswalk. Official MRLC mosaic lineage, not USGS S3 tiles. Descriptive land-cover context only; no Lyme causal/risk estimate or automatic ML admission."
+            ],
+            "evidence": {
+              "resource_type": "observation",
+              "resource_id": "43c0ce4e82c89ba4d75ebca07f97e63d75fdf18a0dae9fed778aa22266c81273",
+              "source_id": "human",
+              "provenance_ref": "43c0ce4e82c89ba4d75ebca07f97e63d75fdf18a0dae9fed778aa22266c81273",
+              "semantic_version": "2.0.0",
+              "methodology_version": "semantic_county_assembly_v1",
+              "release_id": "governed-2026-10-15-january-climate-prod",
+              "uri": null
+            },
+            "environmental_context": null,
+            "surveillance_context": null,
+            "period_start": "2023-01-01",
+            "period_end": "2023-12-31"
+          }
+        ],
+        "meta": {
+          "next_page_token": null,
+          "response_at": "2026-10-25T02:46:30.691271Z",
+          "availability": "AVAILABLE",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "limitations": []
+        },
+        "links": {
+          "self": null
+        }
+      }
+    },
+    "empty": {
+      "summary": "An empty result with `meta.availability` set to `UNAVAILABLE`",
+      "value": {
+        "data": [],
+        "meta": {
+          "next_page_token": null,
+          "response_at": "2026-10-25T02:46:37.282561Z",
+          "availability": "UNAVAILABLE",
+          "reason": "NO_PUBLISHED_RESULTS",
+          "release_id": "governed-2026-10-15-january-climate-prod",
+          "limitations": [
+            "No published observations match this selection in the checked release. This does not establish biological absence, source coverage, or geography membership."
+          ]
+        },
+        "links": {
+          "self": null
+        }
+      }
+    }
+  }
+}
