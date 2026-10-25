@@ -116,9 +116,8 @@ def apply_inline_response_titles(document: dict[str, Any]) -> None:
     """Replace operation-derived titles on inline response schemas in place."""
     for path_item in document.get("paths", {}).values():
         for operation in path_item.values():
-            if not isinstance(operation, dict):
-                continue
-            title = _INLINE_RESPONSE_TITLES.get(operation.get("operationId", ""))
+            operation_id = operation.get("operationId") if isinstance(operation, dict) else None
+            title = _INLINE_RESPONSE_TITLES.get(operation_id or "")
             if title is None:
                 continue
             for response in operation.get("responses", {}).values():
