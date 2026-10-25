@@ -61,7 +61,7 @@ access. API runtime uses `OH_LYME_API_SVC` / `OH_LYME_PROD_READ`, key pair,
 `SNOWFLAKE_PRESENTATION_SCHEMA=PRESENTATION`, and its approved warehouse.
 Set the existing server-only `INTELLIGENCE_FEED_READ_ENABLED=true` only after
 those gates and runtime-role readback. `/feed` needs no projection-version flag.
-Verify `https://api.carawaylabs.com/v1/intelligence/feed?source_id=cdc-eid-expedited&page_size=1`
+Verify `https://api.onehealthatlas.org/v1/intelligence/feed?source_id=cdc-eid-expedited&page_size=1`
 returns 200 with a real title, original CDC link and provenance; empty results do
 not satisfy live article acceptance. Rollback activation with the existing read
 flag; code rollback follows the documented main-revert route.

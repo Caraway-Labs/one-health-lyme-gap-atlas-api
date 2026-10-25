@@ -24,7 +24,7 @@ def get(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-url", default="https://api.carawaylabs.com")
+    parser.add_argument("--base-url", default="https://api.onehealthatlas.org")
     parser.add_argument("--samples", type=int, choices=(1, 3), default=3)
     args = parser.parse_args()
     base = args.base_url

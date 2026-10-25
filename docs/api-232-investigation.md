@@ -1,5 +1,7 @@
 # API #232 investigation and bounded correction
 
+> Historical record. It records a past investigation of the old API hostname. Its `carawaylabs.com` host names are kept as written because they describe the system as it was then.
+
 Related: API #228, WEB #394; deferred ingress behavior API #88 / API #234.
 Investigation: October 12, 2026 (America/Denver), receipts October 13 UTC.
 Production unchanged: ACTIVE b8fda191-82e6-40df-97c6-cedcd2cf23bd,

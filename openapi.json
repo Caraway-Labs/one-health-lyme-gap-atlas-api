@@ -3,7 +3,7 @@
   "info": {
     "title": "One Health Lyme Gap Atlas API",
     "summary": "Governed Atlas analytics, metadata, and provenance",
-    "description": "Read-only JSON API for county and state Lyme disease surveillance,\npublic-health context, and the sources behind them. It is for developers, analysts, and\npublic-health practitioners. The base URL is\n`https://api.onehealthatlas.org`, and public reads need no API key.\n\n## Quickstart\nGet the 2023 case-count floor for New York County (FIPS `36061`):\n\n```bash\ncurl 'https://api.onehealthatlas.org/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=36061&year=2023'\n```\n\nThe response is trimmed to the fields that matter. The values are an example:\n\n```json\n{\n  \"data\": [{\n    \"measure_id\": \"case_count_floor_2023\",\n    \"geography\": {\"geography_type\": \"county\", \"geography_id\": \"36061\"},\n    \"value\": 1114.0, \"value_state\": \"OBSERVED\", \"unit\": \"cases\",\n    \"source_label\": \"CDC Lyme surveillance\", \"release_id\": \"...\",\n    \"limitations\": [\"...\"]\n  }],\n  \"meta\": {\"next_page_token\": null, \"availability\": \"AVAILABLE\"},\n  \"links\": {\"self\": null}\n}\n```\n\n## Responses\nCollections return `data` (the items), `meta` (paging, `availability`, `release_id`,\nresponse time), and `links`. A single resource returns `data`.\n\n## Pagination\n`page_size` defaults to 100 (maximum 500). Send `meta.next_page_token` as `page_token`,\nunchanged and with the same filters. A `null` token means there are no more pages.\n\n## Errors\nErrors use RFC 9457 `application/problem+json` with a stable `code` and a `request_id`\nto quote when you ask for support. A query that selects more than 10,000 results is\nrejected with 400 `QUERY_TOO_BROAD`, not truncated.\n\n## Caching and retries\nMetadata and observation responses can be cached for 60 seconds. Detail responses\nreturn an `ETag`; send it as `If-None-Match` to get an empty 304 when nothing changed.\nWait for `Retry-After` seconds before you retry a 429 or 503.\n\n## Interpreting results\nRead each value with its `value_state`, source, methodology version, `release_id`, and\n`limitations`. Atlas results are not a diagnosis. Atlas results are not an estimate of\nan individual's risk. Surveillance floors are minimum counts, not complete incidence.\nNull, zero, suppressed, and no linked record mean different things. The response time\nshows when Atlas built the response. It does not show when the publisher last updated\nthe data.\n\n## Stability\n`/v1` is the contract version, and the application version is separate. Optional fields\nmay be added within V1. Breaking changes follow a published deprecation plan.\n",
+    "description": "Read-only JSON API for county and state Lyme disease surveillance,\npublic-health context, and the sources behind them. It is for developers, analysts, and\npublic-health practitioners. The base URL is\n`https://api.onehealthatlas.org`, and public reads need no API key.\n\n## Quickstart\nGet the 2023 case-count floor for New York County (FIPS `36061`):\n\n```bash\ncurl 'https://api.onehealthatlas.org/v1/observations?measure_id=case_count_floor_2023&geography_type=county&geography_id=36061&year=2023'\n```\n\nThe response is trimmed to the fields that matter. The values are an example:\n\n```json\n{\n  \"data\": [{\n    \"measure_id\": \"case_count_floor_2023\",\n    \"geography\": {\"geography_type\": \"county\", \"geography_id\": \"36061\"},\n    \"value\": 1114.0, \"value_state\": \"OBSERVED\", \"unit\": \"cases\",\n    \"source_label\": \"CDC Lyme surveillance\", \"release_id\": \"...\",\n    \"limitations\": [\"...\"]\n  }],\n  \"meta\": {\"next_page_token\": null, \"availability\": \"AVAILABLE\"},\n  \"links\": {\"self\": null}\n}\n```\n\n## Responses\nCollections return `data` (the items), `meta` (paging, `availability`, `release_id`,\nresponse time), and `links`. A single resource returns `data`.\n\n## Pagination\n`page_size` defaults to 100 (maximum 500). Send `meta.next_page_token` as `page_token`,\nunchanged and with the same filters. A `null` token means there are no more pages.\n\n## Errors\nErrors use RFC 9457 `application/problem+json` with a stable `code` and a `request_id`\nto quote when you ask for support. A query that selects more than 10,000 results is\nrejected with 400 `QUERY_TOO_BROAD`, not truncated.\n\n## Response headers and caching\nEvery response carries `Content-Type` and `X-Request-ID`. Quote the request ID when you\nask for support. Each `200` response lists the other headers it sends, including\n`Cache-Control` and `ETag`. Cache lifetimes differ by operation: 60 seconds for metadata\nlists and details, 300 seconds for scores, map values, county detail, and reports, and one\nyear for display geometry. Observation queries set no cache lifetime.\n\nDetail resources, display geometry, and PDF reports return a validator `ETag`. Send it back as\n`If-None-Match` to get an empty `304` when nothing changed. Other operations ignore\n`If-None-Match` and always return the full body. While the API serves a fallback copy of its\ndata, cacheable responses switch to `Cache-Control: private, no-store`.\n\n## Rate limits and retries\nPublic reads need no key. Anonymous reads of the metadata, provenance, observation, and\ngeography availability operations are limited per client address to 60 requests in a rolling\nminute and 5 requests at once. All other operations share a separate, higher per-address limit. These\nfigures are the current defaults and can change. Atlas publishes no per-key quota or service\nlevel, so rely on the response headers, not on a fixed number.\n\nA `429` response means you went over a limit. A `503` response means the data service or report\nrenderer cannot answer right now. Both can carry `Retry-After`, in whole seconds. Wait that\nlong before you retry. When the header is absent, wait 1 second, then double the wait\nafter each failure up to 60 seconds, and add a small random delay. Stop after a few attempts.\nDo not retry a `400`, `404`, or `422`, because the same request fails again.\n\n## Interpreting results\nRead each value with its `value_state`, source, methodology version, `release_id`, and\n`limitations`. Atlas results are not a diagnosis. Atlas results are not an estimate of\nan individual's risk. Surveillance floors are minimum counts, not complete incidence.\nNull, zero, suppressed, and no linked record mean different things. The response time\nshows when Atlas built the response. It does not show when the publisher last updated\nthe data.\n\n## Stability\n`/v1` is the contract version, and the application version is separate. Optional fields\nmay be added within V1. Breaking changes follow a published deprecation plan.\n",
     "contact": {
       "name": "One Health Atlas",
       "url": "https://onehealthatlas.org/"
@@ -105,6 +105,35 @@
                     "description": "Response headers: `Content-Type: application/geo+json`, a weak `ETag`, and `Cache-Control: public, max-age=31536000, immutable`. The body is a `FeatureCollection` with one feature per county; this sample keeps one feature."
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/geo+json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/geo+json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=31536000, immutable`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=31536000, immutable"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. Send it as `If-None-Match` to get an empty 304 when nothing changed. Send the value back exactly as you received it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -238,7 +267,7 @@
             }
           },
           "304": {
-            "description": "Matching If-None-Match; empty body."
+            "description": "Not modified. Your `If-None-Match` value matches the current `ETag`. The response has no body."
           }
         }
       }
@@ -272,7 +301,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Successful response. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -302,6 +331,35 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=300`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=300"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. It is informational here: the operation does not answer `If-None-Match`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -466,7 +524,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Successful response. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -519,6 +577,35 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=300`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=300"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. It is informational here: the operation does not answer `If-None-Match`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -788,7 +875,7 @@
         ],
         "responses": {
           "200": {
-            "description": "CSV attachment.",
+            "description": "CSV attachment. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "text/csv": {
                 "schema": {
@@ -801,6 +888,34 @@
                     "description": "Response headers: `Content-Type: text/csv; charset=utf-8` and `Content-Disposition: attachment; filename=\"lyme-gap-atlas-ranking-all.csv\"`. The body lists every county; this sample shows the header row and two data rows."
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `text/csv`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "text/csv"
+              },
+              "Cache-Control": {
+                "description": "The API sets no `Cache-Control` header, so do not assume a cache lifetime.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Disposition": {
+                "description": "Marks the body as a download and suggests the file name.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -1034,7 +1149,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Successful response. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1115,6 +1230,35 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=300`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=300"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. It is informational here: the operation does not answer `If-None-Match`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -1363,7 +1507,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Successful response. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1675,6 +1819,35 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=300`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=300"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. It is informational here: the operation does not answer `If-None-Match`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -2002,6 +2175,41 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/pdf`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/pdf"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=300, must-revalidate`. The `county-v1` and `county-v3` templates send this value. The `county-v2` template sends `no-store`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=300, must-revalidate"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. Send it as `If-None-Match` to get an empty 304 when nothing changed. Send the value back exactly as you received it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Disposition": {
+                "description": "Marks the body as a download and suggests the file name.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
+              }
             }
           },
           "404": {
@@ -2134,7 +2342,21 @@
             }
           },
           "304": {
-            "description": "Matching If-None-Match; empty body."
+            "description": "Not modified. Your `If-None-Match` value matches the current `ETag`. The response has no body.",
+            "headers": {
+              "ETag": {
+                "description": "The matching validator.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The same cache rule as the `200` response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "400": {
             "description": "The report's observation context selects more than the result limit. The `code` is `QUERY_TOO_BROAD`. Shorten the period or request fewer measures, then retry.",
@@ -2215,7 +2437,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Both model variants, including explicit publication availability.",
+            "description": "Both model variants, including explicit publication availability. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2698,6 +2920,29 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
+              }
             }
           },
           "404": {
@@ -2860,7 +3105,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Successful response. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2895,6 +3140,29 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -3057,7 +3325,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Successful response. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3097,6 +3365,29 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -3272,7 +3563,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Typed answer. While canonical geography identity delivery is unpublished this is availability UNAVAILABLE with data null (HTTP 200, not 5xx, because the hosting edge replaces origin 5xx responses with an HTML 504).",
+            "description": "Typed answer. While canonical geography identity delivery is unpublished this is availability UNAVAILABLE with data null (HTTP 200, not 5xx, because the hosting edge replaces origin 5xx responses with an HTML 504). This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3304,6 +3595,29 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -3506,7 +3820,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Confirmed current county identity; canonical publication is pending.",
+            "description": "Confirmed current county identity; canonical publication is pending. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3527,6 +3841,29 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -3786,7 +4123,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful current-release resource.",
+            "description": "Successful current-release resource. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3842,6 +4179,29 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60, must-revalidate`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60, must-revalidate"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -4098,6 +4458,35 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60, must-revalidate`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60, must-revalidate"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. Send it as `If-None-Match` to get an empty 304 when nothing changed. Send the value back exactly as you received it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
+              }
             }
           },
           "400": {
@@ -4292,7 +4681,21 @@
             }
           },
           "304": {
-            "description": "Not modified. ETag matches If-None-Match; empty response body."
+            "description": "Not modified. Your `If-None-Match` value matches the current `ETag`. The response has no body.",
+            "headers": {
+              "ETag": {
+                "description": "The matching validator.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The same cache rule as the `200` response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -4393,7 +4796,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful current-release resource.",
+            "description": "Successful current-release resource. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4465,6 +4868,29 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60, must-revalidate`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60, must-revalidate"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -4727,6 +5153,35 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60, must-revalidate`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60, must-revalidate"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. Send it as `If-None-Match` to get an empty 304 when nothing changed. Send the value back exactly as you received it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
+              }
             }
           },
           "400": {
@@ -4921,7 +5376,21 @@
             }
           },
           "304": {
-            "description": "Not modified. ETag matches If-None-Match; empty response body."
+            "description": "Not modified. Your `If-None-Match` value matches the current `ETag`. The response has no body.",
+            "headers": {
+              "ETag": {
+                "description": "The matching validator.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The same cache rule as the `200` response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -4976,6 +5445,35 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60, must-revalidate`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60, must-revalidate"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. Send it as `If-None-Match` to get an empty 304 when nothing changed. Send the value back exactly as you received it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -5171,7 +5669,21 @@
             }
           },
           "304": {
-            "description": "Not modified. ETag matches If-None-Match; empty response body."
+            "description": "Not modified. Your `If-None-Match` value matches the current `ETag`. The response has no body.",
+            "headers": {
+              "ETag": {
+                "description": "The matching validator.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The same cache rule as the `200` response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -5358,7 +5870,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Bounded current-release observations.",
+            "description": "Bounded current-release observations. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5527,6 +6039,28 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "The API sets no `Cache-Control` header on an available result, so do not assume a cache lifetime. It sends `no-store` when `meta.availability` is `UNAVAILABLE`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -5795,7 +6329,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful current-release resource.",
+            "description": "Successful current-release resource. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5855,6 +6389,29 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60, must-revalidate`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60, must-revalidate"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },
@@ -6111,6 +6668,35 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60, must-revalidate`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60, must-revalidate"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. Send it as `If-None-Match` to get an empty 304 when nothing changed. Send the value back exactly as you received it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
+              }
             }
           },
           "400": {
@@ -6305,7 +6891,21 @@
             }
           },
           "304": {
-            "description": "Not modified. ETag matches If-None-Match; empty response body."
+            "description": "Not modified. Your `If-None-Match` value matches the current `ETag`. The response has no body.",
+            "headers": {
+              "ETag": {
+                "description": "The matching validator.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The same cache rule as the `200` response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -6454,6 +7054,41 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/pdf`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/pdf"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=300, must-revalidate`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=300, must-revalidate"
+              },
+              "ETag": {
+                "description": "Opaque validator for this representation. Send it as `If-None-Match` to get an empty 304 when nothing changed. Send the value back exactly as you received it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Disposition": {
+                "description": "Marks the body as a download and suggests the file name.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
+              }
             }
           },
           "404": {
@@ -6586,7 +7221,21 @@
             }
           },
           "304": {
-            "description": "Matching If-None-Match; empty body."
+            "description": "Not modified. Your `If-None-Match` value matches the current `ETag`. The response has no body.",
+            "headers": {
+              "ETag": {
+                "description": "The matching validator.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "The same cache rule as the `200` response.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "413": {
             "description": "The report is larger than the API can render. Request a shorter period or fewer measures, then retry.",
@@ -6677,7 +7326,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Successful response. This operation ignores `If-None-Match` and always returns 200 with the full body.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6727,6 +7376,29 @@
                     }
                   }
                 }
+              }
+            },
+            "headers": {
+              "Content-Type": {
+                "description": "Media type of the body: `application/json`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "application/json"
+              },
+              "Cache-Control": {
+                "description": "How long a client or shared cache can reuse the response: `public, max-age=60, must-revalidate`. While the API serves a fallback copy of its data, it replaces a `public` value with `private, no-store`.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "public, max-age=60, must-revalidate"
+              },
+              "X-Request-ID": {
+                "description": "Identifier for this request. Quote it when you ask for support. If you send a valid `X-Request-ID` request header, the API uses that value. Otherwise it generates one. A response that a shared cache replays can carry the identifier of the request that filled the cache.",
+                "schema": {
+                  "type": "string"
+                },
+                "example": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93"
               }
             }
           },

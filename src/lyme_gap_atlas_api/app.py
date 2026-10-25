@@ -133,6 +133,7 @@ from .public_docs import (
     REPORT_UNAVAILABLE_RESPONSE,
     TAGS,
     apply_response_examples,
+    apply_response_headers,
     problem_response,
     problem_type_uri,
     route_problem_instances,
@@ -273,6 +274,7 @@ class AtlasFastAPI(FastAPI):
         normalize_nullable_types(schema)
         schema["info"]["x-logo"] = deepcopy(LOGO)
         apply_response_examples(schema)
+        apply_response_headers(schema)
         self._first_party_schema = schema
         return schema
 

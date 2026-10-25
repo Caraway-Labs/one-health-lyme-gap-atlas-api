@@ -13,7 +13,7 @@ from lyme_gap_atlas_api.surveillance_situations import CountySurveillanceSituati
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", default="https://api.carawaylabs.com")
+    parser.add_argument("--base-url", default="https://api.onehealthatlas.org")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     fixture = Path(__file__).resolve().parents[1] / (

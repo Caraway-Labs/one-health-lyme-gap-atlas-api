@@ -1,5 +1,7 @@
 # API #237 / #247 typed availability handoff
 
+> Historical record. It records a past rollout plan that probed the old API hostname. Its `carawaylabs.com` host names are kept as written because they describe the system as it was then.
+
 Baseline `af70c64077aa94e89622b485cf3a2b0eecf47007`, isolated branch
 `codex/api-237-typed-availability`. No edits in the investigation, API248, Data
 or Web checkouts. See the [503 classification](api-237-availability-classification.md)

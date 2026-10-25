@@ -1,6 +1,6 @@
 # County surveillance situations (API #253)
 
-`GET https://api.carawaylabs.com/v1/counties/{fips}/surveillance-situations`
+`GET https://api.onehealthatlas.org/v1/counties/{fips}/surveillance-situations`
 is an additive anonymous read. Production readiness requires the deployment
 receipt and live canaries; the existence of this document does not prove deployment.
 The authoritative schemas are `openapi.json` (public HTTP) and
