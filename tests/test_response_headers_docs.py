@@ -47,4 +47,4 @@ def test_rate_limit_and_retry_guidance_is_in_the_overview() -> None:
     description = client.get("/openapi.json").json()["info"]["description"]
     assert "## Rate limits and retries" in description
     assert "`Retry-After`" in description
-    assert "60 requests in a rolling minute" in description
+    assert "60 requests in a rolling minute" in " ".join(description.split())

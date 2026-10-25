@@ -50,29 +50,21 @@ to quote when you ask for support. A query that selects more than 10,000 results
 rejected with 400 `QUERY_TOO_BROAD`, not truncated.
 
 ## Response headers and caching
-Every response carries `Content-Type` and `X-Request-ID`. Quote the request ID when you
-ask for support. Each `200` response lists the other headers it sends, including
-`Cache-Control` and `ETag`. Cache lifetimes differ by operation: 60 seconds for metadata
-lists and details, 300 seconds for scores, map values, county detail, and reports, and one
-year for display geometry. Observation queries set no cache lifetime.
-
-Detail resources, display geometry, and PDF reports return a validator `ETag`. Send it back as
-`If-None-Match` to get an empty `304` when nothing changed. Other operations ignore
-`If-None-Match` and always return the full body. While the API serves a fallback copy of its
-data, cacheable responses switch to `Cache-Control: private, no-store`.
+Every response carries `Content-Type` and `X-Request-ID`; quote the request ID when you
+ask for support. Each `200` lists the other headers it sends. Cache lifetimes differ by
+operation, from 60 seconds for metadata to one year for display geometry. Observation
+queries set none. Detail resources, display geometry, and PDF reports return an `ETag`.
+Send it as `If-None-Match` to get an empty `304`. Other operations always return the
+full body. While the API serves a fallback copy of its data, it sends `private, no-store`.
 
 ## Rate limits and retries
-Public reads need no key. Anonymous reads of the metadata, provenance, observation, and
-geography availability operations are limited per client address to 60 requests in a rolling
-minute and 5 requests at once. All other operations share a separate, higher per-address
-limit. These figures are the current defaults and can change. Atlas publishes no per-key
-quota or service level, so rely on the response headers, not on a fixed number.
-
-A `429` response means you went over a limit. A `503` response means the data service or report
-renderer cannot answer right now. Both can carry `Retry-After`, in whole seconds. Wait that
-long before you retry. When the header is absent, wait 1 second, then double the wait
-after each failure up to 60 seconds, and add a small random delay. Stop after a few attempts.
-Do not retry a `400`, `404`, or `422`, because the same request fails again.
+Reads of the metadata, provenance, observation, and geography availability operations
+are limited per client address to 60 requests in a rolling minute and 5 at once. Other
+operations have a separate, higher limit. These are current defaults and can change.
+Atlas publishes no per-key quota or service level. A `429` means you went over a limit.
+A `503` means the data service or renderer cannot answer. Both can carry `Retry-After`
+in seconds; wait that long. Without it, wait 1 second, double after each failure up to
+60 seconds, add jitter, and stop after a few attempts. Do not retry a `400`, `404`, or `422`.
 
 ## Interpreting results
 Read each value with its `value_state`, source, methodology version, `release_id`, and
