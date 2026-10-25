@@ -192,7 +192,7 @@ def test_real_driver_bounds_125_second_stall_and_closes_socket(phase: str) -> No
                     with pytest.raises(TimeoutError):
                         await retriever(uri)._retrieve("fixture", [0.1], started + BUDGET)
                 elapsed = time.monotonic() - started
-            assert elapsed >= BUDGET * 0.8
+            assert BUDGET * 0.8 <= elapsed < MAX_ELAPSED
             assert phase in peer.reached
             print(f"{phase}: {elapsed * 1000:.1f} ms, budget {BUDGET * 1000:.0f} ms")
 
@@ -219,6 +219,7 @@ def test_real_driver_transient_failure_has_no_managed_retry() -> None:
                 async with asyncio.timeout(HANG_GUARD_SECONDS):
                     with pytest.raises(DatabaseUnavailable):
                         await retriever(uri)._retrieve("fixture", [0.1], started + 2)
+                assert time.monotonic() - started < MAX_ELAPSED
             assert peer.begin_count == 1
 
     asyncio.run(run())
@@ -233,6 +234,7 @@ def test_transient_failure_reset_stall_remains_within_original_deadline() -> Non
                 async with asyncio.timeout(HANG_GUARD_SECONDS):
                     with pytest.raises(TimeoutError):
                         await retriever(uri)._retrieve("fixture", [0.1], started + BUDGET)
+                assert time.monotonic() - started < MAX_ELAPSED
             assert peer.begin_count == 1
             assert "reset" in peer.reached
 
@@ -252,6 +254,7 @@ def test_real_driver_failed_connection_is_bounded() -> None:
                     await retriever(f"bolt://127.0.0.1:{port}")._retrieve(
                         "fixture", [0.1], started + BUDGET
                     )
+            assert time.monotonic() - started < MAX_ELAPSED
 
     asyncio.run(run())
 
@@ -276,6 +279,7 @@ def test_real_driver_cleanup_stall_is_cancelled_and_connection_killed(monkeypatc
                 async with asyncio.timeout(HANG_GUARD_SECONDS):
                     with pytest.raises(TimeoutError):
                         await retriever(uri)._retrieve("fixture", [0.1], started + BUDGET)
+                assert time.monotonic() - started < MAX_ELAPSED
             assert entered
 
     asyncio.run(run())
@@ -383,14 +387,16 @@ def test_repeated_timeouts_leave_no_driver_tasks_or_threads() -> None:
         async with peer_uri(peer) as uri:
             with gc_excluded():
                 for _ in range(4):
+                    started = time.monotonic()
                     async with asyncio.timeout(HANG_GUARD_SECONDS):
                         with pytest.raises(TimeoutError):
-                            await retriever(uri)._retrieve(
-                                "fixture", [0.1], time.monotonic() + BUDGET
-                            )
+                            await retriever(uri)._retrieve("fixture", [0.1], started + BUDGET)
+                    assert time.monotonic() - started < MAX_ELAPSED
+                started = time.monotonic()
                 async with asyncio.timeout(HANG_GUARD_SECONDS):
                     while peer.tasks:
                         await asyncio.sleep(0.001)
+                assert time.monotonic() - started < MAX_ELAPSED
             assert peer.begin_count == 4
         await asyncio.sleep(0)
         assert asyncio.all_tasks() == baseline
@@ -448,10 +454,13 @@ def test_six_concurrent_stalls_release_all_sessions() -> None:
 
             requests = [asyncio.create_task(request()) for _ in range(6)]
             with gc_excluded():
+                started = time.monotonic()
                 async with asyncio.timeout(HANG_GUARD_SECONDS):
                     await ready.wait()
                     await asyncio.gather(*requests)
-            assert len(durations) == 6 and all(d >= BUDGET * 0.8 for d in durations)
+                elapsed = time.monotonic() - started
+            assert elapsed < MAX_ELAPSED, (elapsed, durations)
+            assert len(durations) == 6 and all(BUDGET * 0.8 <= d < MAX_ELAPSED for d in durations)
             assert peer.accepted - accepted_before == 6
         await asyncio.sleep(0)
         assert asyncio.all_tasks() == baseline
@@ -481,7 +490,7 @@ def test_before_after_same_slow_peer() -> None:
                     with pytest.raises(TimeoutError):
                         await retriever(uri)._retrieve("fixture", [0.1], started + BUDGET)
                 after = time.monotonic() - started
-            assert before >= 0.35
+            assert before >= 0.35 and after < MAX_ELAPSED
             assert after < before
             print(f"same peer: before={before * 1000:.1f} ms after={after * 1000:.1f} ms")
 
