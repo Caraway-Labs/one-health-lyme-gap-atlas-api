@@ -828,23 +828,47 @@
             }
           },
           "400": {
-            "description": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
+            "description": "The request is invalid or unsupported. The `code` is `INVALID_REQUEST` for a missing, malformed, or inconsistent parameter, `UNSUPPORTED_FILTER` for a parameter V1 does not accept, `UNSUPPORTED_STRATIFICATION` for a stratification (observation queries only), or `QUERY_TOO_BROAD` when a query selects more than the result limit. Read `detail` and `errors`, change the request, then retry. The same request fails again.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "illustrative": {
-                    "summary": "Synthetic error example",
+                  "invalid_request": {
+                    "summary": "Missing required parameter",
+                    "description": "Shows `INVALID_REQUEST` when a required query parameter is absent.",
                     "value": {
-                      "type": "https://onehealthatlas.org/problems/http-400",
-                      "title": "Request failed",
+                      "type": "https://onehealthatlas.org/problems/validation",
+                      "title": "Invalid request",
                       "status": 400,
-                      "detail": "INVALID_REQUEST, UNSUPPORTED_FILTER, UNSUPPORTED_STRATIFICATION, or QUERY_TOO_BROAD; application/problem+json",
+                      "detail": "One or more request values are invalid.",
                       "instance": "/v1/geographies/{geography_type}/{geography_id}",
-                      "request_id": "example-request-id",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "errors": [
+                        {
+                          "type": "missing",
+                          "loc": [
+                            "query",
+                            "measure_id"
+                          ],
+                          "msg": "Field required"
+                        }
+                      ],
                       "code": "INVALID_REQUEST"
+                    }
+                  },
+                  "unsupported_filter": {
+                    "summary": "Query parameter V1 does not accept",
+                    "description": "Shows `UNSUPPORTED_FILTER` when a request includes a parameter outside V1.",
+                    "value": {
+                      "type": "https://onehealthatlas.org/problems/unsupported-filter",
+                      "title": "Invalid public query",
+                      "status": 400,
+                      "detail": "This query filter is not supported in V1.",
+                      "instance": "/v1/geographies/{geography_type}/{geography_id}",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
+                      "code": "UNSUPPORTED_FILTER"
                     }
                   }
                 }
@@ -852,22 +876,23 @@
             }
           },
           "404": {
-            "description": "RESOURCE_NOT_FOUND; application/problem+json",
+            "description": "The resource ID, or the selection you asked for, is not in the current release. The `code` is `RESOURCE_NOT_FOUND` and `detail` names what is missing. Check the ID against the list operation for that resource. Retrying the same request returns the same response.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "illustrative": {
-                    "summary": "Synthetic error example",
+                  "resource_not_found": {
+                    "summary": "Unknown resource ID",
+                    "description": "Shows `RESOURCE_NOT_FOUND` for a selection that is not in the current release.",
                     "value": {
-                      "type": "https://onehealthatlas.org/problems/http-404",
-                      "title": "Request failed",
+                      "type": "https://onehealthatlas.org/problems/resource-not-found",
+                      "title": "Invalid public query",
                       "status": 404,
-                      "detail": "RESOURCE_NOT_FOUND; application/problem+json",
+                      "detail": "County is not in the current geography release.",
                       "instance": "/v1/geographies/{geography_type}/{geography_id}",
-                      "request_id": "example-request-id",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
                       "code": "RESOURCE_NOT_FOUND"
                     }
                   }
@@ -876,22 +901,23 @@
             }
           },
           "429": {
-            "description": "Rate limited; Retry-After; application/problem+json",
+            "description": "You sent too many requests in a short time. Wait the number of seconds in the `Retry-After` header, then retry. Spread requests out or reuse cached responses to stay under the limit.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "illustrative": {
-                    "summary": "Synthetic error example",
+                  "rate_limited": {
+                    "summary": "Request limit reached",
+                    "description": "Shows `RATE_LIMITED`. The response also sets `Retry-After`.",
                     "value": {
-                      "type": "https://onehealthatlas.org/problems/http-429",
-                      "title": "Request failed",
+                      "type": "https://onehealthatlas.org/problems/rate-limited",
+                      "title": "Too many requests",
                       "status": 429,
-                      "detail": "Rate limited; Retry-After; application/problem+json",
+                      "detail": "Public request limit reached.",
                       "instance": "/v1/geographies/{geography_type}/{geography_id}",
-                      "request_id": "example-request-id",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
                       "code": "RATE_LIMITED"
                     }
                   }
@@ -900,30 +926,32 @@
             },
             "headers": {
               "Retry-After": {
-                "description": "Seconds before retry when supplied by the service.",
+                "description": "Seconds to wait before you retry. Wait that long when the header is present.",
                 "schema": {
                   "type": "string"
-                }
+                },
+                "example": "30"
               }
             }
           },
           "413": {
-            "description": "GET request body rejected; application/problem+json",
+            "description": "The request is a GET with a body. The `code` is `INVALID_REQUEST`. Send the request again without a body and put every value in the query string.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "illustrative": {
-                    "summary": "Synthetic error example",
+                  "get_body_unsupported": {
+                    "summary": "GET request with a body",
+                    "description": "Shows `INVALID_REQUEST` when a GET request carries a body.",
                     "value": {
-                      "type": "https://onehealthatlas.org/problems/http-413",
-                      "title": "Request failed",
+                      "type": "https://onehealthatlas.org/problems/invalid-request",
+                      "title": "Payload too large",
                       "status": 413,
-                      "detail": "GET request body rejected; application/problem+json",
+                      "detail": "GET request bodies are unsupported.",
                       "instance": "/v1/geographies/{geography_type}/{geography_id}",
-                      "request_id": "example-request-id",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
                       "code": "INVALID_REQUEST"
                     }
                   }
@@ -932,22 +960,23 @@
             }
           },
           "414": {
-            "description": "Query string too long; application/problem+json",
+            "description": "The query string is longer than the API accepts. The `code` is `INVALID_REQUEST`. Send fewer or shorter parameter values, then retry.",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 },
                 "examples": {
-                  "illustrative": {
-                    "summary": "Synthetic error example",
+                  "query_string_too_long": {
+                    "summary": "Query string over the length limit",
+                    "description": "Shows `INVALID_REQUEST` when the query string is too long.",
                     "value": {
-                      "type": "https://onehealthatlas.org/problems/http-414",
-                      "title": "Request failed",
+                      "type": "https://onehealthatlas.org/problems/invalid-request",
+                      "title": "URI too long",
                       "status": 414,
-                      "detail": "Query string too long; application/problem+json",
+                      "detail": "Query string is too long.",
                       "instance": "/v1/geographies/{geography_type}/{geography_id}",
-                      "request_id": "example-request-id",
+                      "request_id": "3f0a1c52-8d7e-4b6a-9c21-5e4d7a1b0f93",
                       "code": "INVALID_REQUEST"
                     }
                   }
