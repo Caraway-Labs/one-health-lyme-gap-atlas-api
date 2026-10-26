@@ -1,13 +1,24 @@
 """Rows that cannot be projected safely are omitted from list pages, never rendered."""
 
+import json
 from copy import deepcopy
 from typing import Any
 
 import pytest
 from _feed_skip import ROW_SKIPPED, ROWS_SKIPPED, assert_row_skipped, skip_log
+from pydantic import ValidationError
 from test_intelligence_feed_read import Repository
 from test_intelligence_feed_read import client as items_client
 from test_intelligence_metadata_feed import MetadataRepository, client
+
+from lyme_gap_atlas_api.intelligence_feed import (
+    ITEM_COLUMNS,
+    VARIANTS,
+    _failing_fields,
+    _feed_row_identity,
+    _item_row_identity,
+    _safe_identifier,
+)
 
 UNSAFE_URL = "javascript:alert('private-link')"
 
@@ -143,3 +154,65 @@ def test_items_skip_unsafe_row_and_fail_closed_when_all_rows_fail() -> None:
         "items",
     ]
     assert UNSAFE_URL not in log.text
+
+
+def test_failing_fields_report_schema_paths_without_row_values() -> None:
+    from pydantic import BaseModel, ConfigDict
+
+    class Inner(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        url: str
+
+    class Outer(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        links: list[Inner]
+        named: dict[str, int]
+
+    with pytest.raises(ValidationError) as caught:
+        Outer.model_validate(
+            {
+                "links": [{"url": 1, "Private-Key name": "secret-value"}],
+                "named": {"Not A Field": "secret-value"},
+            }
+        )
+    fields = _failing_fields(caught.value)
+    assert fields == ["links[]", "links[].url", "named.*"]
+    assert "secret-value" not in str(fields) and "Private-Key" not in str(fields)
+
+    assert _failing_fields(ValueError("INTELLIGENCE_SOURCE_FAMILY_INVALID")) == [
+        "publisher_feed.source_family"
+    ]
+    assert _failing_fields(ValueError("secret-value")) == ["row"]
+    assert _failing_fields(json.JSONDecodeError("secret-value", "{x", 1)) == ["variant_json"]
+    assert _failing_fields(KeyError("secret-value")) == ["row"]
+
+
+def test_skip_identity_only_echoes_identifier_shaped_values() -> None:
+    assert _feed_row_identity(("a" * 64, "x", "cdc-eid-expedited", 1, "CDC", "c")) == (
+        "a" * 64,
+        "cdc-eid-expedited",
+    )
+    assert _feed_row_identity(()) == ("unavailable", "unavailable")
+    assert _safe_identifier("https://example.org/secret") == "unavailable"
+    assert _safe_identifier(None) == "unavailable"
+    assert _item_row_identity(("<script>",)) == ("unavailable", "unavailable")
+
+
+def test_items_accept_variant_columns_delivered_as_json_text() -> None:
+    repository = Repository()
+    original = repository.read
+
+    def read(*args: Any) -> tuple[str, list[tuple[Any, ...]]]:
+        marker, rows = original(*args)
+        names = list(ITEM_COLUMNS)
+        return marker, [
+            tuple(
+                json.dumps(value) if index < len(names) and names[index] in VARIANTS else value
+                for index, value in enumerate(row)
+            )
+            for row in rows
+        ]
+
+    repository.read = read  # type: ignore[method-assign]
+    response = items_client(repository).get("/v1/intelligence/items")
+    assert response.status_code == 200 and response.json()["data"]
