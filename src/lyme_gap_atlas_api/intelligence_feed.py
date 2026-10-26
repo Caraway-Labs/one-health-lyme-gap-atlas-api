@@ -358,8 +358,11 @@ def list_feed_description() -> str:
         "unknown dates. Entries with a publisher date are newest first. Entries with an "
         "unknown publisher date are last. Matching publisher dates use a stable tie-break "
         "of item id, revision id, source id, and registry version. Bounded "
-        "state/filter-bound pagination. The response must not be cached. Disabled or "
-        "unavailable returns 503; an available empty projection returns 200."
+        "state/filter-bound pagination. An entry that cannot be projected safely is "
+        "omitted from the list, so a page can contain fewer than page_size entries; follow "
+        "next_page_token until it is null. The response must not be cached. Disabled or "
+        "unavailable returns 503, as does a page on which no entry can be projected safely; "
+        "an available empty projection returns 200."
     )
 
 
@@ -1342,6 +1345,135 @@ class SnowflakeFeedRepository:
         return select_latest_source_health(fetched), len(fetched)
 
 
+_SKIP_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$")
+_SKIP_FIELD = re.compile(r"^[a-z_][a-z0-9_]{0,63}$")
+_SKIP_FIELD_LIMIT = 10
+_PROJECTION_ERROR_FIELDS: Final[dict[str, str]] = {
+    "INTELLIGENCE_SOURCE_FAMILY_INVALID": "publisher_feed.source_family",
+}
+
+
+def _feed_document(row: tuple[Any, ...]) -> tuple[dict[str, Any], int]:
+    prefix = dict(zip(_FEED_RAW_PREFIX, row[: len(_FEED_RAW_PREFIX)], strict=True))
+    for field in ("provenance", "limitations"):
+        if isinstance(prefix[field], str):
+            prefix[field] = json.loads(prefix[field])
+    source = dict(zip(_SOURCE_FIELDS, row[-4:], strict=True))
+    return project_feed_document(prefix, row[len(_FEED_RAW_PREFIX)], source)
+
+
+def _log_withheld(withheld: int) -> None:
+    if withheld:
+        logger.info(
+            "intelligence_feed_untrusted_text_withheld withheld_text_count=%s",
+            withheld,
+        )
+
+
+def _item_evidence(row: tuple[Any, ...]) -> FeedEvidence:
+    if len(row) == len(V2_COLUMNS) + 2:
+        document = dict(zip(V2_COLUMNS, row[:-2], strict=True))
+        fields = VARIANTS | {"publisher_metadata", "derived_metadata"}
+    else:
+        document = dict(zip(ITEM_COLUMNS, row[:-2], strict=True))
+        fields = VARIANTS
+    for field in fields:
+        if isinstance(document[field], str):
+            document[field] = json.loads(document[field])
+    item = (
+        IntelligenceItemProjectionV2.model_validate(document)
+        if document["contract_version"] == "2.0.0"
+        else IntelligenceItem.model_validate(document)
+    )
+    source = BriefingSource(
+        source_id=item.source_id,
+        registry_version=item.registry_version,
+        organization=row[-2],
+        reviewed_trust_classification=row[-1],
+    )
+    return FeedEvidence(item=item, source=source)
+
+
+def _safe_identifier(value: object) -> str:
+    """Identifiers only; anything else in an untrusted row is not echoed to logs."""
+    if isinstance(value, str) and _SKIP_IDENTIFIER.fullmatch(value):
+        return value
+    return "unavailable"
+
+
+def _feed_row_identity(row: tuple[Any, ...]) -> tuple[str, str]:
+    item_id = row[0] if row else None
+    source_id = row[-4] if len(row) >= 4 else None
+    return _safe_identifier(item_id), _safe_identifier(source_id)
+
+
+def _item_row_identity(row: tuple[Any, ...]) -> tuple[str, str]:
+    columns = V2_COLUMNS if len(row) == len(V2_COLUMNS) + 2 else ITEM_COLUMNS
+    named = dict(zip(columns, row, strict=False))
+    return _safe_identifier(named.get("item_id")), _safe_identifier(named.get("source_id"))
+
+
+def _failing_fields(exc: Exception) -> list[str]:
+    """Schema field paths only: no values, no input, and no unexpected key names."""
+    fields: set[str] = set()
+    if isinstance(exc, ValidationError):
+        for error in exc.errors(include_url=False, include_input=False, include_context=False):
+            location = list(error.get("loc", ()))
+            if error.get("type") == "extra_forbidden" and location:
+                # The unexpected key name comes from the row, so report its parent only.
+                location = location[:-1]
+            parts = []
+            for part in location:
+                if isinstance(part, int):
+                    parts.append("[]")
+                elif isinstance(part, str) and _SKIP_FIELD.fullmatch(part):
+                    parts.append(part)
+                else:
+                    parts.append("*")
+            fields.add(".".join(parts).replace(".[]", "[]") or "row")
+    elif isinstance(exc, ValueError) and str(exc) in _PROJECTION_ERROR_FIELDS:
+        fields.add(_PROJECTION_ERROR_FIELDS[str(exc)])
+    elif isinstance(exc, json.JSONDecodeError):
+        fields.add("variant_json")
+    else:
+        fields.add("row")
+    return sorted(fields)[:_SKIP_FIELD_LIMIT]
+
+
+def _log_row_skipped(route: str, identity: tuple[str, str], exc: Exception) -> None:
+    item_id, source_id = identity
+    logger.warning(
+        "intelligence_feed_row_skipped",
+        extra={
+            "context": {
+                "route": route,
+                "item_id": item_id,
+                "source_id": source_id,
+                "fields": _failing_fields(exc),
+                "error_class": type(exc).__name__,
+            }
+        },
+    )
+
+
+def _check_served(route: str, read_count: int, served_count: int) -> None:
+    """Log the per-response skip count; a page whose every row failed stays 503."""
+    skipped = read_count - served_count
+    if skipped:
+        logger.warning(
+            "intelligence_feed_rows_skipped",
+            extra={
+                "context": {
+                    "route": route,
+                    "skipped_count": skipped,
+                    "served_count": served_count,
+                }
+            },
+        )
+    if read_count and not served_count:
+        raise AtlasDataUnavailableError(UNAVAILABLE)
+
+
 class FeedService:
     def __init__(self, repository: FeedRepository) -> None:
         self.repository = repository
@@ -1350,26 +1482,28 @@ class FeedService:
         documents: list[dict[str, Any]] = []
         withheld = 0
         for row in rows:
-            prefix = dict(zip(_FEED_RAW_PREFIX, row[: len(_FEED_RAW_PREFIX)], strict=True))
-            for field in ("provenance", "limitations"):
-                if isinstance(prefix[field], str):
-                    prefix[field] = json.loads(prefix[field])
-            source = dict(zip(_SOURCE_FIELDS, row[-4:], strict=True))
-            document, failures = project_feed_document(prefix, row[len(_FEED_RAW_PREFIX)], source)
+            document, failures = _feed_document(row)
             withheld += failures
             documents.append(document)
-        if withheld:
-            logger.info(
-                "intelligence_feed_untrusted_text_withheld withheld_text_count=%s",
-                withheld,
-            )
+        _log_withheld(withheld)
         return documents
 
     def _feed_entries(self, rows: list[tuple[Any, ...]]) -> tuple[FeedListEntry, ...]:
-        return tuple(
-            FeedListEntry.model_validate(project_list_entry(document))
-            for document in self._documents(rows)
-        )
+        """Project each row on its own; a row that cannot be projected safely is omitted."""
+        entries: list[FeedListEntry] = []
+        withheld = 0
+        for row in rows:
+            try:
+                document, failures = _feed_document(row)
+                entry = FeedListEntry.model_validate(project_list_entry(document))
+            except Exception as exc:
+                _log_row_skipped("feed", _feed_row_identity(row), exc)
+                continue
+            withheld += failures
+            entries.append(entry)
+        _log_withheld(withheld)
+        _check_served("feed", len(rows), len(entries))
+        return tuple(entries)
 
     def entry(self, item_id: str) -> FeedEntry | None:
         rows = self.repository.read_item(item_id)
@@ -1449,29 +1583,14 @@ class FeedService:
                         source_health_available=health is not None,
                     ),
                 )
-            evidence = []
-            for row in rows[:size]:
-                if len(row) == len(V2_COLUMNS) + 2:
-                    document = dict(zip(V2_COLUMNS, row[:-2], strict=True))
-                    fields = VARIANTS | {"publisher_metadata", "derived_metadata"}
-                else:
-                    document = dict(zip(ITEM_COLUMNS, row[:-2], strict=True))
-                    fields = VARIANTS
-                for field in fields:
-                    if isinstance(document[field], str):
-                        document[field] = json.loads(document[field])
-                item = (
-                    IntelligenceItemProjectionV2.model_validate(document)
-                    if document["contract_version"] == "2.0.0"
-                    else IntelligenceItem.model_validate(document)
-                )
-                source = BriefingSource(
-                    source_id=item.source_id,
-                    registry_version=item.registry_version,
-                    organization=row[-2],
-                    reviewed_trust_classification=row[-1],
-                )
-                evidence.append(FeedEvidence(item=item, source=source))
+            evidence: list[FeedEvidence] = []
+            page = rows[:size]
+            for row in page:
+                try:
+                    evidence.append(_item_evidence(row))
+                except Exception as exc:
+                    _log_row_skipped("items", _item_row_identity(row), exc)
+            _check_served("items", len(page), len(evidence))
             return FeedItems(data=tuple(evidence), meta=meta)
         except Exception:
             raise AtlasDataUnavailableError(UNAVAILABLE) from None
@@ -1549,8 +1668,10 @@ def _missing_feed_entry(request: Request) -> JSONResponse:
     description="First-party read only; no ingestion. Stable identity ordering, source/revision "
     "provenance and separate publisher/fetch dates. Optional inclusive publication dates exclude "
     "unknown publisher dates. No retention cutoff is applied. page_size 1–500; "
-    "opaque state/filter-bound tokens may expire on restart or ingestion. no-store; "
-    "disabled/unavailable is 503, not empty data.",
+    "opaque state/filter-bound tokens may expire on restart or ingestion. An item that "
+    "cannot be projected safely is omitted, so a page can contain fewer than page_size "
+    "items; follow next_page_token until it is null. no-store; disabled/unavailable is 503, "
+    "not empty data, as is a page on which no item can be projected safely.",
 )
 def items(
     request: Request,

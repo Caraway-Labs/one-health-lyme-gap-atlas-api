@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Any
 
 import pytest
+from _feed_skip import HEALTHY_ITEM_ID, assert_row_skipped, healthy_copy, skip_log
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from test_intelligence_feed_read import Repository
@@ -68,16 +69,20 @@ class MetadataRepository(Repository):
         self.item_calls: list[str] = []
 
     def _documents(self) -> list[dict[str, Any]]:
-        document = deepcopy(self.document)
-        document.update(
-            contract_version="2.0.0",
-            publisher=document.get("publisher", "CDC"),
-            publication_date_state=document["field_states"]["published_at"],
-        )
-        document["provenance"].update(
-            parser_version="rss-atom-native-v2", normalization_version="intelligence-identity-v2"
-        )
-        return [document]
+        documents = []
+        for raw in (self.document, *self.healthy):
+            document = deepcopy(raw)
+            document.update(
+                contract_version="2.0.0",
+                publisher=document.get("publisher", "CDC"),
+                publication_date_state=document["field_states"]["published_at"],
+            )
+            document["provenance"].update(
+                parser_version="rss-atom-native-v2",
+                normalization_version="intelligence-identity-v2",
+            )
+            documents.append(document)
+        return documents
 
     def read(
         self, kind: str, source: str | None, start: Any, end: Any, offset: int, size: int
@@ -153,7 +158,23 @@ def test_empty_disabled_and_unavailable() -> None:
     assert response.json()["data"] == []
     assert response.json()["meta"]["next_page_token"] is None
 
+    repository.healthy.append(healthy_copy(repository.document))
     repository.document["provenance"]["private"] = "private-token"
+    with skip_log() as log:
+        response = client(repository).get("/v1/intelligence/feed")
+    # The unsafe row is omitted whole; the valid row is still served.
+    assert response.status_code == 200 and "private-token" not in response.text
+    assert [entry["item_id"] for entry in response.json()["data"]] == [HEALTHY_ITEM_ID]
+    assert_row_skipped(
+        log,
+        route="feed",
+        item_id=repository.document["item_id"],
+        source_id="cdc-eid-expedited",
+        field="provenance",
+        forbidden=("private-token",),
+    )
+    # A page whose every row fails stays unavailable rather than silently empty.
+    repository.healthy.clear()
     response = client(repository).get("/v1/intelligence/feed")
     assert response.status_code == 503 and "private-token" not in response.text
 
@@ -233,10 +254,26 @@ def test_openapi_excludes_content_and_public_analytics() -> None:
 )
 def test_unsafe_canonical_links_fail_closed(url: str) -> None:
     repository = MetadataRepository()
+    repository.healthy.append(healthy_copy(repository.document))
     repository.document["canonical_url"] = url
-    response = client(repository).get("/v1/intelligence/feed")
-    assert response.status_code == 503
+    with skip_log() as log:
+        response = client(repository).get("/v1/intelligence/feed")
+    # The unsafe link is never rendered: its row is omitted, the valid row is served.
+    assert response.status_code == 200
     assert url not in response.text
+    data = response.json()["data"]
+    assert [entry["item_id"] for entry in data] == [HEALTHY_ITEM_ID]
+    assert data[0]["canonical_url"] == repository.healthy[0]["canonical_url"]
+    assert_row_skipped(
+        log,
+        route="feed",
+        item_id=repository.document["item_id"],
+        source_id="cdc-eid-expedited",
+        field="canonical_url",
+        forbidden=(url,),
+    )
+    by_id = client(repository).get(f"/v1/intelligence/feed/{repository.document['item_id']}")
+    assert by_id.status_code == 503 and url not in by_id.text
 
 
 def _feed(**overrides: Any) -> dict[str, Any]:

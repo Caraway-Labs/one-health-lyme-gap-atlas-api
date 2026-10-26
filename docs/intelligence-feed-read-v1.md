@@ -51,9 +51,14 @@ publication dates remain null; fetch time never substitutes for them. Inclusive
 publication filters exclude unknown dates. Entries with a publisher date are
 newest first. Entries with an unknown publisher date are last. Matching
 publisher dates use a stable tie-break of item id, revision id, source id, and
-registry version. An available empty view returns 200 with `data: []` and no
-continuation; disabled, inaccessible or invalid projections return a sanitized
-503. The metadata feed does not include source operational state. Source
+registry version. An entry that cannot be projected safely is omitted from the
+list, never served in part, so a page can contain fewer than `page_size`
+entries; keep following `next_page_token` until it is null. Each omitted entry
+is logged as `intelligence_feed_row_skipped` with its item id, source id and the
+failing field names only. A page on which no entry can be projected safely
+returns a sanitized 503. The same applies to `GET /v1/intelligence/items`. An
+available empty view returns 200 with `data: []` and no continuation; disabled,
+inaccessible or invalid projections return a sanitized 503. The metadata feed does not include source operational state. Source
 operational state is on `/v1/intelligence/sources`.
 
 `GET /v1/intelligence/feed/{item_id}` reads one current entry from the same
@@ -62,7 +67,7 @@ governed view. A PubMed entry includes the full abstract as `abstract.text`,
 credit line. It does not include the list preview fields. The item id is the
 64-character digest. Cache-Control is no-store. A malformed id returns 422. An
 id that is not in the feed returns 404 `INTELLIGENCE_ITEM_NOT_FOUND`. Disabled
-or unavailable returns 503. Suppressed abstracts stay suppressed on both routes:
+or unavailable returns 503, as does an entry that cannot be projected safely. Suppressed abstracts stay suppressed on both routes:
 no text and no preview.
 
 ### Release route and acceptance

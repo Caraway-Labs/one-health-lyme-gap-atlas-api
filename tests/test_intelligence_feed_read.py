@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from _feed_skip import HEALTHY_ITEM_ID, assert_row_skipped, healthy_copy, skip_log
 from _pooled import lend
 from fastapi.testclient import TestClient
 
@@ -30,6 +31,7 @@ class Repository:
         self.calls: list[tuple[Any, ...]] = []
         self.document = json.loads(FIXTURE.read_text())
         self.fail = False
+        self.healthy: list[dict[str, Any]] = []
 
     def read(
         self, kind: str, source_id: str | None, start: Any, end: Any, offset: int, size: int
@@ -48,6 +50,10 @@ class Repository:
         rows = [
             values,
             tuple(other[name] for name in ITEM_COLUMNS) + ("CDC", "official_public_health"),
+        ]
+        rows += [
+            tuple(row[name] for name in ITEM_COLUMNS) + ("CDC", "official_public_health")
+            for row in self.healthy
         ]
         return self.marker, rows[offset : offset + size + 1]
 
@@ -239,7 +245,24 @@ def test_source_health_is_unknown_and_catalog_is_not_complete_registry() -> None
 
 def test_private_nested_fields_fail_closed_without_value_disclosure() -> None:
     repository = Repository()
+    repository.healthy.append(healthy_copy(repository.document))
     repository.document["provenance"]["mailbox"] = "private@example.org"
+    with skip_log() as log:
+        response = client(repository).get("/v1/intelligence/items")
+    # Both revisions of the unsafe item are omitted; the valid item is still served.
+    assert response.status_code == 200
+    assert "private@example.org" not in response.text
+    assert [row["item"]["item_id"] for row in response.json()["data"]] == [HEALTHY_ITEM_ID]
+    assert_row_skipped(
+        log,
+        route="items",
+        item_id=repository.document["item_id"],
+        source_id=repository.document["source_id"],
+        field="provenance",
+        forbidden=("private@example.org", "mailbox"),
+        skipped=2,
+    )
+    repository.healthy.clear()
     response = client(repository).get("/v1/intelligence/items")
     assert response.status_code == 503
     assert "private@example.org" not in response.text
@@ -287,15 +310,34 @@ def test_v2_publisher_projection_without_raw_or_private_native_metadata() -> Non
         parser_version="rss-atom-native-v2", normalization_version="intelligence-identity-v2"
     )
 
+    healthy = healthy_copy(document)
+
     class V2Repository(Repository):
         def read(self, *args: Any) -> tuple[str, list[tuple[Any, ...]]]:
             return "v2", [
-                tuple(document[name] for name in V2_COLUMNS) + ("CDC", "official_public_health")
+                tuple(row[name] for name in V2_COLUMNS) + ("CDC", "official_public_health")
+                for row in (document, healthy)
             ]
+
+    def assert_only_healthy(log: Any, response: Any, private_value: str, field: str) -> None:
+        # The unsafe row is omitted whole; the valid row is still served unchanged.
+        assert response.status_code == 200
+        assert private_value not in response.text
+        served = [row["item"]["item_id"] for row in response.json()["data"]]
+        assert served == [HEALTHY_ITEM_ID]
+        assert_row_skipped(
+            log,
+            route="items",
+            item_id=document["item_id"],
+            source_id=document["source_id"],
+            field=field,
+            forbidden=(private_value,),
+        )
 
     app = client(V2Repository())
     response = app.get("/v1/intelligence/items")
     assert response.status_code == 200
+    assert len(response.json()["data"]) == 2
     item = response.json()["data"][0]["item"]
     assert item["contract_version"] == "2.0.0"
     assert item["publisher_metadata"]["categories"] == ["Tick borne research"]
@@ -303,11 +345,14 @@ def test_v2_publisher_projection_without_raw_or_private_native_metadata() -> Non
     assert "native_metadata" not in item and "xml_base64" not in item
     for private_field in ("native_metadata", "xml_base64", "raw_publisher_date", "mailbox"):
         document["publisher_metadata"][private_field] = "private-source-value"
-        rejected = app.get("/v1/intelligence/items")
-        assert rejected.status_code == 503 and "private-source-value" not in rejected.text
+        with skip_log() as log:
+            rejected = app.get("/v1/intelligence/items")
+        assert_only_healthy(log, rejected, "private-source-value", "publisher_metadata")
         del document["publisher_metadata"][private_field]
     document["derived_metadata"] = {"urgency": "high"}
-    assert app.get("/v1/intelligence/items").status_code == 503
+    with skip_log() as log:
+        rejected = app.get("/v1/intelligence/items")
+    assert_only_healthy(log, rejected, "urgency", "derived_metadata")
     document["derived_metadata"] = {}
     for unsafe_url in (
         "https://127.0.0.1/private",
@@ -323,8 +368,9 @@ def test_v2_publisher_projection_without_raw_or_private_native_metadata() -> Non
         "https://example.org/image?sig=private-signature",
     ):
         document["publisher_metadata"]["media"][0]["url"] = unsafe_url
-        rejected = app.get("/v1/intelligence/items")
-        assert rejected.status_code == 503 and unsafe_url not in rejected.text
+        with skip_log() as log:
+            rejected = app.get("/v1/intelligence/items")
+        assert_only_healthy(log, rejected, unsafe_url, "publisher_metadata")
 
 
 @pytest.mark.parametrize("kind", ["items", "feed", "sources"])
