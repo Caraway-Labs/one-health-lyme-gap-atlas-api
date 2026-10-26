@@ -1,0 +1,115 @@
+{
+  "description": "Two PRESENTATION.INTELLIGENCE_FEED_V2 rows from the first PROD PubMed (Entrez) run on 2026-10-26, as the feed list SQL selects them. Public PubMed bibliographic metadata only.",
+  "rows": [
+    {
+      "item_id": "00201b4af1d1cf9278e5605576b221eb3b21c7f8b8aa4243174f2ad088aad56a",
+      "revision_id": "dc9b47d948697bcfddf41a9ffefaa3c48abecdcdc7ab35dbf46d17aa5170921b",
+      "title": "First autochthonous case of severe fever with thrombocytopenia syndrome in Hokkaido, the northernmost island of Japan.",
+      "canonical_url": "https://pubmed.ncbi.nlm.nih.gov/42835937/",
+      "published_at": null,
+      "fetched_at": "2026-10-26T10:28:50Z",
+      "provenance": {
+        "artifact_id": "entrez-19f4a3ae-6e14-5184-adef-382eaa78e778",
+        "artifact_sha256": "9bec0470127404af78b56d80b260aa51fb587ddb32eea40a66b0cf291a4c1d60",
+        "fetch_version": "entrez-eutils-v1",
+        "normalization_version": "intelligence-identity-v2",
+        "parser_version": "entrez-efetch-v1",
+        "run_id": "19f4a3ae-6e14-5184-adef-382eaa78e778"
+      },
+      "limitations": [
+        "Publication-level intelligence; not an epidemiological measurement"
+      ],
+      "contract_version": "2.0.0",
+      "publication_date_state": "not_provided",
+      "publisher": "U.S. National Library of Medicine",
+      "publisher_feed": {
+        "abstract": null,
+        "abstract_suppressed": null,
+        "authors": [
+          "Naganori Nao",
+          "Nozomu Inoue",
+          "Takahiro Maeki",
+          "Ken Maeda",
+          "Tomoki Yoshikawa",
+          "Masayuki Shimojima",
+          "Hideki Ebihara",
+          "Kei Watari",
+          "Kazuya Mitsuhashi",
+          "Kazuma Tamiya",
+          "Hiroki Yamaguchi",
+          "Yoshiaki Hitomi",
+          "Hiroki Harada",
+          "Atsuhito Ikeda",
+          "Asako Shigeno",
+          "Rika Kurino",
+          "Asami Ohnishi",
+          "Masayuki Kikuchi",
+          "Yoshie Miyakita",
+          "et al."
+        ],
+        "categories": [
+          "Bandavirus",
+          "Japan",
+          "Phylogenetic analysis",
+          "SFTS virus",
+          "Severe fever with thrombocytopenia syndrome",
+          "Tick-borne diseases"
+        ],
+        "description": null,
+        "source_family": "pubmed",
+        "source_item_id": "42835937"
+      },
+      "source_id": "pubmed-tick-borne",
+      "registry_version": 1,
+      "organization": "U.S. National Library of Medicine",
+      "reviewed_trust_classification": "research_index"
+    },
+    {
+      "item_id": "cb9e24595e05753b4f0efe303e6fd01f3f24bd4ac4839ad1c7e110824980b2bd",
+      "revision_id": "189e7d39afc4b425493824b59a88fe983e63c7754b6daba34323abbe5021f442",
+      "title": "A universal strategy for enhancing TtAgo-Mediated nucleic acid detection via 2'-O-methyl guide DNA modification: Ultrasensitive and specific identification of African swine fever virus.",
+      "canonical_url": "https://pubmed.ncbi.nlm.nih.gov/42801801/",
+      "published_at": "2027-01-01T00:00:00Z",
+      "fetched_at": "2026-10-26T10:28:50Z",
+      "provenance": {
+        "artifact_id": "entrez-19f4a3ae-6e14-5184-adef-382eaa78e778",
+        "artifact_sha256": "9bec0470127404af78b56d80b260aa51fb587ddb32eea40a66b0cf291a4c1d60",
+        "fetch_version": "entrez-eutils-v1",
+        "normalization_version": "intelligence-identity-v2",
+        "parser_version": "entrez-efetch-v1",
+        "run_id": "19f4a3ae-6e14-5184-adef-382eaa78e778"
+      },
+      "limitations": [
+        "Publication-level intelligence; not an epidemiological measurement"
+      ],
+      "contract_version": "2.0.0",
+      "publication_date_state": "present",
+      "publisher": "U.S. National Library of Medicine",
+      "publisher_feed": {
+        "abstract": null,
+        "abstract_suppressed": null,
+        "authors": [
+          "Xu Xu",
+          "Limin Cao",
+          "Dongxia Zheng",
+          "Shengqiang Ge",
+          "Yuanyuan Zuo",
+          "Jin Cui",
+          "Jianxin Sui",
+          "Kaiqiang Wang",
+          "Jinming Li",
+          "Zhiliang Wang",
+          "Xiudan Wang"
+        ],
+        "categories": [],
+        "description": null,
+        "source_family": "pubmed",
+        "source_item_id": "42801801"
+      },
+      "source_id": "pubmed-tick-borne",
+      "registry_version": 1,
+      "organization": "U.S. National Library of Medicine",
+      "reviewed_trust_classification": "research_index"
+    }
+  ]
+}
