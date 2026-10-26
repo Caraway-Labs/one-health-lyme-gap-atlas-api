@@ -111,7 +111,7 @@ class ProjectionProvenance(BriefingModel):
     run_id: Token
     artifact_id: Token
     artifact_sha256: Digest
-    parser_version: Literal["rss-atom-native-v2"]
+    parser_version: Literal["rss-atom-native-v2", "entrez-efetch-v1"]
     fetch_version: Token
     normalization_version: Literal["intelligence-identity-v2"]
 

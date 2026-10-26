@@ -14459,7 +14459,10 @@
           },
           "parser_version": {
             "type": "string",
-            "const": "rss-atom-native-v2",
+            "enum": [
+              "rss-atom-native-v2",
+              "entrez-efetch-v1"
+            ],
             "title": "Parser Version"
           },
           "fetch_version": {
