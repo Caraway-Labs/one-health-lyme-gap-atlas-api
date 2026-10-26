@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from _feed_skip import assert_row_skipped, skip_log
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from test_intelligence_feed_read import Repository
@@ -134,9 +135,28 @@ def test_parser_version_allowlist_rejects_other_values(parser_version: str) -> N
         ProjectionProvenance.model_validate(provenance)
 
 
-def test_unknown_parser_version_still_fails_closed_without_disclosure() -> None:
+def test_unknown_parser_version_row_is_omitted_without_disclosure() -> None:
     documents = _documents()
     documents[0]["provenance"]["parser_version"] = "private-parser-value"
+    with skip_log() as log:
+        response = _client(PubMedRepository(documents)).get("/v1/intelligence/feed")
+    assert response.status_code == 200
+    assert "private-parser-value" not in response.text
+    assert [entry["item_id"] for entry in response.json()["data"]] == [documents[1]["item_id"]]
+    assert_row_skipped(
+        log,
+        route="feed",
+        item_id=documents[0]["item_id"],
+        source_id=documents[0]["source_id"],
+        field="provenance.parser_version",
+        forbidden=("private-parser-value",),
+    )
+
+
+def test_unknown_parser_version_on_every_row_still_fails_closed() -> None:
+    documents = _documents()
+    for document in documents:
+        document["provenance"]["parser_version"] = "private-parser-value"
     response = _client(PubMedRepository(documents)).get("/v1/intelligence/feed")
     assert response.status_code == 503
     assert "private-parser-value" not in response.text
