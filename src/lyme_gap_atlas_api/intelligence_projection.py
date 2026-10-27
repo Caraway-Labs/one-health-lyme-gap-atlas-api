@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import ipaddress
 import re
-from typing import Annotated, Literal, Self
+from typing import Annotated, Final, Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, StrictBool, ValidationError, model_validator
 
 from .briefings import (
     BriefingModel,
@@ -90,6 +90,102 @@ class PublisherMedia(BriefingModel):
         return self
 
 
+_PlainLabel = r"^[^<>\x00-\x1f\x7f]*$"
+
+
+class StoredPublisherDescription(BriefingModel):
+    """FEED_V2 description object. Text and state rules are the /feed ones."""
+
+    text: str | None
+    state: Literal["present", "empty", "not_provided"]
+    format: Literal["plain_text"]
+    origin: Literal["publisher"]
+
+    @model_validator(mode="after")
+    def feed_text_rules(self) -> Self:
+        from .intelligence_feed import FeedDescription
+
+        try:
+            FeedDescription.model_validate({"text": self.text, "state": self.state})
+        except ValidationError:
+            # The row text is not repeated in the error.
+            raise ValueError("INTELLIGENCE_PUBLISHER_DESCRIPTION_INVALID") from None
+        return self
+
+
+class StoredPubMedAbstract(BriefingModel):
+    """FEED_V2 abstract object. Text, state and copyright rules are the /feed ones.
+
+    A V175 suppression replaces the object with text, state and copyright_line
+    only, so attribution and policy_url may be absent, but never different.
+    """
+
+    text: str | None
+    state: Literal["present", "not_provided", "suppressed", "withheld"]
+    copyright_line: str | None
+    attribution: Literal["Courtesy of the U.S. National Library of Medicine"] = (
+        "Courtesy of the U.S. National Library of Medicine"
+    )
+    policy_url: Literal["https://www.ncbi.nlm.nih.gov/home/about/policies/"] = (
+        "https://www.ncbi.nlm.nih.gov/home/about/policies/"
+    )
+
+    @model_validator(mode="after")
+    def feed_text_rules(self) -> Self:
+        from .intelligence_feed import FeedAbstract
+
+        try:
+            FeedAbstract.model_validate(
+                {"text": self.text, "state": self.state, "copyright_line": self.copyright_line}
+            )
+        except ValidationError:
+            raise ValueError("INTELLIGENCE_PUBLISHER_ABSTRACT_INVALID") from None
+        return self
+
+
+class PublisherMeshHeading(BriefingModel):
+    name: Annotated[str, Field(min_length=1, max_length=1000, pattern=_PlainLabel)]
+    ui: Annotated[str, Field(pattern=r"^[A-Z][0-9]{6}$")]
+
+
+MatchedQuery = Literal["pubmed-tick-borne", "pubmed-lyme-borrelia"]
+
+
+class FeedV2PublisherViewOnly(BriefingModel):
+    """publisher_metadata keys added by the FEED_V2 view (data V173 and V175).
+
+    Each may be missing or null. They are checked strictly and never returned.
+    """
+
+    description: StoredPublisherDescription | None = None
+    abstract: StoredPubMedAbstract | None = None
+    abstract_suppressed: StrictBool | None = None
+    mesh: Annotated[tuple[PublisherMeshHeading, ...], Field(max_length=50)] | None = None
+    publication_types: (
+        Annotated[
+            tuple[Annotated[str, Field(min_length=1, max_length=256, pattern=_PlainLabel)], ...],
+            Field(max_length=50),
+        ]
+        | None
+    ) = None
+    matched_queries: Annotated[tuple[MatchedQuery, ...], Field(max_length=2)] | None = None
+
+    @model_validator(mode="after")
+    def distinct_matched_queries(self) -> Self:
+        if self.matched_queries is not None and len(set(self.matched_queries)) != len(
+            self.matched_queries
+        ):
+            raise ValueError("INTELLIGENCE_PUBLISHER_MATCHED_QUERIES_INVALID")
+        return self
+
+
+FEED_V2_VIEW_ONLY_KEYS: Final[frozenset[str]] = frozenset(FeedV2PublisherViewOnly.model_fields)
+
+
+# The FEED_V2 view also carries description, abstract, abstract_suppressed, mesh,
+# publication_types and matched_queries. PublisherMetadata validates them strictly
+# and then drops them, so they are not returned and not in the schema. Any other
+# key is still rejected. (A class docstring would become a schema description.)
 class PublisherMetadata(BriefingModel):
     publisher: Text | None
     source_family: Literal[
@@ -101,6 +197,22 @@ class PublisherMetadata(BriefingModel):
     language: Annotated[str, Field(max_length=64, pattern=r"^[^<>\x00-\x1f]*$")] | None
     media: Annotated[tuple[PublisherMedia, ...], Field(max_length=100)]
     date_states: PublisherDateStates
+
+    @model_validator(mode="before")
+    @classmethod
+    def view_only_keys(cls, data: object) -> object:
+        """Validate the FEED_V2 keys this contract does not return, then drop them."""
+        if not isinstance(data, dict):
+            return data
+        present = {key: data[key] for key in FEED_V2_VIEW_ONLY_KEYS if key in data}
+        if not present:
+            return data
+        try:
+            FeedV2PublisherViewOnly.model_validate(present)
+        except ValidationError:
+            # Field values come from an untrusted row and are not repeated.
+            raise ValueError("INTELLIGENCE_PUBLISHER_METADATA_INVALID") from None
+        return {key: value for key, value in data.items() if key not in FEED_V2_VIEW_ONLY_KEYS}
 
 
 class DerivedMetadata(BriefingModel):
