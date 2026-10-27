@@ -538,9 +538,22 @@ def test_feed_description_states_the_current_order() -> None:
     description = create_app(settings=ApiSettings()).first_party_openapi()["paths"][
         "/v1/intelligence/feed"
     ]["get"]["description"]
-    assert "Entries with a publisher date are newest first." in description
-    assert "Entries with an unknown publisher date are last." in description
-    assert "stable tie-break" in description
+    assert "Entries are newest first by sort time." in description
+    assert (
+        "An entry's sort time is its publisher date, or the time Atlas first loaded the item "
+        "when the publisher date is unknown or later than that time." in description
+    )
+    assert "Entries without a sort time are last." in description
+    assert (
+        "Entries with the same sort time use a stable tie-break of item id, revision id, "
+        "source id, and registry version" in description
+    )
+    assert "the sort time is not returned" in description
+    assert (
+        "When sort times are not available, entries with a publisher date are newest first "
+        "and entries with an unknown publisher date are last" in description
+    )
+    assert "Entries with a publisher date are newest first." not in description
 
 
 def test_column_lookup_is_shared_cached_and_expires(monkeypatch: pytest.MonkeyPatch) -> None:
