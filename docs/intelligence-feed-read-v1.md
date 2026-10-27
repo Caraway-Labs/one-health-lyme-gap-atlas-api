@@ -48,10 +48,15 @@ abstract longer than 6,000 characters, is withheld on that entry; the response
 for the rest of the page is unchanged. The log records how many of those texts
 were withheld and does not record the text. Missing, invalid, or withheld
 publication dates remain null; fetch time never substitutes for them. Inclusive
-publication filters exclude unknown dates. Entries with a publisher date are
-newest first. Entries with an unknown publisher date are last. Matching
-publisher dates use a stable tie-break of item id, revision id, source id, and
-registry version. An entry that cannot be projected safely is omitted from the
+publication filters exclude unknown dates. Entries are newest first by sort
+time. An entry's sort time is its publisher date, or the time Atlas first loaded
+the item when the publisher date is unknown or later than that time. Entries
+without a sort time are last. Entries with the same sort time use a stable
+tie-break of item id, revision id, source id, and registry version, so paging is
+stable. Each entry shows its own `published_at`, null when unknown, and its
+`publication_date_state`; the sort time is not returned. When sort times are not
+available, entries with a publisher date are newest first and entries with an
+unknown publisher date are last, with the same tie-break. An entry that cannot be projected safely is omitted from the
 list, never served in part, so a page can contain fewer than `page_size`
 entries; keep following `next_page_token` until it is null. Each omitted entry
 is logged as `intelligence_feed_row_skipped` with its item id, source id and the
