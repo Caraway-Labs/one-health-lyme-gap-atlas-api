@@ -71,6 +71,9 @@ ABSTRACT_PREVIEW_MAX_LENGTH: Final[int] = 1000
 _PREVIEW_TRAILING = ".,;:!?\"'`“”‘’…"
 # The governed view does not project this column yet. Select it only when it exists.
 _ABSTRACT_SUPPRESSED_COLUMN = "ABSTRACT_SUPPRESSED"
+# data#871 sort time. Ordered by only when the governed view has it; never selected.
+_FEED_SORT_AT_COLUMN = "FEED_SORT_AT"
+_OPTIONAL_FEED_COLUMNS: Final[tuple[str, ...]] = (_ABSTRACT_SUPPRESSED_COLUMN, _FEED_SORT_AT_COLUMN)
 
 ITEM_COLUMNS = (
     "item_id",
@@ -109,6 +112,11 @@ FEED_LIST_ORDER = (
     "IFF(FIELD_STATES:published_at::VARCHAR = 'present', 0, 1), "
     "TRY_TO_TIMESTAMP_TZ(PUBLISHED_AT) DESC NULLS LAST, "
     "ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION"
+)
+# When the view has FEED_SORT_AT: its publisher date, or its first-loaded time when the
+# publisher date is missing or later than that, newest first, then the same tie-break.
+FEED_SORT_AT_ORDER = (
+    f"{_FEED_SORT_AT_COLUMN} DESC NULLS LAST, ITEM_ID, REVISION_ID, SOURCE_ID, REGISTRY_VERSION"
 )
 # data#815 column names. The view is not in PROD yet; this mapping is the only
 # place those names are spelled. last_status and items_current are not selected.
@@ -955,7 +963,7 @@ class _HealthCache:
 @dataclass(frozen=True)
 class _ColumnPresenceCache:
     expires_at: float
-    present: bool
+    columns: frozenset[str]
 
 
 class _UtcValue(BriefingModel):
@@ -1103,41 +1111,53 @@ class SnowflakeFeedRepository:
         return columns
 
     def _abstract_suppressed_column_present(self, cursor: Any) -> bool:
-        """Return whether ABSTRACT_SUPPRESSED exists, without a lookup on every read.
+        return _ABSTRACT_SUPPRESSED_COLUMN in self._optional_feed_columns(cursor)
 
-        A successful answer is cached for 300 seconds. A failed lookup is cached
-        as absent for 60 seconds and does not raise.
+    def _optional_feed_columns(self, cursor: Any) -> frozenset[str]:
+        """Return which optional FEED_V2 columns exist, without a lookup on every read.
+
+        One lookup answers for ABSTRACT_SUPPRESSED and FEED_SORT_AT. A successful
+        answer is cached for 300 seconds. A failed lookup is cached as "neither
+        column" for 60 seconds and does not raise.
         """
 
         with self._suppressed_column_lock:
             now = self._clock()
             cached = self._suppressed_column_cache
             if cached is not None and cached.expires_at > now:
-                return cached.present
+                return cached.columns
             try:
-                present = self._query_abstract_suppressed_column(cursor)
+                columns = self._query_optional_feed_columns(cursor)
             except Exception:
                 self._suppressed_column_cache = _ColumnPresenceCache(
                     expires_at=now + ABSTRACT_SUPPRESSED_COLUMN_NEGATIVE_CACHE_TTL_SECONDS,
-                    present=False,
+                    columns=frozenset(),
                 )
-                return False
+                return frozenset()
             self._suppressed_column_cache = _ColumnPresenceCache(
                 expires_at=now + ABSTRACT_SUPPRESSED_COLUMN_CACHE_TTL_SECONDS,
-                present=present,
+                columns=columns,
             )
-            return present
+            return columns
 
-    def _query_abstract_suppressed_column(self, cursor: Any) -> bool:
+    def _forget_optional_feed_columns(self) -> None:
+        with self._suppressed_column_lock:
+            self._suppressed_column_cache = None
+
+    def _query_optional_feed_columns(self, cursor: Any) -> frozenset[str]:
         database = _sql_identifier(self.settings.presentation_database)
         cursor.execute(
-            f"SELECT COLUMN_NAME FROM {database}.INFORMATION_SCHEMA.COLUMNS "
+            "SELECT LISTAGG(COLUMN_NAME, ',') WITHIN GROUP (ORDER BY COLUMN_NAME) "
+            f"FROM {database}.INFORMATION_SCHEMA.COLUMNS "
             "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'INTELLIGENCE_FEED_V2' "
-            "AND COLUMN_NAME = %s",
-            (self.settings.snowflake_presentation_schema, _ABSTRACT_SUPPRESSED_COLUMN),
+            "AND COLUMN_NAME IN (%s, %s)",
+            (self.settings.snowflake_presentation_schema, *_OPTIONAL_FEED_COLUMNS),
             timeout=self.settings.public_query_timeout_seconds,
         )
-        return cursor.fetchone() is not None
+        row = cursor.fetchone()
+        if not row or not isinstance(row[0], str):
+            return frozenset()
+        return frozenset(row[0].split(",")) & frozenset(_OPTIONAL_FEED_COLUMNS)
 
     def _allowed_database(self) -> None:
         if self.settings.presentation_database not in {
@@ -1243,7 +1263,10 @@ class SnowflakeFeedRepository:
                         "QUERY_TOO_BROAD", "Narrow the source or publication dates."
                     )
                 if kind == "feed":
-                    suppressed_column = self._abstract_suppressed_column_present(cursor)
+                    optional = self._optional_feed_columns(cursor)
+                    suppressed_column = _ABSTRACT_SUPPRESSED_COLUMN in optional
+                    if _FEED_SORT_AT_COLUMN in optional:
+                        order = FEED_SORT_AT_ORDER
                     statement = (
                         f"SELECT {self._feed_column_sql(suppressed_column)} FROM {view}{where} "
                         f"ORDER BY {order} LIMIT %s OFFSET %s"
@@ -1261,11 +1284,17 @@ class SnowflakeFeedRepository:
                     raise AtlasDataUnavailableError(UNAVAILABLE)
             if kind == "feed":
                 rows = [_pack_feed_row(row, suppressed_column) for row in rows]
-            marker = hashlib.sha256(json.dumps(before, default=str).encode()).hexdigest()
+            # The order is part of the projection state, so a token from the other
+            # order is rejected as "Projection changed; restart pagination."
+            state: Any = before if order != FEED_SORT_AT_ORDER else [before, order]
+            marker = hashlib.sha256(json.dumps(state, default=str).encode()).hexdigest()
             return marker, rows
         except PublicQueryError:
             raise
         except Exception:
+            if order == FEED_SORT_AT_ORDER:
+                # The column may have gone; look again on the next read.
+                self._forget_optional_feed_columns()
             raise AtlasDataUnavailableError(UNAVAILABLE) from None
 
     def read_item(self, item_id: str) -> list[tuple[Any, ...]]:
